@@ -634,27 +634,27 @@ public class SystemInfoService {
         }
 
         // host -> BE list
-        Map<String, List<Backend>> backendMaps = Maps.newHashMap();
-        for (Backend backend : srcBackends) {
-            // If needAvailable is true, unavailable backend won't go into the pick list
-            if (needAvailable && !backend.isAvailable()) {
-                continue;
-            }
-
-            if (backendMaps.containsKey(backend.getHost())) {
-                backendMaps.get(backend.getHost()).add(backend);
-            } else {
-                List<Backend> list = Lists.newArrayList();
-                list.add(backend);
-                backendMaps.put(backend.getHost(), list);
-            }
-        }
-
-        // if more than one backend exists in same host, select a backend at random
         List<Backend> backends = Lists.newArrayList();
-        for (List<Backend> list : backendMaps.values()) {
-            Collections.shuffle(list);
-            backends.add(list.get(0));
+        if (false) {
+            // host -> BE list
+            Map<String, List<Backend>> backendMaps = Maps.newHashMap();
+            for (Backend backend : srcBackends) {
+                if (backendMaps.containsKey(backend.getHost())) {
+                    backendMaps.get(backend.getHost()).add(backend);
+                } else {
+                    List<Backend> list = Lists.newArrayList();
+                    list.add(backend);
+                    backendMaps.put(backend.getHost(), list);
+                }
+            }
+
+            // if more than one backend exists in same host, select a backend at random
+            for (List<Backend> list : backendMaps.values()) {
+                Collections.shuffle(list);
+                backends.add(list.get(0));
+            }
+        } else {
+            backends = srcBackends;
         }
 
         List<Long> backendIds = Lists.newArrayList();

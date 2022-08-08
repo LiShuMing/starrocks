@@ -6,6 +6,7 @@
 
 #include "column/array_column.h"
 #include "column/binary_column.h"
+#include "column/column_helper.h"
 #include "column/column_visitor.h"
 #include "column/const_column.h"
 #include "column/decimalv3_column.h"
@@ -230,6 +231,38 @@ PARALLEL_TEST(ColumnArraySerdeTest, array_column) {
     ASSERT_EQ(buffer.data() + buffer.size(), ColumnArraySerde::deserialize(buffer.data(), c2.get()));
     ASSERT_EQ("[1, 2, 3]", c2->debug_item(0));
     ASSERT_EQ("[4, 5, 6]", c2->debug_item(1));
+}
+
+// NOLINTNEXTLINE
+PARALLEL_TEST(ColumnArraySerdeTest, timestatmp_empty_array) {
+    // std::vector<Slice> strings{{"bbb"}, {"bbc"}, {"ccc"}};
+    {
+        // auto c1 = vectorized::TimestampColumn::create();
+        // auto c2 = vectorized::TimestampColumn::create();
+        // c1->append_nulls(2);
+        // c2->append_nulls(2);
+
+        // std::vector<uint8_t> buffer;
+        // buffer.resize(ColumnArraySerde::max_serialized_size(*c1));
+        // ASSERT_EQ(buffer.data() + buffer.size(), ColumnArraySerde::serialize(*c1, buffer.data()));
+        // ASSERT_EQ(buffer.data() + buffer.size(), ColumnArraySerde::deserialize(buffer.data(), c2.get()));
+        // ASSERT_EQ(c1->size(), 2);
+        // ASSERT_EQ(c2->size(), 2);
+    }
+    {
+
+        TypeDescriptor ret(TYPE_DATETIME);
+        auto c1 = vectorized::ColumnHelper::create_column(ret, true, false, 1);
+        auto c2 = vectorized::ColumnHelper::create_column(ret, true, false, 1);
+        // c1->append_nulls(2);
+        // c2->append_nulls(2);
+        std::vector<uint8_t> buffer;
+        buffer.resize(ColumnArraySerde::max_serialized_size(*c1));
+        ASSERT_EQ(buffer.data() + buffer.size(), ColumnArraySerde::serialize(*c1, buffer.data()));
+        ASSERT_EQ(buffer.data() + buffer.size(), ColumnArraySerde::deserialize(buffer.data(), c2.get()));
+        ASSERT_EQ(c1->size(), 1);
+        ASSERT_EQ(c2->size(), 1);
+    }
 }
 
 } // namespace starrocks::serde

@@ -344,8 +344,9 @@ public:
         return _hash_partition_bf[bucket_idx].test_hash(hash);
     }
 
-    void compute_hash_values_for_multi_part(RunningContext* running_ctx, int8_t join_mode, const std::vector<Column*>& columns,
-                                            size_t num_rows, std::vector<uint32_t>& hash_values) const {
+    void compute_hash_values_for_multi_part(RunningContext* running_ctx, int8_t join_mode,
+                                            const std::vector<Column*>& columns, size_t num_rows,
+                                            std::vector<uint32_t>& hash_values) const {
         typedef void (Column::*HashFuncType)(uint32_t*, uint32_t, uint32_t) const;
 
         auto compute_hash = [&columns, &num_rows, &hash_values, this](HashFuncType hash_func,

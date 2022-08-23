@@ -186,7 +186,8 @@ void Operator::_init_rf_counters(bool init_bloom) {
     }
     if (init_bloom && _bloom_filter_eval_context.join_runtime_filter_timer == nullptr) {
         _bloom_filter_eval_context.join_runtime_filter_timer = ADD_TIMER(_common_metrics, "JoinRuntimeFilterTime");
-        _bloom_filter_eval_context.join_runtime_filter_hash_timer = ADD_TIMER(_common_metrics, "JoinRuntimeFilterHashTime");
+        _bloom_filter_eval_context.join_runtime_filter_hash_timer =
+                ADD_TIMER(_common_metrics, "JoinRuntimeFilterHashTime");
         _bloom_filter_eval_context.join_runtime_filter_input_counter =
                 ADD_COUNTER(_common_metrics, "JoinRuntimeFilterInputRows", TUnit::UNIT);
         _bloom_filter_eval_context.join_runtime_filter_output_counter =

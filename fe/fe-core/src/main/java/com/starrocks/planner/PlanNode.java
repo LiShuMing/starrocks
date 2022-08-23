@@ -726,9 +726,7 @@ abstract public class PlanNode extends TreeNode<PlanNode> {
     public void checkRuntimeFilterOnNullValue(RuntimeFilterDescription description, Expr probeExpr) {
     }
 
-    public boolean canPushDownRuntimeFilterOnDataExchange(RuntimeFilterDescription description, Expr probeExpr) {
-        DataPartition dataPartition = fragment_.getDataPartition();
-        assert(dataPartition != null);
+    public boolean canPushDownRuntimeFilterCrossExchange(RuntimeFilterDescription description, Expr probeExpr, DataPartition dataPartition) {
         // broadcast or only one RF, always can be cross exchange
         if (description.isBroadcastJoin() || description.getEqualCount() == 1) {
             return true;
@@ -737,7 +735,7 @@ abstract public class PlanNode extends TreeNode<PlanNode> {
             Expr pExpr = dataPartition.getPartitionExprs().get(0);
             if (probeExpr instanceof SlotRef && pExpr instanceof SlotRef &&
                     ((SlotRef) probeExpr).getSlotId().asInt() == ((SlotRef) pExpr).getSlotId().asInt()) {
-                        return true;
+                return true;
             }
         }
 
@@ -755,18 +753,12 @@ abstract public class PlanNode extends TreeNode<PlanNode> {
                 return false;
             }
         }
-        description.setPartitionByExprs(dataPartition);
         // NOTE: No need check: probeExpr's slot id is in the dataExchange's slots.
         return true;
     }
 
     public boolean pushDownRuntimeFilters(RuntimeFilterDescription description, Expr probeExpr) {
         if (!canPushDownRuntimeFilter()) {
-            return false;
-        }
-
-        if (!canPushDownRuntimeFilterOnDataExchange(description, probeExpr)) {
-            description.setPartitionByExprs(null);
             return false;
         }
 

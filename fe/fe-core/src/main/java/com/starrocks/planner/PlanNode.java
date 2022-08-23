@@ -726,17 +726,9 @@ abstract public class PlanNode extends TreeNode<PlanNode> {
     public void checkRuntimeFilterOnNullValue(RuntimeFilterDescription description, Expr probeExpr) {
     }
 
-    public boolean canPushDownRuntimeFilterCrossExchange(RuntimeFilterDescription description, Expr probeExpr, DataPartition dataPartition) {
-        // broadcast or only one RF, always can be cross exchange
-        if (description.isBroadcastJoin() || description.getEqualCount() == 1) {
+    public boolean canPushDownMultiColumnsOnGlobalRuntimeFilter(RuntimeFilterDescription description, Expr probeExpr, DataPartition dataPartition) {
+        if (dataPartition.getPartitionExprs().size() <= 1) {
             return true;
-        } else if (description.getEqualCount() > 1 && dataPartition.getPartitionExprs().size() == 1) {
-            // RF nums > 1 and only partition by one column, only send the RF which RF's column equals partition column
-            Expr pExpr = dataPartition.getPartitionExprs().get(0);
-            if (probeExpr instanceof SlotRef && pExpr instanceof SlotRef &&
-                    ((SlotRef) probeExpr).getSlotId().asInt() == ((SlotRef) pExpr).getSlotId().asInt()) {
-                return true;
-            }
         }
 
         if (!ConnectContext.get().getSessionVariable().isEnableMultiColumnsOnGlobbalRuntimeFilter()) {

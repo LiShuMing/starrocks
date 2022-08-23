@@ -2,6 +2,7 @@
 
 package com.starrocks.planner;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.starrocks.analysis.Expr;
 import com.starrocks.qe.SessionVariable;
@@ -46,6 +47,9 @@ public class RuntimeFilterDescription {
     private boolean onlyLocal;
 
     private List<Integer> bucketSeqToInstance = Lists.newArrayList();
+    // partitionByExprs are used for computing partition ids in probe side when
+    // join's equal conjuncts size > 1.
+    private DataPartition partitionByExprs;
 
     public RuntimeFilterDescription(SessionVariable sv) {
         nodeIdToProbeExpr = new HashMap<>();
@@ -220,6 +224,14 @@ public class RuntimeFilterDescription {
         this.broadcastGRFDestinations = broadcastGRFDestinations;
     }
 
+    public DataPartition getPartitionByExprs() {
+        return partitionByExprs;
+    }
+
+    public void setPartitionByExprs(DataPartition partitionByExprs) {
+        this.partitionByExprs = partitionByExprs;
+    }
+
     public String toExplainString(int probeNodeId) {
         StringBuilder sb = new StringBuilder();
         sb.append("filter_id = ").append(filterId);
@@ -273,7 +285,9 @@ public class RuntimeFilterDescription {
         } else if (joinMode.equals(JoinNode.DistributionMode.REPLICATED)) {
             t.setBuild_join_mode(TRuntimeFilterBuildJoinMode.REPLICATED);
         }
-
+        if (partitionByExprs != null && partitionByExprs.getPartitionExprs() != null) {
+            t.setPartition_by_exprs(Expr.treesToThrift(partitionByExprs.getPartitionExprs()));
+        }
         return t;
     }
 

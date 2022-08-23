@@ -29,11 +29,13 @@ import com.starrocks.analysis.Analyzer;
 import com.starrocks.analysis.Expr;
 import com.starrocks.analysis.ExprSubstitutionMap;
 import com.starrocks.analysis.SlotId;
+import com.starrocks.analysis.SlotRef;
 import com.starrocks.analysis.TupleDescriptor;
 import com.starrocks.analysis.TupleId;
 import com.starrocks.common.AnalysisException;
 import com.starrocks.common.TreeNode;
 import com.starrocks.common.UserException;
+import com.starrocks.qe.ConnectContext;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.statistics.ColumnStatistic;
 import com.starrocks.sql.optimizer.statistics.Statistics;
@@ -724,8 +726,47 @@ abstract public class PlanNode extends TreeNode<PlanNode> {
     public void checkRuntimeFilterOnNullValue(RuntimeFilterDescription description, Expr probeExpr) {
     }
 
+    public boolean canPushDownRuntimeFilterOnDataExchange(RuntimeFilterDescription description, Expr probeExpr) {
+        DataPartition dataPartition = fragment_.getDataPartition();
+        assert(dataPartition != null);
+        // broadcast or only one RF, always can be cross exchange
+        if (description.isBroadcastJoin() || description.getEqualCount() == 1) {
+            return true;
+        } else if (description.getEqualCount() > 1 && dataPartition.getPartitionExprs().size() == 1) {
+            // RF nums > 1 and only partition by one column, only send the RF which RF's column equals partition column
+            Expr pExpr = dataPartition.getPartitionExprs().get(0);
+            if (probeExpr instanceof SlotRef && pExpr instanceof SlotRef &&
+                    ((SlotRef) probeExpr).getSlotId().asInt() == ((SlotRef) pExpr).getSlotId().asInt()) {
+                        return true;
+            }
+        }
+
+        if (!ConnectContext.get().getSessionVariable().isEnableMultiColumnsOnGlobbalRuntimeFilter()) {
+            return false;
+        }
+
+        if (!(probeExpr instanceof SlotRef)) {
+            return false;
+        }
+        // If exchange exprs are slot refs, return false.
+        // If exchange exprs are not the outputs of the PlanNode, return false.
+        for (Expr pExpr: dataPartition.getPartitionExprs()) {
+            if (!(pExpr instanceof SlotRef && pExpr.isBoundByTupleIds(getTupleIds()))) {
+                return false;
+            }
+        }
+        description.setPartitionByExprs(dataPartition);
+        // NOTE: No need check: probeExpr's slot id is in the dataExchange's slots.
+        return true;
+    }
+
     public boolean pushDownRuntimeFilters(RuntimeFilterDescription description, Expr probeExpr) {
         if (!canPushDownRuntimeFilter()) {
+            return false;
+        }
+
+        if (!canPushDownRuntimeFilterOnDataExchange(description, probeExpr)) {
+            description.setPartitionByExprs(null);
             return false;
         }
 

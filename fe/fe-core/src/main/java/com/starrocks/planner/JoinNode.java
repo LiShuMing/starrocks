@@ -199,7 +199,8 @@ public abstract class JoinNode extends PlanNode implements RuntimeFilterBuildNod
                     buildRuntimeFilters.add(rf);
                 }
             } else {
-                // For cross-join, the filter could only be pushdown to left side
+                // For cross-join, the filter could only be pushed down to left side when
+                // left expr is slot ref.
                 if (!(left instanceof SlotRef)) {
                     continue;
                 }
@@ -224,8 +225,8 @@ public abstract class JoinNode extends PlanNode implements RuntimeFilterBuildNod
         }
         if (probeExpr.isBoundByTupleIds(getTupleIds())) {
             boolean hasPushedDown = false;
-            // If probeExpr is SlotRef(a), there exits an equalJoinConjunct SlotRef(a)=SlotRef(b) in SemiJoin
-            // or InnerJoin, then the rf also can pushed down to both sides of HashJoin because SlotRef(a) and
+            // If probeExpr is SlotRef(a) and an equalJoinConjunct SlotRef(a)=SlotRef(b) exists in SemiJoin
+            // or InnerJoin, then the rf also can be pushed down to both sides of HashJoin because SlotRef(a) and
             // SlotRef(b) are equivalent.
             boolean isInnerOrSemiJoin = joinOp.isSemiJoin() || joinOp.isInnerJoin();
             if ((probeExpr instanceof SlotRef) && isInnerOrSemiJoin) {
@@ -255,14 +256,13 @@ public abstract class JoinNode extends PlanNode implements RuntimeFilterBuildNod
                     }
                 }
             }
-            // fall back to PlanNode.pushDownRuntimeFilters for HJ if rf cannot pushed down via equivalent
+            // fall back to PlanNode.pushDownRuntimeFilters for HJ if rf cannot be pushed down via equivalent
             // equalJoinConjuncts
             if (hasPushedDown || super.pushDownRuntimeFilters(description, probeExpr)) {
                 return true;
             }
 
-            // can not push down to children.
-            // use runtime filter at this level.
+            // use runtime filter at this level if rf can not be pushed down to children.
             if (description.canProbeUse(this)) {
                 description.addProbeExpr(id.asInt(), probeExpr);
                 probeRuntimeFilters.add(description);

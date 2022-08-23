@@ -121,7 +121,21 @@ public:
     JoinRuntimeFilter::RunningContext* runtime_filter_ctx() { return &_runtime_filter_ctx; }
     bool is_local() const { return _is_local; }
     TPlanNodeId build_plan_node_id() const { return _build_plan_node_id; }
+    const TRuntimeFilterBuildJoinMode::type join_mode() const { return _join_mode; };
     const std::vector<int32_t>* bucketseq_to_partition() { return &_bucketseq_to_partition; }
+    const std::vector<SlotId>* partition_by_expr_ids() { return &_partition_by_expr_ids; }
+    const std::vector<ExprContext*>* partition_by_expr_contexts() { return &_partition_by_exprs_contexts; }
+    bool is_the_same_partition_by_exprs(RuntimeFilterProbeDescriptor* other) {
+        if (this->partition_by_expr_ids()->empty() || other->partition_by_expr_ids()->empty()) return false;
+        if (!(this->runtime_filter()) || !(other->runtime_filter())) return false;
+        if (*(this->partition_by_expr_ids()) != *(other->partition_by_expr_ids())) {
+            return false;
+        }
+        if (this->runtime_filter()->num_hash_partitions() != other->runtime_filter()->num_hash_partitions()) {
+            return false;
+        }
+        return true;
+    }
 
 private:
     friend class HashJoinNode;
@@ -139,6 +153,8 @@ private:
     int64_t _ready_timestamp = 0;
     TRuntimeFilterBuildJoinMode::type _join_mode;
     std::vector<int32_t> _bucketseq_to_partition;
+    std::vector<ExprContext*> _partition_by_exprs_contexts;
+    std::vector<SlotId> _partition_by_expr_ids;
 };
 
 // RuntimeFilterProbeCollector::do_evaluate function apply runtime bloom filter to Operators to filter chunk.
@@ -152,6 +168,7 @@ struct RuntimeBloomFilterEvalContext {
     int run_filter_nums = 0;
     JoinRuntimeFilter::RunningContext running_context;
     RuntimeProfile::Counter* join_runtime_filter_timer = nullptr;
+    RuntimeProfile::Counter* join_runtime_filter_hash_timer = nullptr;
     RuntimeProfile::Counter* join_runtime_filter_input_counter = nullptr;
     RuntimeProfile::Counter* join_runtime_filter_output_counter = nullptr;
     RuntimeProfile::Counter* join_runtime_filter_eval_counter = nullptr;
@@ -166,6 +183,9 @@ public:
     Status prepare(RuntimeState* state, const RowDescriptor& row_desc, RuntimeProfile* p);
     Status open(RuntimeState* state);
     void close(RuntimeState* state);
+
+    void compute_hash_values(vectorized::Chunk* chunk, Column* column, RuntimeFilterProbeDescriptor* rf_desc,
+                             RuntimeFilterProbeDescriptor* prev_rf_desc, RuntimeBloomFilterEvalContext& eval_context);
     void evaluate(vectorized::Chunk* chunk);
     void evaluate(vectorized::Chunk* chunk, RuntimeBloomFilterEvalContext& eval_context);
     void add_descriptor(RuntimeFilterProbeDescriptor* desc);
@@ -203,6 +223,9 @@ private:
     RuntimeBloomFilterEvalContext _eval_context;
     int _plan_node_id = -1;
     RuntimeState* _runtime_state = nullptr;
+    // For the same parition by exprs, no need to compute hash values multi times.
+    bool _is_all_the_same_partition_by_exprs = true;
+    RuntimeFilterProbeDescriptor* _prev_rf_desc = nullptr;
 };
 
 } // namespace vectorized

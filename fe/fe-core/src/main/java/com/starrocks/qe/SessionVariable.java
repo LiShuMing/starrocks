@@ -243,6 +243,7 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
 
     public static final String RUNTIME_FILTER_SCAN_WAIT_TIME = "runtime_filter_scan_wait_time";
     public static final String RUNTIME_FILTER_ON_EXCHANGE_NODE = "runtime_filter_on_exchange_node";
+    public static final String ENABLE_MULTI_COLUMNS_ON_GLOBAL_RUNTIME_FILTER = "multi_columns_on_global_runtime_filter";
     public static final String ENABLE_OPTIMIZER_TRACE_LOG = "enable_optimizer_trace_log";
     public static final String JOIN_IMPLEMENTATION_MODE = "join_implementation_mode";
     public static final String JOIN_IMPLEMENTATION_MODE_V2 = "join_implementation_mode_v2";
@@ -294,6 +295,9 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
 
     @VariableMgr.VarAttr(name = RUNTIME_FILTER_ON_EXCHANGE_NODE)
     private boolean runtimeFilterOnExchangeNode = false;
+
+    @VariableMgr.VarAttr(name = ENABLE_MULTI_COLUMNS_ON_GLOBAL_RUNTIME_FILTER)
+    private boolean enableMultiColumnsOnGlobalRuntimeFilter = false;
 
     @VariableMgr.VarAttr(name = ENABLE_RESOURCE_GROUP)
     private boolean enableResourceGroup = false;
@@ -1082,6 +1086,18 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
 
     public boolean isRuntimeFilterOnExchangeNode() {
         return runtimeFilterOnExchangeNode;
+    }
+
+    public void setEnableRuntimeFilterOnExchangeNode(boolean value) {
+        this.runtimeFilterOnExchangeNode = value;
+    }
+
+    public boolean isEnableMultiColumnsOnGlobbalRuntimeFilter() {
+        return enableMultiColumnsOnGlobalRuntimeFilter;
+    }
+
+    public void setEnableMultiColumnsOnGlobbalRuntimeFilter(boolean value) {
+        this.enableMultiColumnsOnGlobalRuntimeFilter = value;
     }
 
     public boolean isEnableQueryDebugTrace() {

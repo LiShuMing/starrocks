@@ -86,6 +86,7 @@ public class ReplayFromDumpTest {
         SessionVariable sessionVariable = VariableMgr.newSessionVariable();
         sessionVariable.setMaxTransformReorderJoins(8);
         sessionVariable.setEnableGlobalRuntimeFilter(true);
+        sessionVariable.setEnableMultiColumnsOnGlobbalRuntimeFilter(true);
         return sessionVariable;
     }
 

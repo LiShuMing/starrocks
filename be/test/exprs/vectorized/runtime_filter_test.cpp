@@ -141,6 +141,7 @@ TEST_F(RuntimeFilterTest, TestJoinRuntimeFilter) {
     ctx.use_merged_selection = false;
     auto& selection = ctx.selection;
     selection.assign(column->size(), 1);
+    rf->compute_hash({column.get()}, &ctx);
     rf->evaluate(column.get(), &ctx);
     chunk.filter(selection);
     // 0 17 34 ... 187
@@ -415,6 +416,7 @@ void test_grf_helper_template(size_t num_rows, size_t num_partitions, PartitionB
         running_ctx.selection.assign(num_rows, 1);
         running_ctx.use_merged_selection = false;
         running_ctx.compatibility = compatibility;
+        grf.compute_hash({column.get()}, &running_ctx);
         grf.evaluate(column.get(), &running_ctx);
         auto true_count = SIMD::count_nonzero(running_ctx.selection.data(), num_rows);
         ASSERT_EQ(true_count, num_rows);
@@ -424,6 +426,7 @@ void test_grf_helper_template(size_t num_rows, size_t num_partitions, PartitionB
         auto negative_column = gen_random_binary_column(alphabet1, 100, negative_num_rows);
         running_ctx.selection.assign(negative_num_rows, 1);
         running_ctx.use_merged_selection = false;
+        grf.compute_hash({negative_column.get()}, &running_ctx);
         grf.evaluate(negative_column.get(), &running_ctx);
         auto true_count = SIMD::count_nonzero(running_ctx.selection.data(), negative_num_rows);
         ASSERT_LE((double)true_count / negative_num_rows, 0.5);

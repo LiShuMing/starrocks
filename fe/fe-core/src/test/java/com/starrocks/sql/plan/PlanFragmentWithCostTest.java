@@ -707,6 +707,32 @@ public class PlanFragmentWithCostTest extends PlanTestBase {
     }
 
     @Test
+    public void testPushMultiColumnRuntimeFiltersCrossDataExchange() throws Exception {
+        GlobalStateMgr globalStateMgr = connectContext.getGlobalStateMgr();
+        connectContext.getSessionVariable().setEnableMultiColumnsOnGlobbalRuntimeFilter(true);
+        connectContext.getSessionVariable().setGlobalRuntimeFilterBuildMaxSize(0);
+        connectContext.getSessionVariable().setGlobalRuntimeFilterProbeMinSize(0);
+
+        OlapTable t0 = (OlapTable) globalStateMgr.getDb("test").getTable("t0");
+        setTableStatistics(t0, 10000000L);
+
+        OlapTable t1 = (OlapTable) globalStateMgr.getDb("test").getTable("t1");
+        setTableStatistics(t1, 1000000000L);
+
+        String sql = "select * from t0 join[shuffle] t1 on t0.v2 = t1.v5 and t0.v3 = t1.v6";
+        String plan = getVerboseExplain(sql);
+        System.out.println(plan);
+
+        assertContains(plan, "  |  build runtime filters:\n" +
+                "  |  - filter_id = 0, build_expr = (5: v5), remote = true\n" +
+                "  |  - filter_id = 1, build_expr = (6: v6), remote = true");
+
+        assertContains(plan, "     probe runtime filters:\n" +
+                "     - filter_id = 0, probe_expr = (2: v2)\n" +
+                "     - filter_id = 1, probe_expr = (3: v3)");
+    }
+
+    @Test
     public void testMergeTwoAggArgTypes() throws Exception {
         String sql = "select sum(t.int_sum) from (select sum(t1c) as int_sum from test_all_type)t";
         String planFragment = getVerboseExplain(sql);

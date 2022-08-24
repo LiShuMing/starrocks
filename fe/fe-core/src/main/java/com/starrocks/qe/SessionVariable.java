@@ -929,12 +929,20 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
         enableGlobalRuntimeFilter = value;
     }
 
+    public void setGlobalRuntimeFilterBuildMaxSize(long globalRuntimeFilterBuildMaxSize) {
+        this.globalRuntimeFilterBuildMaxSize = globalRuntimeFilterBuildMaxSize;
+    }
+
     public long getGlobalRuntimeFilterBuildMaxSize() {
         return globalRuntimeFilterBuildMaxSize;
     }
 
     public long getGlobalRuntimeFilterProbeMinSize() {
         return globalRuntimeFilterProbeMinSize;
+    }
+
+    public void setGlobalRuntimeFilterProbeMinSize(long globalRuntimeFilterProbeMinSize) {
+        this.globalRuntimeFilterProbeMinSize = globalRuntimeFilterProbeMinSize;
     }
 
     public float getGlobalRuntimeFilterProbeMinSelectivity() {

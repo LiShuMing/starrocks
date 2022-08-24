@@ -714,7 +714,8 @@ TEST_F(RuntimeFilterTest, TestMultiColumnsOnRuntimeFilter_BucketJoin) {
         columns.push_back(CreateSeriesColumnInt32(100, true));
     }
 
-    return TestMultiColumnsOnRuntimeFilter(TRuntimeFilterBuildJoinMode::LOCAL_HASH_BUCKET, columns, num_rows, num_partition, {0,0, 1, 2, 2, 1});
+    return TestMultiColumnsOnRuntimeFilter(TRuntimeFilterBuildJoinMode::LOCAL_HASH_BUCKET, columns, num_rows,
+                                           num_partition, {0, 0, 1, 2, 2, 1});
 }
 
 TEST_F(RuntimeFilterTest, TestMultiColumnsOnRuntimeFilter_ShuffleJoin) {
@@ -724,7 +725,8 @@ TEST_F(RuntimeFilterTest, TestMultiColumnsOnRuntimeFilter_ShuffleJoin) {
     for (int i = 0; i < 10; i++) {
         columns.push_back(CreateSeriesColumnInt32(100, true));
     }
-    return TestMultiColumnsOnRuntimeFilter(TRuntimeFilterBuildJoinMode::PARTITIONED, columns, num_rows, num_partition, {});
+    return TestMultiColumnsOnRuntimeFilter(TRuntimeFilterBuildJoinMode::PARTITIONED, columns, num_rows, num_partition,
+                                           {});
 }
 
 } // namespace vectorized

@@ -234,22 +234,6 @@ public class ExchangeNode extends PlanNode {
         return accept;
     }
 
-    public boolean canPushDownRuntimeFilterCrossExchange(RuntimeFilterDescription description, Expr probeExpr, DataPartition dataPartition) {
-        // broadcast or only one RF, always can be cross exchange
-        if (description.isBroadcastJoin() || description.getEqualCount() == 1) {
-            return true;
-        } else if (description.getEqualCount() > 1 && dataPartition.getPartitionExprs().size() == 1) {
-            // RF nums > 1 and only partition by one column, only send the RF which RF's column equals partition column
-            Expr pExpr = dataPartition.getPartitionExprs().get(0);
-            if (probeExpr instanceof SlotRef && pExpr instanceof SlotRef &&
-                    ((SlotRef) probeExpr).getSlotId().asInt() == ((SlotRef) pExpr).getSlotId().asInt()) {
-                return true;
-            }
-        }
-
-        return canPushDownMultiColumnsOnGlobalRuntimeFilter(description, probeExpr, dataPartition);
-    }
-
     private boolean pushCrossExchange(RuntimeFilterDescription description, Expr probeExpr) {
         if (!description.canPushAcrossExchangeNode()) {
             return false;
@@ -260,19 +244,13 @@ public class ExchangeNode extends PlanNode {
         }
 
         boolean accept = false;
-        boolean multiColumnsCrossExchange = true;
         description.enterExchangeNode();
         for (PlanNode node : children) {
-            if (node.pushDownRuntimeFilters(description, probeExpr)) {
+            if (node.pushDownRuntimeFilters(description, probeExpr) && node.canPushDownRuntimeFilterCrossExchange(description, probeExpr, dataPartition)) {
                 description.setHasRemoteTargets(true);
+                description.setPartitionByExprs(dataPartition);
                 accept = true;
             }
-            if (!node.canPushDownMultiColumnsOnGlobalRuntimeFilter(description, probeExpr, dataPartition)) {
-                multiColumnsCrossExchange = false;
-            }
-        }
-        if (multiColumnsCrossExchange) {
-            description.setPartitionByExprs(dataPartition);
         }
         description.exitExchangeNode();
         return accept;

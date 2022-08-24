@@ -244,7 +244,6 @@ public class ExchangeNode extends PlanNode {
         }
 
         boolean accept = false;
-        // TODO: support push down data exchange for different children.
         int numPushDownCrossExchange = 0;
         description.enterExchangeNode();
         for (PlanNode node : children) {
@@ -254,7 +253,10 @@ public class ExchangeNode extends PlanNode {
                 numPushDownCrossExchange += 1;
             }
         }
-        if (numPushDownCrossExchange == children.size()) {
+        // TODO: support push down data exchange for different children.
+        // NOTE: dataExchange's partition_by_exprs should be bounded by the child(but when partition's size <= 1),
+        // otherwise data exchange's slot_ids cannot be probed from child.
+        if (dataPartition.getPartitionExprs().size() > 1 && numPushDownCrossExchange == children.size()) {
             description.setPartitionByExprs(dataPartition);
         }
         description.exitExchangeNode();

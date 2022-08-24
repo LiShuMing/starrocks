@@ -244,13 +244,18 @@ public class ExchangeNode extends PlanNode {
         }
 
         boolean accept = false;
+        // TODO: support push down data exchange for different children.
+        int numPushDownCrossExchange = 0;
         description.enterExchangeNode();
         for (PlanNode node : children) {
             if (node.pushDownRuntimeFilters(description, probeExpr) && node.canPushDownRuntimeFilterCrossExchange(description, probeExpr, dataPartition)) {
                 description.setHasRemoteTargets(true);
-                description.setPartitionByExprs(dataPartition);
                 accept = true;
+                numPushDownCrossExchange += 1;
             }
+        }
+        if (numPushDownCrossExchange == children.size()) {
+            description.setPartitionByExprs(dataPartition);
         }
         description.exitExchangeNode();
         return accept;

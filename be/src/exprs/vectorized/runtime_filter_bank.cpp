@@ -218,15 +218,18 @@ Status RuntimeFilterProbeDescriptor::init(ObjectPool* pool, const TRuntimeFilter
         _bucketseq_to_partition = desc.bucketseq_to_instance;
     }
 
-    if (desc.__isset.partition_by_exprs) {
-        RETURN_IF_ERROR(Expr::create_expr_trees(pool, desc.partition_by_exprs, &_partition_by_exprs_contexts));
-        for (auto ctx : _partition_by_exprs_contexts) {
-            if (!ctx->root()->is_slotref()) {
-                return Status::NotFound("partition_by_exprs only support column_ref type. node_id = " +
-                                        std::to_string(node_id));
-            } else {
-                auto ref = (vectorized::ColumnRef*)ctx->root();
-                _partition_by_expr_ids.push_back(ref->slot_id());
+    if (desc.__isset.plan_node_id_to_partition_by_exprs) {
+        const auto& it = const_cast<TRuntimeFilterDescription&>(desc).plan_node_id_to_partition_by_exprs.find(node_id);
+        if (it != desc.plan_node_id_to_partition_by_exprs.end()) {
+            RETURN_IF_ERROR(Expr::create_expr_trees(pool, it->second, &_partition_by_exprs_contexts));
+            for (auto ctx : _partition_by_exprs_contexts) {
+                if (!ctx->root()->is_slotref()) {
+                    return Status::NotFound("partition_by_exprs only support column_ref type. node_id = " +
+                                            std::to_string(node_id));
+                } else {
+                    auto ref = (vectorized::ColumnRef*)ctx->root();
+                    _partition_by_expr_ids.push_back(ref->slot_id());
+                }
             }
         }
     }

@@ -77,7 +77,7 @@ struct TRuntimeFilterDescription {
 
   // partition_by_exprs are used for computing partition ids in probe side
   // when join's equal conjuncts size > 1.
-  15: optional list<Exprs.TExpr> partition_by_exprs;
+  15: optional map<Types.TPlanNodeId, list<Exprs.TExpr>> plan_node_id_to_partition_by_exprs;
 }
 
 struct TRuntimeFilterProberParams {

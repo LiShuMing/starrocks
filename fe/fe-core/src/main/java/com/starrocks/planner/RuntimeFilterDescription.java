@@ -49,7 +49,7 @@ public class RuntimeFilterDescription {
     private List<Integer> bucketSeqToInstance = Lists.newArrayList();
     // partitionByExprs are used for computing partition ids in probe side when
     // join's equal conjuncts size > 1.
-    private DataPartition partitionByExprs;
+    private final Map<Integer, DataPartition> nodeIdToDataPartition;
 
     public RuntimeFilterDescription(SessionVariable sv) {
         nodeIdToProbeExpr = new HashMap<>();
@@ -126,6 +126,10 @@ public class RuntimeFilterDescription {
 
     public void addProbeExpr(int nodeId, Expr expr) {
         nodeIdToProbeExpr.put(nodeId, expr);
+    }
+
+    public void addDataPartition(int nodeId, DataPartition dataPartition) {
+        nodeIdToDataPartition.put(nodeId, dataPartition);
     }
 
     public void setHasRemoteTargets(boolean value) {
@@ -228,10 +232,6 @@ public class RuntimeFilterDescription {
         return partitionByExprs;
     }
 
-    public void setPartitionByExprs(DataPartition partitionByExprs) {
-        this.partitionByExprs = partitionByExprs;
-    }
-
     public String toExplainString(int probeNodeId) {
         StringBuilder sb = new StringBuilder();
         sb.append("filter_id = ").append(filterId);
@@ -285,8 +285,11 @@ public class RuntimeFilterDescription {
         } else if (joinMode.equals(JoinNode.DistributionMode.REPLICATED)) {
             t.setBuild_join_mode(TRuntimeFilterBuildJoinMode.REPLICATED);
         }
-        if (partitionByExprs != null && partitionByExprs.getPartitionExprs() != null) {
-            t.setPartition_by_exprs(Expr.treesToThrift(partitionByExprs.getPartitionExprs()));
+        for (Map.Entry<Integer, DataPartition> entry : nodeIdToDataPartition.entrySet()) {
+            if (entry.getValue() != null && entry.getValue().getPartitionExprs() != null) {
+                t.putToPlan_node_id_to_partition_by_exprs(entry.getKey(), 
+                        Expr.treesToThrift(entry.getValue().getPartitionExprs()));
+            }
         }
         return t;
     }

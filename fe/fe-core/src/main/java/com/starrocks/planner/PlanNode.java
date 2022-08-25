@@ -726,14 +726,15 @@ abstract public class PlanNode extends TreeNode<PlanNode> {
     public void checkRuntimeFilterOnNullValue(RuntimeFilterDescription description, Expr probeExpr) {
     }
 
-    public boolean canPushDownRuntimeFilterCrossExchange(RuntimeFilterDescription description, Expr probeExpr, DataPartition dataPartition) {
+    // TODO: Merge with pushDownRuntimeFilters?
+    protected boolean canPushDownRuntimeFilterCrossExchange(RuntimeFilterDescription description, Expr probeExpr, List<Expr> partitionByExprs) {
         // broadcast or only one RF, always can be cross exchange
         if (description.isBroadcastJoin() || description.getEqualCount() == 1) {
             return true;
-        } else if (description.getEqualCount() > 1 && dataPartition.getPartitionExprs().size() == 1) {
+        } else if (description.getEqualCount() > 1 && partitionByExprs.size() == 1) {
             // TODO: remove this later when multi columns on grf is default on.
             // RF nums > 1 and only partition by one column, only send the RF which RF's column equals partition column
-            Expr pExpr = dataPartition.getPartitionExprs().get(0);
+            Expr pExpr = partitionByExprs.get(0);
             if (probeExpr instanceof SlotRef && pExpr instanceof SlotRef &&
                     ((SlotRef) probeExpr).getSlotId().asInt() == ((SlotRef) pExpr).getSlotId().asInt()) {
                 return true;
@@ -747,15 +748,25 @@ abstract public class PlanNode extends TreeNode<PlanNode> {
         if (!(probeExpr instanceof SlotRef)) {
             return false;
         }
+
         // If exchange exprs are slot refs, return false.
         // If exchange exprs are not the outputs of the PlanNode, return false.
-        for (Expr pExpr: dataPartition.getPartitionExprs()) {
+        for (Expr pExpr: partitionByExprs) {
             if (!(pExpr instanceof SlotRef && pExpr.isBoundByTupleIds(getTupleIds()))) {
                 return false;
             }
         }
-        // NOTE: No need check: probeExpr's slot id is in the dataExchange's slots.
-        return true;
+
+        boolean accept = false;
+        for (PlanNode node : children) {
+            if (node.canPushDownRuntimeFilterCrossExchange(description, probeExpr, partitionByExprs)) {
+                accept = true;
+            }
+        }
+        if (description.getNodeIdToProbeExpr().containsKey(id.asInt())) {
+            description.addDataPartition(id.asInt(), partitionByExprs);
+        }
+        return accept;
     }
 
     public boolean pushDownRuntimeFilters(RuntimeFilterDescription description, Expr probeExpr) {

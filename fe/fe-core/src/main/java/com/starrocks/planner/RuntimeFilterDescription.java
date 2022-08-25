@@ -4,6 +4,7 @@ package com.starrocks.planner;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.starrocks.analysis.Expr;
 import com.starrocks.qe.SessionVariable;
 import com.starrocks.thrift.TNetworkAddress;
@@ -49,7 +50,7 @@ public class RuntimeFilterDescription {
     private List<Integer> bucketSeqToInstance = Lists.newArrayList();
     // partitionByExprs are used for computing partition ids in probe side when
     // join's equal conjuncts size > 1.
-    private final Map<Integer, DataPartition> nodeIdToDataPartition;
+    private final Map<Integer, List<Expr>> nodeIdToParitionByExprs = Maps.newHashMap();
 
     public RuntimeFilterDescription(SessionVariable sv) {
         nodeIdToProbeExpr = new HashMap<>();
@@ -128,8 +129,12 @@ public class RuntimeFilterDescription {
         nodeIdToProbeExpr.put(nodeId, expr);
     }
 
-    public void addDataPartition(int nodeId, DataPartition dataPartition) {
-        nodeIdToDataPartition.put(nodeId, dataPartition);
+    public Map<Integer, Expr> getNodeIdToProbeExpr() {
+        return nodeIdToProbeExpr;
+    }
+
+    public void addDataPartition(int nodeId, List<Expr> partitionByExprs) {
+        nodeIdToParitionByExprs.put(nodeId, partitionByExprs);
     }
 
     public void setHasRemoteTargets(boolean value) {
@@ -228,10 +233,6 @@ public class RuntimeFilterDescription {
         this.broadcastGRFDestinations = broadcastGRFDestinations;
     }
 
-    public DataPartition getPartitionByExprs() {
-        return partitionByExprs;
-    }
-
     public String toExplainString(int probeNodeId) {
         StringBuilder sb = new StringBuilder();
         sb.append("filter_id = ").append(filterId);
@@ -285,10 +286,10 @@ public class RuntimeFilterDescription {
         } else if (joinMode.equals(JoinNode.DistributionMode.REPLICATED)) {
             t.setBuild_join_mode(TRuntimeFilterBuildJoinMode.REPLICATED);
         }
-        for (Map.Entry<Integer, DataPartition> entry : nodeIdToDataPartition.entrySet()) {
-            if (entry.getValue() != null && entry.getValue().getPartitionExprs() != null) {
+        for (Map.Entry<Integer, List<Expr>> entry : nodeIdToParitionByExprs.entrySet()) {
+            if (entry.getValue() != null && entry.getValue().size() > 0) {
                 t.putToPlan_node_id_to_partition_by_exprs(entry.getKey(), 
-                        Expr.treesToThrift(entry.getValue().getPartitionExprs()));
+                        Expr.treesToThrift(entry.getValue()));
             }
         }
         return t;

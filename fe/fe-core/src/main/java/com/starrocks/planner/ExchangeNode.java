@@ -239,16 +239,16 @@ public class ExchangeNode extends PlanNode {
             return false;
         }
 
-        if (!canPushDownRuntimeFilterCrossExchange(description, probeExpr, dataPartition)) {
+        if (!canPushDownRuntimeFilterCrossExchange(description, probeExpr, dataPartition.getPartitionExprs())) {
             return false;
         }
 
         boolean accept = false;
         description.enterExchangeNode();
         for (PlanNode node : children) {
-            if (node.pushDownRuntimeFilters(description, probeExpr) && node.canPushDownRuntimeFilterCrossExchange(description, probeExpr, dataPartition)) {
+            if (node.pushDownRuntimeFilters(description, probeExpr) && 
+                    node.canPushDownRuntimeFilterCrossExchange(description, probeExpr, dataPartition.getPartitionExprs())) {
                 description.setHasRemoteTargets(true);
-                description.addDataPartition(getId().asInt(), dataPartition);
                 accept = true;
             }
         }

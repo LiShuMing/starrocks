@@ -219,6 +219,67 @@ public abstract class JoinNode extends PlanNode implements RuntimeFilterBuildNod
     }
 
     @Override
+    protected boolean canPushDownRuntimeFilterCrossExchange(RuntimeFilterDescription description, Expr probeExpr, List<Expr> partitionByExprs) {
+        // broadcast or only one RF, always can be cross exchange
+        if (description.isBroadcastJoin() || description.getEqualCount() == 1) {
+            return true;
+        } else if (description.getEqualCount() > 1 && partitionByExprs.size() == 1) {
+            // TODO: remove this later when multi columns on grf is default on.
+            // RF nums > 1 and only partition by one column, only send the RF which RF's column equals partition column
+            Expr pExpr = partitionByExprs.get(0);
+            if (probeExpr instanceof SlotRef && pExpr instanceof SlotRef &&
+                    ((SlotRef) probeExpr).getSlotId().asInt() == ((SlotRef) pExpr).getSlotId().asInt()) {
+                return true;
+            }
+        }
+
+        if (!ConnectContext.get().getSessionVariable().isEnableMultiColumnsOnGlobbalRuntimeFilter()) {
+            return false;
+        }
+
+        // If exchange exprs are slot refs, return false.
+        // If exchange exprs are not the outputs of the PlanNode, return false.
+        for (Expr pExpr: partitionByExprs) {
+            if (!(pExpr instanceof SlotRef && pExpr.isBoundByTupleIds(getTupleIds()))) {
+                return false;
+            }
+        }
+
+        boolean hasPushedDown = false;
+        if (joinOp.isSemiJoin() || joinOp.isInnerJoin()) {
+            List<Expr> lPartitionByExprs = Lists.newArrayList();
+            List<Expr> rPartitionByExprs = Lists.newArrayList();
+            for (Expr partitionByExpr: partitionByExprs) {
+                for (BinaryPredicate eqConjunct : eqJoinConjuncts) {
+                    Expr lhs = eqConjunct.getChild(0);
+                    Expr rhs = eqConjunct.getChild(1);
+                    if ((lhs instanceof SlotRef) && partitionByExpr.isBound(((SlotRef) lhs).getSlotId())) {
+                        lPartitionByExprs.add(lhs);
+                        rPartitionByExprs.add(rhs);
+                    } else if ((rhs instanceof SlotRef) && partitionByExpr.isBound(((SlotRef) rhs).getSlotId())) {
+                        lPartitionByExprs.add(lhs);
+                        rPartitionByExprs.add(rhs);
+                    } else {
+                        break;
+                    }
+                }
+            }
+            if (lPartitionByExprs.size() == partitionByExprs.size()) {
+                hasPushedDown |= getChild(0).canPushDownRuntimeFilterCrossExchange(description, probeExpr, lPartitionByExprs);
+                hasPushedDown |= getChild(1).canPushDownRuntimeFilterCrossExchange(description, probeExpr, rPartitionByExprs);
+            }
+        }
+
+        // fall back to PlanNode.pushDownRuntimeFilters for HJ if rf cannot be pushed down via equivalent
+        // equalJoinConjuncts
+        if (hasPushedDown || super.canPushDownRuntimeFilterCrossExchange(description, probeExpr, partitionByExprs)) {
+            return true;
+        }
+    
+        return false;
+    }
+
+    @Override
     public boolean pushDownRuntimeFilters(RuntimeFilterDescription description, Expr probeExpr) {
         if (!canPushDownRuntimeFilter()) {
             return false;

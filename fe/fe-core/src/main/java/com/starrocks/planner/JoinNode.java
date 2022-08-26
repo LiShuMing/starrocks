@@ -269,7 +269,7 @@ public abstract class JoinNode extends PlanNode implements RuntimeFilterBuildNod
             int numTimes = totalCount / exprs.size();
             for (int i = 0; i < exprs.size(); i++) {
                 for (int j = 0; j < numTimes; j++) {
-                    permutations.get(j).add(exprs.get(i));
+                    permutations.get(i * numTimes + j).add(exprs.get(i));
                 }
             }
         }

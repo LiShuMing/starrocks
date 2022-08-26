@@ -24,6 +24,8 @@ package com.starrocks.planner;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.starrocks.analysis.Analyzer;
 import com.starrocks.analysis.Expr;
 import com.starrocks.analysis.SlotRef;
@@ -42,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -74,6 +77,7 @@ public abstract class SetOperationNode extends PlanNode {
     // Set in init() and substituted against the corresponding child's output smap.
     protected List<List<Expr>> materializedResultExprLists_ = Lists.newArrayList();
     protected List<List<Expr>> materializedConstExprLists_ = Lists.newArrayList();
+    Map<Integer, Set<Integer>> slotExprOutputSlotIdsMap = Maps.newHashMap();
 
     // Indicates if this UnionNode is inside a subplan.
     protected boolean isInSubplan_;
@@ -234,8 +238,59 @@ public abstract class SetOperationNode extends PlanNode {
         return false;
     }
 
+    public Optional<List<Expr>> slotExprsBoundByPlanNode(List<Expr> slotExprs, int childIdx) {
+        if (slotExprOutputSlotIdsMap.isEmpty()) {
+            for (Expr slotExpr: slotExprs) {
+                if (!(slotExpr instanceof SlotRef)) {
+                    return Optional.empty();
+                }
+                if (slotExpr.isBoundByTupleIds(getTupleIds())) {
+                    return Optional.empty();
+                }
+                int slotExprSlotId = ((SlotRef) slotExpr).getSlotId().asInt();
+                for (Map<Integer, Integer> map : outputSlotIdToChildSlotIdMaps) {
+                    if (map.containsKey(slotExprSlotId)) {
+                        slotExprOutputSlotIdsMap.getOrDefault(slotExprSlotId, Sets.newHashSet())
+                                .add(map.get(slotExprSlotId));
+                    }
+                }
+            }
+        }
+
+        List<Expr> newSlotExprs = Lists.newArrayList();
+        for (Expr slotExpr: slotExprs) {
+            int slotExprSlotId = ((SlotRef) slotExpr).getSlotId().asInt();
+            Set<Integer> mappedSlotIds = slotExprOutputSlotIdsMap.get(slotExprSlotId);
+            // try to push all children if any expr of a child can match `probeExpr`
+            for (Expr mexpr : materializedResultExprLists_.get(childIdx)) {
+                if ((mexpr instanceof SlotRef) &&
+                        mappedSlotIds.contains(((SlotRef) mexpr).getSlotId().asInt())) {
+                    newSlotExprs.add(mexpr);
+                    break;
+                } else {
+                    return Optional.empty();
+                }
+            }
+        }
+
+        return Optional.of(newSlotExprs);
+    }
+
+    public Optional<List<Expr>> canPushDownRuntimeFilterCrossExchange(RuntimeFilterDescription description, Expr probeExpr, int childIdx, List<Expr> partitionByExprs) {
+        if (partitionByExprs.size() == 0) {
+            return Optional.empty();
+        }
+
+        if (!runtimeFilterIdCrossExchangeMap.containsKey(description.getFilterId())) {
+            // rf be crossed exchange when partitionByExprs are slot refs and bound by the plan node.
+            runtimeFilterIdCrossExchangeMap.put(description.getFilterId(), slotExprsBoundByPlanNode(partitionByExprs, childIdx));
+        }
+
+        return runtimeFilterIdCrossExchangeMap.get(description.getFilterId());
+    }
+
     @Override
-    public boolean pushDownRuntimeFilters(RuntimeFilterDescription description, Expr probeExpr) {
+    public boolean pushDownRuntimeFilters(RuntimeFilterDescription description, Expr probeExpr, List<Expr> partitionByExprs) {
         if (!canPushDownRuntimeFilter()) {
             return false;
         }
@@ -245,24 +300,18 @@ public abstract class SetOperationNode extends PlanNode {
 
         if (probeExpr instanceof SlotRef) {
             boolean pushDown = false;
-            int probeSlotId = ((SlotRef) probeExpr).getSlotId().asInt();
-            Set<Integer> mappedProbeSlotIds = new HashSet<>();
-            for (Map<Integer, Integer> map : outputSlotIdToChildSlotIdMaps) {
-                if (map.containsKey(probeSlotId)) {
-                    mappedProbeSlotIds.add(map.get(probeSlotId));
-                }
-            }
-
+            // try to push all children if any expr of a child can match `probeExpr`
             for (int i = 0; i < materializedResultExprLists_.size(); i++) {
-                // try to push all children if any expr of a child can match `probeExpr`
-                for (Expr mexpr : materializedResultExprLists_.get(i)) {
-                    if ((mexpr instanceof SlotRef) &&
-                            mappedProbeSlotIds.contains(((SlotRef) mexpr).getSlotId().asInt())) {
-                        if (children.get(i).pushDownRuntimeFilters(description, mexpr)) {
-                            pushDown = true;
-                        }
-                        break;
-                    }
+                Optional<List<Expr>> optPartitionByExprs = canPushDownRuntimeFilterCrossExchange(description, probeExpr, i, partitionByExprs);
+                if (!optPartitionByExprs.isPresent()) {
+                    return false;
+                }
+                Optional<List<Expr>> optExpr = slotExprsBoundByPlanNode(Lists.newArrayList(probeExpr), i);
+                if (!optExpr.isPresent()) {
+                    return false;
+                }
+                if (children.get(i).pushDownRuntimeFilters(description, optExpr.get().get(0), optPartitionByExprs.get())) {
+                    pushDown = true;
                 }
             }
             if (pushDown) {

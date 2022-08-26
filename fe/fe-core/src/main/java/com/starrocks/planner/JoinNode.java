@@ -43,6 +43,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -195,7 +196,7 @@ public abstract class JoinNode extends PlanNode implements RuntimeFilterBuildNod
                 // push down rf to left child node, and build it only when it
                 // can be accepted by left child node.
                 rf.setBuildExpr(left);
-                if (getChild(0).pushDownRuntimeFilters(rf, right)) {
+                if (getChild(0).pushDownRuntimeFilters(rf, right, Lists.newArrayList())) {
                     buildRuntimeFilters.add(rf);
                 }
             } else {
@@ -211,115 +212,112 @@ public abstract class JoinNode extends PlanNode implements RuntimeFilterBuildNod
                 rf.setFilterId(runtimeFilterIdIdGenerator.getNextId().asInt());
                 rf.setBuildExpr(right);
                 rf.setOnlyLocal(true);
-                if (getChild(0).pushDownRuntimeFilters(rf, left)) {
+                if (getChild(0).pushDownRuntimeFilters(rf, left, Lists.newArrayList())) {
                     this.getBuildRuntimeFilters().add(rf);
                 }
             }
         }
     }
 
-    @Override
-    protected boolean canPushDownRuntimeFilterCrossExchange(RuntimeFilterDescription description, Expr probeExpr, List<Expr> partitionByExprs) {
-        // broadcast or only one RF, always can be cross exchange
-        if (description.isBroadcastJoin() || description.getEqualCount() == 1) {
-            return true;
-        } else if (description.getEqualCount() > 1 && partitionByExprs.size() == 1) {
-            // TODO: remove this later when multi columns on grf is default on.
-            // RF nums > 1 and only partition by one column, only send the RF which RF's column equals partition column
-            Expr pExpr = partitionByExprs.get(0);
-            if (probeExpr instanceof SlotRef && pExpr instanceof SlotRef &&
-                    ((SlotRef) probeExpr).getSlotId().asInt() == ((SlotRef) pExpr).getSlotId().asInt()) {
-                return true;
+    /**
+     * Each slotExpr can deduce many slotExprs which is adjective because each join's conjunct can deduce left/right exprs.
+     * @param slotExprs: exprs list to find adjective exprs in join note.
+     * @return
+     */
+    public Optional<List<List<Expr>>> slotExprsBoundByJoinNode(List<Expr> slotExprs, int childIdx) {
+        List<List<Expr>> newOutputSlotExprs = Lists.newArrayList();
+        for (Expr slotExpr: slotExprs) {
+            if (!(slotExpr instanceof SlotRef)) {
+                return Optional.empty();
             }
-        }
-
-        if (!ConnectContext.get().getSessionVariable().isEnableMultiColumnsOnGlobbalRuntimeFilter()) {
-            return false;
-        }
-
-        // If exchange exprs are slot refs, return false.
-        // If exchange exprs are not the outputs of the PlanNode, return false.
-        for (Expr pExpr: partitionByExprs) {
-            if (!(pExpr instanceof SlotRef && pExpr.isBoundByTupleIds(getTupleIds()))) {
-                return false;
+            if (!slotExpr.isBoundByTupleIds(getTupleIds())) {
+                return Optional.empty();
             }
-        }
-
-        boolean hasPushedDown = false;
-        if (joinOp.isSemiJoin() || joinOp.isInnerJoin()) {
-            List<Expr> lPartitionByExprs = Lists.newArrayList();
-            List<Expr> rPartitionByExprs = Lists.newArrayList();
-            for (Expr partitionByExpr: partitionByExprs) {
-                for (BinaryPredicate eqConjunct : eqJoinConjuncts) {
-                    Expr lhs = eqConjunct.getChild(0);
-                    Expr rhs = eqConjunct.getChild(1);
-                    if ((lhs instanceof SlotRef) && partitionByExpr.isBound(((SlotRef) lhs).getSlotId())) {
-                        lPartitionByExprs.add(lhs);
-                        rPartitionByExprs.add(rhs);
-                    } else if ((rhs instanceof SlotRef) && partitionByExpr.isBound(((SlotRef) rhs).getSlotId())) {
-                        lPartitionByExprs.add(lhs);
-                        rPartitionByExprs.add(rhs);
-                    } else {
-                        break;
+            List<Expr> newSlotExprs = Lists.newArrayList();
+            for (BinaryPredicate eqConjunct : eqJoinConjuncts) {
+                Expr lhs = eqConjunct.getChild(0);
+                Expr rhs = eqConjunct.getChild(1);
+                // distinguish lhs/rhs belongs to left child or right child to decrease iterative times.
+                if ((lhs instanceof SlotRef) && slotExpr.isBound(((SlotRef) lhs).getSlotId()) ||
+                        (rhs instanceof SlotRef) && slotExpr.isBound(((SlotRef) rhs).getSlotId())) {
+                    if (lhs.isBoundByTupleIds(getChild(childIdx).getTupleIds())) {
+                        newSlotExprs.add(lhs);
+                    } else if (rhs.isBoundByTupleIds(getChild(childIdx).getTupleIds())) {
+                        newSlotExprs.add(rhs);
                     }
                 }
             }
-            if (lPartitionByExprs.size() == partitionByExprs.size()) {
-                hasPushedDown |= getChild(0).canPushDownRuntimeFilterCrossExchange(description, probeExpr, lPartitionByExprs);
-                hasPushedDown |= getChild(1).canPushDownRuntimeFilterCrossExchange(description, probeExpr, rPartitionByExprs);
+            // If one slot expr is not satisfied, return empty.
+            if (newSlotExprs.isEmpty()) {
+                return Optional.empty();
+            }
+            newOutputSlotExprs.add(newSlotExprs);
+        }
+        return Optional.of(newOutputSlotExprs);
+    }
+
+    List<List<Expr>> permutaionsOfPartitionByExprs(List<List<Expr>> partitionByExprs) {
+        int totalCount = 1;
+        for (List<Expr> exprs: partitionByExprs) {
+            totalCount *= exprs.size();
+        }
+        if (totalCount > 10) {
+            return Lists.newArrayList();
+        }
+        List<List<Expr>> permutations = new ArrayList<>(totalCount);
+        for (List<Expr> exprs: partitionByExprs) {
+            int numTimes = totalCount / exprs.size();
+            for (int i = 0; i < exprs.size(); i++) {
+                for (int j = 0; j < numTimes; j++) {
+                    permutations.get(j).add(exprs.get(i));
+                }
             }
         }
+        return permutations;
+    }
 
-        // fall back to PlanNode.pushDownRuntimeFilters for HJ if rf cannot be pushed down via equivalent
-        // equalJoinConjuncts
-        if (hasPushedDown || super.canPushDownRuntimeFilterCrossExchange(description, probeExpr, partitionByExprs)) {
-            return true;
+    public boolean pushDownRuntimeFiltersForChild(RuntimeFilterDescription description, Expr probeExpr, List<Expr> partitionByExprs, int childIdx) {
+        Optional<List<List<Expr>>> optPartitionByExprs = slotExprsBoundByJoinNode(partitionByExprs, childIdx);
+        if (!optPartitionByExprs.isPresent()) {
+            return false;
         }
-    
+        List<List<Expr>> permutaions = permutaionsOfPartitionByExprs(optPartitionByExprs.get());
+        // To avoid iterate too many times.
+        for (List<Expr> newParitionExprs: permutaions) {
+            Optional<List<List<Expr>>> optSlotExprs = slotExprsBoundByJoinNode(Lists.newArrayList(probeExpr), childIdx);
+            if (!optSlotExprs.isPresent()) {
+                return false;
+            }
+            assert(optSlotExprs.get().size() == 1);
+            List<Expr> eqSlotRefs = optSlotExprs.get().get(0);
+            for (Expr eqSlotRef: eqSlotRefs) {
+                if (getChild(childIdx).pushDownRuntimeFilters(description, eqSlotRef, newParitionExprs)) {
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
     @Override
-    public boolean pushDownRuntimeFilters(RuntimeFilterDescription description, Expr probeExpr) {
+    public boolean pushDownRuntimeFilters(RuntimeFilterDescription description, Expr probeExpr, List<Expr> partitionByExprs) {
         if (!canPushDownRuntimeFilter()) {
             return false;
         }
         if (probeExpr.isBoundByTupleIds(getTupleIds())) {
+            canPushDownRuntimeFilterCrossExchange(description, probeExpr, partitionByExprs);
             boolean hasPushedDown = false;
             // If probeExpr is SlotRef(a) and an equalJoinConjunct SlotRef(a)=SlotRef(b) exists in SemiJoin
             // or InnerJoin, then the rf also can be pushed down to both sides of HashJoin because SlotRef(a) and
             // SlotRef(b) are equivalent.
             boolean isInnerOrSemiJoin = joinOp.isSemiJoin() || joinOp.isInnerJoin();
             if ((probeExpr instanceof SlotRef) && isInnerOrSemiJoin) {
-                for (BinaryPredicate eqConjunct : eqJoinConjuncts) {
-                    Expr lhs = eqConjunct.getChild(0);
-                    Expr rhs = eqConjunct.getChild(1);
-                    SlotRef eqSlotRef = null;
-                    Expr otherExpr = null;
-                    if ((lhs instanceof SlotRef) && probeExpr.isBound(((SlotRef) lhs).getSlotId())) {
-                        eqSlotRef = (SlotRef) lhs;
-                        otherExpr = rhs;
-                    } else if ((rhs instanceof SlotRef) && probeExpr.isBound(((SlotRef) rhs).getSlotId())) {
-                        eqSlotRef = (SlotRef) rhs;
-                        otherExpr = lhs;
-                    }
-                    if (eqSlotRef == null) {
-                        continue;
-                    }
-                    hasPushedDown |= getChild(0).pushDownRuntimeFilters(description, eqSlotRef);
-                    hasPushedDown |= getChild(1).pushDownRuntimeFilters(description, eqSlotRef);
-                    if (otherExpr instanceof SlotRef) {
-                        hasPushedDown |= getChild(0).pushDownRuntimeFilters(description, otherExpr);
-                        hasPushedDown |= getChild(1).pushDownRuntimeFilters(description, otherExpr);
-                    }
-                    if (hasPushedDown) {
-                        break;
-                    }
-                }
+                hasPushedDown |= pushDownRuntimeFiltersForChild(description, probeExpr, partitionByExprs, 0);
+                hasPushedDown |= pushDownRuntimeFiltersForChild(description, probeExpr, partitionByExprs, 1);
             }
             // fall back to PlanNode.pushDownRuntimeFilters for HJ if rf cannot be pushed down via equivalent
             // equalJoinConjuncts
-            if (hasPushedDown || super.pushDownRuntimeFilters(description, probeExpr)) {
+            if (hasPushedDown || super.pushDownRuntimeFilters(description, probeExpr, partitionByExprs)) {
                 return true;
             }
 

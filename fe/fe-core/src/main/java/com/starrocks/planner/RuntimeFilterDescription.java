@@ -288,7 +288,7 @@ public class RuntimeFilterDescription {
         }
         for (Map.Entry<Integer, List<Expr>> entry : nodeIdToParitionByExprs.entrySet()) {
             if (entry.getValue() != null && entry.getValue().size() > 0) {
-                t.putToPlan_node_id_to_partition_by_exprs(entry.getKey(), 
+                t.putToPlan_node_id_to_partition_by_exprs(entry.getKey(),
                         Expr.treesToThrift(entry.getValue()));
             }
         }

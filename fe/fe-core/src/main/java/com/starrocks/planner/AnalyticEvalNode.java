@@ -40,6 +40,7 @@ import com.starrocks.thrift.TPlanNode;
 import com.starrocks.thrift.TPlanNodeType;
 
 import java.util.List;
+import java.util.Optional;
 
 public class AnalyticEvalNode extends PlanNode {
     private List<Expr> analyticFnCalls;
@@ -251,21 +252,45 @@ public class AnalyticEvalNode extends PlanNode {
     }
 
     @Override
-    public boolean pushDownRuntimeFilters(RuntimeFilterDescription description, Expr probeExpr) {
+    public Optional<List<Expr>> slotExprsBoundByPlanNode(List<Expr> slotExprs) {
+        List<Expr> newSlotExprs = Lists.newArrayList();
+        for (Expr slotExpr: slotExprs) {
+            if (!slotExpr.isBoundByTupleIds(getTupleIds())) {
+                return Optional.empty();
+            }
+            if (!(slotExpr instanceof SlotRef)) {
+                return Optional.empty();
+            }
+
+            for (Expr pExpr : partitionExprs) {
+                // push down only when both of them are slot ref and slot id match.
+                if ((pExpr instanceof SlotRef) &&
+                        (((SlotRef) pExpr).getSlotId().asInt() == ((SlotRef) slotExpr).getSlotId().asInt())) {
+                    newSlotExprs.add(pExpr);
+                    break;
+                }
+            }
+        }
+        return Optional.of(newSlotExprs);
+    }
+
+    @Override
+    public boolean pushDownRuntimeFilters(RuntimeFilterDescription description, Expr probeExpr, List<Expr> partitionByExprs) {
         if (!canPushDownRuntimeFilter()) {
             return false;
         }
 
+        Optional<List<Expr>> optPartitionByExprs = canPushDownRuntimeFilterCrossExchange(description, probeExpr,
+                partitionByExprs);
+        if (!optPartitionByExprs.isPresent()) {
+            return false;
+        }
+
         if (probeExpr.isBoundByTupleIds(getTupleIds())) {
-            if (probeExpr instanceof SlotRef) {
-                for (Expr pExpr : partitionExprs) {
-                    // push down only when both of them are slot ref and slot id match.
-                    if ((pExpr instanceof SlotRef) &&
-                            (((SlotRef) pExpr).getSlotId().asInt() == ((SlotRef) probeExpr).getSlotId().asInt())) {
-                        if (children.get(0).pushDownRuntimeFilters(description, pExpr)) {
-                            return true;
-                        }
-                    }
+            Optional<Expr> optSlotExpr = slotExprBoundByPlanNode(probeExpr);
+            if (optSlotExpr.isPresent()) {
+                if (children.get(0).pushDownRuntimeFilters(description, optSlotExpr.get(), optPartitionByExprs.get())) {
+                    return true;
                 }
             }
 

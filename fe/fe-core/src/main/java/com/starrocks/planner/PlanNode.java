@@ -24,6 +24,7 @@ package com.starrocks.planner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.starrocks.analysis.Analyzer;
 import com.starrocks.analysis.Expr;
@@ -47,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -118,6 +120,7 @@ abstract public class PlanNode extends TreeNode<PlanNode> {
     protected List<RuntimeFilterDescription> probeRuntimeFilters = Lists.newArrayList();
     protected Set<Integer> localRfWaitingSet = Sets.newHashSet();
     protected ExprSubstitutionMap outputSmap;
+    protected Map<Integer, Optional<List<Expr>>> runtimeFilterIdCrossExchangeMap = Maps.newHashMap();
 
     protected PlanNode(PlanNodeId id, ArrayList<TupleId> tupleIds, String planNodeName) {
         this.id = id;
@@ -726,58 +729,59 @@ abstract public class PlanNode extends TreeNode<PlanNode> {
     public void checkRuntimeFilterOnNullValue(RuntimeFilterDescription description, Expr probeExpr) {
     }
 
-    // TODO: Merge with pushDownRuntimeFilters?
-    protected boolean canPushDownRuntimeFilterCrossExchange(RuntimeFilterDescription description, Expr probeExpr, List<Expr> partitionByExprs) {
-        // broadcast or only one RF, always can be cross exchange
-        if (description.isBroadcastJoin() || description.getEqualCount() == 1) {
-            return true;
-        } else if (description.getEqualCount() > 1 && partitionByExprs.size() == 1) {
-            // TODO: remove this later when multi columns on grf is default on.
-            // RF nums > 1 and only partition by one column, only send the RF which RF's column equals partition column
-            Expr pExpr = partitionByExprs.get(0);
-            if (probeExpr instanceof SlotRef && pExpr instanceof SlotRef &&
-                    ((SlotRef) probeExpr).getSlotId().asInt() == ((SlotRef) pExpr).getSlotId().asInt()) {
-                return true;
-            }
+    public Optional<List<Expr>> canPushDownRuntimeFilterCrossExchange(RuntimeFilterDescription description, Expr probeExpr, List<Expr> partitionByExprs) {
+        if (partitionByExprs.size() == 0) {
+            return Optional.empty();
         }
 
-        if (!ConnectContext.get().getSessionVariable().isEnableMultiColumnsOnGlobbalRuntimeFilter()) {
-            return false;
+        if (!runtimeFilterIdCrossExchangeMap.containsKey(description.getFilterId())) {
+            // rf be crossed exchange when partitionByExprs are slot refs and bound by the plan node.
+            runtimeFilterIdCrossExchangeMap.put(description.getFilterId(), slotExprsBoundByPlanNode(partitionByExprs));
         }
 
-        if (!(probeExpr instanceof SlotRef)) {
-            return false;
-        }
-
-        // If exchange exprs are slot refs, return false.
-        // If exchange exprs are not the outputs of the PlanNode, return false.
-        for (Expr pExpr: partitionByExprs) {
-            if (!(pExpr instanceof SlotRef && pExpr.isBoundByTupleIds(getTupleIds()))) {
-                return false;
-            }
-        }
-
-        boolean accept = false;
-        for (PlanNode node : children) {
-            if (node.canPushDownRuntimeFilterCrossExchange(description, probeExpr, partitionByExprs)) {
-                accept = true;
-            }
-        }
-        if (description.getNodeIdToProbeExpr().containsKey(id.asInt())) {
-            description.addDataPartition(id.asInt(), partitionByExprs);
-        }
-        return accept;
+        return runtimeFilterIdCrossExchangeMap.get(description.getFilterId());
     }
 
-    public boolean pushDownRuntimeFilters(RuntimeFilterDescription description, Expr probeExpr) {
+    public Optional<List<Expr>> slotExprsBoundByPlanNode(List<Expr> slotExprs) {
+        for (Expr pExpr: slotExprs) {
+            if (!(pExpr instanceof SlotRef)) {
+                return Optional.empty();
+            }
+            if (!pExpr.isBoundByTupleIds(getTupleIds())) {
+                return Optional.empty();
+            }
+        }
+        return Optional.of(slotExprs);
+    }
+
+    public Optional<Expr> slotExprBoundByPlanNode(Expr slotExpr) {
+        Optional<List<Expr>> optSlotExprs = slotExprsBoundByPlanNode(Lists.newArrayList(slotExpr));
+        if (optSlotExprs.isPresent()) {
+            assert(optSlotExprs.get().size() == 1);
+            return Optional.of(optSlotExprs.get().get(0));
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * When push down runtime filter cross exchange, need take care partitionByExprs of exchange.
+     */
+    public boolean pushDownRuntimeFilters(RuntimeFilterDescription description, Expr probeExpr, List<Expr> partitionByExprs) {
         if (!canPushDownRuntimeFilter()) {
+            return false;
+        }
+
+        Optional<List<Expr>> optPartitionByExprs = canPushDownRuntimeFilterCrossExchange(description, probeExpr,
+                partitionByExprs);
+        if (!optPartitionByExprs.isPresent()) {
             return false;
         }
 
         // theoretically runtime filter can be applied on multiple child nodes.
         boolean accept = false;
         for (PlanNode node : children) {
-            if (node.pushDownRuntimeFilters(description, probeExpr)) {
+            if (node.pushDownRuntimeFilters(description, probeExpr, optPartitionByExprs.get())) {
                 accept = true;
             }
         }

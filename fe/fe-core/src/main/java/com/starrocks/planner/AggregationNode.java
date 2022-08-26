@@ -24,6 +24,7 @@ package com.starrocks.planner;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.starrocks.analysis.AggregateInfo;
 import com.starrocks.analysis.Analyzer;
 import com.starrocks.analysis.Expr;
@@ -39,6 +40,7 @@ import com.starrocks.thrift.TPlanNodeType;
 import com.starrocks.thrift.TStreamingPreaggregationMode;
 
 import java.util.List;
+import java.util.Optional;
 
 public class AggregationNode extends PlanNode {
     private final AggregateInfo aggInfo;
@@ -240,23 +242,44 @@ public class AggregationNode extends PlanNode {
     }
 
     @Override
-    public boolean pushDownRuntimeFilters(RuntimeFilterDescription description, Expr probeExpr) {
+    public Optional<List<Expr>> slotExprsBoundByPlanNode(List<Expr> slotExprs) {
+        List<Expr> newSlotExprs = Lists.newArrayList();
+        for (Expr pExpr: slotExprs) {
+            if (!pExpr.isBoundByTupleIds(getTupleIds())) {
+                return Optional.empty();
+            }
+            if (!(pExpr instanceof SlotRef)) {
+                return Optional.empty();
+            }
+            for (Expr gexpr : aggInfo.getGroupingExprs()) {
+                if (gexpr instanceof SlotRef && ((SlotRef)gexpr).getId().asInt() == ((SlotRef) pExpr).getId().asInt()) {
+                    newSlotExprs.add(gexpr);
+                    break;
+                }
+            }
+        }
+        return Optional.of(newSlotExprs);
+    }
+
+    @Override
+    public boolean pushDownRuntimeFilters(RuntimeFilterDescription description, Expr probeExpr, List<Expr> partitionByExprs) {
         if (!canPushDownRuntimeFilter()) {
             return false;
         }
+
+        Optional<List<Expr>> optPartitionByExprs = canPushDownRuntimeFilterCrossExchange(description, probeExpr,
+                partitionByExprs);
+        if (!optPartitionByExprs.isPresent()) {
+            return false;
+        }
+
         if (probeExpr.isBoundByTupleIds(getTupleIds())) {
-            if (probeExpr instanceof SlotRef) {
-                for (Expr gexpr : aggInfo.getGroupingExprs()) {
-                    // push down only when both of them are slot ref and slot id match.
-                    if ((gexpr instanceof SlotRef) &&
-                            (((SlotRef) gexpr).getSlotId().asInt() == ((SlotRef) probeExpr).getSlotId().asInt())) {
-                        if (children.get(0).pushDownRuntimeFilters(description, gexpr)) {
-                            return true;
-                        }
-                    }
+            Optional<Expr> optSlotExpr = slotExprBoundByPlanNode(probeExpr);
+            if (optSlotExpr.isPresent()) {
+                if (children.get(0).pushDownRuntimeFilters(description, optSlotExpr.get(), optPartitionByExprs.get())) {
+                    return true;
                 }
             }
-
             if (description.canProbeUse(this)) {
                 // can not push down to children.
                 // use runtime filter at this level.

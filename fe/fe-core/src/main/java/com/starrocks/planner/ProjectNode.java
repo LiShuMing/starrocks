@@ -2,6 +2,7 @@
 
 package com.starrocks.planner;
 
+import com.clearspring.analytics.util.Lists;
 import com.google.common.base.Preconditions;
 import com.starrocks.analysis.Analyzer;
 import com.starrocks.analysis.Expr;
@@ -20,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 
 public class ProjectNode extends PlanNode {
@@ -121,24 +123,47 @@ public class ProjectNode extends PlanNode {
         return getChildren().stream().allMatch(PlanNode::canUsePipeLine);
     }
 
+    public Optional<List<Expr>> slotExprsBoundByPlanNode(List<Expr> slotExprs) {
+        List<Expr> newExprs = Lists.newArrayList();
+        for (Expr pExpr: slotExprs) {
+            if (!(pExpr instanceof SlotRef)) {
+                return Optional.empty();
+            }
+            if (!pExpr.isBoundByTupleIds(getTupleIds())) {
+                return Optional.empty();
+            }
+            for (Map.Entry<SlotId, Expr> kv : slotMap.entrySet()) {
+                // Replace the probeExpr only when:
+                // 1. when probeExpr is slot ref
+                // 2. and probe expr slot id == kv.getKey()
+                // then replace probeExpr with kv.getValue()
+                // and push down kv.getValue()
+                if (pExpr.isBound(kv.getKey())) {
+                    newExprs.add(kv.getValue());
+                }
+            }
+        }
+        return Optional.of(newExprs);
+    }
+
     @Override
-    public boolean pushDownRuntimeFilters(RuntimeFilterDescription description, Expr probeExpr) {
+    public boolean pushDownRuntimeFilters(RuntimeFilterDescription description,
+                                          Expr probeExpr,
+                                          List<Expr> partitionByExprs) {
         if (!canPushDownRuntimeFilter()) {
             return false;
         }
+
+        Optional<List<Expr>> optPartitionByExprs = canPushDownRuntimeFilterCrossExchange(description, probeExpr, partitionByExprs);
+        if (!optPartitionByExprs.isPresent()) {
+            return false;
+        }
+
         if (probeExpr.isBoundByTupleIds(getTupleIds())) {
-            if (probeExpr instanceof SlotRef) {
-                for (Map.Entry<SlotId, Expr> kv : slotMap.entrySet()) {
-                    // Replace the probeExpr only when:
-                    // 1. when probeExpr is slot ref
-                    // 2. and probe expr slot id == kv.getKey()
-                    // then replace probeExpr with kv.getValue()
-                    // and push down kv.getValue()
-                    if (probeExpr.isBound(kv.getKey())) {
-                        if (children.get(0).pushDownRuntimeFilters(description, kv.getValue())) {
-                            return true;
-                        }
-                    }
+            Optional<Expr> optExpr = slotExprBoundByPlanNode(probeExpr);
+            if (optExpr.isPresent()) {
+                if (children.get(0).pushDownRuntimeFilters(description, optExpr.get(), optPartitionByExprs.get())) {
+                    return true;
                 }
             }
 

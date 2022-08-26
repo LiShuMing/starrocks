@@ -249,8 +249,8 @@ public abstract class SetOperationNode extends PlanNode {
             int slotExprSlotId = ((SlotRef) slotExpr).getSlotId().asInt();
             for (Map<Integer, Integer> map : outputSlotIdToChildSlotIdMaps) {
                 if (map.containsKey(slotExprSlotId)) {
-                    slotExprOutputSlotIdsMap.getOrDefault(slotExprSlotId, Sets.newHashSet())
-                            .add(map.get(slotExprSlotId));
+                    slotExprOutputSlotIdsMap.putIfAbsent(slotExprSlotId, Sets.newHashSet());
+                    slotExprOutputSlotIdsMap.get(slotExprSlotId).add(map.get(slotExprSlotId));
                 }
             }
         }

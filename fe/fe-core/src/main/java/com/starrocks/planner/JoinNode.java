@@ -242,7 +242,8 @@ public abstract class JoinNode extends PlanNode implements RuntimeFilterBuildNod
                         (rhs instanceof SlotRef) && slotExpr.isBound(((SlotRef) rhs).getSlotId())) {
                     if (lhs.isBoundByTupleIds(getChild(childIdx).getTupleIds())) {
                         newSlotExprs.add(lhs);
-                    } else if (rhs.isBoundByTupleIds(getChild(childIdx).getTupleIds())) {
+                    }
+                    if (rhs.isBoundByTupleIds(getChild(childIdx).getTupleIds())) {
                         newSlotExprs.add(rhs);
                     }
                 }

@@ -22,7 +22,12 @@
 # This file used to compile all thrift files.
 BUILD_DIR = ${CURDIR}/../build/
 
-THRIFT = ${STARROCKS_THIRDPARTY}/installed/bin/thrift
+ifneq ($(wildcard ${STARROCKS_THIRDPARTY}/installed/bin/thrift),)
+	THRIFT = ${STARROCKS_THIRDPARTY}/installed/bin/thrift
+else
+	THRIFT = $(shell sh -c 'which thrift')
+endif
+
 
 SOURCES = $(shell find ${CURDIR} -name "*.thrift")
 OBJECTS = $(patsubst ${CURDIR}/%.thrift, ${BUILD_DIR}/gen_cpp/%_types.cpp, ${SOURCES})

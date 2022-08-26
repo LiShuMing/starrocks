@@ -171,6 +171,7 @@ public class ProjectNode extends PlanNode {
             // use runtime filter at this level.
             if (description.canProbeUse(this)) {
                 description.addProbeExpr(id.asInt(), probeExpr);
+                description.addPartitionByExprs(id.asInt(), optPartitionByExprs.get());
                 probeRuntimeFilters.add(description);
                 return true;
             }

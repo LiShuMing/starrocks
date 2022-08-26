@@ -283,6 +283,7 @@ public class AggregationNode extends PlanNode {
                 // can not push down to children.
                 // use runtime filter at this level.
                 description.addProbeExpr(id.asInt(), probeExpr);
+                description.addPartitionByExprs(id.asInt(), optPartitionByExprs.get());
                 probeRuntimeFilters.add(description);
                 return true;
             }

@@ -133,7 +133,7 @@ public class RuntimeFilterDescription {
         return nodeIdToProbeExpr;
     }
 
-    public void addDataPartition(int nodeId, List<Expr> partitionByExprs) {
+    public void addPartitionByExprs(int nodeId, List<Expr> partitionByExprs) {
         nodeIdToParitionByExprs.put(nodeId, partitionByExprs);
     }
 

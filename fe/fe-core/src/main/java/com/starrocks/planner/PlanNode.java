@@ -729,9 +729,9 @@ abstract public class PlanNode extends TreeNode<PlanNode> {
     public void checkRuntimeFilterOnNullValue(RuntimeFilterDescription description, Expr probeExpr) {
     }
 
-    public Optional<List<Expr>> canPushDownRuntimeFilterCrossExchange(RuntimeFilterDescription description, Expr probeExpr, List<Expr> partitionByExprs) {
+    public Optional<List<Expr>> canPushDownRuntimeFilterCrossExchange(RuntimeFilterDescription description, List<Expr> partitionByExprs) {
         if (partitionByExprs.size() == 0) {
-            return Optional.empty();
+            return Optional.of(partitionByExprs);
         }
 
         if (!runtimeFilterIdCrossExchangeMap.containsKey(description.getFilterId())) {
@@ -772,7 +772,7 @@ abstract public class PlanNode extends TreeNode<PlanNode> {
             return false;
         }
 
-        Optional<List<Expr>> optPartitionByExprs = canPushDownRuntimeFilterCrossExchange(description, probeExpr,
+        Optional<List<Expr>> optPartitionByExprs = canPushDownRuntimeFilterCrossExchange(description,
                 partitionByExprs);
         if (!optPartitionByExprs.isPresent()) {
             return false;

@@ -261,6 +261,7 @@ public abstract class JoinNode extends PlanNode implements RuntimeFilterBuildNod
         for (List<Expr> exprs: partitionByExprs) {
             totalCount *= exprs.size();
         }
+        // To avoid iterate too many times.
         if (totalCount > 10) {
             return Lists.newArrayList();
         }
@@ -281,15 +282,15 @@ public abstract class JoinNode extends PlanNode implements RuntimeFilterBuildNod
         if (!optPartitionByExprs.isPresent()) {
             return false;
         }
+        Optional<List<List<Expr>>> optSlotExprs = slotExprsBoundByJoinNode(Lists.newArrayList(probeExpr), childIdx);
+        if (!optSlotExprs.isPresent()) {
+            return false;
+        }
+        assert(optSlotExprs.get().size() == 1);
+        List<Expr> eqSlotRefs = optSlotExprs.get().get(0);
+
         List<List<Expr>> permutaions = permutaionsOfPartitionByExprs(optPartitionByExprs.get());
-        // To avoid iterate too many times.
         for (List<Expr> newParitionExprs: permutaions) {
-            Optional<List<List<Expr>>> optSlotExprs = slotExprsBoundByJoinNode(Lists.newArrayList(probeExpr), childIdx);
-            if (!optSlotExprs.isPresent()) {
-                return false;
-            }
-            assert(optSlotExprs.get().size() == 1);
-            List<Expr> eqSlotRefs = optSlotExprs.get().get(0);
             for (Expr eqSlotRef: eqSlotRefs) {
                 if (getChild(childIdx).pushDownRuntimeFilters(description, eqSlotRef, newParitionExprs)) {
                     return true;
@@ -305,7 +306,6 @@ public abstract class JoinNode extends PlanNode implements RuntimeFilterBuildNod
             return false;
         }
         if (probeExpr.isBoundByTupleIds(getTupleIds())) {
-            canPushDownRuntimeFilterCrossExchange(description, probeExpr, partitionByExprs);
             boolean hasPushedDown = false;
             // If probeExpr is SlotRef(a) and an equalJoinConjunct SlotRef(a)=SlotRef(b) exists in SemiJoin
             // or InnerJoin, then the rf also can be pushed down to both sides of HashJoin because SlotRef(a) and

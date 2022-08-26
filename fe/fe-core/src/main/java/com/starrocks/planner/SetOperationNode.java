@@ -276,9 +276,10 @@ public abstract class SetOperationNode extends PlanNode {
         return Optional.of(newSlotExprs);
     }
 
-    public Optional<List<Expr>> canPushDownRuntimeFilterCrossExchange(RuntimeFilterDescription description, Expr probeExpr, int childIdx, List<Expr> partitionByExprs) {
+    public Optional<List<Expr>> canPushDownRuntimeFilterCrossExchange(RuntimeFilterDescription description,
+                                                                      List<Expr> partitionByExprs, int childIdx) {
         if (partitionByExprs.size() == 0) {
-            return Optional.empty();
+            return Optional.of(partitionByExprs);
         }
 
         if (!runtimeFilterIdCrossExchangeMap.containsKey(description.getFilterId())) {
@@ -302,7 +303,7 @@ public abstract class SetOperationNode extends PlanNode {
             boolean pushDown = false;
             // try to push all children if any expr of a child can match `probeExpr`
             for (int i = 0; i < materializedResultExprLists_.size(); i++) {
-                Optional<List<Expr>> optPartitionByExprs = canPushDownRuntimeFilterCrossExchange(description, probeExpr, i, partitionByExprs);
+                Optional<List<Expr>> optPartitionByExprs = canPushDownRuntimeFilterCrossExchange(description, partitionByExprs, i);
                 if (!optPartitionByExprs.isPresent()) {
                     return false;
                 }

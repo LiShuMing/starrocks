@@ -280,7 +280,7 @@ public class AnalyticEvalNode extends PlanNode {
             return false;
         }
 
-        Optional<List<Expr>> optPartitionByExprs = canPushDownRuntimeFilterCrossExchange(description, probeExpr,
+        Optional<List<Expr>> optPartitionByExprs = canPushDownRuntimeFilterCrossExchange(description,
                 partitionByExprs);
         if (!optPartitionByExprs.isPresent()) {
             return false;

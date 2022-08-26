@@ -77,7 +77,6 @@ public abstract class SetOperationNode extends PlanNode {
     // Set in init() and substituted against the corresponding child's output smap.
     protected List<List<Expr>> materializedResultExprLists_ = Lists.newArrayList();
     protected List<List<Expr>> materializedConstExprLists_ = Lists.newArrayList();
-    Map<Integer, Set<Integer>> slotExprOutputSlotIdsMap = Maps.newHashMap();
 
     // Indicates if this UnionNode is inside a subplan.
     protected boolean isInSubplan_;
@@ -239,20 +238,19 @@ public abstract class SetOperationNode extends PlanNode {
     }
 
     public Optional<List<Expr>> slotExprsBoundByPlanNode(List<Expr> slotExprs, int childIdx) {
-        if (slotExprOutputSlotIdsMap.isEmpty()) {
-            for (Expr slotExpr: slotExprs) {
-                if (!(slotExpr instanceof SlotRef)) {
-                    return Optional.empty();
-                }
-                if (slotExpr.isBoundByTupleIds(getTupleIds())) {
-                    return Optional.empty();
-                }
-                int slotExprSlotId = ((SlotRef) slotExpr).getSlotId().asInt();
-                for (Map<Integer, Integer> map : outputSlotIdToChildSlotIdMaps) {
-                    if (map.containsKey(slotExprSlotId)) {
-                        slotExprOutputSlotIdsMap.getOrDefault(slotExprSlotId, Sets.newHashSet())
-                                .add(map.get(slotExprSlotId));
-                    }
+        Map<Integer, Set<Integer>> slotExprOutputSlotIdsMap = Maps.newHashMap();
+        for (Expr slotExpr: slotExprs) {
+            if (!(slotExpr instanceof SlotRef)) {
+                return Optional.empty();
+            }
+            if (!slotExpr.isBoundByTupleIds(getTupleIds())) {
+                return Optional.empty();
+            }
+            int slotExprSlotId = ((SlotRef) slotExpr).getSlotId().asInt();
+            for (Map<Integer, Integer> map : outputSlotIdToChildSlotIdMaps) {
+                if (map.containsKey(slotExprSlotId)) {
+                    slotExprOutputSlotIdsMap.getOrDefault(slotExprSlotId, Sets.newHashSet())
+                            .add(map.get(slotExprSlotId));
                 }
             }
         }
@@ -260,6 +258,9 @@ public abstract class SetOperationNode extends PlanNode {
         List<Expr> newSlotExprs = Lists.newArrayList();
         for (Expr slotExpr: slotExprs) {
             int slotExprSlotId = ((SlotRef) slotExpr).getSlotId().asInt();
+            if (!slotExprOutputSlotIdsMap.containsKey(slotExprSlotId)) {
+                return Optional.empty();
+            }
             Set<Integer> mappedSlotIds = slotExprOutputSlotIdsMap.get(slotExprSlotId);
             // try to push all children if any expr of a child can match `probeExpr`
             for (Expr mexpr : materializedResultExprLists_.get(childIdx)) {
@@ -267,10 +268,11 @@ public abstract class SetOperationNode extends PlanNode {
                         mappedSlotIds.contains(((SlotRef) mexpr).getSlotId().asInt())) {
                     newSlotExprs.add(mexpr);
                     break;
-                } else {
-                    return Optional.empty();
                 }
             }
+        }
+        if (newSlotExprs.size() != slotExprs.size()) {
+            return Optional.empty();
         }
 
         return Optional.of(newSlotExprs);
@@ -281,13 +283,7 @@ public abstract class SetOperationNode extends PlanNode {
         if (partitionByExprs.size() == 0) {
             return Optional.of(partitionByExprs);
         }
-
-        if (!runtimeFilterIdCrossExchangeMap.containsKey(description.getFilterId())) {
-            // rf be crossed exchange when partitionByExprs are slot refs and bound by the plan node.
-            runtimeFilterIdCrossExchangeMap.put(description.getFilterId(), slotExprsBoundByPlanNode(partitionByExprs, childIdx));
-        }
-
-        return runtimeFilterIdCrossExchangeMap.get(description.getFilterId());
+        return slotExprsBoundByPlanNode(partitionByExprs, childIdx);
     }
 
     @Override
@@ -298,9 +294,9 @@ public abstract class SetOperationNode extends PlanNode {
         if (!probeExpr.isBoundByTupleIds(getTupleIds())) {
             return false;
         }
-        if (!canPushDownRuntimeFilterCrossExchange(description, partitionByExprs).isPresent()) {
-            return false;
-        }
+        // if (!canPushDownRuntimeFilterCrossExchange(description, partitionByExprs).isPresent()) {
+        //     return false;
+        // }
 
         if (probeExpr instanceof SlotRef) {
             boolean pushDown = false;
@@ -314,6 +310,7 @@ public abstract class SetOperationNode extends PlanNode {
                 if (!optExpr.isPresent()) {
                     return false;
                 }
+                assert(optExpr.get().size() == 1);
                 if (children.get(i).pushDownRuntimeFilters(description, optExpr.get().get(0), optPartitionByExprs.get())) {
                     pushDown = true;
                 }

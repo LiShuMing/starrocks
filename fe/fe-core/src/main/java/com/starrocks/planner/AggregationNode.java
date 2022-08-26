@@ -252,7 +252,10 @@ public class AggregationNode extends PlanNode {
                 return Optional.empty();
             }
             for (Expr gexpr : aggInfo.getGroupingExprs()) {
-                if (gexpr instanceof SlotRef && ((SlotRef)gexpr).getId().asInt() == ((SlotRef) pExpr).getId().asInt()) {
+                if (!(gexpr instanceof SlotRef)) {
+                    continue;
+                }
+                if (((SlotRef)gexpr).getSlotId().asInt() == ((SlotRef)pExpr).getSlotId().asInt()) {
                     newSlotExprs.add(gexpr);
                     break;
                 }

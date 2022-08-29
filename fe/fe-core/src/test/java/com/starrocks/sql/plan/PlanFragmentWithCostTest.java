@@ -583,6 +583,66 @@ public class PlanFragmentWithCostTest extends PlanTestBase {
     }
 
     @Test
+    public void testRepeatNodeWithUnionAllRewrite() throws Exception {
+        connectContext.getSessionVariable().setEnableRewriteGroupingSetsToUnionAll(true);
+        String sql = "select v1, v2, SUM(v3) from t0 group by rollup(v1, v2)";
+        String plan = getFragmentPlan(sql).replaceAll(" ", "");
+        System.out.println(plan);
+        Assert.assertTrue(plan.contains("1:UNION\n" +
+                "|----15:EXCHANGE\n" +
+                "|\n" +
+                "|----22:EXCHANGE\n" +
+                "|\n" +
+                "8:EXCHANGE\n"));
+        connectContext.getSessionVariable().setEnableRewriteGroupingSetsToUnionAll(false);
+        // sql = "select v1, SUM(v3) from t0 group by rollup(v1)";
+        // plan = getFragmentPlan(sql);
+        // System.out.println(plan);
+        // Assert.assertTrue(plan.contains("  1:UNION\n" +
+        //         "  |\n" +
+        //         "  |----15:EXCHANGE\n" +
+        //         "  |\n" +
+        //         "  |----22:EXCHANGE\n" +
+        // "  |\n" +
+        // "  8:EXCHANGE\n"));
+        // Assert.assertTrue(plan.contains("  STREAM DATA SINK\n" +
+        //         "    EXCHANGE ID: 03\n" +
+        //         "    HASH_PARTITIONED: 1: v1, 5: GROUPING_ID\n" +
+        //         "\n" +
+        //         "  2:AGGREGATE (update serialize)\n" +
+        //         "  |  STREAMING\n" +
+        //         "  |  output: sum(3: v3)\n" +
+        //         "  |  group by: 1: v1, 5: GROUPING_ID\n" +
+        //         "  |  \n" +
+        //         "  1:REPEAT_NODE\n" +
+        //         "  |  repeat: repeat 1 lines [[], [1]]\n" +
+        //         "  |  \n" +
+        //         "  0:OlapScanNode\n" +
+        //         "     TABLE: t0\n" +
+        //         "     PREAGGREGATION: ON"));
+
+        // sql = "select SUM(v3) from t0 group by grouping sets(())";
+        // System.out.println(plan);
+        // Assert.assertTrue(plan.contains("  3:EXCHANGE\n" +
+        //         "\n" +
+        //         "PLAN FRAGMENT 2\n" +
+        //         " OUTPUT EXPRS:\n" +
+        //         "  PARTITION: RANDOM\n" +
+        //         "\n" +
+        //         "  STREAM DATA SINK\n" +
+        //         "    EXCHANGE ID: 03\n" +
+        //         "    HASH_PARTITIONED: 5: GROUPING_ID\n" +
+        //         "\n" +
+        //         "  2:AGGREGATE (update serialize)\n" +
+        //         "  |  STREAMING\n" +
+        //         "  |  output: sum(3: v3)\n" +
+        //         "  |  group by: 5: GROUPING_ID\n" +
+        //         "  |  \n" +
+        //         "  1:REPEAT_NODE"));
+    }
+
+
+    @Test
     public void testDisableOnePhaseWithTableRowCountMayNotAccurate() throws Exception {
         // check can not generate 1 phase aggregation if fe do not get real table row count from be.
         String sql = "select count(1) from orders group by O_CUSTKEY, O_ORDERDATE";

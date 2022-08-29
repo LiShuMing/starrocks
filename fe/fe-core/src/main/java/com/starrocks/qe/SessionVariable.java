@@ -1025,6 +1025,10 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
         return enableRewriteGroupingSetsToUnionAll;
     }
 
+    public void setEnableRewriteGroupingSetsToUnionAll(boolean enableRewriteGroupingSetsToUnionAll) {
+        this.enableRewriteGroupingSetsToUnionAll = enableRewriteGroupingSetsToUnionAll;
+    }
+
     public void setEnableLowCardinalityOptimize(boolean enableLowCardinalityOptimize) {
         this.enableLowCardinalityOptimize = enableLowCardinalityOptimize;
     }

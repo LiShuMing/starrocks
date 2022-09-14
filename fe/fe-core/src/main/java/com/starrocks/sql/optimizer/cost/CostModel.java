@@ -221,8 +221,7 @@ public class CostModel {
         }
 
         private int getParallelExecInstanceNum(ExpressionContext context) {
-            return Math.min(ConnectContext.get().getSessionVariable().getDegreeOfParallelism(),
-                    context.getRootProperty().getLeftMostScanTabletsNum());
+            return context.getRootProperty().getLeftMostScanTabletsNum();
         }
 
         @Override

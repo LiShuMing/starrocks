@@ -8,15 +8,20 @@
 #include "exec/pipeline/nljoin/nljoin_context.h"
 #include "exec/pipeline/operator.h"
 #include "storage/rowset/segment_options.h"
+#include "storage/tablet_reader.h"
 
 namespace starrocks::pipeline {
 
 // IndexSeekOperator
 class IndexSeekOperator final : public Operator {
 public:
-    IndexSeekOperator(OperatorFactory* factory, int32_t id, int32_t plan_node_id, const int32_t driver_sequence);
+    IndexSeekOperator(OperatorFactory* factory, int32_t id, int32_t plan_node_id, const int32_t driver_sequence,
+                      const std::vector<std::string>& key_column_names,                           const std::vector<std::string>& key_column_names, );
+);
 
     ~IndexSeekOperator() override = default;
+
+    Status prepare(RuntimeState* state) override;
 
     void close(RuntimeState* state) override;
 
@@ -33,11 +38,26 @@ public:
     Status push_chunk(RuntimeState* state, const vectorized::ChunkPtr& chunk) override;
 
 private:
+    Status _get_tablet(const TInternalScanRange* scan_range);
+    Status _init_conjuncts_manager();
+    Status _init_scanner_columns(std::vector<uint32_t>& scanner_columns);
+    Status _init_tablet_reader(RuntimeState* state) ;
+
     bool _is_finished = false;
-    SegmentReadOptions _read_options;
     vectorized::ChunkPtr _cur_chunk = nullptr;
-    // TODO(lism): Use another iterator when Storage supports a better API.
-    ChunkIteratorPtr _segmnt_iterator;
+
+    const std::vector<std::string>& _key_column_names;
+    const TupleDescriptor* _tuple_desc;
+    const std::vector<SlotDescriptor*>* _slots = nullptr;
+
+    int64_t _version;
+    TInternalScanRange* _scan_range;
+    std::vector<std::unique_ptr<TInternalScanRange>> _scan_ranges;
+    OlapScanConjunctsManager _conjuncts_manager;
+    std::vector<ExprContext*> _not_push_down_conjuncts;
+    vectorized::TabletReaderParams _params{};
+    // NOTE: _reader may reference the _predicate_free_pool, it should be released before the _predicate_free_pool
+    std::shared_ptr<vectorized::TabletReader> _reader;
 };
 
 class IndexSeekOperatorFactory final : public OperatorFactory {

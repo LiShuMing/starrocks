@@ -24,6 +24,8 @@ class CacheKey;
 // of Cache uses a least-recently-used eviction policy.
 extern Cache* new_lru_cache(size_t capacity);
 
+using Epoch = uint64_t;
+
 class CacheKey {
 public:
     CacheKey() {}
@@ -207,6 +209,8 @@ typedef struct LRUHandle {
     uint32_t hash; // Hash of key(); used for fast sharding and comparisons
     CachePriority priority = CachePriority::NORMAL;
     char key_data[1]; // Beginning of key
+    // Mark the entry's logical timestamp to decide whether it can be evicted.
+    Epoch epoch;
 
     CacheKey key() const {
         // For cheaper lookups, we allow a temporary Handle object
@@ -280,6 +284,11 @@ public:
     size_t get_usage();
     size_t get_capacity();
 
+    void update_epoch(Epoch epoch);
+protected:
+    inline bool need_evict(size_t charge) {
+        return _usage + charge > _capacity;
+    }
 private:
     void _lru_remove(LRUHandle* e);
     void _lru_append(LRUHandle* list, LRUHandle* e);
@@ -303,6 +312,9 @@ private:
 
     uint64_t _lookup_count{0};
     uint64_t _hit_count{0};
+
+    // Make current epoch to decide whether to evict entries.
+    Epoch _cur_epoch;
 };
 
 static const int kNumShardBits = 5;

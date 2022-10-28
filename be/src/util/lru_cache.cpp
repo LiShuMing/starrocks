@@ -243,7 +243,7 @@ void LRUCache::release(Cache::Handle* handle) {
             _usage -= e->charge;
         } else if (e->in_cache && e->refs == 1) {
             // only exists in cache
-            if (_usage > _capacity) {
+            if (_usage > _capacity && e->epoch < _cur_epoch) {
                 // take this opportunity and remove the item
                 _table.remove(e->key(), e->hash);
                 e->in_cache = false;
@@ -266,7 +266,7 @@ void LRUCache::release(Cache::Handle* handle) {
 void LRUCache::_evict_from_lru(size_t charge, std::vector<LRUHandle*>* deleted) {
     LRUHandle* cur = &_lru;
     // 1. evict normal cache entries
-    while (_usage + charge > _capacity && cur->next != &_lru) {
+    while (need_evict(charge) && cur->next != &_lru) {
         LRUHandle* old = cur->next;
         if (old->priority == CachePriority::DURABLE) {
             cur = cur->next;
@@ -276,7 +276,7 @@ void LRUCache::_evict_from_lru(size_t charge, std::vector<LRUHandle*>* deleted) 
         deleted->push_back(old);
     }
     // 2. evict durable cache entries if need
-    while (_usage + charge > _capacity && _lru.next != &_lru) {
+    while (need_evict(charge) && _lru.next != &_lru) {
         LRUHandle* old = _lru.next;
         DCHECK(old->priority == CachePriority::DURABLE);
         _evict_one_entry(old);
@@ -363,6 +363,10 @@ void LRUCache::erase(const CacheKey& key, uint32_t hash) {
     if (last_ref) {
         e->free();
     }
+}
+void LRUCache::update_epoch(Epoch epoch) {
+    std::lock_guard l(_mutex);
+    this->_cur_epoch = epoch;
 }
 
 int LRUCache::prune() {

@@ -216,7 +216,7 @@ set(EXEC_FILES
     query_cache/cache_operator.cpp
     query_cache/cache_manager.cpp
     query_cache/lane_arbiter.cpp
-    query_cache/conjugate_operator.cpp)
+    query_cache/conjugate_operator.cpp streaming/aggregate/streaming_aggregator.cpp streaming/aggregate/streaming_aggregator.h streaming/aggregate/streaming_hash_map.cpp streaming/aggregate/streaming_hash_map.h)
 
 # simdjson Runtime Implement Dispatch: https://github.com/simdjson/simdjson/blob/master/doc/implementation-selection.md#runtime-cpu-detection
 # Unset architecture-specific flags to avoid breaking implement runtime dispatch.

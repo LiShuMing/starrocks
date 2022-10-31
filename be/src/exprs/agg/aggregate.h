@@ -41,6 +41,14 @@ public:
     virtual void update(FunctionContext* ctx, const Column** columns, AggDataPtr __restrict state,
                         size_t row_num) const = 0;
 
+    // Update the aggregation state
+    // columns points to columns containing arguments of aggregation function.
+    // row_num is number of row which should be updated.
+    virtual void retract(FunctionContext* ctx, const Column** columns, AggDataPtr __restrict state,
+                         size_t row_num) const {
+        throw std::runtime_error("retract function in aggregate is not supported for now.");
+    }
+
     // Update/Merge the aggregation state with null
     virtual void process_null(FunctionContext* ctx, AggDataPtr __restrict state) const {}
 

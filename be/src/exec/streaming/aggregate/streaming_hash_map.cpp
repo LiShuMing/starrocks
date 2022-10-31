@@ -2,8 +2,8 @@
 
 #include "streaming_hash_map.h"
 
-namespace starrocks::vectorized {
-// record: changed group keys to flush
+namespace starrocks::streaming {
+
 Status StreamingHashMap::compute_agg_states(size_t chunk_size,
                                             const Columns& key_columns,
                                             Buffer<AggDataPtr>* agg_states) {
@@ -17,12 +17,16 @@ Status StreamingHashMap::compute_agg_states(size_t chunk_size,
         // Make as changed group by key.
         _changed_keys.insert(key);
 
-        auto* handle = _map.lookup(key.get_data());
+        auto* handle = _state_cache->lookup(key);
         if (!handle) {
+            // convert chunk to DatumRow
+
+            // serialize DatumRow to slice
+
             // find key in CacheTable
-            CacheKey cache_key(key.get_data());
             auto state_value = allocate_agg_state_value();
-            handle = _map.insert(cache_key, state_value, _aggregate_keys_size, &delete_agg_state_value, CachePriority::NORMAL);
+            handle = _state_cache->insert(key, state_value, _agg_states_total_size,
+                                          &delete_agg_state_value, CachePriority::NORMAL);
             if (!handle) {
                 // insert failed!!!
                 return Status::MemoryLimitExceeded("Streaming agg insert cache failed.");
@@ -31,19 +35,22 @@ Status StreamingHashMap::compute_agg_states(size_t chunk_size,
             }
         } else {
             // find key in CacheState
-            (*agg_states)[i] = reinterpret_cast<AggStateValue>(_map.value(handle));
+            (*agg_states)[i] = reinterpret_cast<AggDataPtr>(_state_cache->value(handle));
         }
     }
     return Status::OK();
 }
 
-AggStateValue StreamingHashMap::get(AggStateKey key) {
-    auto* handle = _map.lookup(key.get_data());
-    return reinterpret_cast<AggStateValue>(_map.value(handle));
+Status StreamingHashMap::get(const Slice& key, AggDataPtr* value) {
+    auto* handle = _state_cache->lookup(key);
+    DCHECK(handle);
+    *value = reinterpret_cast<AggDataPtr>(_state_cache->value(handle));
+    return Status::OK();
 }
 
-void StreamingHashMap::reset_by_epoch(){
+Status StreamingHashMap::reset_by_barrier(){
     _changed_keys.clear();
+    return Status::OK();
 }
 
 } // namespace starrocks

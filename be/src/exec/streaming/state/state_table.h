@@ -4,11 +4,21 @@
 #define STARROCKS_STATETABLE_H
 
 #include "common/status.h"
+#include "exec/streaming/streaming_fdw.h"
 
-namespace starrocks::vectorized {
+namespace starrocks::streaming {
 
 class StateTable {
-    Status flush();
+public:
+    StateTable() {}
+    ~StateTable() = default;
+
+    DatumRowPtr get_row(const DatumRow& keys) {
+        // TODO(lism): to be implemented.
+        return nullptr;
+    }
+
+    Status flush(vectorized::ChunkPtr* chunk);
 };
 
 }

@@ -255,7 +255,7 @@ public:
         return 16; // For Non-string type, 16 is enough.
     }
 
-    // serialize one data,The memory must allocate firstly from mempool
+    // serialize one data, the memory must be allocated firstly from mem_pool
     virtual uint32_t serialize(size_t idx, uint8_t* pos) = 0;
 
     // serialize default value of column

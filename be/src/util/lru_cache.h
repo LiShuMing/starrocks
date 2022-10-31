@@ -41,6 +41,8 @@ public:
     // Create a slice that refers to the contents of "s"
     CacheKey(std::string_view s) : _data(s.data()), _size(s.size()) {}
 
+    CacheKey(const Slice& s) : _data(s.get_data()), _size(s.get_size()) {}
+
     ~CacheKey() = default;
 
     // Return a pointer to the beginning of the referenced data
@@ -279,17 +281,16 @@ public:
     void erase(const CacheKey& key, uint32_t hash);
     int prune();
 
+    virtual bool need_evict(size_t charge) {
+        return _usage + charge > _capacity;
+    }
+
     uint64_t get_lookup_count();
     uint64_t get_hit_count();
     size_t get_usage();
     size_t get_capacity();
 
-    void update_epoch(Epoch epoch);
 protected:
-    inline bool need_evict(size_t charge) {
-        return _usage + charge > _capacity;
-    }
-private:
     void _lru_remove(LRUHandle* e);
     void _lru_append(LRUHandle* list, LRUHandle* e);
     bool _unref(LRUHandle* e);
@@ -312,7 +313,6 @@ private:
 
     uint64_t _lookup_count{0};
     uint64_t _hit_count{0};
-
     // Make current epoch to decide whether to evict entries.
     Epoch _cur_epoch;
 };

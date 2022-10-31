@@ -243,7 +243,7 @@ void LRUCache::release(Cache::Handle* handle) {
             _usage -= e->charge;
         } else if (e->in_cache && e->refs == 1) {
             // only exists in cache
-            if (_usage > _capacity && e->epoch < _cur_epoch) {
+            if (_usage > _capacity) {
                 // take this opportunity and remove the item
                 _table.remove(e->key(), e->hash);
                 e->in_cache = false;
@@ -306,6 +306,7 @@ Cache::Handle* LRUCache::insert(const CacheKey& key, uint32_t hash, void* value,
     e->next = e->prev = nullptr;
     e->in_cache = true;
     e->priority = priority;
+    e->epoch = _cur_epoch;
     memcpy(e->key_data, key.data(), key.size());
     std::vector<LRUHandle*> last_ref_list;
     {
@@ -363,10 +364,6 @@ void LRUCache::erase(const CacheKey& key, uint32_t hash) {
     if (last_ref) {
         e->free();
     }
-}
-void LRUCache::update_epoch(Epoch epoch) {
-    std::lock_guard l(_mutex);
-    this->_cur_epoch = epoch;
 }
 
 int LRUCache::prune() {

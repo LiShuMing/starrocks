@@ -220,7 +220,7 @@ set(EXEC_FILES
     streaming/aggregate/streaming_aggregator.cpp
     streaming/aggregate/streaming_hash_map.cpp
         streaming/state/state_table.cpp
-        streaming/state/state_store.cpp)
+        streaming/state/state_cache.cpp streaming/stream_chunk.cpp streaming/stream_chunk.h streaming/row_serde.cpp streaming/row_serde.h)
 
 # simdjson Runtime Implement Dispatch: https://github.com/simdjson/simdjson/blob/master/doc/implementation-selection.md#runtime-cpu-detection
 # Unset architecture-specific flags to avoid breaking implement runtime dispatch.

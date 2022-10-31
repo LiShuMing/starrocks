@@ -28,6 +28,7 @@
 #include "runtime/mem_pool.h"
 #include "runtime/runtime_state.h"
 #include "runtime/types.h"
+#include "streaming_hash_map.h"
 
 namespace starrocks::vectorized {
 
@@ -49,6 +50,10 @@ using AggDataPtr = uint8_t*;
 //  - iterate incremental input rows and write back into the StateTable
 // - step4: output the incremental results
 //  - iterate incremental input rows and output to the next operator
+struct ColumnType {
+    TypeDescriptor result_type;
+    bool is_nullable;
+};
 
 class StreamingAggregator final : public pipeline::ContextWithDependency {
     StreamingAggregator();
@@ -60,12 +65,59 @@ class StreamingAggregator final : public pipeline::ContextWithDependency {
     }
 
     Status open(RuntimeState* state);
-    Status prepare(RuntimeState* state, ObjectPool* pool, RuntimeProfile* runtime_profile, MemTracker* mem_tracker);
+    Status prepare(RuntimeState* state, ObjectPool* pool,
+                   RuntimeProfile* runtime_profile,
+                   MemTracker* mem_tracker);
+
+    // Process input's chunks util `Epoch` chunk is received.
+    Status process_chunk(vectorized::Chunk* chunk);
+
+    // Flush the updated chunk into StateTable.
+    Status process_epoch();
 
     void close(RuntimeState* state) override;
 private:
+    // Evaluate input chunk and save it into inner variables.
+    Status _evaluate_exprs(vectorized::Chunk* chunk);
+    //
+    Status _build_hash_map(size_t chunk_size, bool agg_group_by_with_limit = false);
 
+    // Called when need to generate incremental outputs.
+    void _build_changes(int32_t chunk_size, vectorized::ChunkPtr* chunk);
+
+    // If input row is INSERT/UPDATE_AFTER, need accumulate the input.
+    void _accumulate_row(int32_t row_idx);
+    // If input row is DELETE/UPDATE_BEFORE, need accumulate the input.
+    void _retract_row(int32_t row_idx);
+
+    // Create new aggregate function result column by type
+    vectorized::Columns _create_agg_result_columns(size_t num_rows);
+    vectorized::Columns _create_group_by_columns(size_t num_rows);
 private:
+    // Store group by keys to agg state map.
+    StreamingHashMap _agg_map;
+
+    // Exprs used to evaluate conjunct
+    std::vector<ExprContext*> _conjunct_ctxs;
+
+    // Exprs used to evaluate group by column
+    std::vector<ExprContext*> _group_by_expr_ctxs;
+    vectorized::Columns _group_by_columns;
+    std::vector<ColumnType> _group_by_types;
+
+    // The followings are aggregate function information:
+    std::vector<starrocks_udf::FunctionContext*> _agg_fn_ctxs;
+    // The offset of the n-th aggregate function in a row of aggregate functions.
+    std::vector<size_t> _agg_states_offsets;
+    vectorized::Buffer<vectorized::AggDataPtr> _tmp_agg_states;
+    std::vector<const vectorized::AggregateFunction*> _agg_functions;
+    // The expr used to evaluate agg input columns
+    // one agg function could have multi input exprs
+    std::vector<std::vector<ExprContext*>> _agg_expr_ctxs;
+    std::vector<std::vector<vectorized::ColumnPtr>> _agg_input_columns;
+    //raw pointers in order to get multi-column values
+    std::vector<std::vector<const vectorized::Column*>> _agg_input_raw_columns;
+
     RuntimeState* _state = nullptr;
 };
 

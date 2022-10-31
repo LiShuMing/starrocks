@@ -139,7 +139,7 @@ static const int STREAMING_HT_MIN_REDUCTION_SIZE =
 
 using AggregatorPtr = std::shared_ptr<Aggregator>;
 
-// Component used to process aggregation including bloking aggregate and streaming aggregate
+// Component used to process aggregation including blocking aggregate and streaming aggregate
 // it contains common data struct and algorithm of aggregation
 class Aggregator : public pipeline::ContextWithDependency {
 public:

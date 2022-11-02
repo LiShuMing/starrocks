@@ -25,6 +25,7 @@ struct StreamBarrier {
 };
 
 class StreamChunk: public vectorized::Chunk {
+public:
     const std::vector<RowOp>& ops() const { return _ops; }
 private:
     std::vector<RowOp> _ops;

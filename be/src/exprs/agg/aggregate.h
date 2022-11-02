@@ -45,7 +45,7 @@ public:
     // columns points to columns containing arguments of aggregation function.
     // row_num is number of row which should be updated.
     virtual void retract(FunctionContext* ctx, const Column** columns, AggDataPtr __restrict state,
-                         size_t row_num) const {
+                         size_t row_num, bool& need_recompute) const {
         throw std::runtime_error("retract function in aggregate is not supported for now.");
     }
 

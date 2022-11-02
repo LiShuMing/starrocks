@@ -8,13 +8,22 @@
 #include "exec/streaming/streaming_fdw.h"
 #include "util/lru_cache.h"
 
-
 namespace starrocks::streaming {
 class StateCache;
 using StateCacheRawPtr = StateCache*;
 using StateCachePtr = std::shared_ptr<StateCache>;
 using StateCacheUtr = std::unique_ptr<StateCache>;
 
+/**
+ * StateCache is used for keeping changes between the transactions(or barriers) and decrease IO interacts with Storage
+ * layer:
+ * - For each transaction(or barrier), StateTable's data cannot be read before committed, so keep state changes into
+ *   StateCache to be read as soon as possible;
+ * - StateCache can cache the changes of state for the specific keys to avoid IOs with Storage.
+ *
+ *  While normal LRUCache evicts data according `capacity` dynamically, StateCache cannot evict the cache data
+ *  during the transaction(or barrier) before flushing, otherwise may cause data lose for StateTable.
+ */
 class StateCache : LRUCache {
 public:
     StateCache() {}

@@ -9,6 +9,7 @@
 
 #include "exec/streaming/aggregate/streaming_hash_map.h"
 #include "exec/streaming/state/state_table.h"
+#include "exec/streaming/stream_chunk.h"
 #include "exec/vectorized/aggregator.h"
 #include "runtime/mem_pool.h"
 #include "runtime/runtime_state.h"

@@ -7,8 +7,6 @@
 #include "column/column_helper.h"
 #include "column/hash_set.h"
 #include "column/type_traits.h"
-#include "column/vectorized_fwd.h"
-#include "stream_chunk.h"
 
 namespace starrocks::streaming {
 
@@ -20,6 +18,11 @@ using SliceHashSet = vectorized::SliceHashSet;
 using Epoch = int64_t;
 using DatumRow = std::vector<vectorized::Datum>;
 using DatumRowPtr = std::shared_ptr<DatumRow>;
+using Chunk = vectorized::Chunk;
+using ChunkPtr = vectorized::ChunkPtr;
+
+// represents all aggs' data for one group by key.
+using AggDataPtr = uint8_t*;
 
 } // namespace starrocks::streaming
 

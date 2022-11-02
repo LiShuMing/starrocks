@@ -8,30 +8,17 @@
 
 namespace starrocks::streaming {
 
-class RowSerializer {
+// DatumRowSerde used to serialize/deserialize a column to/from an in-memory array.
+class DatumRowSerde {
 public:
-    RowSerializer() {}
+    // 0 means does not support the type of column
+    static int64_t max_serialized_size(const DatumRow& row);
 
-    ~RowSerializer() = default;
+    // Return nullptr on error.
+    static uint8_t* serialize(const DatumRow& row, uint8_t* buff);
 
-    // serializing one rows
-    void serialize_row(const Columns& columns, size_t idx, uint8_t* buff) {
-        for (const auto& column: columns) {
-            column->serialize(idx, buff);
-        }
-    }
-
-    // deserialize keys
-    void deserialize_row(uint8_t* buffer, DatumRow& row);
-private:
-    // Store buffers which can be reused in the incremental compute.
-    std::unique_ptr<MemPool> _mem_pool;
-    // Max serialized size for all group_by keys.
-    uint32_t _max_keys_size = 8;
-    // Buffer which is used to store group_by keys that can be reused for each chunk.
-    uint8_t* _keys_buffer;
-    // Group_by keys' serialized sizes for each chunk.
-    Buffer<uint32_t> _keys_slice_sizes;
+    // Return nullptr on error.
+    static const uint8_t* deserialize(const uint8_t* buff, DatumRow* column);
 };
 
 }

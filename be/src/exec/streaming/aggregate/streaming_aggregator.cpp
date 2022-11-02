@@ -1,6 +1,6 @@
 // This file is licensed under the Elastic License 2.0. Copyright 2021-present, StarRocks Inc.
 
-#include "streaming_aggregator.h"
+#include "exec/streaming/aggregate/streaming_aggregator.h"
 
 namespace starrocks::streaming {
 

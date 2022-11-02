@@ -23,7 +23,7 @@ Status StreamingHashMap::compute_agg_states(size_t chunk_size,
 
             // serialize DatumRow to slice
 
-            // find key in CacheTable
+            // find key in Cache
             auto state_value = allocate_agg_state_value();
             handle = _state_cache->insert(key, state_value, _agg_states_total_size,
                                           &delete_agg_state_value, CachePriority::NORMAL);

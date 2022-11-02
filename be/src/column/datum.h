@@ -163,6 +163,19 @@ public:
                 _value);
     }
 
+    // 0 means does not support the type of column
+    int64_t max_serialized_size() {
+        return 0;
+    }
+
+    // Return nullptr on error.
+    uint8_t* serialize(uint8_t* buff) {
+        return nullptr;
+    }
+
+    // Return nullptr on error.
+    static const uint8_t* deserialize(const uint8_t* buff, Datum* column);
+
 private:
     using Variant =
             std::variant<std::monostate, int8_t, uint8_t, int16_t, uint16_t, uint24_t, int32_t, uint32_t, int64_t,

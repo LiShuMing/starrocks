@@ -16,8 +16,10 @@ using Columns = vectorized::Columns;
 using SliceHashSet = vectorized::SliceHashSet;
 
 using Epoch = int64_t;
+using Datum = vectorized::Datum;
 using DatumRow = std::vector<vectorized::Datum>;
 using DatumRowPtr = std::shared_ptr<DatumRow>;
+using DatumRowOpt = std::optional<DatumRow>;
 using Chunk = vectorized::Chunk;
 using ChunkPtr = vectorized::ChunkPtr;
 

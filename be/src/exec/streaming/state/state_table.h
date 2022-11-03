@@ -17,7 +17,7 @@ public:
         // TODO(lism): to be implemented.
         return nullptr;
     }
-    std::vector<std::optional<DatumRowPtr>> batch_get(const std::vector<DatumRow>& keys);
+    std::vector<DatumRowOpt> get_rows(const std::vector<DatumRow>& keys);
 
     Status flush(vectorized::ChunkPtr* chunk);
 };

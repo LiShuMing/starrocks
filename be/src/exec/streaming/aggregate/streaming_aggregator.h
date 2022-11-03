@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <utility>
 
+#include "exec/streaming/aggregate/agg_state_cache.h"
+#include "exec/streaming/aggregate/agg_state_data.h"
 #include "exec/streaming/aggregate/streaming_hash_map.h"
 #include "exec/streaming/state/state_table.h"
 #include "exec/streaming/stream_chunk.h"
@@ -59,23 +61,48 @@ class StreamingAggregator final : public Aggregator {
 
     void close(RuntimeState* state) override;
 private:
-    Status _build_hash_map(size_t chunk_size, bool agg_group_by_with_limit = false);
+    Status _compute_agg_states(size_t chunk_size,
+                               const Columns& key_columns,
+                               std::vector<int8_t>* not_found,
+                               std::vector<DatumRow>* not_found_keys,
+                               Buffer<AggGroupStatePtr>* agg_states);
+
+    uint32_t _get_max_serialize_size(const Columns& key_columns) {
+        uint32_t max_size = 0;
+        for (const auto& key_column : key_columns) {
+            max_size += key_column->max_one_element_serialize_size();
+        }
+        return max_size;
+    }
 
     // Called when need to generate incremental outputs.
     Status _build_changes(int32_t chunk_size, vectorized::ChunkPtr* chunk);
-
-    // If input row is INSERT/UPDATE_AFTER, need accumulate the input.
-    void _accumulate_row(int32_t row_idx);
-    // If input row is DELETE/UPDATE_BEFORE, need accumulate the input.
-    void _retract_row(int32_t row_idx);
 
 private:
     // Store group by keys to agg state map.
     std::unique_ptr<StreamingHashMap> _agg_map;
     std::unique_ptr<StateCache> _state_cache;
     std::unique_ptr<StateTable> _result_state_table;
-    std::unique_ptr<StateTable> _agg_state_table;
+    std::unique_ptr<StateTable> _intermediate_state_table;
+    std::unique_ptr<StateTable> _detail_state_table;
     Epoch _prev_epoch;
+
+    // Store buffers which can be reused in the incremental compute.
+    std::unique_ptr<MemPool> _mem_pool;
+
+    std::vector<std::unique_ptr<AggStateData>> _agg_states_with_result;
+    std::vector<std::unique_ptr<AggStateData>> _agg_states_with_intermediate;
+    std::vector<std::unique_ptr<AggStateData>> _agg_states_with_detail;
+
+    // Max serialized size for all group_by keys.
+    uint32_t _max_keys_size = 8;
+    // Buffer which is used to store group_by keys that can be reused for each chunk.
+    uint8_t* _keys_buffer;
+    // Group_by keys' serialized sizes for each chunk.
+    Buffer<uint32_t> _keys_slice_sizes;
+
+    // Changed group by keys to generate outputs
+    SliceHashSet _changed_keys;
 };
 
 } // namespace starrocks::vectorized

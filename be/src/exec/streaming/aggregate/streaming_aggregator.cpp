@@ -12,35 +12,106 @@ StreamingAggregator::StreamingAggregator(const TPlanNode& tnode): Aggregator(tno
 Status StreamingAggregator::process_chunk(vectorized::Chunk* chunk) {
     size_t chunk_size = chunk->num_rows();
     RETURN_IF_ERROR(_evaluate_exprs(chunk));
-    RETURN_IF_ERROR(_build_hash_map(chunk_size));
-    for (int i = 0; i < chunk_size; i++) {
-        // switch input' ops
-        _accumulate_row(i);
+
+    Buffer<AggGroupStatePtr> agg_group_states;
+    std::vector<int8_t> not_found;
+    agg_group_states.resize(chunk_size);
+    not_found.resize(chunk_size);
+    std::vector<DatumRow> not_find_keys;
+    RETURN_IF_ERROR(_compute_agg_states(chunk_size, _group_by_columns, &not_found, &not_find_keys, &agg_group_states));
+    // assert not_find_keys' size is equal to not_found's size
+
+    // batch fetch intermediate results from imt table
+    if (_agg_states_with_result.size() > 0) {
+        std::vector<DatumRowOpt> result_outputs = _result_state_table->get_rows(not_find_keys);
+        for (int i = 0; i < _agg_states_with_result.size(); i++) {
+            auto& agg_state_data = _agg_states_with_result[i];
+            agg_state_data->allocate_state(chunk_size, &not_found, result_outputs, agg_group_states);
+        }
     }
+    if (_agg_states_with_intermediate.size() > 0 || _agg_states_with_detail.size() > 0) {
+        std::vector<DatumRowOpt> intermediate_result_outputs = _intermediate_state_table->get_rows(not_find_keys);
+        for (int i = 0; i < _agg_states_with_result.size(); i++) {
+            auto& agg_state_data = _agg_states_with_result[i];
+            agg_state_data->allocate_state(chunk_size, &not_found, intermediate_result_outputs, agg_group_states);
+        }
+        for (int i = 0; i < _agg_states_with_detail.size(); i++) {
+            auto& agg_state_data = _agg_states_with_detail[i];
+            agg_state_data->allocate_state(chunk_size, &not_found, intermediate_result_outputs, agg_group_states);
+        }
+    }
+    std::vector<RowOp> ops;
+    if (_agg_states_with_result.size() > 0) {
+        for (int i = 0; i < _agg_states_with_result.size(); i++) {
+            auto& agg_state_data = _agg_states_with_result[i];
+            agg_state_data->process_chunk(chunk_size, ops, _agg_input_raw_columns[i], agg_group_states);
+        }
+    }
+    if (_agg_states_with_intermediate.size() > 0) {
+        for (int i = 0; i < _agg_states_with_intermediate.size(); i++) {
+            auto& agg_state_data = _agg_states_with_intermediate[i];
+            agg_state_data->process_chunk(chunk_size, ops, _agg_input_raw_columns[i], agg_group_states);
+        }
+    }
+    for (int i = 0; i < _agg_states_with_detail.size(); i++) {
+        auto& agg_state_data = _agg_states_with_detail[i];
+        agg_state_data->process_chunk(chunk_size, ops, _agg_input_raw_columns[i], agg_group_states);
+    }
+
     return Status::OK();
 }
 
-// If input row is INSERT/UPDATE_AFTER, need accumulate the input.
-void StreamingAggregator::_accumulate_row(int32_t row_idx) {
-    DCHECK_LT(row_idx, _tmp_agg_states.size());
-    for (size_t i = 0; i < _agg_fn_ctxs.size(); i++) {
-        _agg_functions[i]->update(_agg_fn_ctxs[i], _agg_input_raw_columns[i].data(),
-                                  _tmp_agg_states[row_idx] + _agg_states_offsets[i], i);
+Status StreamingAggregator::_compute_agg_states(size_t chunk_size,
+                                                const Columns& key_columns,
+                                                std::vector<int8_t>* not_found,
+                                                std::vector<DatumRow>* not_found_keys,
+                                                Buffer<AggGroupStatePtr>* agg_states) {
+    // serialize keys
+    _keys_slice_sizes.assign(chunk_size, 0);
+    not_found->assign(chunk_size, 0);
+    uint32_t cur_max_one_row_size = _get_max_serialize_size(key_columns);
+    if (UNLIKELY(cur_max_one_row_size > _max_keys_size)) {
+        _max_keys_size = cur_max_one_row_size;
+        _mem_pool->clear();
+        _keys_buffer = _mem_pool->allocate(_max_keys_size * chunk_size + vectorized::SLICE_MEMEQUAL_OVERFLOW_PADDING);
     }
-}
-
-// If input row is DELETE/UPDATE_BEFORE, need accumulate the input.
-void StreamingAggregator::_retract_row(int32_t row_idx) {
-    // NOT IMPLEMENT.
-    DCHECK_LT(row_idx, _tmp_agg_states.size());
-    for (size_t i = 0; i < _agg_fn_ctxs.size(); i++) {
-        _agg_functions[i]->retract(_agg_fn_ctxs[i], _agg_input_raw_columns[i].data(),
-                                   _tmp_agg_states[row_idx] + _agg_states_offsets[i], i);
+    for (const auto& key_column : key_columns) {
+        key_column->serialize_batch(_keys_buffer, _keys_slice_sizes, chunk_size, _max_keys_size);
     }
-}
 
-Status StreamingAggregator::_build_hash_map(size_t chunk_size, bool agg_group_by_with_limit) {
-    RETURN_IF_ERROR(_agg_map->compute_agg_states(chunk_size, _group_by_columns, &_tmp_agg_states));
+    // compute agg state
+    for (size_t i = 0; i < chunk_size; ++i) {
+        Slice key = {_keys_buffer + i * _max_keys_size, _keys_slice_sizes[i]};
+
+        // Make as changed group by key.
+        _changed_keys.insert(key);
+
+        auto* handle = _state_cache->lookup(key);
+        AggGroupCacheValue* agg_group_state;
+        if (!handle) {
+            (*not_found)[i] = 1;
+            agg_group_state = new AggGroupCacheValue(_agg_states_total_size);
+            handle = _state_cache->insert(key, agg_group_state, _agg_states_total_size,
+                                          &delete_agg_group_cache_value, CachePriority::NORMAL);
+            if (!handle) {
+                // insert failed!!!
+                return Status::MemoryLimitExceeded("Streaming agg insert cache failed.");
+            }
+
+            // construct datum row keys to find in the imt table.
+            DatumRow keys_row;
+            keys_row.resize(key_columns.size());
+            for (int j = 0; j < key_columns.size(); j++) {
+                auto& column = key_columns[j];
+                keys_row[i] = column->get(i);
+            }
+            not_found_keys->emplace_back(std::move(keys_row));
+        } else {
+            // find key in CacheState
+            agg_group_state = reinterpret_cast<AggGroupCacheValue*>(_state_cache->value(handle));
+        }
+        (*agg_states)[i] = agg_group_state->agg_group_state;
+    }
     return Status::OK();
 }
 
@@ -56,13 +127,12 @@ Status StreamingAggregator::process_barrier(const StreamBarrier& barrier) {
 
 Status StreamingAggregator::_build_changes(int32_t chunk_size, vectorized::ChunkPtr* chunk) {
     // TODO: support split it.
-    auto& changed_keys = _agg_map->changed_keys();
-    auto changed_keys_size = changed_keys.size();
+    auto changed_keys_size = _changed_keys.size();
     Columns group_by_columns = _create_group_by_columns(changed_keys_size);
     Columns agg_result_columns = _create_agg_result_columns(changed_keys_size);
 
-    AggDataPtr agg_state;
-    for (auto it = changed_keys.begin(); it != changed_keys.end(); ++it) {
+    AggGroupStatePtr agg_state;
+    for (auto it = _changed_keys.begin(); it != _changed_keys.end(); ++it) {
         // group by keys
         auto serialized_key = *it;
         // deserialized group by keys

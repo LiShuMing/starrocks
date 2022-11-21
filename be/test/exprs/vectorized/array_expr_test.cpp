@@ -64,9 +64,9 @@ TEST_F(ArrayExprTest, test_evaluate) {
     // [6, 8, 12]
     {
         std::unique_ptr<Expr> expr(ExprsTestHelper::create_array_expr(type_arr_int));
-        expr->add_child(new_mock_expr(ColumnTestBuilder::build_int_column({1, 3, 6}), LogicalType::TYPE_INT));
-        expr->add_child(new_mock_expr(ColumnTestBuilder::build_int_column({2, 4, 8}), LogicalType::TYPE_INT));
-        expr->add_child(new_mock_expr(ColumnTestBuilder::build_int_column({4, 8, 12}), LogicalType::TYPE_INT));
+        expr->add_child(new_mock_expr(ColumnTestBuilder::build_int32_column({1, 3, 6}), LogicalType::TYPE_INT));
+        expr->add_child(new_mock_expr(ColumnTestBuilder::build_int32_column({2, 4, 8}), LogicalType::TYPE_INT));
+        expr->add_child(new_mock_expr(ColumnTestBuilder::build_int32_column({4, 8, 12}), LogicalType::TYPE_INT));
         auto result = expr->evaluate(nullptr, nullptr);
         EXPECT_EQ(3, result->size());
 
@@ -91,9 +91,10 @@ TEST_F(ArrayExprTest, test_evaluate) {
     // [6, 8, 12]
     {
         std::unique_ptr<Expr> expr(ExprsTestHelper::create_array_expr(type_arr_int));
-        expr->add_child(new_mock_expr(ColumnTestBuilder::build_int_column({1, 3, 6}), LogicalType::TYPE_INT));
-        expr->add_child(new_mock_expr(ColumnTestBuilder::build_int_column({2, 4, 8}), LogicalType::TYPE_INT));
-        expr->add_child(new_mock_expr(ColumnTestBuilder::build_int_column({4, 0, 12}, {0, 1, 0}), LogicalType::TYPE_INT));
+        expr->add_child(new_mock_expr(ColumnTestBuilder::build_int32_column({1, 3, 6}), LogicalType::TYPE_INT));
+        expr->add_child(new_mock_expr(ColumnTestBuilder::build_int32_column({2, 4, 8}), LogicalType::TYPE_INT));
+        expr->add_child(
+                new_mock_expr(ColumnTestBuilder::build_int32_column({4, 0, 12}, {0, 1, 0}), LogicalType::TYPE_INT));
         auto result = expr->evaluate(nullptr, nullptr);
         EXPECT_EQ(3, result->size());
 

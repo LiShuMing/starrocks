@@ -138,25 +138,25 @@ struct MinAggregateData<PT, StringPTGuard<PT>> {
 template <LogicalType PT, typename State, typename = guard::Guard>
 struct MaxElement {
     using T = RunTimeCppType<PT>;
-    // When input is retract message, when need_sync is true: need retract current result,
+    // When input is retract message, when is_sync is true: need retract current result,
     // and sync previous data from detail table to generate new result.
-    // When input is retract message, when need_sync is true: need retract current result,
-    static bool need_sync(State& state, const T& right) { return state.result <= right; }
+    // When input is retract message, when is_sync is true: need retract current result,
+    static bool is_sync(State& state, const T& right) { return state.result <= right; }
     void operator()(State& state, const T& right) const { state.result = std::max<T>(state.result, right); }
 };
 
 template <LogicalType PT, typename State, typename = guard::Guard>
 struct MinElement {
     using T = RunTimeCppType<PT>;
-    // When input is retract message, when need_sync is true: need retract current result,
+    // When input is retract message, when is_sync is true: need retract current result,
     // and sync previous data from detail table to generate new result.
-    static bool need_sync(State& state, const T& right) { return state.result >= right; }
+    static bool is_sync(State& state, const T& right) { return state.result >= right; }
     void operator()(State& state, const T& right) const { state.result = std::min<T>(state.result, right); }
 };
 
 template <LogicalType PT, typename State>
 struct MaxElement<PT, State, StringPTGuard<PT>> {
-    static bool need_sync(State& state, const Slice& right) {
+    static bool is_sync(State& state, const Slice& right) {
         return state.has_value() && state.slice().compare(right) >= 0;
     }
 
@@ -171,7 +171,7 @@ struct MaxElement<PT, State, StringPTGuard<PT>> {
 
 template <LogicalType PT, typename State>
 struct MinElement<PT, State, StringPTGuard<PT>> {
-    static bool need_sync(State& state, const Slice& right) {
+    static bool is_sync(State& state, const Slice& right) {
         return state.has_value() && state.slice().compare(right) <= 0;
     }
 

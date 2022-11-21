@@ -15,11 +15,9 @@ Status AggStateData::allocate_intermediate_state(size_t chunk_size, const std::v
         if (keys_not_in_map[i]) {
             DCHECK_LT(j, chunk_size);
             // replacement new
-            VLOG_ROW << "allocate_state, key not in map:" << i << ", agg_func_idx:" << agg_func_idx;
             _agg_function->create(_agg_fn_ctx, agg_group_state[i] + _agg_state_offset);
             auto& result_chunk_or = result_chunks[j++];
             if (result_chunk_or.ok()) {
-                VLOG_ROW << "allocate_state, key in state table:" << i;
                 // deserialize result row and allocate it to agg_state
                 auto result_chunk = result_chunk_or.value();
                 DCHECK_LT(table_idx, result_chunk->num_columns());
@@ -52,7 +50,6 @@ Status AggStateData::allocate_retract_state(size_t chunk_size, const std::vector
             DCHECK_LT(j, chunk_size);
             auto& result_chunk_or = result_chunks[j++];
             if (result_chunk_or.ok()) {
-                VLOG_ROW << "allocate_retract_state, key in state table:" << i;
                 // TODO: There are some reasons that all incremental keys' detail
                 //  states should be restored at first:
                 // - all keys' states should be refreshed and flushed in the end (maybe we can aggregate mode to

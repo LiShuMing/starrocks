@@ -14,7 +14,7 @@
 #include "runtime/types.h"
 
 namespace starrocks::vectorized {
-using SlotInfo = std::tuple<std::string, PrimitiveType, bool>;
+using SlotInfo = std::tuple<std::string, LogicalType, bool>;
 using SlotInfoArray = std::vector<SlotInfo>;
 
 class DescTblHelper {

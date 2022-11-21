@@ -15,7 +15,7 @@ using SlotInfo = vectorized::SlotInfo;
 using ExprsTestHelper = vectorized::ExprsTestHelper;
 using StreamRowOp = vectorized::StreamRowOp;
 using GroupByKeyInfo = SlotId;
-using AggInfo = std::tuple<SlotId, std::string, PrimitiveType, PrimitiveType>;
+using AggInfo = std::tuple<SlotId, std::string, LogicalType, LogicalType>;
 
 class StreamTestBase : public testing::Test {
 public:
@@ -38,7 +38,7 @@ protected:
     }
 
     // TODO: now we assume, int32_t/ ... / int32_t / ... / uint8_t
-    void CheckChunk(ChunkPtr chunk, std::vector<PrimitiveType> types, std::vector<std::vector<int64_t>> ans,
+    void CheckChunk(ChunkPtr chunk, std::vector<LogicalType> types, std::vector<std::vector<int64_t>> ans,
                     std::vector<uint8_t> ops) {
         auto chunk_size = chunk->num_rows();
         auto num_col = chunk->num_columns();
@@ -67,7 +67,7 @@ protected:
     }
 
     template <typename T>
-    void CheckDatumWithType(PrimitiveType type, Datum datum, T data) {
+    void CheckDatumWithType(LogicalType type, Datum datum, T data) {
         switch (type) {
         case TYPE_INT:
             DCHECK_EQ(datum.get_int32(), data);

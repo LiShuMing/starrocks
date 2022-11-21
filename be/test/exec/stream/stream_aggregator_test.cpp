@@ -22,8 +22,8 @@ public:
 
     ~StreamAggregateTestBase() = default;
 
-    std::vector<PrimitiveType> get_slot_types(std::vector<SlotInfo> slot_infos) {
-        std::vector<PrimitiveType> types;
+    std::vector<LogicalType> get_slot_types(std::vector<SlotInfo> slot_infos) {
+        std::vector<LogicalType> types;
         for (auto& info : slot_infos) {
             types.push_back(std::get<1>(info));
         }

@@ -10,22 +10,32 @@
 namespace starrocks::vectorized {
 
 // TODO: Support detail agg state reusable between different agg stats.
+// TODO: How to handle count=0's key-value?
 template <LogicalType PT>
-struct StreamAggregateFunctionState {
+struct StreamDetailState {
     using T = RunTimeCppType<PT>;
-    StreamAggregateFunctionState() = default;
-    ~StreamAggregateFunctionState() = default;
+    StreamDetailState() = default;
+    ~StreamDetailState() = default;
 
     void update_rows(const T& value, int64_t num_rows) {
         auto iter = _detail_state.find(value);
+        if constexpr (std::is_same_v<int64_t, T>) {
+            std::cout << "before iter->second:" << iter->second << ", value:" << value << ", num_rows:" << num_rows
+                      << std::endl;
+        }
         if (iter != _detail_state.end()) {
             iter->second += num_rows;
         } else {
             iter->second = num_rows;
         }
+        if constexpr (std::is_same_v<int64_t, T>) {
+            std::cout << "after iter->second:" << iter->second << ", value:" << value << ", num_rows:" << num_rows
+                      << std::endl;
+        }
     }
-    void mark_sync(bool sync) { this->is_sync = sync; }
-    bool is_sync() { return is_sync; }
+    const std::map<T, int64_t>& detail_state() const { return _detail_state; }
+    const bool is_sync() const { return _is_sync; }
+    void mark_sync(bool sync) { this->_is_sync = sync; }
 
     // Keep tracts with all details for a specific group by key to
     // be used for detail aggregation retracts.

@@ -130,7 +130,7 @@ Status StreamAggregator::process_chunk(vectorized::Chunk* chunk) {
 
     {
         SCOPED_TIMER(agg_compute_timer());
-        TRY_CATCH_BAD_ALLOC(_aggregator->build_hash_map_with_selection(input_chunk_size));
+        TRY_CATCH_BAD_ALLOC(build_hash_map_with_selection(chunk_size));
     }
 
     // Deduce non found keys
@@ -149,8 +149,7 @@ Status StreamAggregator::process_chunk(vectorized::Chunk* chunk) {
     // TODO(lism): Maybe we can compact build_hash_map and compute_not_founds into one method.
     {
         SCOPED_TIMER(agg_compute_timer());
-        TRY_CATCH_BAD_ALLOC(hash_map_variant().visit(
-                [&](auto& hash_map_with_key) { build_hash_map(*hash_map_with_key, chunk_size); }));
+        TRY_CATCH_BAD_ALLOC(build_hash_map(chunk_size));
     }
 
     // batch fetch intermediate results from imt table

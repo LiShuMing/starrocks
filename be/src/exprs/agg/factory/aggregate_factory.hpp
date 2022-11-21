@@ -181,10 +181,10 @@ public:
     }
 
     // Stream MV Retractable Agg Functions
-    template <PrimitiveType PT>
+    template <LogicalType PT>
     static auto MakeRetractMinAggregateFunction();
 
-    template <PrimitiveType PT>
+    template <LogicalType PT>
     static auto MakeRetractMaxAggregateFunction();
 };
 
@@ -312,13 +312,13 @@ AggregateFunctionPtr AggregateFactory::MakePercentileContAggregateFunction() {
 }
 
 // Stream MV Retractable Aggregate Functions
-template <PrimitiveType PT>
+template <LogicalType PT>
 auto AggregateFactory::MakeRetractMinAggregateFunction() {
     return std::make_shared<MaxMinAggregateFunctionRetractable<PT, MinAggregateDataRetractable<PT>,
                                                                MinElement<PT, MinAggregateDataRetractable<PT>>>>();
 }
 
-template <PrimitiveType PT>
+template <LogicalType PT>
 auto AggregateFactory::MakeRetractMaxAggregateFunction() {
     return std::make_shared<MaxMinAggregateFunctionRetractable<PT, MaxAggregateDataRetractable<PT>,
                                                                MaxElement<PT, MaxAggregateDataRetractable<PT>>>>();

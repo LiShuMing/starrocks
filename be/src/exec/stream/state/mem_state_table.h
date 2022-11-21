@@ -13,8 +13,6 @@ namespace starrocks::stream {
 using DatumKeyRow = std::vector<vectorized::DatumKey>;
 using DatumKey = vectorized::DatumKey;
 
-LogicalType primitive_type_to_scalar_field_type(PrimitiveType p_type);
-
 // DatumIterator only have one datum row for the pk.
 class DatumRowIterator final : public vectorized::ChunkIterator {
 public:
@@ -75,7 +73,7 @@ public:
     vectorized::Schema make_schema_from_slots(const std::vector<SlotDescriptor*>& slots);
 
     static DatumKeyRow convert_datum_row_to_key(const DatumRow& row, size_t start, size_t end);
-    static Datum convert_datum_key_to_datum(PrimitiveType type, DatumKey datum_key);
+    static Datum convert_datum_key_to_datum(LogicalType type, DatumKey datum_key);
     static DatumKeyRow make_datum_key_row(vectorized::Chunk* chunk, size_t start, size_t end, int row_idx);
     static DatumRow make_datum_row(vectorized::Chunk* chunk, size_t start, size_t end, int row_idx);
 

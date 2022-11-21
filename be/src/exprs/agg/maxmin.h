@@ -140,6 +140,7 @@ struct MaxElement {
     using T = RunTimeCppType<PT>;
     // When input is retract message, when need_sync is true: need retract current result,
     // and sync previous data from detail table to generate new result.
+    // When input is retract message, when need_sync is true: need retract current result,
     static bool need_sync(State& state, const T& right) { return state.result <= right; }
     void operator()(State& state, const T& right) const { state.result = std::max<T>(state.result, right); }
 };
@@ -153,9 +154,13 @@ struct MinElement {
     void operator()(State& state, const T& right) const { state.result = std::min<T>(state.result, right); }
 };
 
-template <LogicalType PT>
-struct MaxElement<PT, MaxAggregateData<PT>, StringPTGuard<PT>> {
-    void operator()(MaxAggregateData<PT>& state, const Slice& right) const {
+template <LogicalType PT, typename State>
+struct MaxElement<PT, State, StringPTGuard<PT>> {
+    static bool need_sync(State& state, const Slice& right) {
+        return state.has_value() && state.slice().compare(right) >= 0;
+    }
+
+    void operator()(State& state, const Slice& right) const {
         if (!state.has_value() || state.slice().compare(right) < 0) {
             state.buffer.resize(right.size);
             memcpy(state.buffer.data(), right.data, right.size);
@@ -164,9 +169,13 @@ struct MaxElement<PT, MaxAggregateData<PT>, StringPTGuard<PT>> {
     }
 };
 
-template <LogicalType PT>
-struct MinElement<PT, MinAggregateData<PT>, StringPTGuard<PT>> {
-    void operator()(MinAggregateData<PT>& state, const Slice& right) const {
+template <LogicalType PT, typename State>
+struct MinElement<PT, State, StringPTGuard<PT>> {
+    static bool need_sync(State& state, const Slice& right) {
+        return state.has_value() && state.slice().compare(right) <= 0;
+    }
+
+    void operator()(State& state, const Slice& right) const {
         if (!state.has_value() || state.slice().compare(right) > 0) {
             state.buffer.resize(right.size);
             memcpy(state.buffer.data(), right.data, right.size);
@@ -176,8 +185,7 @@ struct MinElement<PT, MinAggregateData<PT>, StringPTGuard<PT>> {
 };
 
 template <LogicalType PT, typename State, class OP, typename T = RunTimeCppType<PT>, typename = guard::Guard>
-class MaxMinAggregateFunction
-        : public AggregateFunctionBatchHelper<State, MaxMinAggregateFunction<PT, State, OP, T>> {
+class MaxMinAggregateFunction : public AggregateFunctionBatchHelper<State, MaxMinAggregateFunction<PT, State, OP, T>> {
 public:
     using InputColumnType = RunTimeColumnType<PT>;
 

@@ -9,12 +9,12 @@
 namespace starrocks::vectorized {
 
 struct RetractMinMaxDispatcher {
-    template <PrimitiveType pt>
+    template <LogicalType pt>
     void operator()(AggregateFuncResolver* resolver) {
         if constexpr (pt_is_aggregate<pt> || pt_is_string<pt>) {
-            resolver->add_aggregate_mapping<pt, pt, MinAggregateData<pt>>(
+            resolver->add_aggregate_mapping<pt, pt, MinAggregateDataRetractable<pt>>(
                     "retract_min", true, AggregateFactory::MakeRetractMinAggregateFunction<pt>());
-            resolver->add_aggregate_mapping<pt, pt, MaxAggregateData<pt>>(
+            resolver->add_aggregate_mapping<pt, pt, MaxAggregateDataRetractable<pt>>(
                     "retract_max", true, AggregateFactory::MakeRetractMaxAggregateFunction<pt>());
         }
     }

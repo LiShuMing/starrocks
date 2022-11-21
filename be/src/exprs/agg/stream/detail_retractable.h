@@ -18,7 +18,7 @@ using AggDataPtr = uint8_t*;
 using ConstAggDataPtr = const uint8_t*;
 
 // TODO: Support detail agg state reusable between different agg stats.
-template <PrimitiveType PT>
+template <LogicalType PT>
 struct StreamAggregateFunctionState {
     using T = RunTimeCppType<PT>;
     StreamAggregateFunctionState() = default;

@@ -986,10 +986,10 @@ void Aggregator::convert_hash_map_to_chunk(int32_t chunk_size, vectorized::Chunk
 
         const auto hash_map_size = _hash_map_variant.size();
         auto num_rows = std::min<size_t>(hash_map_size - _num_rows_processed, chunk_size);
-        vectorized::Columns group_by_columns = _create_group_by_columns(num_rows);
-        vectorized::Columns agg_result_columns = _create_agg_result_columns(num_rows);
-
         auto use_intermediate = _use_intermediate_as_output();
+        vectorized::Columns group_by_columns = _create_group_by_columns(num_rows);
+        vectorized::Columns agg_result_columns = _create_agg_result_columns(num_rows, use_intermediate);
+
         int32_t read_index = 0;
         {
             SCOPED_TIMER(_agg_stat->iter_timer);
@@ -1051,7 +1051,7 @@ void Aggregator::convert_hash_map_to_chunk(int32_t chunk_size, vectorized::Chunk
         }
 
         _it_hash = it;
-        auto result_chunk = _build_output_chunk(group_by_columns, agg_result_columns);
+        auto result_chunk = _build_output_chunk(group_by_columns, agg_result_columns, use_intermediate);
         _num_rows_returned += read_index;
         _num_rows_processed += read_index;
         *chunk = std::move(result_chunk);

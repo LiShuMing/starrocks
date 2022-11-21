@@ -15,10 +15,10 @@
 
 namespace starrocks::vectorized {
 
-template <PrimitiveType PT, typename = guard::Guard>
+template <LogicalType PT, typename = guard::Guard>
 struct MaxAggregateDataRetractable : public StreamAggregateFunctionState<PT> {};
 
-template <PrimitiveType PT>
+template <LogicalType PT>
 struct MaxAggregateDataRetractable<PT, IntegralPTGuard<PT>> : public StreamAggregateFunctionState<PT> {
     using T = RunTimeCppType<PT>;
     T result = std::numeric_limits<T>::lowest();
@@ -26,7 +26,7 @@ struct MaxAggregateDataRetractable<PT, IntegralPTGuard<PT>> : public StreamAggre
     void reset() { result = std::numeric_limits<T>::lowest(); }
 };
 
-template <PrimitiveType PT>
+template <LogicalType PT>
 struct MaxAggregateDataRetractable<PT, FloatPTGuard<PT>> : public StreamAggregateFunctionState<PT> {
     using T = RunTimeCppType<PT>;
     T result = std::numeric_limits<T>::lowest();
@@ -40,7 +40,7 @@ struct MaxAggregateDataRetractable<TYPE_DECIMALV2, guard::Guard> : public Stream
     void reset() { result = DecimalV2Value::get_min_decimal(); }
 };
 
-template <PrimitiveType PT>
+template <LogicalType PT>
 struct MaxAggregateDataRetractable<PT, DecimalPTGuard<PT>> : public StreamAggregateFunctionState<PT> {
     using T = RunTimeCppType<PT>;
     T result = get_min_decimal<T>();
@@ -61,7 +61,7 @@ struct MaxAggregateDataRetractable<TYPE_DATE, guard::Guard> : public StreamAggre
     void reset() { result = DateValue::MIN_DATE_VALUE; }
 };
 
-template <PrimitiveType PT>
+template <LogicalType PT>
 struct MaxAggregateDataRetractable<PT, StringPTGuard<PT>> : public StreamAggregateFunctionState<PT> {
     int32_t size = -1;
     raw::RawVector<uint8_t> buffer;
@@ -76,10 +76,10 @@ struct MaxAggregateDataRetractable<PT, StringPTGuard<PT>> : public StreamAggrega
     }
 };
 
-template <PrimitiveType PT, typename = guard::Guard>
+template <LogicalType PT, typename = guard::Guard>
 struct MinAggregateDataRetractable : public StreamAggregateFunctionState<PT> {};
 
-template <PrimitiveType PT>
+template <LogicalType PT>
 struct MinAggregateDataRetractable<PT, IntegralPTGuard<PT>> : public StreamAggregateFunctionState<PT> {
     using T = RunTimeCppType<PT>;
     T result = std::numeric_limits<T>::max();
@@ -87,7 +87,7 @@ struct MinAggregateDataRetractable<PT, IntegralPTGuard<PT>> : public StreamAggre
     void reset() { result = std::numeric_limits<T>::max(); }
 };
 
-template <PrimitiveType PT>
+template <LogicalType PT>
 struct MinAggregateDataRetractable<PT, FloatPTGuard<PT>> : public StreamAggregateFunctionState<PT> {
     using T = RunTimeCppType<PT>;
     T result = std::numeric_limits<T>::max();
@@ -102,7 +102,7 @@ struct MinAggregateDataRetractable<TYPE_DECIMALV2, guard::Guard> : public Stream
     void reset() { result = DecimalV2Value::get_max_decimal(); }
 };
 
-template <PrimitiveType PT>
+template <LogicalType PT>
 struct MinAggregateDataRetractable<PT, DecimalPTGuard<PT>> : public StreamAggregateFunctionState<PT> {
     using T = RunTimeCppType<PT>;
     T result = get_max_decimal<T>();
@@ -122,7 +122,7 @@ struct MinAggregateDataRetractable<TYPE_DATE, guard::Guard> : public StreamAggre
     void reset() { result = DateValue::MAX_DATE_VALUE; }
 };
 
-template <PrimitiveType PT>
+template <LogicalType PT>
 struct MinAggregateDataRetractable<PT, StringPTGuard<PT>> : public StreamAggregateFunctionState<PT> {
     int32_t size = -1;
     Buffer<uint8_t> buffer;
@@ -137,7 +137,7 @@ struct MinAggregateDataRetractable<PT, StringPTGuard<PT>> : public StreamAggrega
     }
 };
 
-template <PrimitiveType PT, typename State, class OP, typename T = RunTimeCppType<PT>, typename = guard::Guard>
+template <LogicalType PT, typename State, class OP, typename T = RunTimeCppType<PT>, typename = guard::Guard>
 class MaxMinAggregateFunctionRetractable final : public MaxMinAggregateFunction<PT, State, OP> {
 public:
     using InputColumnType = RunTimeColumnType<PT>;
@@ -209,7 +209,7 @@ public:
     std::string get_name() const override { return "retract_maxmin"; }
 };
 
-template <PrimitiveType PT, typename State, class OP>
+template <LogicalType PT, typename State, class OP>
 class MaxMinAggregateFunctionRetractable<PT, State, OP, RunTimeCppType<PT>, StringPTGuard<PT>> final
         : public MaxMinAggregateFunction<PT, State, OP> {
 public:

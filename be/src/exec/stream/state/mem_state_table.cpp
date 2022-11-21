@@ -4,51 +4,6 @@
 
 namespace starrocks::stream {
 
-/**
- * This is a hook to deduce Field from PrimitiveType. for now only used for tests.
- */
-class PrimitiveTypeToScalarFieldTypeMapping {
-public:
-    PrimitiveTypeToScalarFieldTypeMapping() {
-        for (auto& i : _data) {
-            i = LOGICAL_TYPE_UNKNOWN;
-        }
-        _data[TYPE_BOOLEAN] = LOGICAL_TYPE_BOOL;
-        _data[TYPE_TINYINT] = LOGICAL_TYPE_TINYINT;
-        _data[TYPE_SMALLINT] = LOGICAL_TYPE_SMALLINT;
-        _data[TYPE_INT] = LOGICAL_TYPE_INT;
-        _data[TYPE_BIGINT] = LOGICAL_TYPE_BIGINT;
-        _data[TYPE_LARGEINT] = LOGICAL_TYPE_LARGEINT;
-        _data[TYPE_FLOAT] = LOGICAL_TYPE_FLOAT;
-        _data[TYPE_DOUBLE] = LOGICAL_TYPE_DOUBLE;
-        _data[TYPE_CHAR] = LOGICAL_TYPE_CHAR;
-        _data[TYPE_VARCHAR] = LOGICAL_TYPE_VARCHAR;
-        //        _data[TYPE_DATE] = LOGICAL_TYPE_DATE;
-        _data[TYPE_DATE] = LOGICAL_TYPE_DATE_V2;
-        _data[TYPE_DATETIME] = LOGICAL_TYPE_TIMESTAMP;
-        //        _data[TYPE_DATETIME] = TYPE_DATETIME;
-        _data[TYPE_DECIMAL] = LOGICAL_TYPE_DATETIME;
-        _data[TYPE_DECIMALV2] = LOGICAL_TYPE_DECIMAL_V2;
-        _data[TYPE_DECIMAL32] = LOGICAL_TYPE_DECIMAL32;
-        _data[TYPE_DECIMAL64] = LOGICAL_TYPE_DECIMAL64;
-        _data[TYPE_DECIMAL128] = LOGICAL_TYPE_DECIMAL128;
-        _data[TYPE_JSON] = LOGICAL_TYPE_JSON;
-    }
-    LogicalType get_field_type(PrimitiveType p_type) { return _data[p_type]; }
-
-private:
-    // TODO: add TYPE_MAX_VALUE
-    LogicalType _data[TYPE_FUNCTION];
-};
-
-static PrimitiveTypeToScalarFieldTypeMapping g_ptype_to_scalar_ftype;
-
-LogicalType primitive_type_to_scalar_field_type(PrimitiveType p_type) {
-    LogicalType ftype = g_ptype_to_scalar_ftype.get_field_type(p_type);
-    DCHECK(ftype != LOGICAL_TYPE_UNKNOWN);
-    return ftype;
-}
-
 Status MemStateTable::init() {
     return Status::OK();
 }
@@ -92,7 +47,7 @@ bool MemStateTable::_equal_key(const DatumKeyRow& m_k, const DatumRow key) {
     return true;
 }
 
-Datum MemStateTable::convert_datum_key_to_datum(PrimitiveType type, DatumKey datum_key) {
+Datum MemStateTable::convert_datum_key_to_datum(LogicalType type, DatumKey datum_key) {
     switch (type) {
     case TYPE_BIGINT:
         return Datum(std::get<int64_t>(datum_key));
@@ -150,8 +105,7 @@ vectorized::Schema MemStateTable::make_schema_from_slots(const std::vector<SlotD
     vectorized::Fields fields;
     for (auto& slot : slots) {
         auto type_desc = slot->type();
-        auto f_type = primitive_type_to_scalar_field_type(type_desc.type);
-        auto field = std::make_shared<vectorized::Field>(slot->id(), slot->col_name(), f_type, false);
+        auto field = std::make_shared<vectorized::Field>(slot->id(), slot->col_name(), type_desc.type, false);
         fields.emplace_back(std::move(field));
     }
     return vectorized::Schema(std::move(fields), KeysType::PRIMARY_KEYS, {});

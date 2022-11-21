@@ -221,8 +221,6 @@ if [ "${WITH_BLOCK_CACHE}" == "ON"  ]; then
     export LD_LIBRARY_PATH=$CACHELIB_DIR/lib:$CACHELIB_DIR/lib64:$CACHELIB_DIR/deps/lib:$CACHELIB_DIR/deps/lib64:$LD_LIBRARY_PATH
 fi
 
-echo "GTEST_OPTIONS:${GTEST_OPTIONS}"
-
 # HADOOP_CLASSPATH defined in $STARROCKS_HOME/conf/hadoop_env.sh
 # put $STARROCKS_HOME/conf ahead of $HADOOP_CLASSPATH so that custom config can replace the config in $HADOOP_CLASSPATH
 export CLASSPATH=$STARROCKS_HOME/conf:$HADOOP_CLASSPATH:$CLASSPATH
@@ -230,6 +228,8 @@ export CLASSPATH=$STARROCKS_HOME/conf:$HADOOP_CLASSPATH:$CLASSPATH
 # ===========================================================
 
 export STARROCKS_TEST_BINARY_DIR=${STARROCKS_TEST_BINARY_DIR}/test/
+
+GTEST_OPTIONS="--gtest_catch_exceptions=0"
 
 if [ $WITH_AWS = "OFF" ]; then
     TEST_FILTER="$TEST_FILTER:-*S3*"
@@ -242,14 +242,14 @@ fi
 cp -r ${STARROCKS_HOME}/be/test/util/test_data ${STARROCKS_TEST_BINARY_DIR}/util/
 
 test_files=`find ${STARROCKS_TEST_BINARY_DIR} -type f -perm -111 -name "*test" \
-    | grep -v starrocks_test \
-    | grep -v bench_test \
-    | grep -e "$TEST_MODULE" `
+| grep -v starrocks_test \
+| grep -v bench_test \
+| grep -e "$TEST_MODULE" `
 
 # run cases in starrocks_test in parallel if has gtest-parallel script.
 # reference: https://github.com/google/gtest-parallel
-if [ $TEST_MODULE == '.*'  || $TEST_MODULE == 'starrocks_test' ]; then
-  echo "Run test file: starrocks_test"
+if [ $TEST_MODULE == '.*' ]; then
+  echo "Run startrocks_test file"
   if [ -x ${GTEST_PARALLEL} ]; then
       ${GTEST_PARALLEL} ${STARROCKS_TEST_BINARY_DIR}/starrocks_test --gtest_catch_exceptions=0 --gtest_filter=${TEST_FILTER} --serialize_test_cases ${GTEST_PARALLEL_OPTIONS}
   else

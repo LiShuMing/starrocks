@@ -163,6 +163,7 @@ struct AggHashMapWithOneNumberKey : public AggHashMapWithKey<HashMap> {
     // Elements queried in HashMap will be added to HashMap,
     // elements that cannot be queried are not processed,
     // and are mainly used in the first stage of two-stage aggregation when aggr reduction is low
+    // NOTE: Only compute not_founds in hash_map, not compute agg state.
     template <typename Func>
     void compute_agg_states(size_t chunk_size, const Columns& key_columns, Func&& allocate_func,
                             Buffer<AggDataPtr>* agg_states, std::vector<uint8_t>* not_founds) {

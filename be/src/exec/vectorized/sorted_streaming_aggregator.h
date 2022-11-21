@@ -12,7 +12,7 @@ namespace starrocks {
 struct StateAllocator;
 class SortedStreamingAggregator final : public Aggregator {
 public:
-    SortedStreamingAggregator(const TPlanNode& tnode);
+    SortedStreamingAggregator(std::shared_ptr<AggregatorParams>&& params);
     ~SortedStreamingAggregator() override;
 
     Status prepare(RuntimeState* state, ObjectPool* pool, RuntimeProfile* runtime_profile,

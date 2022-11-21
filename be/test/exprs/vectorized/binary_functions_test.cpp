@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include "column/column_test_builder.h"
 #include "column/fixed_length_column.h"
 #include "exprs/vectorized/math_functions.h"
 #include "exprs/vectorized/mock_vectorized_expr.h"
@@ -22,8 +23,8 @@ public:
 TEST_F(VectorizedBinaryNullableTest, arg1Null) {
     Columns columns;
 
-    columns.emplace_back(create_nullable_column<TYPE_DOUBLE>());
-    columns.emplace_back(create_nullable_column<TYPE_DOUBLE>());
+    columns.emplace_back(ColumnTestBuilder::create_nullable_column<TYPE_DOUBLE>());
+    columns.emplace_back(ColumnTestBuilder::create_nullable_column<TYPE_DOUBLE>());
 
     auto* arg1 = ColumnHelper::as_raw_column<NullableColumn>(columns[0]);
     auto* arg2 = ColumnHelper::as_raw_column<NullableColumn>(columns[1]);
@@ -38,8 +39,8 @@ TEST_F(VectorizedBinaryNullableTest, arg1Null) {
 TEST_F(VectorizedBinaryNullableTest, arg2Null) {
     Columns columns;
 
-    columns.emplace_back(create_nullable_column<TYPE_DOUBLE>());
-    columns.emplace_back(create_nullable_column<TYPE_DOUBLE>());
+    columns.emplace_back(ColumnTestBuilder::create_nullable_column<TYPE_DOUBLE>());
+    columns.emplace_back(ColumnTestBuilder::create_nullable_column<TYPE_DOUBLE>());
 
     auto* arg1 = ColumnHelper::as_raw_column<NullableColumn>(columns[0]);
     auto* arg2 = ColumnHelper::as_raw_column<NullableColumn>(columns[1]);
@@ -54,8 +55,8 @@ TEST_F(VectorizedBinaryNullableTest, arg2Null) {
 TEST_F(VectorizedBinaryNullableTest, allArgsNull) {
     Columns columns;
 
-    columns.emplace_back(create_nullable_column<TYPE_DOUBLE>());
-    columns.emplace_back(create_nullable_column<TYPE_DOUBLE>());
+    columns.emplace_back(ColumnTestBuilder::create_nullable_column<TYPE_DOUBLE>());
+    columns.emplace_back(ColumnTestBuilder::create_nullable_column<TYPE_DOUBLE>());
 
     auto* arg1 = ColumnHelper::as_raw_column<NullableColumn>(columns[0]);
     auto* arg2 = ColumnHelper::as_raw_column<NullableColumn>(columns[1]);

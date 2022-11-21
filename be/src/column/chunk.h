@@ -20,6 +20,13 @@ namespace vectorized {
 
 class DatumTuple;
 
+enum StreamRowOp: std::uint8_t {
+    INSERT = 0,
+    DELETE = 1,
+    UPDATE_BEFORE = 2,
+    UPDATE_AFTER = 3
+};
+
 class Chunk {
 public:
     using ChunkPtr = std::shared_ptr<Chunk>;
@@ -57,6 +64,8 @@ public:
     size_t num_columns() const { return _columns.size(); }
     size_t num_rows() const { return _columns.empty() ? 0 : _columns[0]->size(); }
     size_t num_tuple_columns() const { return _tuple_id_to_index.size(); }
+    // For stream chunk, the last column must be Int8Column and not nullable, convert to StreamRowOp.
+    StreamRowOp* ops() const;
 
     // Resize the chunk to contain |count| rows elements.
     //  - If the current size is less than count, additional default values are appended.

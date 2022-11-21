@@ -18,6 +18,7 @@
 #include "common/statusor.h"
 #include "exec/pipeline/context_with_dependency.h"
 #include "exec/vectorized/aggregate/agg_hash_variant.h"
+#include "exec/vectorized/stream_agg_state.h"
 #include "exec/vectorized/aggregate/agg_profile.h"
 #include "exprs/agg/aggregate_factory.h"
 #include "exprs/expr.h"
@@ -49,7 +50,17 @@ struct HashTableKeyAllocator {
     static auto constexpr alloc_batch_size = 1024;
     // memory aligned when allocate
     static size_t constexpr aligned = 16;
-    int aggregate_key_size = 0;
+
+    // `agg_group_state_size` is the total size including all aggregate functions' state,
+    // keys' size and other extra state size.
+    int agg_group_state_size = 0;
+
+    // TODO: use hashtable key size as align, reserve size for hash table key
+    int agg_group_key_size = 16;
+
+    // Add extra size in stream mv to store aggregate functions' detail state.
+    int agg_group_extra_size = 0;
+
     std::vector<std::pair<void*, int>> vecs;
     MemPool* pool = nullptr;
 
@@ -59,13 +70,13 @@ struct HashTableKeyAllocator {
 
     vectorized::AggDataPtr allocate() {
         if (vecs.empty() || vecs.back().second == alloc_batch_size) {
-            uint8_t* mem = pool->allocate_aligned(alloc_batch_size * aggregate_key_size, aligned);
+            uint8_t* mem = pool->allocate_aligned(alloc_batch_size * agg_group_state_size, aligned);
             vecs.emplace_back(mem, 0);
         }
-        return static_cast<vectorized::AggDataPtr>(vecs.back().first) + aggregate_key_size * vecs.back().second++;
+        return static_cast<vectorized::AggDataPtr>(vecs.back().first) + agg_group_state_size * vecs.back().second++;
     }
 
-    uint8_t* allocate_null_key_data() { return pool->allocate_aligned(alloc_batch_size * aggregate_key_size, aligned); }
+    uint8_t* allocate_null_key_data() { return pool->allocate_aligned(alloc_batch_size * agg_group_state_size, aligned); }
 
     void reset() { vecs.clear(); }
 };
@@ -79,7 +90,7 @@ inline void RawHashTableIterator::next() {
 }
 
 inline uint8_t* RawHashTableIterator::value() {
-    return static_cast<uint8_t*>(alloc->vecs[x].first) + alloc->aggregate_key_size * y;
+    return static_cast<uint8_t*>(alloc->vecs[x].first) + alloc->agg_group_state_size * y;
 }
 
 class Aggregator;
@@ -139,11 +150,74 @@ static const int STREAMING_HT_MIN_REDUCTION_SIZE =
 
 using AggregatorPtr = std::shared_ptr<Aggregator>;
 
-// Component used to process aggregation including bloking aggregate and streaming aggregate
+struct AggregatorParams {
+    bool needs_finalize;
+    bool has_outer_join_child;
+    int64_t limit;
+    TStreamingPreaggregationMode::type streaming_preaggregation_mode;
+    TupleId intermediate_tuple_id;
+    TupleId output_tuple_id;
+    std::string sql_grouping_keys;
+    std::string sql_aggregate_functions;
+    std::vector<TExpr> conjuncts;
+    std::vector<TExpr> grouping_exprs;
+    std::vector<TExpr> aggregate_functions;
+    std::vector<TExpr> intermediate_aggr_exprs;
+
+    // streaming mv variables
+    bool is_stream_mv;
+    bool is_generate_retract;
+    bool is_testing;
+    int32_t count_agg_idx;
+};
+
+static std::shared_ptr<AggregatorParams> convert_to_aggregator_params(const TPlanNode& tnode) {
+    auto params = std::make_shared<AggregatorParams>();
+    params->conjuncts = tnode.conjuncts;
+    params->limit = tnode.limit;
+
+    switch (tnode.node_type) {
+    case TPlanNodeType::AGGREGATION_NODE: {
+        params->needs_finalize = tnode.agg_node.need_finalize;
+        params->streaming_preaggregation_mode = tnode.agg_node.streaming_preaggregation_mode;
+        params->intermediate_tuple_id = tnode.agg_node.intermediate_tuple_id;
+        params->output_tuple_id = tnode.agg_node.output_tuple_id;
+        params->sql_grouping_keys = tnode.agg_node.__isset.sql_grouping_keys ? tnode.agg_node.sql_grouping_keys : "";
+        params->sql_aggregate_functions =
+                tnode.agg_node.__isset.sql_aggregate_functions ? tnode.agg_node.sql_grouping_keys : "";
+        params->has_outer_join_child =
+                tnode.agg_node.__isset.has_outer_join_child && tnode.agg_node.has_outer_join_child;
+        params->grouping_exprs = tnode.agg_node.grouping_exprs;
+        params->aggregate_functions = tnode.agg_node.aggregate_functions;
+        params->intermediate_aggr_exprs = tnode.agg_node.intermediate_aggr_exprs;
+        break;
+    }
+//    case TPlanNodeType::STREAM_AGG_NODE: {
+//        params->intermediate_tuple_id = tnode.stream_agg_node.intermediate_tuple_id;
+//        params->output_tuple_id = tnode.stream_agg_node.output_tuple_id;
+//        params->sql_grouping_keys =
+//                tnode.stream_agg_node.__isset.sql_grouping_keys ? tnode.stream_agg_node.sql_grouping_keys : "";
+//        params->sql_aggregate_functions = tnode.stream_agg_node.__isset.sql_aggregate_functions
+//                                          ? tnode.stream_agg_node.sql_aggregate_functions
+//                                          : "";
+//        params->has_outer_join_child =
+//                tnode.stream_agg_node.__isset.has_outer_join_child && tnode.stream_agg_node.has_outer_join_child;
+//        params->grouping_exprs = tnode.stream_agg_node.grouping_exprs;
+//        params->aggregate_functions = tnode.stream_agg_node.aggregate_functions;
+//        break;
+//    }
+    default:
+        VLOG(1) << "it's impossible type:" << tnode.node_type;
+        __builtin_unreachable();
+    }
+    return params;
+}
+
+
 // it contains common data struct and algorithm of aggregation
 class Aggregator : public pipeline::ContextWithDependency {
 public:
-    Aggregator(const TPlanNode& tnode);
+    Aggregator(std::shared_ptr<AggregatorParams>&& params);
 
     virtual ~Aggregator() {
         if (_state != nullptr) {
@@ -154,7 +228,7 @@ public:
     Status open(RuntimeState* state);
     virtual Status prepare(RuntimeState* state, ObjectPool* pool, RuntimeProfile* runtime_profile,
                            MemTracker* mem_tracker);
-
+    void init_agg_states_size();
     void close(RuntimeState* state) override;
 
     const MemPool* mem_pool() const { return _mem_pool.get(); }
@@ -248,11 +322,10 @@ public:
     HashTableKeyAllocator _state_allocator;
 
 protected:
+    std::shared_ptr<AggregatorParams> _params;
+
     bool _is_closed = false;
     RuntimeState* _state = nullptr;
-
-    // TPlanNode is only valid in the PREPARE and INIT phase
-    const TPlanNode& _tnode;
 
     MemTracker* _mem_tracker = nullptr;
 
@@ -295,6 +368,8 @@ protected:
 
     // The offset of the n-th aggregate function in a row of aggregate functions.
     std::vector<size_t> _agg_states_offsets;
+    // The state offsets relative to _agg_states_offsets
+    std::vector<size_t> _stream_agg_detail_states_offsets;
     // The total size of the row for the aggregate function state.
     size_t _agg_states_total_size = 0;
     // The max align size for all aggregate state
@@ -341,7 +416,7 @@ protected:
     AggrMode _aggr_mode = AM_DEFAULT;
     bool _is_passthrough = false;
     bool _is_pending_reset_state = false;
-    std::vector<uint8_t> _streaming_selection;
+    vectorized::Buffer<uint8_t> _streaming_selection;
 
     bool _has_udaf = false;
 
@@ -353,7 +428,7 @@ public:
                                            bool agg_group_by_with_limit = false) {
         if (agg_group_by_with_limit) {
             if (hash_map_with_key.hash_map.size() >= _limit) {
-                build_hash_map_with_selection(hash_map_with_key, chunk_size);
+                build_hash_map_with_not_founds(hash_map_with_key, chunk_size);
                 return;
             } else {
                 _streaming_selection.assign(chunk_size, 0);
@@ -364,8 +439,8 @@ public:
     }
 
     template <typename HashMapWithKey>
-    ATTRIBUTE_NOINLINE void build_hash_map_with_selection(HashMapWithKey& hash_map_with_key, size_t chunk_size) {
-        hash_map_with_key.compute_agg_states(chunk_size, _group_by_columns, AllocateState<HashMapWithKey>(this),
+    ATTRIBUTE_NOINLINE void build_hash_map_with_not_founds(HashMapWithKey& hash_map_with_key, size_t chunk_size) {
+        hash_map_with_key.compute_not_founds(chunk_size, _group_by_columns, AllocateState<HashMapWithKey>(this),
                                              &_tmp_agg_states, &_streaming_selection);
     }
 
@@ -390,7 +465,7 @@ public:
         const auto hash_map_size = _hash_map_variant.size();
         auto num_rows = std::min<size_t>(hash_map_size - _num_rows_processed, chunk_size);
         vectorized::Columns group_by_columns = _create_group_by_columns(num_rows);
-        vectorized::Columns agg_result_columns = _create_agg_result_columns(num_rows);
+        vectorized::Columns agg_result_columns = _create_agg_result_columns(num_rows, _use_intermediate_as_output());
 
         auto use_intermediate = _use_intermediate_as_output();
         int32_t read_index = 0;
@@ -454,7 +529,7 @@ public:
         }
 
         _it_hash = it;
-        auto result_chunk = _build_output_chunk(group_by_columns, agg_result_columns);
+        auto result_chunk = _build_output_chunk(group_by_columns, agg_result_columns, _use_intermediate_as_output());
         _num_rows_returned += read_index;
         _num_rows_processed += read_index;
         *chunk = std::move(result_chunk);
@@ -547,7 +622,7 @@ protected:
     Status _evaluate_const_columns(int i);
 
     // Create new aggregate function result column by type
-    vectorized::Columns _create_agg_result_columns(size_t num_rows);
+    vectorized::Columns _create_agg_result_columns(size_t num_rows, bool use_intermediate);
     vectorized::Columns _create_group_by_columns(size_t num_rows);
 
     void _serialize_to_chunk(vectorized::ConstAggDataPtr __restrict state,
@@ -557,7 +632,8 @@ protected:
     void _destroy_state(vectorized::AggDataPtr __restrict state);
 
     vectorized::ChunkPtr _build_output_chunk(const vectorized::Columns& group_by_columns,
-                                             const vectorized::Columns& agg_result_columns);
+                                             const vectorized::Columns& agg_result_columns,
+                                             bool use_intermediate_as_output);
 
     void _set_passthrough(bool flag) { _is_passthrough = flag; }
     bool is_passthrough() const { return _is_passthrough; }
@@ -634,8 +710,8 @@ public:
         if (it != _aggregators.end()) {
             return it->second;
         }
-        auto aggregator = std::make_shared<T>(_tnode);
-        aggregator->set_aggr_mode(_aggr_mode);
+        auto params = convert_to_aggregator_params(_tnode);
+        auto aggregator = std::make_shared<T>(std::move(params));
         _aggregators[id] = aggregator;
         return aggregator;
     }

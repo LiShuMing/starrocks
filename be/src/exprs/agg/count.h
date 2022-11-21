@@ -36,6 +36,13 @@ public:
         ++this->data(state).count;
     }
 
+    StreamStateTableKind stream_state_table_kind(bool need_retract) const override { return StreamStateTableKind::Result; }
+
+    void retract(FunctionContext* ctx, const Column** columns, AggDataPtr __restrict state,
+                size_t row_num) const override {
+        --this->data(state).count;
+    }
+
     void update_batch_single_state(FunctionContext* ctx, size_t chunk_size, const Column** columns,
                                    AggDataPtr __restrict state) const override {
         this->data(state).count += chunk_size;

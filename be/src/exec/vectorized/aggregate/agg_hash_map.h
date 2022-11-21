@@ -163,8 +163,9 @@ struct AggHashMapWithOneNumberKey : public AggHashMapWithKey<HashMap> {
     // Elements queried in HashMap will be added to HashMap,
     // elements that cannot be queried are not processed,
     // and are mainly used in the first stage of two-stage aggregation when aggr reduction is low
+    // NOTE: Only compute not_founds in hash_map, not compute agg state.
     template <typename Func>
-    void compute_agg_states(size_t chunk_size, const Columns& key_columns, Func&& allocate_func,
+    void compute_not_founds(size_t chunk_size, const Columns& key_columns, Func&& allocate_func,
                             Buffer<AggDataPtr>* agg_states, std::vector<uint8_t>* not_founds) {
         DCHECK(!key_columns[0]->is_nullable());
         (*not_founds).assign(chunk_size, 0);
@@ -248,7 +249,7 @@ struct AggHashMapWithOneNullableNumberKey : public AggHashMapWithOneNumberKey<pr
     // elements that cannot be queried are not processed,
     // and are mainly used in the first stage of two-stage aggregation when aggr reduction is low
     template <typename Func>
-    void compute_agg_states(size_t chunk_size, const Columns& key_columns, Func&& allocate_func,
+    void compute_not_founds(size_t chunk_size, const Columns& key_columns, Func&& allocate_func,
                             Buffer<AggDataPtr>* agg_states, std::vector<uint8_t>* not_founds) {
         not_founds->assign(chunk_size, 0);
 
@@ -385,7 +386,7 @@ struct AggHashMapWithOneStringKey : public AggHashMapWithKey<HashMap> {
     // elements that cannot be queried are not processed,
     // and are mainly used in the first stage of two-stage aggregation when aggr reduction is low
     template <typename Func>
-    void compute_agg_states(size_t chunk_size, const Columns& key_columns, Func&& allocate_func,
+    void compute_not_founds(size_t chunk_size, const Columns& key_columns, Func&& allocate_func,
                             Buffer<AggDataPtr>* agg_states, std::vector<uint8_t>* not_founds) {
         DCHECK(key_columns[0]->is_binary());
         auto* column = ColumnHelper::as_raw_column<BinaryColumn>(key_columns[0]);
@@ -466,7 +467,7 @@ struct AggHashMapWithOneNullableStringKey : public AggHashMapWithOneStringKey<Ha
     // elements that cannot be queried are not processed,
     // and are mainly used in the first stage of two-stage aggregation when aggr reduction is low
     template <typename Func>
-    void compute_agg_states(size_t chunk_size, const Columns& key_columns, Func&& allocate_func,
+    void compute_not_founds(size_t chunk_size, const Columns& key_columns, Func&& allocate_func,
                             Buffer<AggDataPtr>* agg_states, std::vector<uint8_t>* not_founds) {
         not_founds->assign(chunk_size, 0);
         if (key_columns[0]->only_null()) {
@@ -593,7 +594,7 @@ struct AggHashMapWithSerializedKey : public AggHashMapWithKey<HashMap> {
     // elements that cannot be queried are not processed,
     // and are mainly used in the first stage of two-stage aggregation when aggr reduction is low
     template <typename Func>
-    void compute_agg_states(size_t chunk_size, const Columns& key_columns, Func&& allocate_func,
+    void compute_not_founds(size_t chunk_size, const Columns& key_columns, Func&& allocate_func,
                             Buffer<AggDataPtr>* agg_states, std::vector<uint8_t>* not_founds) {
         slice_sizes.assign(_chunk_size, 0);
 
@@ -766,7 +767,7 @@ struct AggHashMapWithSerializedKeyFixedSize : public AggHashMapWithKey<HashMap> 
     // elements that cannot be queried are not processed,
     // and are mainly used in the first stage of two-stage aggregation when aggr reduction is low
     template <typename Func>
-    void compute_agg_states(size_t chunk_size, const Columns& key_columns, Func&& allocate_func,
+    void compute_not_founds(size_t chunk_size, const Columns& key_columns, Func&& allocate_func,
                             Buffer<AggDataPtr>* agg_states, std::vector<uint8_t>* not_founds) {
         DCHECK(fixed_byte_size != -1);
         slice_sizes.assign(chunk_size, 0);

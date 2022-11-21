@@ -17,6 +17,22 @@ namespace starrocks::vectorized {
 using AggDataPtr = uint8_t*;
 using ConstAggDataPtr = const uint8_t*;
 
+/**
+ * For each aggregate function, it may use different agg state kind for Incremental MV:
+ *  - Result       :  Use result table data as AggStateData, eg sum/count
+ *  - Intermediate : Use intermediate table data as AggStateData which is a common state for Accumulate mode just as agg_data in OLAP mode.
+ *  - Detail       : Use detail table data as AggStateData to accumulate/retract in retract mode.
+ *
+ *  Optimizer will decide which kind of agg state data is used for each agg function in different retract mode.
+ */
+enum StreamStateTableKind {
+    Result,
+    Intermediate,
+    Detail_Result,
+    Detail_Intermediate,
+    UnSupported
+};
+
 // Aggregate function interface
 // Aggregate function instances don't contain aggregation state, the aggregation state is stored in
 // other objects
@@ -168,6 +184,40 @@ public:
     // merge result to single state
     virtual void merge_batch_single_state(FunctionContext* ctx, size_t chunk_size, const Column* column,
                                           AggDataPtr __restrict state) const = 0;
+
+    //  STREAM MV METHODS
+
+    // Update the aggregation state
+    // columns points to columns containing arguments of aggregation function.
+    // row_num is number of row which should be updated.
+    virtual void retract(FunctionContext* ctx, const Column** columns, AggDataPtr __restrict state,
+                         size_t row_num) const {
+        throw std::runtime_error("retract function in aggregate is not supported for now.");
+    }
+
+    virtual void restore_detail(FunctionContext* ctx, size_t chunk_size,
+                                const Columns& column, AggDataPtr __restrict state) const {
+        throw std::runtime_error("restore_detail function in aggregate is not supported for now.");
+    }
+
+    virtual void sync_detail(FunctionContext* ctx, AggDataPtr __restrict state) const {
+        throw std::runtime_error("retract function in aggregate is not supported for now.");
+    }
+
+    // Change the aggregation state to final result if necessary
+    virtual void output_detail(FunctionContext* ctx, ConstAggDataPtr __restrict state,
+                               const Columns& to, Column * count) const {
+        throw std::runtime_error("retract function in aggregate is not supported for now.");
+    }
+
+    // Intermediate state kind: result / intermediate state table
+    // Result       : sum/count/min/max ...
+    // Intermediate : AVG
+    // Retract state table kind:
+    // same_with_intermediate / detail
+    virtual StreamStateTableKind stream_state_table_kind(bool need_retract) const {
+        return StreamStateTableKind::UnSupported;
+    }
 };
 
 template <typename State>

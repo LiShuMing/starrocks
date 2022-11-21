@@ -127,7 +127,7 @@ Status AggregateStreamingNode::get_next(RuntimeState* state, ChunkPtr* chunk, bo
                         SCOPED_TIMER(_aggregator->agg_compute_timer());
                         TRY_CATCH_BAD_ALLOC(_aggregator->hash_map_variant().visit(
                                 [input_chunk_size, this](auto& hash_map_with_key) {
-                                    _aggregator->build_hash_map_with_selection(*hash_map_with_key, input_chunk_size);
+                                    _aggregator->build_hash_map_with_not_founds(*hash_map_with_key, input_chunk_size);
                                 }));
                     }
 

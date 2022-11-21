@@ -20,6 +20,15 @@ Chunk::Chunk() {
     _tuple_id_to_index.reserve(1);
 }
 
+// For stream chunk, the last column must be Int8Column and not nullable, convert to StreamRowOp.
+StreamRowOp* Chunk::ops() const {
+    DCHECK_LT(1, _columns.size());
+    auto op_col = _columns.back();
+    DCHECK(!op_col->is_nullable());
+    auto& src_data = ColumnHelper::as_raw_column<UInt8Column>(op_col)->get_data();
+    return (StreamRowOp*)(src_data.data());
+}
+
 Status Chunk::upgrade_if_overflow() {
     for (auto& column : _columns) {
         auto ret = column->upgrade_if_overflow();

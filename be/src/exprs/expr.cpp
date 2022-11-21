@@ -52,6 +52,7 @@
 #include "exprs/vectorized/map_element_expr.h"
 #include "exprs/vectorized/placeholder_ref.h"
 #include "exprs/vectorized/subfield_expr.h"
+#include "gutil/strings/substitute.h"
 #include "runtime/primitive_type.h"
 #include "runtime/raw_value.h"
 #include "runtime/runtime_state.h"
@@ -214,7 +215,10 @@ Status Expr::create_tree_from_thrift(ObjectPool* pool, const std::vector<TExprNo
                                      Expr** root_expr, ExprContext** ctx) {
     // propagate error case
     if (*node_idx >= nodes.size()) {
-        return Status::InternalError("Failed to reconstruct expression tree from thrift.");
+        return Status::InternalError(
+                strings::Substitute("Failed to reconstruct expression tree from thrift, "
+                                    "node_idx:$0, nodes size:$1.",
+                                    *node_idx, nodes.size()));
     }
     int num_children = nodes[*node_idx].num_children;
     Expr* expr = nullptr;
@@ -229,7 +233,10 @@ Status Expr::create_tree_from_thrift(ObjectPool* pool, const std::vector<TExprNo
         // we are expecting a child, but have used all nodes
         // this means we have been given a bad tree and must fail
         if (*node_idx >= nodes.size()) {
-            return Status::InternalError("Failed to reconstruct expression tree from thrift.");
+            return Status::InternalError(
+                    strings::Substitute("Failed to reconstruct expression tree from thrift, "
+                                        "node_idx:$0, nodes size:$1.",
+                                        *node_idx, nodes.size()));
         }
     }
     if (parent == nullptr) {

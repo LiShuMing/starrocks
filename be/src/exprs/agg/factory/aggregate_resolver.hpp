@@ -44,6 +44,9 @@ public:
     void register_approx();
     void register_others();
 
+    // Stream MV Aggregate Functions
+    void register_retract_functions();
+
     const std::vector<PrimitiveType>& aggregate_types() const {
         const static std::vector<PrimitiveType> kTypes{
                 TYPE_BOOLEAN,   TYPE_TINYINT,   TYPE_SMALLINT,  TYPE_INT,        TYPE_BIGINT, TYPE_LARGEINT,

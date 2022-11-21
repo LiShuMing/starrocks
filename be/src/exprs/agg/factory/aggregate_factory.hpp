@@ -31,6 +31,7 @@
 #include "exprs/agg/percentile_cont.h"
 #include "exprs/agg/percentile_union.h"
 #include "exprs/agg/retention.h"
+#include "exprs/agg/stream/retract_maxmin.h"
 #include "exprs/agg/sum.h"
 #include "exprs/agg/variance.h"
 #include "exprs/agg/window.h"
@@ -178,6 +179,13 @@ public:
     static AggregateFunctionPtr MakeHistogramAggregationFunction() {
         return std::make_shared<HistogramAggregationFunction<PT>>();
     }
+
+    // Stream MV Retractable Agg Functions
+    template <PrimitiveType PT>
+    static auto MakeRetractMinAggregateFunction();
+
+    template <PrimitiveType PT>
+    static auto MakeRetractMaxAggregateFunction();
 };
 
 // The function should be placed by alphabetical order
@@ -301,6 +309,19 @@ AggregateFunctionPtr AggregateFactory::MakeHllRawAggregateFunction() {
 template <PrimitiveType PT>
 AggregateFunctionPtr AggregateFactory::MakePercentileContAggregateFunction() {
     return std::make_shared<PercentileContAggregateFunction<PT>>();
+}
+
+// Stream MV Retractable Aggregate Functions
+template <PrimitiveType PT>
+auto AggregateFactory::MakeRetractMinAggregateFunction() {
+    return std::make_shared<MaxMinAggregateFunctionRetractable<PT, MinAggregateDataRetractable<PT>,
+                                                               MinElement<PT, MinAggregateDataRetractable<PT>>>>();
+}
+
+template <PrimitiveType PT>
+auto AggregateFactory::MakeRetractMaxAggregateFunction() {
+    return std::make_shared<MaxMinAggregateFunctionRetractable<PT, MaxAggregateDataRetractable<PT>,
+                                                               MaxElement<PT, MaxAggregateDataRetractable<PT>>>>();
 }
 
 } // namespace starrocks::vectorized

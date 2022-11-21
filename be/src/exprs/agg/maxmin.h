@@ -138,18 +138,27 @@ struct MinAggregateData<PT, StringPTGuard<PT>> {
 template <PrimitiveType PT, typename State, typename = guard::Guard>
 struct MaxElement {
     using T = RunTimeCppType<PT>;
+    // When input is retract message, when need_sync is true: need retract current result,
+    // and sync previous data from detail table to generate new result.
+    static bool need_sync(State& state, const T& right) { return state.result <= right; }
     void operator()(State& state, const T& right) const { state.result = std::max<T>(state.result, right); }
 };
 
 template <PrimitiveType PT, typename State, typename = guard::Guard>
 struct MinElement {
     using T = RunTimeCppType<PT>;
+    // When input is retract message, when need_sync is true: need retract current result,
+    // and sync previous data from detail table to generate new result.
+    static bool need_sync(State& state, const T& right) { return state.result >= right; }
     void operator()(State& state, const T& right) const { state.result = std::min<T>(state.result, right); }
 };
 
-template <PrimitiveType PT>
-struct MaxElement<PT, MaxAggregateData<PT>, StringPTGuard<PT>> {
-    void operator()(MaxAggregateData<PT>& state, const Slice& right) const {
+template <PrimitiveType PT, typename State>
+struct MaxElement<PT, State, StringPTGuard<PT>> {
+    static bool need_sync(State& state, const Slice& right) {
+        return !state.has_value() || state.slice().compare(right) <= 0;
+    }
+    void operator()(State& state, const Slice& right) const {
         if (!state.has_value() || state.slice().compare(right) < 0) {
             state.buffer.resize(right.size);
             memcpy(state.buffer.data(), right.data, right.size);
@@ -158,9 +167,12 @@ struct MaxElement<PT, MaxAggregateData<PT>, StringPTGuard<PT>> {
     }
 };
 
-template <PrimitiveType PT>
-struct MinElement<PT, MinAggregateData<PT>, StringPTGuard<PT>> {
-    void operator()(MinAggregateData<PT>& state, const Slice& right) const {
+template <PrimitiveType PT, typename State>
+struct MinElement<PT, State, StringPTGuard<PT>> {
+    static bool need_sync(State& state, const Slice& right) {
+        return !state.has_value() || state.slice().compare(right) <= 0;
+    }
+    void operator()(State& state, const Slice& right) const {
         if (!state.has_value() || state.slice().compare(right) > 0) {
             state.buffer.resize(right.size);
             memcpy(state.buffer.data(), right.data, right.size);
@@ -170,10 +182,17 @@ struct MinElement<PT, MinAggregateData<PT>, StringPTGuard<PT>> {
 };
 
 template <PrimitiveType PT, typename State, class OP, typename T = RunTimeCppType<PT>, typename = guard::Guard>
-class MaxMinAggregateFunction final
-        : public AggregateFunctionBatchHelper<State, MaxMinAggregateFunction<PT, State, OP, T>> {
+class MaxMinAggregateFunction : public AggregateFunctionBatchHelper<State, MaxMinAggregateFunction<PT, State, OP, T>> {
 public:
     using InputColumnType = RunTimeColumnType<PT>;
+
+    AggStateTableKind agg_state_table_kind(bool is_append_only) const override {
+        if (is_append_only) {
+            return AggStateTableKind::Result;
+        } else {
+            return AggStateTableKind::Detail_Result;
+        }
+    }
 
     void reset(FunctionContext* ctx, const Columns& args, AggDataPtr state) const override {
         this->data(state).reset();
@@ -230,9 +249,17 @@ public:
 };
 
 template <PrimitiveType PT, typename State, class OP>
-class MaxMinAggregateFunction<PT, State, OP, RunTimeCppType<PT>, StringPTGuard<PT>> final
+class MaxMinAggregateFunction<PT, State, OP, RunTimeCppType<PT>, StringPTGuard<PT>>
         : public AggregateFunctionBatchHelper<State, MaxMinAggregateFunction<PT, State, OP, RunTimeCppType<PT>>> {
 public:
+    AggStateTableKind agg_state_table_kind(bool is_append_only) const override {
+        if (is_append_only) {
+            return AggStateTableKind::Result;
+        } else {
+            return AggStateTableKind::Detail_Result;
+        }
+    }
+
     void reset(FunctionContext* ctx, const Columns& args, AggDataPtr __restrict state) const override {
         this->data(state).reset();
     }

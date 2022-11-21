@@ -104,7 +104,7 @@ Status AggregateStreamingSinkOperator::_push_chunk_by_auto(const size_t chunk_si
         {
             SCOPED_TIMER(_aggregator->agg_compute_timer());
             TRY_CATCH_BAD_ALLOC(_aggregator->hash_map_variant().visit([&](auto& hash_map_with_key) {
-                _aggregator->build_hash_map_with_selection(*hash_map_with_key, chunk_size);
+                _aggregator->build_hash_map_with_not_founds(*hash_map_with_key, chunk_size);
             }));
         }
 

@@ -157,7 +157,7 @@ struct MinElement {
 template <LogicalType PT, typename State>
 struct MaxElement<PT, State, StringPTGuard<PT>> {
     static bool is_sync(State& state, const Slice& right) {
-        return state.has_value() && state.slice().compare(right) >= 0;
+        return !state.has_value() || state.slice().compare(right) <= 0;
     }
 
     void operator()(State& state, const Slice& right) const {
@@ -172,7 +172,7 @@ struct MaxElement<PT, State, StringPTGuard<PT>> {
 template <LogicalType PT, typename State>
 struct MinElement<PT, State, StringPTGuard<PT>> {
     static bool is_sync(State& state, const Slice& right) {
-        return state.has_value() && state.slice().compare(right) <= 0;
+        return !state.has_value() || state.slice().compare(right) >= 0;
     }
 
     void operator()(State& state, const Slice& right) const {

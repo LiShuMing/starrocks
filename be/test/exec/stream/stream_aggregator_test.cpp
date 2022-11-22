@@ -36,7 +36,7 @@ public:
 
     void RunBatchAndCheck(size_t run_id, const StreamRowData& input_rows, const StreamRowData& expect_result_data,
                           const StreamRowData& expect_intermediate_data) {
-        std::cout << "[RunBatchAndCheck] >>>>>>>>>>>>>>> Run: " << run_id << std::endl;
+        VLOG_ROW << "[RunBatchAndCheck] >>>>>>>>>>>>>>> Run: " << run_id;
         auto result_chunk_ptr = std::make_shared<Chunk>();
         auto intermediate_chunk_ptr = std::make_shared<Chunk>();
         std::vector<vectorized::ChunkPtr> detail_chunks;
@@ -47,23 +47,23 @@ public:
         DCHECK_IF_ERROR(_stream_aggregator->output_changes(chunk_size, &result_chunk_ptr, &intermediate_chunk_ptr,
                                                            detail_chunks));
         for (auto& column : result_chunk_ptr->columns()) {
-            std::cout << "[RunBatchAndCheck] result column:" << column->debug_string() << std::endl;
+            VLOG_ROW << "[RunBatchAndCheck] result column:" << column->debug_string();
         }
         CheckChunk(result_chunk_ptr, get_slot_types(_slot_infos[2]), expect_result_data.rows, expect_result_data.ops);
 
         // intermediate data may not exist
         if (!expect_intermediate_data.rows.empty()) {
             for (auto& column : intermediate_chunk_ptr->columns()) {
-                std::cout << "[RunBatchAndCheck] intermediate column:" << column->debug_string() << std::endl;
+                VLOG_ROW << "[RunBatchAndCheck] intermediate column:" << column->debug_string();
             }
             CheckChunk(intermediate_chunk_ptr, get_slot_types(_slot_infos[1]), expect_intermediate_data.rows,
                        expect_intermediate_data.ops);
         }
         if (!detail_chunks.empty()) {
             for (auto& detail_chunk : detail_chunks) {
-                std::cout << "[RunBatchAndCheck] detail chunks..." << std::endl;
+                VLOG_ROW << "[RunBatchAndCheck] detail chunks...";
                 for (auto& column : detail_chunk->columns()) {
-                    std::cout << "[RunBatchAndCheck] detail column:" << column->debug_string() << std::endl;
+                    VLOG_ROW << "[RunBatchAndCheck] detail column:" << column->debug_string();
                 }
             }
         }
@@ -509,10 +509,10 @@ TEST_F(MinMaxCountStreamAggregateTestWithRetract, TestWihRetracts_MultiRun_Retra
     // key  min max count op
     // 1    1   2   2   2
     // 2    2   2   1   1
-    // 1    1   2   1   3  ??
+    // 1    2   2   1   3  ??
     // 3    3   3   1   0
     RunBatchAndCheck(2, StreamRowData{{{1, 2, 3}, {1, 2, 3}}, {1, 1, 0}},
-                     StreamRowData{{{1, 2, 1, 3}, {1, 2, 1, 3}, {2, 2, 2, 3}, {2, 1, 1, 1}}, {2, 1, 3, 0}});
+                     StreamRowData{{{1, 2, 1, 3}, {1, 2, 2, 3}, {2, 2, 2, 3}, {2, 1, 1, 1}}, {2, 1, 3, 0}});
     // Run 3
     // Input:
     // key  value
@@ -520,11 +520,11 @@ TEST_F(MinMaxCountStreamAggregateTestWithRetract, TestWihRetracts_MultiRun_Retra
     // 2    +2
     // 3    -3
     // key  min max count op
-    // 1    1   2   1   1
+    // 1    2   2   1   1
     // 3    3   3   1   1
     // 2    2   2   1   0
     RunBatchAndCheck(3, StreamRowData{{{1, 2, 3}, {2, 2, 3}}, {1, 0, 1}},
-                     StreamRowData{{{1, 3, 2}, {1, 3, 2}, {2, 3, 2}, {1, 1, 1}}, {1, 1, 0}});
+                     StreamRowData{{{1, 3, 2}, {2, 3, 2}, {2, 3, 2}, {1, 1, 1}}, {1, 1, 0}});
     _stream_aggregator->close(_state);
 }
 

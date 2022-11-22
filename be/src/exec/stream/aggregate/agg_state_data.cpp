@@ -1,6 +1,6 @@
 #include "exec/stream/aggregate/agg_state_data.h"
 
-#include "exprs/agg/stream/detail_retractable.h"
+#include "exprs/agg/stream/stream_detail_state.h"
 
 namespace starrocks::stream {
 
@@ -8,7 +8,6 @@ Status AggStateData::allocate_intermediate_state(size_t chunk_size, const std::v
                                                  const std::vector<ChunkPtrOr>& result_chunks,
                                                  const Buffer<AggGroupStatePtr>& agg_group_state) const {
     int32_t j = 0;
-    auto agg_func_idx = agg_func_id();
     auto table_idx = intermediate_table_idx();
     for (auto i = 0; i < chunk_size; i++) {
         // skip if keys are already existed in map(cache)

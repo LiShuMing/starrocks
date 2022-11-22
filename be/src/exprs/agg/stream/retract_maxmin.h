@@ -19,46 +19,18 @@ template <LogicalType PT, typename = guard::Guard>
 struct MaxAggregateDataRetractable : public StreamDetailState<PT> {};
 
 template <LogicalType PT>
-struct MaxAggregateDataRetractable<PT, IntegralPTGuard<PT>> : public StreamDetailState<PT> {
+struct MaxAggregateDataRetractable<PT, FixedLengthPTGuard<PT>> : public StreamDetailState<PT> {
     using T = RunTimeCppType<PT>;
-    T result = std::numeric_limits<T>::lowest();
 
-    void reset() { result = std::numeric_limits<T>::lowest(); }
-};
+    MaxAggregateDataRetractable() {}
 
-template <LogicalType PT>
-struct MaxAggregateDataRetractable<PT, FloatPTGuard<PT>> : public StreamDetailState<PT> {
-    using T = RunTimeCppType<PT>;
-    T result = std::numeric_limits<T>::lowest();
-    void reset() { result = std::numeric_limits<T>::lowest(); }
-};
+    T result = RunTimeTypeLimits<PT>::min_value();
+    void reset_result() { result = RunTimeTypeLimits<PT>::min_value(); }
 
-template <>
-struct MaxAggregateDataRetractable<TYPE_DECIMALV2, guard::Guard> : public StreamDetailState<TYPE_DECIMALV2> {
-    DecimalV2Value result = DecimalV2Value::get_min_decimal();
-
-    void reset() { result = DecimalV2Value::get_min_decimal(); }
-};
-
-template <LogicalType PT>
-struct MaxAggregateDataRetractable<PT, DecimalPTGuard<PT>> : public StreamDetailState<PT> {
-    using T = RunTimeCppType<PT>;
-    T result = get_min_decimal<T>();
-    void reset() { result = get_min_decimal<T>(); }
-};
-
-template <>
-struct MaxAggregateDataRetractable<TYPE_DATETIME, guard::Guard> : public StreamDetailState<TYPE_DATETIME> {
-    TimestampValue result = TimestampValue::MIN_TIMESTAMP_VALUE;
-
-    void reset() { result = TimestampValue::MIN_TIMESTAMP_VALUE; }
-};
-
-template <>
-struct MaxAggregateDataRetractable<TYPE_DATE, guard::Guard> : public StreamDetailState<TYPE_DATE> {
-    DateValue result = DateValue::MIN_DATE_VALUE;
-
-    void reset() { result = DateValue::MIN_DATE_VALUE; }
+    void reset() {
+        StreamDetailState<PT>::reset();
+        reset_result();
+    }
 };
 
 template <LogicalType PT>
@@ -70,56 +42,28 @@ struct MaxAggregateDataRetractable<PT, StringPTGuard<PT>> : public StreamDetailS
 
     Slice slice() const { return {buffer.data(), buffer.size()}; }
 
-    void reset() {
+    void reset_result() {
         buffer.clear();
         size = -1;
+    }
+    void reset() {
+        StreamDetailState<PT>::reset();
+        reset_result();
     }
 };
 
 template <LogicalType PT, typename = guard::Guard>
 struct MinAggregateDataRetractable : public StreamDetailState<PT> {};
-
 template <LogicalType PT>
-struct MinAggregateDataRetractable<PT, IntegralPTGuard<PT>> : public StreamDetailState<PT> {
+struct MinAggregateDataRetractable<PT, FixedLengthPTGuard<PT>> : public StreamDetailState<PT> {
     using T = RunTimeCppType<PT>;
-    T result = std::numeric_limits<T>::max();
 
-    void reset() { result = std::numeric_limits<T>::max(); }
-};
-
-template <LogicalType PT>
-struct MinAggregateDataRetractable<PT, FloatPTGuard<PT>> : public StreamDetailState<PT> {
-    using T = RunTimeCppType<PT>;
-    T result = std::numeric_limits<T>::max();
-
-    void reset() { result = std::numeric_limits<T>::max(); }
-};
-
-template <>
-struct MinAggregateDataRetractable<TYPE_DECIMALV2, guard::Guard> : public StreamDetailState<TYPE_DECIMALV2> {
-    DecimalV2Value result = DecimalV2Value::get_max_decimal();
-
-    void reset() { result = DecimalV2Value::get_max_decimal(); }
-};
-
-template <LogicalType PT>
-struct MinAggregateDataRetractable<PT, DecimalPTGuard<PT>> : public StreamDetailState<PT> {
-    using T = RunTimeCppType<PT>;
-    T result = get_max_decimal<T>();
-    void reset() { result = get_max_decimal<T>(); }
-};
-template <>
-struct MinAggregateDataRetractable<TYPE_DATETIME, guard::Guard> : public StreamDetailState<TYPE_DATETIME> {
-    TimestampValue result = TimestampValue::MAX_TIMESTAMP_VALUE;
-
-    void reset() { result = TimestampValue::MAX_TIMESTAMP_VALUE; }
-};
-
-template <>
-struct MinAggregateDataRetractable<TYPE_DATE, guard::Guard> : public StreamDetailState<TYPE_DATE> {
-    DateValue result = DateValue::MAX_DATE_VALUE;
-
-    void reset() { result = DateValue::MAX_DATE_VALUE; }
+    T result = RunTimeTypeLimits<PT>::max_value();
+    void reset_result() { result = RunTimeTypeLimits<PT>::max_value(); }
+    void reset() {
+        StreamDetailState<PT>::reset();
+        reset_result();
+    }
 };
 
 template <LogicalType PT>
@@ -131,9 +75,13 @@ struct MinAggregateDataRetractable<PT, StringPTGuard<PT>> : public StreamDetailS
 
     Slice slice() const { return {buffer.data(), buffer.size()}; }
 
-    void reset() {
+    void reset_result() {
         buffer.clear();
         size = -1;
+    }
+    void reset() {
+        StreamDetailState<PT>::reset();
+        reset_result();
     }
 };
 
@@ -141,6 +89,14 @@ template <LogicalType PT, typename State, class OP, typename T = RunTimeCppType<
 class MaxMinAggregateFunctionRetractable final : public MaxMinAggregateFunction<PT, State, OP> {
 public:
     using InputColumnType = RunTimeColumnType<PT>;
+
+    AggStateTableKind agg_state_table_kind(bool is_append_only) const override {
+        if (is_append_only) {
+            return AggStateTableKind::Result;
+        } else {
+            return AggStateTableKind::Detail_Result;
+        }
+    }
 
     void update(FunctionContext* ctx, const Column** columns, AggDataPtr __restrict state,
                 size_t row_num) const override {
@@ -159,8 +115,11 @@ public:
         const auto& column = down_cast<const InputColumnType&>(*columns[0]);
         T value = column.get_data()[row_num];
         this->data(state).update_rows(value, -1);
-        if (!this->data(state).is_sync()) {
-            this->data(state).mark_sync(OP::is_sync(this->data(state), value));
+
+        // reset state to restore from detail
+        if (!this->data(state).is_sync() && OP::is_sync(this->data(state), value)) {
+            this->data(state).mark_sync(true);
+            this->data(state).reset_result();
         }
     }
 
@@ -181,6 +140,11 @@ public:
             for (auto iter = detail_state.cbegin(); iter != detail_state.cend(); iter++) {
                 if (iter->second > 0) {
                     const T& value = iter->first;
+#ifdef BE_TEST
+                    if constexpr (std::is_same_v<T, int64_t>) {
+                        VLOG_ROW << "sync_detail, value:" << value << ", count:" << iter->second;
+                    }
+#endif
                     OP()(this->data(state), value);
                 }
             }
@@ -195,6 +159,11 @@ public:
         Int64Column* column1 = down_cast<Int64Column*>(to[1].get());
         auto& detail_state = this->data(state).detail_state();
         for (auto iter = detail_state.cbegin(); iter != detail_state.cend(); iter++) {
+#ifdef BE_TEST
+            if constexpr (std::is_same_v<T, int64_t>) {
+                VLOG_ROW << "output_detail, value:" << iter->first << ", count:" << iter->second;
+            }
+#endif
             // is it possible that count is negative?
             DCHECK_LE(0, iter->second);
             column0->append(iter->first);
@@ -202,49 +171,6 @@ public:
         }
         Int64Column* count_col = down_cast<Int64Column*>(count);
         count_col->append(detail_state.size());
-    }
-
-    void reset(FunctionContext* ctx, const Columns& args, AggDataPtr state) const override {
-        this->data(state).reset();
-    }
-
-    void update_batch_single_state_with_frame(FunctionContext* ctx, AggDataPtr __restrict state, const Column** columns,
-                                              int64_t peer_group_start, int64_t peer_group_end, int64_t frame_start,
-                                              int64_t frame_end) const override {
-        for (size_t i = frame_start; i < frame_end; ++i) {
-            update(ctx, columns, state, i);
-        }
-    }
-
-    void merge(FunctionContext* ctx, const Column* column, AggDataPtr __restrict state, size_t row_num) const override {
-        DCHECK(!column->is_nullable() && !column->is_binary());
-        const auto* input_column = down_cast<const InputColumnType*>(column);
-        T value = input_column->get_data()[row_num];
-        OP()(this->data(state), value);
-    }
-
-    void serialize_to_column(FunctionContext* ctx, ConstAggDataPtr __restrict state, Column* to) const override {
-        DCHECK(!to->is_nullable() && !to->is_binary());
-        down_cast<InputColumnType*>(to)->append(this->data(state).result);
-    }
-
-    void convert_to_serialize_format(FunctionContext* ctx, const Columns& src, size_t chunk_size,
-                                     ColumnPtr* dst) const override {
-        *dst = src[0];
-    }
-
-    void finalize_to_column(FunctionContext* ctx, ConstAggDataPtr __restrict state, Column* to) const override {
-        DCHECK(!to->is_nullable() && !to->is_binary());
-        down_cast<InputColumnType*>(to)->append(this->data(state).result);
-    }
-
-    void get_values(FunctionContext* ctx, ConstAggDataPtr __restrict state, Column* dst, size_t start,
-                    size_t end) const override {
-        DCHECK_GT(end, start);
-        InputColumnType* column = down_cast<InputColumnType*>(dst);
-        for (size_t i = start; i < end; ++i) {
-            column->get_data()[i] = this->data(state).result;
-        }
     }
 
     std::string get_name() const override { return "retract_maxmin"; }
@@ -269,8 +195,9 @@ public:
         DCHECK((*columns[0]).is_binary());
         Slice value = columns[0]->get(row_num).get_slice();
         this->data(state).update_rows(value, -1);
-        if (!this->data(state).is_sync()) {
-            this->data(state).mark_sync(OP::is_sync(this->data(state), value));
+        if (!this->data(state).is_sync() && OP::is_sync(this->data(state), value)) {
+            this->data(state).mark_sync(true);
+            this->data(state).reset_result();
         }
     }
 

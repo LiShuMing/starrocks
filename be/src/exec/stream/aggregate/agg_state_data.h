@@ -9,6 +9,7 @@
 #include "column/type_traits.h"
 #include "exec/stream/state/state_table.h"
 #include "exec/stream/stream_fdw.h"
+#include "exec/vectorized/aggregator.h"
 #include "exprs/agg/aggregate.h"
 
 namespace starrocks::stream {
@@ -25,9 +26,11 @@ struct AggStateDataParams {
 class AggStateData {
 public:
     AggStateData(const vectorized::AggregateFunction* func, starrocks_udf::FunctionContext* agg_fn_ctx,
-                 vectorized::AggStateTableKind agg_state_kind, size_t agg_state_offset, AggStateDataParams params)
+                 const AggFunctionTypes& agg_fn_type, vectorized::AggStateTableKind agg_state_kind,
+                 size_t agg_state_offset, AggStateDataParams params)
             : _agg_function(func),
               _agg_fn_ctx(agg_fn_ctx),
+              _agg_fn_type(agg_fn_type),
               _agg_state_kind(agg_state_kind),
               _agg_state_offset(agg_state_offset),
               _params(params) {
@@ -60,14 +63,19 @@ public:
     Status output_detail(size_t chunk_size, const Buffer<vectorized::AggDataPtr>& agg_group_state,
                          const vectorized::Columns& to, vectorized::Column* count) const;
 
+    const vectorized::AggregateFunction* agg_function() const { return _agg_function; }
+    starrocks_udf::FunctionContext* agg_fn_ctx() const { return _agg_fn_ctx; }
     const int32_t agg_func_id() const { return _params.func_idx; }
     const int32_t intermediate_table_idx() const { return _params.intermediate_table_idx; }
     const int32_t retract_table_idx() const { return _params.retract_table_idx; }
     const vectorized::AggStateTableKind state_table_kind() const { return _agg_state_kind; }
+    const AggFunctionTypes& agg_fn_type() const { return _agg_fn_type; }
+    const size_t agg_state_offset() const { return _agg_state_offset; }
 
 protected:
     const vectorized::AggregateFunction* _agg_function;
     starrocks_udf::FunctionContext* _agg_fn_ctx;
+    const AggFunctionTypes& _agg_fn_type;
     vectorized::AggStateTableKind _agg_state_kind;
     // idx represents the offset in all aggregate functions, used for agg_group_state
     size_t _agg_state_offset;
@@ -94,6 +102,10 @@ public:
                          const Buffer<uint8_t>& keys_not_in_map, const StreamRowOp* ops,
                          std::vector<std::vector<const vectorized::Column*>>& raw_columns,
                          const Buffer<vectorized::AggDataPtr>& agg_group_state) const;
+
+    Status output_changes(size_t chunk_size, const vectorized::Columns& group_by_columns,
+                          const Buffer<vectorized::AggDataPtr>& agg_group_state,
+                          vectorized::Columns& agg_intermediate_columns) const;
 
 private:
     std::vector<AggStateData*> _agg_states;
@@ -125,10 +137,11 @@ public:
                          const std::vector<uint8_t>& keys_not_in_map, const StreamRowOp* ops,
                          std::vector<std::vector<const vectorized::Column*>>& raw_columns,
                          const Buffer<vectorized::AggDataPtr>& agg_group_state) const;
-    //
-    //    Status flush(size_t chunk_size,
-    //                 const Buffer<vectorized::AggDataPtr>& agg_group_state,
-    //                 vectorized::Columns* to) const;
+
+    Status output_changes(size_t chunk_size, const vectorized::Columns& group_by_columns,
+                          const Buffer<vectorized::AggDataPtr>& agg_group_state,
+                          std::vector<vectorized::ChunkPtr>& detail_chunks) const;
+
 private:
     std::vector<AggStateData*> _agg_states;
     StateTable* _result_state_table;

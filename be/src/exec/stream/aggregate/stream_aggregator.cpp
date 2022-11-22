@@ -29,16 +29,16 @@ Status StreamAggregator::_prepare_state_tables(RuntimeState* state) {
         auto agg_state_kind = _agg_functions[i]->agg_state_table_kind(_params->is_append_only);
         switch (agg_state_kind) {
         case AggStateTableKind::Result: {
-            auto agg_state = std::make_unique<AggStateData>(_agg_functions[i], _agg_fn_ctxs[i], agg_state_kind,
-                                                            _agg_states_offsets[i],
+            auto agg_state = std::make_unique<AggStateData>(_agg_functions[i], _agg_fn_ctxs[i], _agg_fn_types[i],
+                                                            agg_state_kind, _agg_states_offsets[i],
                                                             AggStateDataParams{i, result_idx, result_idx});
             result_agg_states.emplace_back(agg_state.get());
             _agg_func_states.emplace_back(std::move(agg_state));
             break;
         }
         case AggStateTableKind::Intermediate: {
-            auto agg_state = std::make_unique<AggStateData>(_agg_functions[i], _agg_fn_ctxs[i], agg_state_kind,
-                                                            _agg_states_offsets[i],
+            auto agg_state = std::make_unique<AggStateData>(_agg_functions[i], _agg_fn_ctxs[i], _agg_fn_types[i],
+                                                            agg_state_kind, _agg_states_offsets[i],
                                                             AggStateDataParams{i, intermediate_idx, intermediate_idx});
             intermediate_agg_states.emplace_back(agg_state.get());
             _intermediate_agg_func_ids.emplace_back(i);
@@ -49,7 +49,7 @@ Status StreamAggregator::_prepare_state_tables(RuntimeState* state) {
         case AggStateTableKind::Detail_Result: {
             // For detail agg funcs, just use intermediate agg_state when no need generate retracts.
             DCHECK(!_params->is_append_only);
-            auto agg_state = std::make_unique<AggStateData>(_agg_functions[i], _agg_fn_ctxs[i],
+            auto agg_state = std::make_unique<AggStateData>(_agg_functions[i], _agg_fn_ctxs[i], _agg_fn_types[i],
                                                             AggStateTableKind::Detail_Result, _agg_states_offsets[i],
                                                             AggStateDataParams{i, result_idx, detail_idx++});
             detail_agg_states.emplace_back(agg_state.get());
@@ -58,8 +58,8 @@ Status StreamAggregator::_prepare_state_tables(RuntimeState* state) {
         }
         case AggStateTableKind::Detail_Intermediate: {
             auto agg_state = std::make_unique<AggStateData>(
-                    _agg_functions[i], _agg_fn_ctxs[i], AggStateTableKind::Detail_Intermediate, _agg_states_offsets[i],
-                    AggStateDataParams{i, intermediate_idx++, detail_idx++});
+                    _agg_functions[i], _agg_fn_ctxs[i], _agg_fn_types[i], AggStateTableKind::Detail_Intermediate,
+                    _agg_states_offsets[i], AggStateDataParams{i, intermediate_idx++, detail_idx++});
             _intermediate_agg_func_ids.emplace_back(i);
             intermediate_agg_states.emplace_back(agg_state.get());
             _agg_func_states.emplace_back(std::move(agg_state));
@@ -271,7 +271,8 @@ Status StreamAggregator::_output_changes(HashMapWithKey& hash_map_with_key, int3
         }
         // only output detail result if detail agg group is not empty
         if (!_detail_state_tables.empty()) {
-            RETURN_IF_ERROR(_output_retract_detail(read_index, group_by_columns, detail_chunks));
+            RETURN_IF_ERROR(
+                    _detail_agg_group->output_changes(read_index, group_by_columns, _tmp_agg_states, detail_chunks));
         }
         // always output result
         RETURN_IF_ERROR(_output_result_changes(read_index, group_by_columns, result_chunk));
@@ -289,18 +290,9 @@ Status StreamAggregator::_output_changes(HashMapWithKey& hash_map_with_key, int3
 
 Status StreamAggregator::_output_intermediate_changes(int32_t chunk_size, const vectorized::Columns& group_by_columns,
                                                       vectorized::ChunkPtr* intermediate_chunk) {
-    vectorized::Columns agg_intermediate_columns =
-            _create_needed_agg_result_columns(chunk_size, _intermediate_agg_func_ids, true);
-    DCHECK_EQ(agg_intermediate_columns.size(), _intermediate_agg_func_ids.size());
-    // agg intermediate result
-    for (auto i = 0; i < _intermediate_agg_func_ids.size(); i++) {
-        auto agg_fun_idx = _intermediate_agg_func_ids[i];
-        _agg_functions[agg_fun_idx]->batch_serialize(_agg_fn_ctxs[agg_fun_idx], chunk_size, _tmp_agg_states,
-                                                     _agg_states_offsets[agg_fun_idx],
-                                                     agg_intermediate_columns[i].get());
-    }
+    vectorized::Columns agg_intermediate_columns;
+    _intermediate_agg_group->output_changes(chunk_size, group_by_columns, _tmp_agg_states, agg_intermediate_columns);
     *intermediate_chunk = _build_output_chunk(group_by_columns, agg_intermediate_columns, true);
-
     return Status::OK();
 }
 
@@ -518,83 +510,6 @@ Status StreamAggregator::_output_result_changes_without_retract(size_t chunk_siz
     *result_chunk = _build_output_chunk_with_ops(group_by_columns, agg_result_columns, ops, false);
 
     return Status::OK();
-}
-
-Status StreamAggregator::_output_retract_detail(int32_t chunk_size, const vectorized::Columns& group_by_columns,
-                                                std::vector<vectorized::ChunkPtr>& detail_chunks) {
-    DCHECK(!_detail_state_tables.empty());
-    for (size_t i = 0; i < _detail_agg_group->agg_states().size(); i++) {
-        auto& agg_state = _detail_agg_group->agg_states()[i];
-        // detail table's output columns
-        auto agg_func_idx = agg_state->agg_func_id();
-        DCHECK_LT(agg_func_idx, _agg_fn_types.size());
-        auto agg_col = vectorized::ColumnHelper::create_column(
-                _agg_fn_types[agg_func_idx].result_type,
-                _agg_fn_types[agg_func_idx].has_nullable_child & _agg_fn_types[agg_func_idx].is_nullable);
-        auto count_col = vectorized::ColumnHelper::create_column(_agg_fn_types[_count_agg_idx].result_type, false);
-        vectorized::Columns detail_cols{agg_col, count_col};
-
-        // record each column's map count which is used to expand group by columns.
-        auto result_count = vectorized::ColumnHelper::create_column(_agg_fn_types[_count_agg_idx].result_type, false);
-        agg_state->output_detail(chunk_size, _tmp_agg_states, detail_cols, result_count.get());
-
-        auto result_count_data = reinterpret_cast<vectorized::Int64Column*>(result_count.get())->get_data();
-        std::vector<uint32_t> replicate_offsets;
-        replicate_offsets.reserve(result_count_data.size() + 1);
-        int offset = 0;
-        for (auto count : result_count_data) {
-            replicate_offsets.push_back(offset);
-            offset += count;
-        }
-        replicate_offsets.push_back(offset);
-
-        auto detail_result_chunk = std::make_shared<Chunk>();
-        SlotId slot_id = 0;
-        for (size_t j = 0; j < group_by_columns.size(); j++) {
-            auto replicated_col = group_by_columns[j]->replicate(replicate_offsets);
-            detail_result_chunk->append_column(replicated_col, slot_id++);
-        }
-#ifdef BE_TEST
-        for (size_t j = 0; j < group_by_columns.size(); j++) {
-            auto replicated_col = group_by_columns[j]->replicate(replicate_offsets);
-            VLOG_ROW << "[output_retract_detail] group by col:" << replicated_col->debug_string();
-        }
-        VLOG_ROW << "[output_retract_detail] agg col:" << agg_col->debug_string();
-        VLOG_ROW << "[output_retract_detail] count col:" << count_col->debug_string();
-#endif
-        detail_result_chunk->append_column(std::move(agg_col), slot_id++);
-        detail_result_chunk->append_column(std::move(count_col), slot_id++);
-        detail_chunks.emplace_back(std::move(detail_result_chunk));
-    }
-    return Status::OK();
-}
-
-vectorized::Columns StreamAggregator::_create_needed_agg_result_columns(size_t num_rows,
-                                                                        const std::vector<int32_t>& agg_func_ids,
-                                                                        bool use_intermediate) {
-    vectorized::Columns agg_result_columns;
-    agg_result_columns.reserve(agg_func_ids.size());
-    if (!use_intermediate) {
-        for (auto i : agg_func_ids) {
-            DCHECK_LT(i, _agg_fn_types.size());
-            // For count, count distinct, bitmap_union_int such as never return null function,
-            // we need to create a not-nullable column.
-            auto agg_col = vectorized::ColumnHelper::create_column(
-                    _agg_fn_types[i].result_type, _agg_fn_types[i].has_nullable_child & _agg_fn_types[i].is_nullable);
-            agg_col->reserve(num_rows);
-            agg_result_columns.emplace_back(std::move(agg_col));
-        }
-    } else {
-        for (auto i : agg_func_ids) {
-            VLOG_ROW << "[create_agg_result_columns] i:" << i << ", serde_type:" << _agg_fn_types[i].serde_type;
-            DCHECK_LT(i, _agg_fn_types.size());
-            auto agg_col = vectorized::ColumnHelper::create_column(_agg_fn_types[i].serde_type,
-                                                                   _agg_fn_types[i].has_nullable_child);
-            agg_col->reserve(num_rows);
-            agg_result_columns.emplace_back(std::move(agg_col));
-        }
-    }
-    return agg_result_columns;
 }
 
 vectorized::ChunkPtr StreamAggregator::_build_output_chunk_with_ops(const vectorized::Columns& group_by_columns,

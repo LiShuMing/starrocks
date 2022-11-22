@@ -151,6 +151,22 @@ Status IntermediateAggGroupState::process_chunk(size_t chunk_size, const Buffer<
     return Status::OK();
 }
 
+Status IntermediateAggGroupState::output_changes(size_t chunk_size, const vectorized::Columns& group_by_columns,
+                                                 const Buffer<vectorized::AggDataPtr>& agg_group_state,
+                                                 vectorized::Columns& agg_intermediate_columns) const {
+    for (auto& agg_state : _agg_states) {
+        auto& agg_fn_type = agg_state->agg_fn_type();
+        auto* agg_func = agg_state->agg_function();
+        VLOG_ROW << "[create_agg_result_columns] serde_type:" << agg_fn_type.serde_type;
+        auto agg_col = vectorized::ColumnHelper::create_column(agg_fn_type.serde_type, agg_fn_type.has_nullable_child);
+        agg_col->reserve(chunk_size);
+        agg_func->batch_serialize(agg_state->agg_fn_ctx(), chunk_size, agg_group_state, agg_state->agg_state_offset(),
+                                  agg_col.get());
+        agg_intermediate_columns.emplace_back(std::move(agg_col));
+    }
+    return Status::OK();
+}
+
 // TODO: Support const raw_columns
 Status DetailAggGroupState::process_chunk(size_t chunk_size, const Buffer<DatumRow>& non_found_keys,
                                           const Buffer<uint8_t>& keys_not_in_map, const StreamRowOp* ops,
@@ -205,13 +221,51 @@ Status DetailAggGroupState::process_chunk(size_t chunk_size, const Buffer<DatumR
     return Status::OK();
 }
 
-//Status DetailAggGroupState::flush(size_t chunk_size,
-//                                  const Buffer<vectorized::AggDataPtr>& agg_group_state,
-//                                  vectorized::Columns* to) const {
-//    for (auto& agg_state : _agg_states) {
-//        agg_state->output_detail(chunk_size, agg_group_state, to);
-//    }
-//    return Status::OK();
-//}
+Status DetailAggGroupState::output_changes(size_t chunk_size, const vectorized::Columns& group_by_columns,
+                                           const Buffer<vectorized::AggDataPtr>& agg_group_state,
+                                           std::vector<vectorized::ChunkPtr>& detail_chunks) const {
+    for (size_t i = 0; i < _agg_states.size(); i++) {
+        auto& agg_state = _agg_states[i];
+        // detail table's output columns
+        auto& agg_func_type = agg_state->agg_fn_type();
+        auto agg_col = vectorized::ColumnHelper::create_column(
+                agg_func_type.result_type, agg_func_type.has_nullable_child & agg_func_type.is_nullable);
+        auto count_col = vectorized::ColumnHelper::create_column(agg_func_type.result_type, false);
+        vectorized::Columns detail_cols{agg_col, count_col};
+
+        // record each column's map count which is used to expand group by columns.
+        auto result_count = vectorized::ColumnHelper::create_column(agg_func_type.result_type, false);
+        agg_state->output_detail(chunk_size, agg_group_state, detail_cols, result_count.get());
+
+        auto result_count_data = reinterpret_cast<vectorized::Int64Column*>(result_count.get())->get_data();
+        std::vector<uint32_t> replicate_offsets;
+        replicate_offsets.reserve(result_count_data.size() + 1);
+        int offset = 0;
+        for (auto count : result_count_data) {
+            replicate_offsets.push_back(offset);
+            offset += count;
+        }
+        replicate_offsets.push_back(offset);
+
+        auto detail_result_chunk = std::make_shared<Chunk>();
+        SlotId slot_id = 0;
+        for (size_t j = 0; j < group_by_columns.size(); j++) {
+            auto replicated_col = group_by_columns[j]->replicate(replicate_offsets);
+            detail_result_chunk->append_column(replicated_col, slot_id++);
+        }
+#ifdef BE_TEST
+        for (size_t j = 0; j < group_by_columns.size(); j++) {
+            auto replicated_col = group_by_columns[j]->replicate(replicate_offsets);
+            VLOG_ROW << "[output_retract_detail] group by col:" << replicated_col->debug_string();
+        }
+        VLOG_ROW << "[output_retract_detail] agg col:" << agg_col->debug_string();
+        VLOG_ROW << "[output_retract_detail] count col:" << count_col->debug_string();
+#endif
+        detail_result_chunk->append_column(std::move(agg_col), slot_id++);
+        detail_result_chunk->append_column(std::move(count_col), slot_id++);
+        detail_chunks.emplace_back(std::move(detail_result_chunk));
+    }
+    return Status::OK();
+}
 
 } // namespace starrocks::stream

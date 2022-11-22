@@ -41,7 +41,7 @@ public:
     static constexpr StreamRowOp UPDATE_BEFORE_OP = StreamRowOp::UPDATE_BEFORE;
     static constexpr StreamRowOp UPDATE_AFTER_OP = StreamRowOp::UPDATE_AFTER;
 
-    ~StreamAggregator() {
+    ~StreamAggregator() override {
         if (_state != nullptr) {
             close(_state);
         }
@@ -76,10 +76,6 @@ private:
     Status _output_changes(HashMapWithKey& hash_map_with_key, int32_t chunk_size, vectorized::ChunkPtr* chunk,
                            vectorized::ChunkPtr* intermediate_chunk, std::vector<vectorized::ChunkPtr>& detail_chunks);
 
-    // Only create selected agg funcs by agg_func_ids
-    vectorized::Columns _create_needed_agg_result_columns(size_t num_rows, const std::vector<int32_t>& agg_func_ids,
-                                                          bool use_intermediate);
-
     vectorized::ChunkPtr _build_output_chunk_with_ops(const vectorized::Columns& group_by_columns,
                                                       const vectorized::Columns& agg_result_columns,
                                                       const UInt8ColumnPtr& ops, bool is_intermediate_result);
@@ -113,10 +109,6 @@ private:
     // Output results without generating retract messages.
     Status _output_result_changes_without_retract(size_t chunk_size, const vectorized::Columns& group_by_columns,
                                                   ChunkPtr* result_chunk);
-
-    // Output detail for detail retract aggregations, eg min/max.
-    Status _output_retract_detail(int32_t chunk_size, const vectorized::Columns& group_by_columns,
-                                  std::vector<vectorized::ChunkPtr>& detail_chunks);
 
 private:
     // Store buffers which can be reused in the incremental compute.

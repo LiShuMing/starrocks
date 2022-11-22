@@ -17,7 +17,6 @@ ChunkPtrOr StateTable::get_chunk(const DatumRow& key) {
     if (!status.ok() && !status.is_end_of_file()) {
         return status;
     }
-    DCHECK_EQ(1, t_chunk->num_rows());
 #ifdef BE_TEST
     {
         // iterator should reach the end of file.

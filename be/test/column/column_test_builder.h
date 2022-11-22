@@ -10,6 +10,39 @@ namespace starrocks::vectorized {
 
 class ColumnTestBuilder {
 public:
+    template <class T>
+    static ColumnPtr build_column(const std::vector<T>& values) {
+        if constexpr (std::is_same_v<uint8_t, T>) {
+            auto data = UInt8Column::create();
+            data->append_numbers(values.data(), values.size() * sizeof(T));
+            return data;
+        } else if constexpr (std::is_same_v<T, int32_t>) {
+            auto data = Int32Column::create();
+            data->append_numbers(values.data(), values.size() * sizeof(T));
+            return data;
+        } else if constexpr (std::is_same_v<T, int64_t>) {
+            auto data = Int64Column::create();
+            data->append_numbers(values.data(), values.size() * sizeof(T));
+            return data;
+        } else if constexpr (std::is_same_v<T, std::string>) {
+            auto data = BinaryColumn::create();
+            data->append_strings(values);
+            return data;
+        } else if constexpr (std::is_same_v<T, double>) {
+            auto data = DoubleColumn ::create();
+            data->append_numbers(values.data(), values.size() * sizeof(T));
+            return data;
+        } else {
+            throw std::runtime_error("Type is not supported in build_column.");
+        }
+    }
+
+    template <class T>
+    static ColumnPtr build_nullable_column(const std::vector<T>& values, const std::vector<uint8_t>& nullflags) {
+        auto data = build_column<T>(values);
+        return NullableColumn::create(std::move(data), std::move(nullflags));
+    }
+
     static ColumnPtr build_uint8_column(const std::vector<uint8_t>& values) {
         auto data = UInt8Column::create();
         data->append_numbers(values.data(), values.size() * sizeof(uint8_t));

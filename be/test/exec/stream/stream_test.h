@@ -26,10 +26,11 @@ public:
     }
 
 protected:
-    ChunkPtr MakeChunk(const std::vector<std::vector<int64_t>>& cols, const std::vector<uint8_t>& ops) {
+    template <typename T>
+    ChunkPtr MakeStreamChunk(const std::vector<std::vector<T>>& cols, const std::vector<uint8_t>& ops) {
         auto chunk_ptr = std::make_shared<Chunk>();
         for (size_t i = 0; i < cols.size(); i++) {
-            auto col = vectorized::ColumnTestBuilder::build_int64_column(cols[i]);
+            auto col = vectorized::ColumnTestBuilder::build_column<T>(cols[i]);
             chunk_ptr->append_column(std::move(col), i);
         }
         auto op_col = vectorized::ColumnTestBuilder::build_uint8_column(ops);
@@ -38,50 +39,42 @@ protected:
     }
 
     // TODO: now we assume, int32_t/ ... / int32_t / ... / uint8_t
-    void CheckChunk(ChunkPtr chunk, std::vector<LogicalType> types, std::vector<std::vector<int64_t>> ans,
+    template <class T>
+    void CheckChunk(ChunkPtr chunk, std::vector<LogicalType> types, std::vector<std::vector<T>> ans,
                     std::vector<uint8_t> ops) {
         auto chunk_size = chunk->num_rows();
         auto num_col = chunk->num_columns();
         DCHECK_EQ(types.size(), num_col);
-        {
-            // Check data except ops.
-            DCHECK_EQ(chunk_size, ans[0].size());
+        // Check data except ops.
+        DCHECK_EQ(chunk_size, ans[0].size());
 
-            for (size_t col_idx = 0; col_idx < ans.size(); ++col_idx) {
-                auto& col = chunk->get_column_by_index(col_idx);
-                auto exp_col = ans[col_idx];
-                for (size_t i = 0; i < chunk_size; i++) {
-                    CheckDatumWithType(types[col_idx], col->get(i), exp_col[i]);
-                }
-            }
+        for (size_t col_idx = 0; col_idx < ans.size(); ++col_idx) {
+            auto& col = chunk->get_column_by_index(col_idx);
+            auto exp_col = ans[col_idx];
+            CheckColumn<T>(col, exp_col);
         }
         // check ops.
         if (ops.size() > 0) {
             DCHECK_EQ(chunk_size, ops.size());
             auto col_idx = num_col - 1;
             auto& col = chunk->get_column_by_index(col_idx);
-            for (size_t i = 0; i < chunk_size; i++) {
-                CheckDatumWithType(types[col_idx], col->get(i), ops[i]);
-            }
+            CheckColumn<uint8_t>(col, ops);
         }
     }
 
     template <typename T>
-    void CheckDatumWithType(LogicalType type, Datum datum, T data) {
-        switch (type) {
-        case TYPE_INT:
-            DCHECK_EQ(datum.get_int32(), data);
-            break;
-        case TYPE_BIGINT:
-            DCHECK_EQ(datum.get_int64(), data);
-            break;
-        case TYPE_BOOLEAN:
-            DCHECK_EQ(datum.get_uint8(), data);
-            break;
-        default:
-            std::cout << "NOT SUPPORTED!!!" << std::endl;
-            break;
+    void CheckColumn(const ColumnPtr& real_col, std::vector<T> exp_col) {
+        VLOG_ROW << "Start to check column";
+        DCHECK_EQ(real_col->size(), exp_col.size());
+        auto num_row = real_col->size();
+        for (size_t i = 0; i < num_row; i++) {
+            CheckDatum<T>(real_col->get(i), exp_col[i]);
         }
+    }
+
+    template <typename T>
+    void CheckDatum(Datum datum, T data) {
+        DCHECK_EQ(datum.get<T>(), data);
     }
 
 protected:

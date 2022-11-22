@@ -13,11 +13,13 @@ namespace starrocks::stream {
 using DatumKeyRow = std::vector<vectorized::DatumKey>;
 using DatumKey = vectorized::DatumKey;
 
-// DatumIterator only have one datum row for the pk.
+/*
+ * NOTE: This class is only used in testing. DatumRowIterator is used to convert datum to chunk iter.
+ */
 class DatumRowIterator final : public vectorized::ChunkIterator {
 public:
-    explicit DatumRowIterator(vectorized::Schema schema, std::vector<DatumRow> rows)
-            : ChunkIterator(schema, rows.size()), _rows(rows) {}
+    explicit DatumRowIterator(vectorized::Schema schema, std::vector<DatumRow>&& rows)
+            : ChunkIterator(schema, rows.size()), _rows(std::move(rows)) {}
 
     void close() override {}
 
@@ -42,6 +44,8 @@ private:
         for (size_t row_num = 0; row_num < rows.size(); row_num++) {
             auto& row = rows[row_num];
             for (size_t i = 0; i < row.size(); i++) {
+                VLOG_ROW << "[convert_datum_rows_to_chunk] row_num:" << row_num << ", column_size:" << row.size()
+                         << ", i:" << i;
                 DCHECK_LT(i, chunk->num_columns());
                 auto& col = chunk->get_column_by_index(i);
                 col->append_datum(row[i]);
@@ -54,7 +58,7 @@ private:
     bool _is_eos{false};
 };
 
-// Used for testing.
+// NOTE: MemStateTable is only used for testing to mock `StateTable`.
 class MemStateTable : public StateTable {
 public:
     // For MemStateTable, we assume flushed chunk's columns is assigned as:

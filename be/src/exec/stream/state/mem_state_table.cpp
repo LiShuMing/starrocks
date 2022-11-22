@@ -34,8 +34,14 @@ bool MemStateTable::_equal_key(const DatumKeyRow& m_k, const DatumRow key) {
                 return false;
             }
             break;
+        case TYPE_DOUBLE:
+            if (key[i].get_double() != std::get<double>(m_k[i])) {
+                return false;
+            }
+            break;
         case TYPE_VARCHAR:
         case TYPE_CHAR:
+        case TYPE_VARBINARY:
             if (key[i].get_slice() != std::get<Slice>(m_k[i])) {
                 return false;
             }
@@ -53,8 +59,13 @@ Datum MemStateTable::convert_datum_key_to_datum(LogicalType type, DatumKey datum
         return Datum(std::get<int64_t>(datum_key));
     case TYPE_INT:
         return Datum(std::get<int32_t>(datum_key));
+    case TYPE_FLOAT:
+        return Datum(std::get<float>(datum_key));
+    case TYPE_DOUBLE:
+        return Datum(std::get<double>(datum_key));
     case TYPE_VARCHAR:
     case TYPE_CHAR:
+    case TYPE_VARBINARY:
         return Datum(std::get<Slice>(datum_key));
     default:
         throw std::runtime_error("not supported yet!");
@@ -62,6 +73,7 @@ Datum MemStateTable::convert_datum_key_to_datum(LogicalType type, DatumKey datum
 }
 
 ChunkIteratorPtrOr MemStateTable::get_chunk_iter(const DatumRow& key) {
+    VLOG_ROW << "[get_chunk_iter] lookup key size:" << key.size() << ", k_num:" << _k_num;
     if (key.size() < _k_num) {
         // prefix scan
         std::vector<DatumRow> rows;
@@ -84,7 +96,7 @@ ChunkIteratorPtrOr MemStateTable::get_chunk_iter(const DatumRow& key) {
             return Status::EndOfFile("");
         }
         auto result_slots = std::vector<SlotDescriptor*>{_slots.begin() + key.size(), _slots.end()};
-        return std::make_shared<DatumRowIterator>(make_schema_from_slots(result_slots), rows);
+        return std::make_shared<DatumRowIterator>(make_schema_from_slots(result_slots), std::move(rows));
     } else {
         // point seek
         DCHECK_EQ(key.size(), _k_num);
@@ -92,11 +104,11 @@ ChunkIteratorPtrOr MemStateTable::get_chunk_iter(const DatumRow& key) {
 
         auto result_slots = std::vector<SlotDescriptor*>{_slots.begin() + _k_num, _slots.end()};
         if (auto it = _kv_mapping.find(key_row); it != _kv_mapping.end()) {
-            auto value_row = it->second;
+            auto& value_row = it->second;
             auto rows = std::vector<DatumRow>{value_row};
-            return std::make_shared<DatumRowIterator>(make_schema_from_slots(result_slots), rows);
+            return std::make_shared<DatumRowIterator>(make_schema_from_slots(result_slots), std::move(rows));
         } else {
-            return Status::EndOfFile("");
+            return Status::EndOfFile("NotFound");
         }
     }
 }
@@ -105,6 +117,7 @@ vectorized::Schema MemStateTable::make_schema_from_slots(const std::vector<SlotD
     vectorized::Fields fields;
     for (auto& slot : slots) {
         auto type_desc = slot->type();
+        VLOG_ROW << "[make_schema_from_slots] type:" << type_desc;
         auto field = std::make_shared<vectorized::Field>(slot->id(), slot->col_name(), type_desc.type, false);
         fields.emplace_back(std::move(field));
     }

@@ -18,7 +18,7 @@ public:
         std::vector<uint8_t> ops;
     };
 
-    StreamAggregateTestBase() {}
+    StreamAggregateTestBase() = default;
 
     ~StreamAggregateTestBase() = default;
 
@@ -29,35 +29,22 @@ public:
         }
         return types;
     }
-
-    void RunBatchAndCheck(size_t run_id, const StreamRowData& input_rows, const StreamRowData& expect_result_data) {
-        return RunBatchAndCheck(run_id, input_rows, expect_result_data, StreamRowData{{}, {}});
-    }
-
-    void RunBatchAndCheck(size_t run_id, const StreamRowData& input_rows, const StreamRowData& expect_result_data,
-                          const StreamRowData& expect_intermediate_data) {
+    void RunBatch(size_t run_id, const StreamRowData& input_rows, ChunkPtr* result_chunk, ChunkPtr* intermediate_chunk,
+                  std::vector<ChunkPtr>& detail_chunks) {
         VLOG_ROW << "[RunBatchAndCheck] >>>>>>>>>>>>>>> Run: " << run_id;
-        auto result_chunk_ptr = std::make_shared<Chunk>();
-        auto intermediate_chunk_ptr = std::make_shared<Chunk>();
-        std::vector<vectorized::ChunkPtr> detail_chunks;
 
-        auto input_chunk_ptr = MakeChunk(input_rows.rows, input_rows.ops);
+        auto input_chunk_ptr = MakeStreamChunk<int64_t>(input_rows.rows, input_rows.ops);
         auto chunk_size = input_chunk_ptr->num_rows();
         DCHECK_IF_ERROR(_stream_aggregator->process_chunk(input_chunk_ptr.get()));
-        DCHECK_IF_ERROR(_stream_aggregator->output_changes(chunk_size, &result_chunk_ptr, &intermediate_chunk_ptr,
-                                                           detail_chunks));
-        for (auto& column : result_chunk_ptr->columns()) {
+        DCHECK_IF_ERROR(
+                _stream_aggregator->output_changes(chunk_size, result_chunk, intermediate_chunk, detail_chunks));
+        for (auto& column : (*result_chunk)->columns()) {
             VLOG_ROW << "[RunBatchAndCheck] result column:" << column->debug_string();
         }
-        CheckChunk(result_chunk_ptr, get_slot_types(_slot_infos[2]), expect_result_data.rows, expect_result_data.ops);
 
         // intermediate data may not exist
-        if (!expect_intermediate_data.rows.empty()) {
-            for (auto& column : intermediate_chunk_ptr->columns()) {
-                VLOG_ROW << "[RunBatchAndCheck] intermediate column:" << column->debug_string();
-            }
-            CheckChunk(intermediate_chunk_ptr, get_slot_types(_slot_infos[1]), expect_intermediate_data.rows,
-                       expect_intermediate_data.ops);
+        for (auto& column : (*intermediate_chunk)->columns()) {
+            VLOG_ROW << "[RunBatchAndCheck] intermediate column:" << column->debug_string();
         }
         if (!detail_chunks.empty()) {
             for (auto& detail_chunk : detail_chunks) {
@@ -68,6 +55,23 @@ public:
             }
         }
         DCHECK_IF_ERROR(_stream_aggregator->reset_state(_state));
+    }
+
+    void RunBatchAndCheck(size_t run_id, const StreamRowData& input_rows, const StreamRowData& expect_result_data) {
+        return RunBatchAndCheck(run_id, input_rows, expect_result_data, StreamRowData{{}, {}});
+    }
+
+    void RunBatchAndCheck(size_t run_id, const StreamRowData& input_rows, const StreamRowData& expect_result_data,
+                          const StreamRowData& expect_intermediate_data) {
+        auto result_chunk_ptr = std::make_shared<Chunk>();
+        auto intermediate_chunk_ptr = std::make_shared<Chunk>();
+        std::vector<vectorized::ChunkPtr> detail_chunks;
+        RunBatch(run_id, input_rows, &result_chunk_ptr, &intermediate_chunk_ptr, detail_chunks);
+        CheckChunk(result_chunk_ptr, get_slot_types(_slot_infos[2]), expect_result_data.rows, expect_result_data.ops);
+        if (!expect_intermediate_data.rows.empty()) {
+            CheckChunk(intermediate_chunk_ptr, get_slot_types(_slot_infos[1]), expect_intermediate_data.rows,
+                       expect_intermediate_data.ops);
+        }
     }
 
     void SetUp() override {}
@@ -140,6 +144,7 @@ protected:
     std::vector<AggInfo> _agg_infos;
 };
 
+///////////////  Count Aggregate Function ///////////////
 class CountStreamAggregateTestBase : public StreamAggregateTestBase {
 public:
     CountStreamAggregateTestBase(bool is_generate_retract) {
@@ -363,6 +368,136 @@ TEST_F(CountStreamAggregateTestWithGenerateRetracts, TestWithRetracts_MultiRuns)
     _stream_aggregator->close(_state);
 }
 
+///////////////  Min/Max Aggregate Function ///////////////
+class SumAvgCountStreamAggregateTest : public StreamAggregateTestBase {
+public:
+    SumAvgCountStreamAggregateTest(bool is_generate_retract) {
+        _slot_infos = std::vector<std::vector<SlotInfo>>{
+                // input slots
+                {{"col1", TYPE_BIGINT, false}, {"col2", TYPE_BIGINT, false}, {"op", TYPE_BOOLEAN, false}},
+                // intermediate slots
+                {
+                        {"col1", TYPE_BIGINT, false},
+                        {"sum_agg", TYPE_BIGINT, false},
+                        {"avg_agg", TYPE_VARBINARY, false},
+                        {"count_agg", TYPE_BIGINT, false},
+                },
+                // result slots
+                {{"col1", TYPE_BIGINT, false},
+                 {"sum_agg", TYPE_BIGINT, false},
+                 {"avg_agg", TYPE_DOUBLE, false},
+                 {"count_agg", TYPE_BIGINT, false},
+                 // TODO: result output should contain ops column
+                 {"op", TYPE_BOOLEAN, false}},
+        };
+        _group_by_infos = {0};
+
+        // sum(col2), avg(col2), count(col2) group by col1
+        _agg_infos = std::vector<AggInfo>{// slot_index, agg_name, agg_intermediate_type, agg_result_type
+                                          {1, "sum", TYPE_BIGINT, TYPE_BIGINT},
+                                          {1, "avg", TYPE_VARBINARY, TYPE_DOUBLE},
+                                          {1, "count", TYPE_BIGINT, TYPE_BIGINT}};
+
+        _tbl = vectorized::DescTblHelper::generate_desc_tbl(_state, _obj_pool, _slot_infos);
+        _state->set_desc_tbl(_tbl);
+        _stream_aggregator =
+                _create_stream_aggregator(_slot_infos, _group_by_infos, _agg_infos, is_generate_retract, 2);
+    }
+};
+
+class SumAvgStreamAggregateTestWithoutRetract : public SumAvgCountStreamAggregateTest {
+public:
+    SumAvgStreamAggregateTestWithoutRetract() : SumAvgCountStreamAggregateTest(false) {}
+};
+
+TEST_F(SumAvgStreamAggregateTestWithoutRetract, TestNoRetracts_OneRun) {
+    DCHECK_IF_ERROR(_stream_aggregator->prepare(_state, &_obj_pool, _runtime_profile, _mem_tracker.get()));
+    DCHECK_IF_ERROR(_stream_aggregator->open(_state));
+
+    auto result_chunk_ptr = std::make_shared<Chunk>();
+    auto intermediate_chunk_ptr = std::make_shared<Chunk>();
+    std::vector<vectorized::ChunkPtr> detail_chunks;
+    RunBatch(1, StreamRowData{{{1, 2, 1}, {1, 2, 2}}, {0, 0, 0}}, &result_chunk_ptr, &intermediate_chunk_ptr,
+             detail_chunks);
+
+    // group by key: col1
+    CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(0), {1, 2});
+    // sum(col2)
+    CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(1), {3, 2});
+    // avg(col2)
+    CheckColumn<double>(result_chunk_ptr->get_column_by_index(2), {1.5, 2});
+    // count(col2)
+    CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(3), {2, 1});
+    // ops
+    CheckColumn<uint8_t>(result_chunk_ptr->get_column_by_index(4), {0, 0});
+
+    DCHECK_EQ(intermediate_chunk_ptr->num_columns(), 2);
+    DCHECK_EQ(intermediate_chunk_ptr->num_rows(), 2);
+
+    DCHECK(detail_chunks.empty());
+    _stream_aggregator->close(_state);
+}
+
+TEST_F(SumAvgStreamAggregateTestWithoutRetract, TestNoRetracts_MultiRun) {
+    DCHECK_IF_ERROR(_stream_aggregator->prepare(_state, &_obj_pool, _runtime_profile, _mem_tracker.get()));
+    DCHECK_IF_ERROR(_stream_aggregator->open(_state));
+    // Run 1
+    auto result_chunk_ptr = std::make_shared<Chunk>();
+    auto intermediate_chunk_ptr = std::make_shared<Chunk>();
+    std::vector<vectorized::ChunkPtr> detail_chunks;
+    RunBatch(1, StreamRowData{{{1, 2, 1}, {1, 2, 2}}, {0, 0, 0}}, &result_chunk_ptr, &intermediate_chunk_ptr,
+             detail_chunks);
+    // group by key: col1
+    CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(0), {1, 2});
+    // sum(col2)
+    CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(1), {3, 2});
+    // avg(col2)
+    CheckColumn<double>(result_chunk_ptr->get_column_by_index(2), {1.5, 2});
+    // count(col2)
+    CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(3), {2, 1});
+    // ops
+    CheckColumn<uint8_t>(result_chunk_ptr->get_column_by_index(4), {0, 0});
+    DCHECK_EQ(intermediate_chunk_ptr->num_columns(), 2);
+    DCHECK_EQ(intermediate_chunk_ptr->num_rows(), 2);
+    DCHECK(detail_chunks.empty());
+
+    // Run 2
+    RunBatch(2, StreamRowData{{{1, 2, 3}, {3, 4, 3}}, {0, 0, 0}}, &result_chunk_ptr, &intermediate_chunk_ptr,
+             detail_chunks);
+    // group by key: col1
+    CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(0), {1, 2, 3});
+    // sum(col2)
+    CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(1), {6, 6, 3});
+    // avg(col2)
+    CheckColumn<double>(result_chunk_ptr->get_column_by_index(2), {2, 3, 3});
+    // count(col2)
+    CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(3), {3, 2, 1});
+    // ops
+    CheckColumn<uint8_t>(result_chunk_ptr->get_column_by_index(4), {0, 0, 0});
+    DCHECK_EQ(intermediate_chunk_ptr->num_columns(), 2);
+    DCHECK_EQ(intermediate_chunk_ptr->num_rows(), 3);
+    DCHECK(detail_chunks.empty());
+
+    // Run 3
+    RunBatch(3, StreamRowData{{{2, 3}, {3, 4}}, {0, 0}}, &result_chunk_ptr, &intermediate_chunk_ptr, detail_chunks);
+    // group by key: col1
+    CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(0), {2, 3});
+    // sum(col2)
+    CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(1), {9, 7});
+    // avg(col2)
+    CheckColumn<double>(result_chunk_ptr->get_column_by_index(2), {3, 3.5});
+    // count(col2)
+    CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(3), {3, 2});
+    // ops
+    CheckColumn<uint8_t>(result_chunk_ptr->get_column_by_index(4), {0, 0});
+    DCHECK_EQ(intermediate_chunk_ptr->num_columns(), 2);
+    DCHECK_EQ(intermediate_chunk_ptr->num_rows(), 2);
+    DCHECK(detail_chunks.empty());
+
+    _stream_aggregator->close(_state);
+}
+
+///////////////  Min/Max Aggregate Function ///////////////
 class MinMaxCountStreamAggregateTest : public StreamAggregateTestBase {
 public:
     MinMaxCountStreamAggregateTest(bool is_generate_retract) {
@@ -525,6 +660,166 @@ TEST_F(MinMaxCountStreamAggregateTestWithRetract, TestWihRetracts_MultiRun_Retra
     // 2    2   2   1   0
     RunBatchAndCheck(3, StreamRowData{{{1, 2, 3}, {2, 2, 3}}, {1, 0, 1}},
                      StreamRowData{{{1, 3, 2}, {2, 3, 2}, {2, 3, 2}, {1, 1, 1}}, {1, 1, 0}});
+    _stream_aggregator->close(_state);
+}
+
+///////////////  Min/Max Aggregate Function ///////////////
+class AllStreamAggregateFunctionsTestBase : public StreamAggregateTestBase {
+public:
+    AllStreamAggregateFunctionsTestBase(bool is_generate_retract) {
+        _slot_infos = std::vector<std::vector<SlotInfo>>{
+                // input slots
+                {{"col1", TYPE_BIGINT, false},
+                 {"col2", TYPE_BIGINT, false},
+                 {"col3", TYPE_BIGINT, false},
+                 {"op", TYPE_BOOLEAN, false}},
+                // intermediate slots
+                {
+                        {"col1", TYPE_BIGINT, false},
+                        {"sum_agg", TYPE_BIGINT, false},
+                        {"min_agg", TYPE_BIGINT, false},
+                        {"avg_agg", TYPE_VARBINARY, false},
+                        {"max_agg", TYPE_BIGINT, false},
+                        {"count_agg", TYPE_BIGINT, false},
+                },
+                // result slots
+                {{"col1", TYPE_BIGINT, false},
+                 {"sum_agg", TYPE_BIGINT, false},
+                 {"min_agg", TYPE_BIGINT, false},
+                 {"avg_agg", TYPE_DOUBLE, false},
+                 {"max_agg", TYPE_BIGINT, false},
+                 {"count_agg", TYPE_BIGINT, false},
+                 // TODO: result output should contain ops column
+                 {"op", TYPE_BOOLEAN, false}},
+        };
+        _group_by_infos = {0};
+
+        // sum(col2), min(col3), avg(col3), max(col3), count(col2) group by col1
+        _agg_infos = std::vector<AggInfo>{// slot_index, agg_name, agg_intermediate_type, agg_result_type
+                                          {1, "sum", TYPE_BIGINT, TYPE_BIGINT},
+                                          {2, "retract_min", TYPE_BIGINT, TYPE_BIGINT},
+                                          {2, "avg", TYPE_VARBINARY, TYPE_DOUBLE},
+                                          {1, "retract_max", TYPE_BIGINT, TYPE_BIGINT},
+                                          {1, "count", TYPE_BIGINT, TYPE_BIGINT}};
+
+        _tbl = vectorized::DescTblHelper::generate_desc_tbl(_state, _obj_pool, _slot_infos);
+        _state->set_desc_tbl(_tbl);
+        _stream_aggregator =
+                _create_stream_aggregator(_slot_infos, _group_by_infos, _agg_infos, is_generate_retract, 4);
+    }
+};
+
+class AllStreamAggregateFunctionsTestWithoutRetract : public AllStreamAggregateFunctionsTestBase {
+public:
+    AllStreamAggregateFunctionsTestWithoutRetract() : AllStreamAggregateFunctionsTestBase(false) {}
+};
+
+TEST_F(AllStreamAggregateFunctionsTestWithoutRetract, TestNoRetracts_OneRun) {
+    DCHECK_IF_ERROR(_stream_aggregator->prepare(_state, &_obj_pool, _runtime_profile, _mem_tracker.get()));
+    DCHECK_IF_ERROR(_stream_aggregator->open(_state));
+
+    auto result_chunk_ptr = std::make_shared<Chunk>();
+    auto intermediate_chunk_ptr = std::make_shared<Chunk>();
+    std::vector<vectorized::ChunkPtr> detail_chunks;
+    RunBatch(1, StreamRowData{{{1, 2, 1}, {1, 2, 2}, {1, 1, 3}}, {0, 0, 0}}, &result_chunk_ptr, &intermediate_chunk_ptr,
+             detail_chunks);
+
+    // group by key: col1
+    CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(0), {1, 2});
+    // sum(col2)
+    CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(1), {3, 2});
+    // min(col3)
+    CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(2), {1, 1});
+    // avg(col3)
+    CheckColumn<double>(result_chunk_ptr->get_column_by_index(3), {2, 1});
+    // max(col2)
+    CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(4), {2, 2});
+    // count(col2)
+    CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(5), {2, 1});
+    // ops
+    CheckColumn<uint8_t>(result_chunk_ptr->get_column_by_index(6), {0, 0});
+    DCHECK_EQ(intermediate_chunk_ptr->num_columns(), 2);
+    DCHECK_EQ(intermediate_chunk_ptr->num_rows(), 2);
+    DCHECK_EQ(detail_chunks.size(), 2);
+
+    _stream_aggregator->close(_state);
+}
+
+TEST_F(AllStreamAggregateFunctionsTestWithoutRetract, TestNoRetracts_MultiRun) {
+    DCHECK_IF_ERROR(_stream_aggregator->prepare(_state, &_obj_pool, _runtime_profile, _mem_tracker.get()));
+    DCHECK_IF_ERROR(_stream_aggregator->open(_state));
+    auto result_chunk_ptr = std::make_shared<Chunk>();
+    auto intermediate_chunk_ptr = std::make_shared<Chunk>();
+
+    // NOTE: binary/slice is not copied into datum, need this vector to track all chunk of state' life .
+    std::vector<ChunkPtr> result_chunks;
+    {
+        std::vector<vectorized::ChunkPtr> detail_chunks;
+        // Run 1
+        RunBatch(1, StreamRowData{{{1, 2, 1}, {1, 2, 2}, {1, 1, 3}}, {0, 0, 0}}, &result_chunk_ptr,
+                 &intermediate_chunk_ptr, detail_chunks);
+        result_chunks.push_back(intermediate_chunk_ptr);
+
+        // group by key: col1
+        CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(0), {1, 2});
+        // sum(col2)
+        CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(1), {3, 2});
+        // min(col3)
+        CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(2), {1, 1});
+        // avg(col3)
+        CheckColumn<double>(result_chunk_ptr->get_column_by_index(3), {2, 1});
+        // max(col2)
+        CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(4), {2, 2});
+        // count(col2)
+        CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(5), {2, 1});
+        // ops
+        CheckColumn<uint8_t>(result_chunk_ptr->get_column_by_index(6), {0, 0});
+    }
+
+    // Run 2
+    {
+        std::vector<vectorized::ChunkPtr> detail_chunks;
+        RunBatch(2, StreamRowData{{{2, 3}, {2, 2}, {1, 3}}, {0, 0}}, &result_chunk_ptr, &intermediate_chunk_ptr,
+                 detail_chunks);
+        result_chunks.push_back(intermediate_chunk_ptr);
+        // group by key: col1
+        CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(0), {2, 3});
+        // sum(col2)
+        CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(1), {4, 2});
+        // min(col3)
+        CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(2), {1, 3});
+        // avg(col3)
+        CheckColumn<double>(result_chunk_ptr->get_column_by_index(3), {1, 3});
+        // max(col2)
+        CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(4), {2, 2});
+        // count(col2)
+        CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(5), {2, 1});
+        // ops
+        CheckColumn<uint8_t>(result_chunk_ptr->get_column_by_index(6), {0, 0});
+    }
+
+    // Run 3
+    {
+        std::vector<vectorized::ChunkPtr> detail_chunks;
+        RunBatch(3, StreamRowData{{{1, 3}, {2, 2}, {2, 3}}, {0, 0}}, &result_chunk_ptr, &intermediate_chunk_ptr,
+                 detail_chunks);
+        result_chunks.push_back(intermediate_chunk_ptr);
+        // group by key: col1
+        CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(0), {1, 3});
+        // sum(col2)
+        CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(1), {5, 4});
+        // min(col3)
+        CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(2), {1, 3});
+        // avg(col3)
+        CheckColumn<double>(result_chunk_ptr->get_column_by_index(3), {2, 3});
+        // max(col2)
+        CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(4), {2, 2});
+        // count(col2)
+        CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(5), {3, 2});
+        // ops
+        CheckColumn<uint8_t>(result_chunk_ptr->get_column_by_index(6), {0, 0});
+    }
+
     _stream_aggregator->close(_state);
 }
 

@@ -33,8 +33,7 @@ protected:
         return CheckReadByKey(state_table, keys, {ans}, {op});
     }
 
-    void CheckReadByKey(StateTable* state_table, const std::vector<int32_t>& keys,
-                        const std::vector<std::vector<int32_t>>& expect_rows, const std::vector<uint8_t>& expect_ops) {
+    DatumRow MakeDatumRow(const std::vector<int32_t>& keys) {
         // only one column key
         DatumRow row;
         for (auto& key : keys) {
@@ -42,8 +41,21 @@ protected:
             datum.set_int32(key);
             row.emplace_back(datum);
         }
+        return row;
+    }
 
+    void CheckReadError(StateTable* state_table, const std::vector<int32_t>& keys, const Status& expect_status) {
+        auto row = MakeDatumRow(keys);
         auto iter_or = state_table->get_chunk_iter(row);
+        DCHECK(!iter_or.ok());
+        DCHECK(iter_or.status().code() == expect_status.code());
+    }
+
+    void CheckReadByKey(StateTable* state_table, const std::vector<int32_t>& keys,
+                        const std::vector<std::vector<int32_t>>& expect_rows, const std::vector<uint8_t>& expect_ops) {
+        auto row = MakeDatumRow(keys);
+        auto iter_or = state_table->get_chunk_iter(row);
+        VLOG_ROW << iter_or.status().message() << std::endl;
         DCHECK(iter_or.ok());
         auto chunk_or = state_table->get_chunk(row);
         DCHECK(chunk_or.ok());
@@ -55,7 +67,6 @@ protected:
     }
 
     void CheckRowOfChunk(ChunkPtr chunk, const std::vector<int32_t>& ans, uint8_t op, int32_t row_idx) {
-        DCHECK_EQ(chunk->num_rows(), 1);
         auto num_cols = ans.size();
         DCHECK_EQ(chunk->num_columns(), num_cols + 1);
         for (size_t i = 0; i < num_cols; i++) {
@@ -71,7 +82,10 @@ protected:
 TEST_F(MemStateTableTest, TestPointSeek) {
     auto tuple_desc = _tbl->get_tuple_descriptor(0);
     auto state_table = std::make_unique<MemStateTable>(tuple_desc->slots(), 1, false);
-    auto chunk_ptr = MakeChunk({{1, 2, 3}, {1, 2, 3}, {1, 2, 3}, {11, 12, 13}}, {1, 2, 3});
+    // test not exists
+    CheckReadError(state_table.get(), {1}, Status::EndOfFile(""));
+
+    auto chunk_ptr = MakeStreamChunk<int32_t>({{1, 2, 3}, {1, 2, 3}, {1, 2, 3}, {11, 12, 13}}, {1, 2, 3});
     // write table
     state_table->flush(_state, chunk_ptr.get());
     // read table
@@ -80,7 +94,7 @@ TEST_F(MemStateTableTest, TestPointSeek) {
     CheckReadByPoint(state_table.get(), {3}, {3, 3, 13}, 3);
 
     // UPDATE keys
-    auto chunk_ptr2 = MakeChunk({{1, 2, 3}, {1, 2, 3}, {1, 2, 3}, {21, 22, 23}}, {1, 1, 1});
+    auto chunk_ptr2 = MakeStreamChunk<int32_t>({{1, 2, 3}, {1, 2, 3}, {1, 2, 3}, {21, 22, 23}}, {1, 1, 1});
     // write table
     state_table->flush(_state, chunk_ptr2.get());
     // read table
@@ -92,7 +106,10 @@ TEST_F(MemStateTableTest, TestPointSeek) {
 TEST_F(MemStateTableTest, TestPrefixSeek) {
     auto tuple_desc = _tbl->get_tuple_descriptor(0);
     auto state_table = std::make_unique<MemStateTable>(tuple_desc->slots(), 3, false);
-    auto chunk_ptr = MakeChunk({{1, 1, 1}, {1, 1, 1}, {1, 2, 3}, {11, 12, 13}}, {1, 2, 3});
+    auto chunk_ptr = MakeStreamChunk<int32_t>({{1, 1, 1}, {1, 1, 1}, {1, 2, 3}, {11, 12, 13}}, {1, 2, 3});
+    // test not exists
+    CheckReadError(state_table.get(), {1, 1}, Status::EndOfFile(""));
+
     // write table
     state_table->flush(_state, chunk_ptr.get());
     // read table
@@ -105,7 +122,7 @@ TEST_F(MemStateTableTest, TestPrefixSeek) {
                    {1, 2, 3});
 
     // UPDATE keys
-    auto chunk_ptr2 = MakeChunk({{1, 1, 1}, {1, 1, 1}, {1, 2, 3}, {21, 22, 23}}, {1, 1, 1});
+    auto chunk_ptr2 = MakeStreamChunk<int32_t>({{1, 1, 1}, {1, 1, 1}, {1, 2, 3}, {21, 22, 23}}, {1, 1, 1});
     // write table
     state_table->flush(_state, chunk_ptr2.get());
     // read table

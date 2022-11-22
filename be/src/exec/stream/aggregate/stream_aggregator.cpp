@@ -79,9 +79,17 @@ Status StreamAggregator::_prepare_state_tables(RuntimeState* state) {
 
         // intermediate agg_state is created when intermediate/detail agg states are not empty.
         if (!_intermediate_agg_func_ids.empty()) {
-            _intermediate_state_table =
-                    std::make_unique<MemStateTable>(_intermediate_tuple_desc->slots(), key_size, false);
+            std::vector<SlotDescriptor*> intermediate_slots;
+            for (int32_t i = 0; i < key_size; i++) {
+                intermediate_slots.push_back(_intermediate_tuple_desc->slots()[i]);
+            }
+            for (auto& agg_func_id : _intermediate_agg_func_ids) {
+                DCHECK_LT(agg_func_id + key_size, _intermediate_tuple_desc->slots().size());
+                intermediate_slots.push_back(_intermediate_tuple_desc->slots()[agg_func_id + key_size]);
+            }
+            _intermediate_state_table = std::make_unique<MemStateTable>(intermediate_slots, key_size, false);
         }
+
         // TODO: Each agg func has one state table? How to use one table to cover all agg states?
         if (!detail_agg_states.empty()) {
             auto input_desc = state->desc_tbl().get_tuple_descriptor(0);
@@ -94,8 +102,8 @@ Status StreamAggregator::_prepare_state_tables(RuntimeState* state) {
                     detail_table_slots.push_back(input_slots[i]);
                 }
                 auto agg_func_idx = agg_state->agg_func_id();
-                detail_table_slots.push_back(_output_tuple_desc->slots()[agg_func_idx]);
-                detail_table_slots.push_back(_output_tuple_desc->slots()[_count_agg_idx]);
+                detail_table_slots.push_back(_output_tuple_desc->slots()[key_size + agg_func_idx]);
+                detail_table_slots.push_back(_output_tuple_desc->slots()[key_size + _count_agg_idx]);
                 DCHECK_EQ(detail_table_slots.size(), key_size + 2);
                 auto detail_state_table = std::make_unique<MemStateTable>(detail_table_slots, key_size + 1, false);
                 _detail_state_tables.emplace_back(std::move(detail_state_table));
@@ -136,8 +144,10 @@ Status StreamAggregator::process_chunk(vectorized::Chunk* chunk) {
     // Deduce non found keys
     auto non_found_size = SIMD::count_nonzero(_streaming_selection.data(), chunk_size);
     _non_found_keys.resize(non_found_size);
+#ifdef BE_TEST
     VLOG_ROW << "[process_chunk] streaming_selection size:" << _streaming_selection.size()
              << ", non_found size:" << non_found_size << ", chunk_size:" << chunk_size;
+#endif
     DCHECK_EQ(_streaming_selection.size(), chunk_size);
     for (size_t i = 0; i < _streaming_selection.size(); i++) {
         if (_streaming_selection[i]) {
@@ -146,7 +156,7 @@ Status StreamAggregator::process_chunk(vectorized::Chunk* chunk) {
     }
     DCHECK_GE(_non_found_keys.size(), non_found_size);
 
-    // TODO(lism): Maybe we can compact build_hash_map and compute_not_founds into one method.
+    // TODO(lism): Maybe we can compact build_hash_map and build_hash_map_with_selection into one method.
     {
         SCOPED_TIMER(agg_compute_timer());
         TRY_CATCH_BAD_ALLOC(build_hash_map(chunk_size));
@@ -281,11 +291,13 @@ Status StreamAggregator::_output_intermediate_changes(int32_t chunk_size, const 
                                                       vectorized::ChunkPtr* intermediate_chunk) {
     vectorized::Columns agg_intermediate_columns =
             _create_needed_agg_result_columns(chunk_size, _intermediate_agg_func_ids, true);
-
+    DCHECK_EQ(agg_intermediate_columns.size(), _intermediate_agg_func_ids.size());
     // agg intermediate result
-    for (auto& i : _intermediate_agg_func_ids) {
-        _agg_functions[i]->batch_serialize(_agg_fn_ctxs[i], chunk_size, _tmp_agg_states, _agg_states_offsets[i],
-                                           agg_intermediate_columns[i].get());
+    for (auto i = 0; i < _intermediate_agg_func_ids.size(); i++) {
+        auto agg_fun_idx = _intermediate_agg_func_ids[i];
+        _agg_functions[agg_fun_idx]->batch_serialize(_agg_fn_ctxs[agg_fun_idx], chunk_size, _tmp_agg_states,
+                                                     _agg_states_offsets[agg_fun_idx],
+                                                     agg_intermediate_columns[i].get());
     }
     *intermediate_chunk = _build_output_chunk(group_by_columns, agg_intermediate_columns, true);
 
@@ -333,15 +345,17 @@ Status StreamAggregator::_output_result_post_retract_changes(
     // when agg_count=0, skip output this row, otherwise, output this row.
     auto agg_count_column = reinterpret_cast<const vectorized::Int64Column*>(count_column);
     auto agg_count_column_data = agg_count_column->get_data();
-    _streaming_selection.assign(chunk_size, 0);
     DCHECK_EQ(prev_existence.size(), chunk_size);
+    vectorized::Buffer<uint8_t> filter(chunk_size, 0);
     for (size_t i = 0; i < chunk_size; i++) {
         if (agg_count_column_data[i] == 0) {
-            _streaming_selection[i] = 1;
+            filter[i] = 0;
+        } else {
+            filter[i] = 1;
         }
     }
 
-    auto selected_count = SIMD::count_zero(_streaming_selection.data(), chunk_size);
+    auto selected_count = SIMD::count_nonzero(filter.data(), chunk_size);
     if (selected_count == 0) {
         *result_chunk = prev_result_chunk;
         return Status::OK();
@@ -355,15 +369,6 @@ Status StreamAggregator::_output_result_post_retract_changes(
         } else {
             auto* to = post_agg_result_columns[agg_state->agg_func_id()].get();
             RETURN_IF_ERROR(agg_state->output_result(chunk_size, _tmp_agg_states, to));
-        }
-    }
-
-    vectorized::Buffer<uint8_t> filter(chunk_size, 0);
-    for (size_t i = 0; i < chunk_size; i++) {
-        if (_streaming_selection[i]) {
-            filter[i] = 0;
-        } else {
-            filter[i] = 1;
         }
     }
 
@@ -434,7 +439,6 @@ Status StreamAggregator::_output_result_prev_retract_changes(size_t chunk_size,
 
     // NOTE: Always retract old agg results first.
     // Should we all keep UPDATE_BEFOER/UDPATE_AFTER serially?
-    size_t prev_count = 0;
     vectorized::Buffer<uint32_t> permutation;
     prev_existence->assign(chunk_size, 0);
 
@@ -445,18 +449,16 @@ Status StreamAggregator::_output_result_prev_retract_changes(size_t chunk_size,
         if (!result.ok()) continue;
         auto prev_result = result.value();
         DCHECK_EQ(prev_result->num_rows(), 1);
-        // TODO: prev_result_table should kept ops column?
+        // TODO: prev_result_table should keep ops column?
         DCHECK_LE(prev_agg_result_columns.size(), prev_result->num_columns());
 
         // append agg columns
         for (size_t idx = 0; idx < prev_agg_result_columns.size(); idx++) {
-            // TODO: Check schema is the same
             auto& prev_col = prev_result->get_column_by_index(idx);
             prev_agg_result_columns[idx]->append(*prev_col);
         }
         permutation.push_back(i);
         (*prev_existence)[i] = 1;
-        prev_count++;
 
         // generate op
         if (agg_count_column_data[i] > 0) {
@@ -466,6 +468,7 @@ Status StreamAggregator::_output_result_prev_retract_changes(size_t chunk_size,
         }
     }
 
+    auto prev_count = SIMD::count_nonzero(prev_existence->data(), chunk_size);
     if (prev_count == 0) {
         // generate empty chunk
         *prev_result_chunk =
@@ -569,22 +572,26 @@ Status StreamAggregator::_output_retract_detail(int32_t chunk_size, const vector
 vectorized::Columns StreamAggregator::_create_needed_agg_result_columns(size_t num_rows,
                                                                         const std::vector<int32_t>& agg_func_ids,
                                                                         bool use_intermediate) {
-    vectorized::Columns agg_result_columns(agg_func_ids.size());
+    vectorized::Columns agg_result_columns;
+    agg_result_columns.reserve(agg_func_ids.size());
     if (!use_intermediate) {
         for (auto i : agg_func_ids) {
             DCHECK_LT(i, _agg_fn_types.size());
             // For count, count distinct, bitmap_union_int such as never return null function,
             // we need to create a not-nullable column.
-            agg_result_columns[i] = vectorized::ColumnHelper::create_column(
+            auto agg_col = vectorized::ColumnHelper::create_column(
                     _agg_fn_types[i].result_type, _agg_fn_types[i].has_nullable_child & _agg_fn_types[i].is_nullable);
-            agg_result_columns[i]->reserve(num_rows);
+            agg_col->reserve(num_rows);
+            agg_result_columns.emplace_back(std::move(agg_col));
         }
     } else {
         for (auto i : agg_func_ids) {
+            VLOG_ROW << "[create_agg_result_columns] i:" << i << ", serde_type:" << _agg_fn_types[i].serde_type;
             DCHECK_LT(i, _agg_fn_types.size());
-            agg_result_columns[i] = vectorized::ColumnHelper::create_column(_agg_fn_types[i].serde_type,
-                                                                            _agg_fn_types[i].has_nullable_child);
-            agg_result_columns[i]->reserve(num_rows);
+            auto agg_col = vectorized::ColumnHelper::create_column(_agg_fn_types[i].serde_type,
+                                                                   _agg_fn_types[i].has_nullable_child);
+            agg_col->reserve(num_rows);
+            agg_result_columns.emplace_back(std::move(agg_col));
         }
     }
     return agg_result_columns;

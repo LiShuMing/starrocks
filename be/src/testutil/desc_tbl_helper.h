@@ -1,8 +1,5 @@
 // This file is licensed under the Elastic License 2.0. Copyright 2021-present, StarRocks Inc.
 
-#ifndef STARROCKS_DESC_TBL_HELPER_H
-#define STARROCKS_DESC_TBL_HELPER_H
-
 #pragma once
 
 #include "common/status.h"
@@ -51,4 +48,3 @@ public:
     }
 };
 } // namespace starrocks::vectorized
-#endif //STARROCKS_DESC_TBL_HELPER_H

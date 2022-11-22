@@ -13,7 +13,7 @@ namespace starrocks::stream {
 
 class MemStateTableTest : public StreamTestBase {
 public:
-    MemStateTableTest() {}
+    MemStateTableTest() = default;
 
     void SetUp() override {
         std::vector<SlotInfo> src_slots = std::vector<SlotInfo>{{"col1", TYPE_INT, false},

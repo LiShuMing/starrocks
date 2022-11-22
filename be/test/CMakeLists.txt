@@ -311,6 +311,11 @@ set(EXEC_FILES
         ./service/lake_service_test.cpp
         )
 
+if (${MAKE_TEST} STREQUAL "ON")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGTEST_USE_OWN_TR1_TUPLE=0")
+    add_definitions(-DBE_TEST)
+endif()
+
 if ("${USE_STAROS}" STREQUAL "ON")
     list(APPEND EXEC_FILES ./fs/fs_starlet_test.cpp)
 endif ()
@@ -378,8 +383,8 @@ TARGET_LINK_LIBRARIES(bytes_test
 
 # =================================================
 # test cases must be compiled as a standalone binary
-#ADD_BE_TEST(http/metrics_action_test)
-#ADD_BE_TEST(http/http_client_test)
+ADD_BE_TEST(http/metrics_action_test)
+ADD_BE_TEST(http/http_client_test)
 
 ADD_BE_TEST(runtime/routine_load_task_executor_test)
 ADD_BE_TEST(runtime/small_file_mgr_test)

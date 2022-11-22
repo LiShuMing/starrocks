@@ -18,7 +18,6 @@
 #include "exec/pipeline/context_with_dependency.h"
 #include "exec/vectorized/aggregate/agg_hash_variant.h"
 #include "exec/vectorized/aggregate/agg_profile.h"
-#include "exec/vectorized/stream_agg_state.h"
 #include "exprs/agg/aggregate_factory.h"
 #include "exprs/expr.h"
 #include "gen_cpp/QueryPlanExtra_constants.h"
@@ -56,9 +55,6 @@ struct HashTableKeyAllocator {
 
     // TODO: use hashtable key size as align, reserve size for hash table key
     int agg_group_key_size = 16;
-
-    // Add extra size in stream mv to store aggregate functions' detail state.
-    int agg_group_extra_size = 0;
 
     std::vector<std::pair<void*, int>> vecs;
     MemPool* pool = nullptr;

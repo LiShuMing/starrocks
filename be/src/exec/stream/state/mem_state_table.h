@@ -74,13 +74,13 @@ public:
     ChunkIteratorPtrOr get_chunk_iter(const DatumRow& key) override;
     std::vector<ChunkIteratorPtrOr> get_chunk_iters(const std::vector<DatumRow>& keys) override;
     Status flush(RuntimeState* state, vectorized::Chunk* chunk) override;
-    vectorized::Schema make_schema_from_slots(const std::vector<SlotDescriptor*>& slots);
-
-    static DatumKeyRow convert_datum_row_to_key(const DatumRow& row, size_t start, size_t end);
-    static DatumKeyRow make_datum_key_row(vectorized::Chunk* chunk, size_t start, size_t end, int row_idx);
-    static DatumRow make_datum_row(vectorized::Chunk* chunk, size_t start, size_t end, int row_idx);
 
 private:
+    vectorized::Schema _make_schema_from_slots(const std::vector<SlotDescriptor*>& slots);
+    static DatumKeyRow _convert_datum_row_to_key(const DatumRow& row, size_t start, size_t end);
+    static DatumKeyRow _make_datum_key_row(vectorized::Chunk* chunk, size_t start, size_t end, int row_idx);
+    static DatumRow _make_datum_row(vectorized::Chunk* chunk, size_t start, size_t end, int row_idx);
+
     bool _equal_key(const DatumKeyRow& m_k, const DatumRow key) const;
     Status _flush_with_ops(RuntimeState* state, vectorized::Chunk* chunk);
     Status _flush_without_ops(RuntimeState* state, vectorized::Chunk* chunk);

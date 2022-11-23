@@ -229,7 +229,11 @@ export CLASSPATH=$STARROCKS_HOME/conf:$HADOOP_CLASSPATH:$CLASSPATH
 
 export STARROCKS_TEST_BINARY_DIR=${STARROCKS_TEST_BINARY_DIR}/test/
 
-GTEST_OPTIONS="--gtest_catch_exceptions=0"
+if [ $GTEST_OPTIONS = "" ];then
+	    # Enable throw exceptions by default for gtest tests.
+	        export GTEST_OPTIONS="--gtest_catch_exceptions=1"
+fi
+
 
 if [ $WITH_AWS = "OFF" ]; then
     TEST_FILTER="$TEST_FILTER:-*S3*"
@@ -251,7 +255,7 @@ test_files=`find ${STARROCKS_TEST_BINARY_DIR} -type f -perm -111 -name "*test" \
 if [ $TEST_MODULE == '.*' ]; then
   echo "Run startrocks_test file"
   if [ -x ${GTEST_PARALLEL} ]; then
-      ${GTEST_PARALLEL} ${STARROCKS_TEST_BINARY_DIR}/starrocks_test --gtest_catch_exceptions=0 --gtest_filter=${TEST_FILTER} --serialize_test_cases ${GTEST_PARALLEL_OPTIONS}
+      ${GTEST_PARALLEL} ${STARROCKS_TEST_BINARY_DIR}/starrocks_test --gtest_filter=${TEST_FILTER} --serialize_test_cases ${GTEST_PARALLEL_OPTIONS}
   else
       ${STARROCKS_TEST_BINARY_DIR}/starrocks_test $GTEST_OPTIONS --gtest_filter=${TEST_FILTER}
   fi

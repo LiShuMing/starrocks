@@ -20,56 +20,13 @@ Status MemStateTable::close(RuntimeState* state) {
     return Status::OK();
 }
 
-bool MemStateTable::_equal_key(const DatumKeyRow& m_k, const DatumRow key) {
+bool MemStateTable::_equal_key(const DatumKeyRow& m_k, const DatumRow key) const {
     for (auto i = 0; i < key.size(); i++) {
-        auto type = _slots[i]->type().type;
-        switch (type) {
-        case TYPE_BIGINT:
-            if (key[i].get_int64() != std::get<int64_t>(m_k[i])) {
-                return false;
-            }
-            break;
-        case TYPE_INT:
-            if (key[i].get_int32() != std::get<int32_t>(m_k[i])) {
-                return false;
-            }
-            break;
-        case TYPE_DOUBLE:
-            if (key[i].get_double() != std::get<double>(m_k[i])) {
-                return false;
-            }
-            break;
-        case TYPE_VARCHAR:
-        case TYPE_CHAR:
-        case TYPE_VARBINARY:
-            if (key[i].get_slice() != std::get<Slice>(m_k[i])) {
-                return false;
-            }
-            break;
-        default:
+        if (!key[i].equal_datum_key(m_k[i])) {
             return false;
         }
     }
     return true;
-}
-
-Datum MemStateTable::convert_datum_key_to_datum(LogicalType type, DatumKey datum_key) {
-    switch (type) {
-    case TYPE_BIGINT:
-        return Datum(std::get<int64_t>(datum_key));
-    case TYPE_INT:
-        return Datum(std::get<int32_t>(datum_key));
-    case TYPE_FLOAT:
-        return Datum(std::get<float>(datum_key));
-    case TYPE_DOUBLE:
-        return Datum(std::get<double>(datum_key));
-    case TYPE_VARCHAR:
-    case TYPE_CHAR:
-    case TYPE_VARBINARY:
-        return Datum(std::get<Slice>(datum_key));
-    default:
-        throw std::runtime_error("not supported yet!");
-    }
 }
 
 ChunkIteratorPtrOr MemStateTable::get_chunk_iter(const DatumRow& key) {
@@ -84,7 +41,7 @@ ChunkIteratorPtrOr MemStateTable::get_chunk_iter(const DatumRow& key) {
                 DatumRow row;
                 // add extra key cols + value cols
                 for (int32_t s = key.size(); s < m_k.size(); s++) {
-                    row.push_back(convert_datum_key_to_datum(_slots[s]->type().type, m_k[s]));
+                    row.push_back(Datum(m_k[s]));
                 }
                 for (auto& datum : iter->second) {
                     row.push_back(datum);

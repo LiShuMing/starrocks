@@ -4,6 +4,34 @@
 
 namespace starrocks::stream {
 
+namespace {
+
+void convert_datum_rows_to_chunk(const std::vector<DatumRow>& rows, Chunk* chunk) {
+    // Chunk should be already allocated, no need create column any more.
+    DCHECK(chunk);
+    for (size_t row_num = 0; row_num < rows.size(); row_num++) {
+        auto& row = rows[row_num];
+        for (size_t i = 0; i < row.size(); i++) {
+            VLOG_ROW << "[convert_datum_rows_to_chunk] row_num:" << row_num << ", column_size:" << row.size()
+                     << ", i:" << i;
+            DCHECK_LT(i, chunk->num_columns());
+            auto& col = chunk->get_column_by_index(i);
+            col->append_datum(row[i]);
+        }
+    }
+}
+
+} // namespace
+
+Status DatumRowIterator::do_get_next(Chunk* chunk) {
+    if (!_is_eos) {
+        convert_datum_rows_to_chunk(_rows, chunk);
+        _is_eos = true;
+        return Status::OK();
+    }
+    return Status::EndOfFile("end of empty iterator");
+}
+
 Status MemStateTable::init() {
     return Status::OK();
 }
@@ -16,11 +44,11 @@ Status MemStateTable::open(RuntimeState* state) {
     return Status::OK();
 }
 
-Status MemStateTable::close(RuntimeState* state) {
+Status MemStateTable::commit(RuntimeState* state) {
     return Status::OK();
 }
 
-bool MemStateTable::_equal_key(const DatumKeyRow& m_k, const DatumRow key) const {
+bool MemStateTable::_equal_keys(const DatumKeyRow& m_k, const DatumRow key) const {
     for (auto i = 0; i < key.size(); i++) {
         if (!key[i].equal_datum_key(m_k[i])) {
             return false;
@@ -29,45 +57,54 @@ bool MemStateTable::_equal_key(const DatumKeyRow& m_k, const DatumRow key) const
     return true;
 }
 
-ChunkIteratorPtrOr MemStateTable::get_chunk_iter(const DatumRow& key) {
+ChunkPtrOr MemStateTable::seek_key(const DatumRow& key) {
     VLOG_ROW << "[get_chunk_iter] lookup key size:" << key.size() << ", k_num:" << _k_num;
-    if (key.size() < _k_num) {
-        // prefix scan
-        std::vector<DatumRow> rows;
-        for (auto iter = _kv_mapping.begin(); iter != _kv_mapping.end(); iter++) {
-            // if equal
-            auto m_k = iter->first;
-            if (_equal_key(m_k, key)) {
-                DatumRow row;
-                // add extra key cols + value cols
-                for (int32_t s = key.size(); s < m_k.size(); s++) {
-                    row.push_back(Datum(m_k[s]));
-                }
-                for (auto& datum : iter->second) {
-                    row.push_back(datum);
-                }
-                rows.push_back(std::move(row));
-            }
-        }
-        if (rows.empty()) {
-            return Status::EndOfFile("");
-        }
-        auto result_slots = std::vector<SlotDescriptor*>{_slots.begin() + key.size(), _slots.end()};
-        return std::make_shared<DatumRowIterator>(_make_schema_from_slots(result_slots), std::move(rows));
+    // point seek
+    DCHECK_EQ(key.size(), _k_num);
+    auto key_row = _convert_datum_row_to_key(key, 0, _k_num);
+    if (auto iter = _kv_mapping.find(key_row); iter != _kv_mapping.end()) {
+        auto chunk_ptr = ChunkHelper::new_chunk(_v_schema, 1);
+        convert_datum_rows_to_chunk({iter->second}, chunk_ptr.get());
+        return chunk_ptr;
     } else {
-        // point seek
-        DCHECK_EQ(key.size(), _k_num);
-        auto key_row = _convert_datum_row_to_key(key, 0, _k_num);
+        return Status::EndOfFile("NotFound");
+    }
+}
 
-        auto result_slots = std::vector<SlotDescriptor*>{_slots.begin() + _k_num, _slots.end()};
-        if (auto it = _kv_mapping.find(key_row); it != _kv_mapping.end()) {
-            auto& value_row = it->second;
-            auto rows = std::vector<DatumRow>{value_row};
-            return std::make_shared<DatumRowIterator>(_make_schema_from_slots(result_slots), std::move(rows));
-        } else {
-            return Status::EndOfFile("NotFound");
+std::vector<ChunkPtrOr> MemStateTable::seek_keys(const std::vector<DatumRow>& keys) {
+    std::vector<ChunkPtrOr> ans;
+    ans.reserve(keys.size());
+    for (auto& key : keys) {
+        ans.emplace_back(seek_key(key));
+    }
+    return ans;
+}
+
+ChunkIteratorPtrOr MemStateTable::prefix_scan_key(const DatumRow& key) {
+    VLOG_ROW << "[get_chunk_iter] lookup key size:" << key.size() << ", k_num:" << _k_num;
+    DCHECK_LE(key.size(), _k_num);
+    // prefix scan
+    std::vector<DatumRow> rows;
+    for (auto iter = _kv_mapping.begin(); iter != _kv_mapping.end(); iter++) {
+        // if equal
+        auto m_k = iter->first;
+        if (_equal_keys(m_k, key)) {
+            DatumRow row;
+            // add extra key cols + value cols
+            for (int32_t s = key.size(); s < m_k.size(); s++) {
+                row.push_back(Datum(m_k[s]));
+            }
+            for (auto& datum : iter->second) {
+                row.push_back(datum);
+            }
+            rows.push_back(std::move(row));
         }
     }
+    if (rows.empty()) {
+        return Status::EndOfFile("");
+    }
+    auto schema = _make_schema_from_slots(std::vector<SlotDescriptor*>{_slots.begin() + key.size(), _slots.end()});
+    return std::make_shared<DatumRowIterator>(schema, std::move(rows));
 }
 
 vectorized::Schema MemStateTable::_make_schema_from_slots(const std::vector<SlotDescriptor*>& slots) {
@@ -81,11 +118,11 @@ vectorized::Schema MemStateTable::_make_schema_from_slots(const std::vector<Slot
     return vectorized::Schema(std::move(fields), KeysType::PRIMARY_KEYS, {});
 }
 
-std::vector<ChunkIteratorPtrOr> MemStateTable::get_chunk_iters(const std::vector<DatumRow>& keys) {
+std::vector<ChunkIteratorPtrOr> MemStateTable::prefix_scan_keys(const std::vector<DatumRow>& keys) {
     std::vector<ChunkIteratorPtrOr> ans;
     ans.reserve(keys.size());
     for (auto& key : keys) {
-        ans.emplace_back(get_chunk_iter(key));
+        ans.emplace_back(prefix_scan_key(key));
     }
     return ans;
 }

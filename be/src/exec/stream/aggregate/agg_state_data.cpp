@@ -139,7 +139,7 @@ Status IntermediateAggGroupState::process_chunk(size_t chunk_size, const Buffer<
                                                 const Buffer<vectorized::AggDataPtr>& agg_group_state) const {
     DCHECK(!_agg_states.empty());
     DCHECK(_state_table);
-    auto result_chunks = _state_table->get_chunks(non_found_keys);
+    auto result_chunks = _state_table->seek_keys(non_found_keys);
     for (auto& agg_state : _agg_states) {
         // Allocate state by using intermediate states.
         RETURN_IF_ERROR(
@@ -184,13 +184,13 @@ Status DetailAggGroupState::process_chunk(size_t chunk_size, const Buffer<DatumR
         if (agg_state->state_table_kind() == AggStateTableKind::Detail_Result) {
             // Restore agg intermediate states.
             if (result_chunks.empty()) {
-                result_chunks = _result_state_table->get_chunks(non_found_keys);
+                result_chunks = _result_state_table->seek_keys(non_found_keys);
             }
             RETURN_IF_ERROR(agg_state->allocate_intermediate_state(chunk_size, keys_not_in_map, result_chunks,
                                                                    agg_group_state));
 
             // Restore retract state from detail table: find by keys which are the prefix of state tables' primary keys.
-            auto detail_result_chunks = detail_state_table->get_chunk_iters(non_found_keys);
+            auto detail_result_chunks = detail_state_table->prefix_scan_keys(non_found_keys);
             RETURN_IF_ERROR(agg_state->allocate_retract_state(chunk_size, keys_not_in_map, detail_result_chunks,
                                                               agg_group_state));
 
@@ -203,13 +203,13 @@ Status DetailAggGroupState::process_chunk(size_t chunk_size, const Buffer<DatumR
             // Restore agg intermediate states.
             DCHECK(_intermediate_state_table);
             if (intermediate_result_chunks.empty()) {
-                intermediate_result_chunks = _intermediate_state_table->get_chunks(non_found_keys);
+                intermediate_result_chunks = _intermediate_state_table->seek_keys(non_found_keys);
             }
             RETURN_IF_ERROR(agg_state->allocate_intermediate_state(chunk_size, keys_not_in_map,
                                                                    intermediate_result_chunks, agg_group_state));
 
             // Restore retract state from detail table: find by keys which are the prefix of state tables' primary keys.
-            auto detail_result_chunks = detail_state_table->get_chunk_iters(non_found_keys);
+            auto detail_result_chunks = detail_state_table->prefix_scan_keys(non_found_keys);
             RETURN_IF_ERROR(agg_state->allocate_retract_state(chunk_size, keys_not_in_map, detail_result_chunks,
                                                               agg_group_state));
 

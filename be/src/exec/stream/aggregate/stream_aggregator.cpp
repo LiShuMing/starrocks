@@ -426,7 +426,7 @@ Status StreamAggregator::_output_result_prev_retract_changes(size_t chunk_size,
     for (size_t i = 0; i < chunk_size; i++) {
         keys.emplace_back(_convert_to_datum_row(group_by_columns, i));
     }
-    auto result_ors = _result_state_table->get_chunks(keys);
+    auto result_ors = _result_state_table->seek_keys(keys);
     DCHECK_EQ(result_ors.size(), chunk_size);
 
     // NOTE: Always retract old agg results first.

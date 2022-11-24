@@ -8,6 +8,7 @@
 #include "column/chunk.h"
 #include "column/column_helper.h"
 #include "column/hash_set.h"
+#include "column/stream_chunk.h"
 #include "column/type_traits.h"
 
 namespace starrocks::stream {

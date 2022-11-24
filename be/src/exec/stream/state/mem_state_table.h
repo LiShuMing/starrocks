@@ -3,54 +3,24 @@
 #pragma once
 
 #include "column/datum.h"
-#include "column/field.h"
-#include "column/schema.h"
 #include "exec/stream/state/state_table.h"
 #include "storage/chunk_iterator.h"
 
 namespace starrocks::stream {
 
 using DatumKeyRow = std::vector<vectorized::DatumKey>;
-using DatumKey = vectorized::DatumKey;
 
-/*
- * NOTE: This class is only used in testing. DatumRowIterator is used to convert datum to chunk iter.
- */
+// NOTE: This class is only used in testing. DatumRowIterator is used to convert datum to chunk iter.
 class DatumRowIterator final : public vectorized::ChunkIterator {
 public:
     explicit DatumRowIterator(vectorized::Schema schema, std::vector<DatumRow>&& rows)
             : ChunkIterator(schema, rows.size()), _rows(std::move(rows)) {}
-
     void close() override {}
 
 protected:
-    Status do_get_next(Chunk* chunk) override {
-        if (!_is_eos) {
-            _convert_datum_rows_to_chunk(_rows, chunk);
-            _is_eos = true;
-            return Status::OK();
-        }
-        return Status::EndOfFile("end of empty iterator");
-    }
-
+    Status do_get_next(Chunk* chunk) override;
     Status do_get_next(Chunk* chunk, vector<uint32_t>* rowid) override {
         return Status::EndOfFile("end of empty iterator");
-    }
-
-private:
-    void _convert_datum_rows_to_chunk(const std::vector<DatumRow>& rows, Chunk* chunk) {
-        // Chunk should be already allocated, no need create column any more.
-        DCHECK(chunk);
-        for (size_t row_num = 0; row_num < rows.size(); row_num++) {
-            auto& row = rows[row_num];
-            for (size_t i = 0; i < row.size(); i++) {
-                VLOG_ROW << "[convert_datum_rows_to_chunk] row_num:" << row_num << ", column_size:" << row.size()
-                         << ", i:" << i;
-                DCHECK_LT(i, chunk->num_columns());
-                auto& col = chunk->get_column_by_index(i);
-                col->append_datum(row[i]);
-            }
-        }
     }
 
 private:
@@ -64,15 +34,19 @@ public:
     // For MemStateTable, we assume flushed chunk's columns is assigned as:
     // _k_num | _v_num
     MemStateTable(std::vector<SlotDescriptor*> slots, size_t k_num, bool flush_op_col)
-            : _slots(slots), _k_num(k_num), _cols_num(slots.size()), _flush_op_col(flush_op_col) {}
+            : _slots(slots), _k_num(k_num), _cols_num(slots.size()), _flush_op_col(flush_op_col) {
+        _v_schema = _make_schema_from_slots(std::vector<SlotDescriptor*>{_slots.begin() + _k_num, _slots.end()});
+    }
     ~MemStateTable() override = default;
 
     Status init() override;
     Status prepare(RuntimeState* state) override;
     Status open(RuntimeState* state) override;
-    Status close(RuntimeState* state) override;
-    ChunkIteratorPtrOr get_chunk_iter(const DatumRow& key) override;
-    std::vector<ChunkIteratorPtrOr> get_chunk_iters(const std::vector<DatumRow>& keys) override;
+    Status commit(RuntimeState* state) override;
+    ChunkPtrOr seek_key(const DatumRow& key) override;
+    std::vector<ChunkPtrOr> seek_keys(const std::vector<DatumRow>& keys) override;
+    ChunkIteratorPtrOr prefix_scan_key(const DatumRow& key) override;
+    std::vector<ChunkIteratorPtrOr> prefix_scan_keys(const std::vector<DatumRow>& keys) override;
     Status flush(RuntimeState* state, vectorized::Chunk* chunk) override;
 
 private:
@@ -81,7 +55,7 @@ private:
     static DatumKeyRow _make_datum_key_row(vectorized::Chunk* chunk, size_t start, size_t end, int row_idx);
     static DatumRow _make_datum_row(vectorized::Chunk* chunk, size_t start, size_t end, int row_idx);
 
-    bool _equal_key(const DatumKeyRow& m_k, const DatumRow key) const;
+    bool _equal_keys(const DatumKeyRow& m_k, const DatumRow key) const;
     Status _flush_with_ops(RuntimeState* state, vectorized::Chunk* chunk);
     Status _flush_without_ops(RuntimeState* state, vectorized::Chunk* chunk);
 
@@ -92,6 +66,8 @@ private:
     size_t _cols_num;
     bool _flush_op_col;
     std::map<DatumKeyRow, DatumRow> _kv_mapping;
+    // value's schema
+    vectorized::Schema _v_schema;
 };
 
 } // namespace starrocks::stream

@@ -4,8 +4,12 @@
 
 namespace starrocks::stream {
 
+ChunkIteratorPtrOr StateTable::prefix_scan_key(const DatumRow& key) {
+    // Add some prefix key check
+}
+
 // If input is one pk row, result must be in one chunk!
-ChunkPtrOr StateTable::get_chunk(const DatumRow& key) {
+ChunkPtrOr StateTable::seek_key(const DatumRow& key) {
     auto chunk_or = get_chunk_iter(key);
     if (!chunk_or.ok()) {
         return chunk_or.status();
@@ -28,11 +32,11 @@ ChunkPtrOr StateTable::get_chunk(const DatumRow& key) {
     return t_chunk;
 }
 
-std::vector<ChunkPtrOr> StateTable::get_chunks(const std::vector<DatumRow>& keys) {
+std::vector<ChunkPtrOr> StateTable::seek_keys(const std::vector<DatumRow>& keys) {
     std::vector<ChunkPtrOr> ret;
     ret.reserve(keys.size());
     for (auto& key : keys) {
-        ret.emplace_back(get_chunk(key));
+        ret.emplace_back(seek_key(key));
     }
     return ret;
 }

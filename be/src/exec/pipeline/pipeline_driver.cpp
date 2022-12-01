@@ -16,6 +16,7 @@
 
 #include <sstream>
 
+#include "column/barrier_chunk.h"
 #include "column/chunk.h"
 #include "common/statusor.h"
 #include "exec/pipeline/pipeline_driver_executor.h"
@@ -249,6 +250,7 @@ StatusOr<DriverState> PipelineDriver::process(RuntimeState* runtime_state, int w
                 if (return_status.ok()) {
                     if (maybe_chunk.value() &&
                         (maybe_chunk.value()->num_rows() > 0 ||
+                         typeid(*maybe_chunk.value()) == typeid(vectorized::BarrierChunk) ||
                          (maybe_chunk.value()->owner_info().is_last_chunk() && is_multilane(next_op)))) {
                         size_t row_num = maybe_chunk.value()->num_rows();
                         total_rows_moved += row_num;

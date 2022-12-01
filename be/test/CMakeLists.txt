@@ -350,6 +350,8 @@ SET_TARGET_PROPERTIES(query_cache_test PROPERTIES COMPILE_FLAGS "-fno-access-con
 add_executable(stream_mv_test
         exec/stream/stream_mv_test.cpp
         exec/stream/mem_state_table_test.cpp
+        exec/stream/stream_operator_test.cpp
+        exec/stream/stream_pipeline_test.cpp
         )
 TARGET_LINK_LIBRARIES(stream_mv_test ${TEST_LINK_LIBS})
 SET_TARGET_PROPERTIES(stream_mv_test PROPERTIES COMPILE_FLAGS "-fno-access-control")

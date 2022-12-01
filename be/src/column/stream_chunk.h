@@ -35,6 +35,14 @@ public:
     const StreamRowOp* ops() const { return (StreamRowOp*)(_ops->get_data().data()); }
     const UInt8ColumnPtr ops_col() const { return _ops; }
 
+    std::string debug_string() override {
+        std::string result;
+        for (auto& col : columns()) {
+            result += " Column[" + col->debug_string() + "]";
+        }
+        return "[StreamChunk] Ops=" + _ops->debug_string() + result;
+    }
+
 private:
     const UInt8ColumnPtr _ops;
 };

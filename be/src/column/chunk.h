@@ -256,6 +256,8 @@ public:
 
     query_cache::owner_info& owner_info() { return _owner_info; }
 
+    virtual std::string debug_string() { return debug_columns(); }
+
 private:
     void rebuild_cid_index();
 

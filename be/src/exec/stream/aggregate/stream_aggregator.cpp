@@ -189,13 +189,22 @@ DatumRow StreamAggregator::_convert_to_datum_row(const vectorized::Columns& colu
     return keys_row;
 }
 
+Status StreamAggregator::output_changes(int32_t chunk_size, vectorized::StreamChunkPtr* result_chunk) {
+    SCOPED_TIMER(agg_compute_timer());
+    Status status;
+    TRY_CATCH_BAD_ALLOC(hash_map_variant().visit([&](auto& hash_map_with_key) {
+        status = _output_changes(*hash_map_with_key, chunk_size, result_chunk, nullptr, nullptr);
+    }));
+    return status;
+}
+
 Status StreamAggregator::output_changes(int32_t chunk_size, vectorized::StreamChunkPtr* result_chunk,
                                         vectorized::ChunkPtr* intermediate_chunk,
                                         std::vector<vectorized::ChunkPtr>& detail_chunks) {
     SCOPED_TIMER(agg_compute_timer());
     Status status;
     TRY_CATCH_BAD_ALLOC(hash_map_variant().visit([&](auto& hash_map_with_key) {
-        status = _output_changes(*hash_map_with_key, chunk_size, result_chunk, intermediate_chunk, detail_chunks);
+        status = _output_changes(*hash_map_with_key, chunk_size, result_chunk, intermediate_chunk, &detail_chunks);
     }));
     RETURN_IF_ERROR(status);
 
@@ -233,7 +242,7 @@ template <typename HashMapWithKey>
 Status StreamAggregator::_output_changes(HashMapWithKey& hash_map_with_key, int32_t chunk_size,
                                          vectorized::StreamChunkPtr* result_chunk,
                                          vectorized::ChunkPtr* intermediate_chunk,
-                                         std::vector<vectorized::ChunkPtr>& detail_chunks) {
+                                         std::vector<vectorized::ChunkPtr>* detail_chunks) {
     SCOPED_TIMER(_agg_stat->get_results_timer);
 
     // initialize _it_hash
@@ -267,15 +276,15 @@ Status StreamAggregator::_output_changes(HashMapWithKey& hash_map_with_key, int3
     {
         SCOPED_TIMER(_agg_stat->agg_append_timer);
         // only output intermediate result if intermediate agg group is not empty
-        if (!_intermediate_agg_func_ids.empty()) {
+        if (intermediate_chunk != nullptr && !_intermediate_agg_func_ids.empty()) {
             RETURN_IF_ERROR(_output_intermediate_changes(read_index, group_by_columns, intermediate_chunk));
         }
         // always output result
         RETURN_IF_ERROR(_output_result_changes(read_index, group_by_columns, result_chunk));
         // only output detail result if detail agg group is not empty
-        if (!_detail_state_tables.empty()) {
+        if (detail_chunks != nullptr && !_detail_state_tables.empty()) {
             RETURN_IF_ERROR(
-                    _detail_agg_group->output_changes(read_index, group_by_columns, _tmp_agg_states, detail_chunks));
+                    _detail_agg_group->output_changes(read_index, group_by_columns, _tmp_agg_states, *detail_chunks));
         }
     }
 

@@ -59,6 +59,8 @@ public:
     // Process input's chunks util `Epoch` chunk is received.
     Status process_chunk(vectorized::StreamChunk* chunk);
 
+    Status output_changes(int32_t chunk_size, vectorized::StreamChunkPtr* result_chunk);
+
     // Called when need to generate incremental outputs and Output agg_states for the next batch.
     Status output_changes(int32_t chunk_size, vectorized::StreamChunkPtr* result_chunk,
                           vectorized::ChunkPtr* intermediate_chunk, std::vector<vectorized::ChunkPtr>& detail_chunks);
@@ -76,7 +78,7 @@ private:
     template <typename HashMapWithKey>
     Status _output_changes(HashMapWithKey& hash_map_with_key, int32_t chunk_size,
                            vectorized::StreamChunkPtr* result_chunk, vectorized::ChunkPtr* intermediate_chunk,
-                           std::vector<vectorized::ChunkPtr>& detail_chunks);
+                           std::vector<vectorized::ChunkPtr>* detail_chunks);
 
     vectorized::StreamChunkPtr _build_output_chunk_with_ops(const vectorized::Columns& group_by_columns,
                                                             const vectorized::Columns& agg_result_columns,

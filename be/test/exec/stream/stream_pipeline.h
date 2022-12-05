@@ -9,6 +9,7 @@
 #include "exec/pipeline/exchange/local_exchange.h"
 #include "exec/pipeline/exchange/local_exchange_sink_operator.h"
 #include "exec/pipeline/exchange/local_exchange_source_operator.h"
+#include "exec/stream/scan/stream_source_operator.h"
 #include "exec/stream/scan/trigger.h"
 #include "gen_cpp/InternalService_types.h"
 #include "gtest/gtest.h"
@@ -21,18 +22,17 @@ namespace starrocks::stream {
 
 using InitiliazeFunc = std::function<Status()>;
 
-class StreamPipelineTest : public ::testing::Test {
+class StreamPipelineTest {
 public:
-    virtual void SetUp() override{};
-    virtual void TearDown() override{};
-
     Status StartMV(InitiliazeFunc&& init_func) {
         RETURN_IF_ERROR(init_func());
         RETURN_IF_ERROR(_prepare());
         RETURN_IF_ERROR(_execute());
         return Status::OK();
     }
-    Status StartEpoch(EpochTrigger epoch_trigger);
+    Status StartEpoch(EpochInfo epoch_info);
+    Status WaitUntilEpochEnd(EpochInfo epoch_info);
+
     void StopMV();
 
     size_t next_operator_id() { return ++_next_operator_id; }
@@ -40,6 +40,8 @@ public:
     uint32_t next_pipeline_id() { return ++_next_pipeline_id; }
 
 protected:
+    OpFactories maybe_interpolate_local_passthrough_exchange(OpFactories& pred_operators);
+
     // Prepare execution context of pipeline
     Status _prepare();
     // execute pipeline

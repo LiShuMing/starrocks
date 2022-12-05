@@ -5,6 +5,7 @@
 #include "butil/file_util.h"
 #include "column/column_pool.h"
 #include "common/config.h"
+#include "exec/pipeline/query_context.h"
 #include "runtime/current_thread.h"
 #include "runtime/exec_env.h"
 #include "runtime/user_function_cache.h"
@@ -18,7 +19,24 @@
 #include "util/mem_info.h"
 #include "util/timezone_utils.h"
 
-namespace starrocks::stream {} // namespace starrocks::stream
+namespace starrocks {
+void wait_for_query_contexts_finish(ExecEnv* exec_env, size_t max_loop_cnt_cfg) {
+    if (max_loop_cnt_cfg == 0) {
+        return;
+    }
+
+    size_t running_quries = exec_env->query_context_mgr()->size();
+    size_t loop_cnt = 0;
+
+    while (running_quries && loop_cnt < max_loop_cnt_cfg) {
+        DLOG(INFO) << running_quries << " fragment(s) are still running...";
+        sleep(10);
+        running_quries = exec_env->query_context_mgr()->size();
+        loop_cnt++;
+    }
+}
+
+} // namespace starrocks
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
@@ -54,25 +72,6 @@ int main(int argc, char** argv) {
     std::vector<starrocks::StorePath> paths;
     paths.emplace_back(starrocks::config::storage_root_path);
 
-    //    auto metadata_mem_tracker = std::make_unique<starrocks::MemTracker>();
-    //    auto tablet_schema_mem_tracker =
-    //            std::make_unique<starrocks::MemTracker>(-1, "tablet_schema", metadata_mem_tracker.get());
-    //    auto schema_change_mem_tracker = std::make_unique<starrocks::MemTracker>();
-    //    auto compaction_mem_tracker = std::make_unique<starrocks::MemTracker>();
-    //    auto update_mem_tracker = std::make_unique<starrocks::MemTracker>();
-    //    starrocks::StorageEngine* engine = nullptr;
-    //    starrocks::EngineOptions options;
-    //    options.store_paths = paths;
-    //    options.compaction_mem_tracker = compaction_mem_tracker.get();
-    //    options.update_mem_tracker = update_mem_tracker.get();
-    //    starrocks::Status s = starrocks::StorageEngine::open(options, &engine);
-    //    if (!s.ok()) {
-    //        butil::DeleteFile(storage_root, true);
-    //        fprintf(stderr, "storage engine open failed, path=%s, msg=%s\n", starrocks::config::storage_root_path.c_str(),
-    //                s.to_string().c_str());
-    //        return -1;
-    //    }
-
     auto* exec_env = starrocks::ExecEnv::GetInstance();
     // Pagecache is turned on by default, and some test cases require cache to be turned on,
     // and some test cases do not. For easy management, we turn cache off during unit test
@@ -84,11 +83,11 @@ int main(int argc, char** argv) {
 
     int r = RUN_ALL_TESTS();
 
-    while (!starrocks::k_starrocks_exit.load()) {
-        sleep(10);
-    }
+    //    while (!starrocks::k_starrocks_exit.load()) {
+    //        sleep(10);
+    //    }
 
-    starrocks::wait_for_fragments_finish(exec_env, starrocks::config::loop_count_wait_fragments_finish);
+    starrocks::wait_for_query_contexts_finish(exec_env, starrocks::config::loop_count_wait_fragments_finish);
 
     // clear some trash objects kept in tablet_manager so mem_tracker checks will not fail
     //    starrocks::StorageEngine::instance()->tablet_manager()->start_trash_sweep();

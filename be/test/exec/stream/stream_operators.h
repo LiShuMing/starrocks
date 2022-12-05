@@ -5,20 +5,25 @@
 #include "exec/stream/scan/stream_source_operator.h"
 
 namespace starrocks::stream {
+struct TestStreamSourceParam {
+    int64_t num_column;
+    int64_t start;
+    int64_t step;
+    int64_t chunk_size;
+};
 
-class StreamGenerateSeriesSourceOperator final : public StreamSourceOperator {
+class TestStreamSourceOperator final : public StreamSourceOperator {
 public:
-    StreamGenerateSeriesSourceOperator(pipeline::OperatorFactory* factory, int32_t id, const std::string& name,
-                                       int32_t plan_node_id, int32_t driver_sequence, int64_t start, int64_t step)
-            : StreamSourceOperator(factory, id, name, plan_node_id, driver_sequence), _start(start), _step(step) {}
+    TestStreamSourceOperator(pipeline::OperatorFactory* factory, int32_t id, const std::string& name,
+                             int32_t plan_node_id, int32_t driver_sequence, TestStreamSourceParam param)
+            : StreamSourceOperator(factory, id, name, plan_node_id, driver_sequence), _param(param) {}
 
-    ~StreamGenerateSeriesSourceOperator() override = default;
+    ~TestStreamSourceOperator() override = default;
 
     bool has_output() const override;
 
     void start_epoch(const EpochInfo& epoch) override;
     bool is_epoch_finished() override;
-    void stop_epoch(const EpochInfo& epoch) override;
     CommitOffset get_latest_offset() override;
 
     StatusOr<vectorized::ChunkPtr> pull_chunk(starrocks::RuntimeState* state) override;
@@ -26,29 +31,24 @@ public:
     Status set_finished(starrocks::RuntimeState* state) override { return Status::OK(); };
 
 private:
-    static constexpr auto CHUNK_SIZE = 1;
-    int64_t _start;
-    int64_t _step;
+    TestStreamSourceParam _param;
     int64_t _epoch_id{0};
     TriggerMode _trigger_mode;
-
     int64_t _processed_chunks{0};
     ;
 };
 
-class StreamGenerateSeriesSourceOperatorFactory final : public pipeline::SourceOperatorFactory {
+class TestStreamSourceOperatorFactory final : public pipeline::SourceOperatorFactory {
 public:
-    StreamGenerateSeriesSourceOperatorFactory(int32_t id, int32_t plan_node_id, int64_t start, int64_t step)
-            : SourceOperatorFactory(id, "stream_generate_series_factory", plan_node_id), _start(start), _step(step) {}
-    ~StreamGenerateSeriesSourceOperatorFactory() override = default;
+    TestStreamSourceOperatorFactory(int32_t id, int32_t plan_node_id, TestStreamSourceParam param)
+            : SourceOperatorFactory(id, "stream_source", plan_node_id), _param(param) {}
+    ~TestStreamSourceOperatorFactory() override = default;
     pipeline::OperatorPtr create(int32_t degree_of_parallelism, int32_t driver_sequence) override {
-        return std::make_shared<StreamGenerateSeriesSourceOperator>(this, _id, _name, _plan_node_id, driver_sequence,
-                                                                    _start, _step);
+        return std::make_shared<TestStreamSourceOperator>(this, _id, _name, _plan_node_id, driver_sequence, _param);
     }
 
 private:
-    int64_t _start;
-    int64_t _step;
+    TestStreamSourceParam _param;
 };
 
 class TestStreamSinkOperator final : public StreamSinkOperator {
@@ -95,7 +95,7 @@ private:
 class TestStreamSinkOperatorFactory final : public OperatorFactory {
 public:
     TestStreamSinkOperatorFactory(int32_t id, int32_t plan_node_id)
-            : OperatorFactory(id, "stream_sink_factory", plan_node_id) {}
+            : OperatorFactory(id, "stream_sink", plan_node_id) {}
 
     ~TestStreamSinkOperatorFactory() override = default;
 

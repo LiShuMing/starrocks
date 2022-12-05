@@ -242,6 +242,8 @@ public:
     }
 
     Operators& operators() { return _operators; }
+    Operator* first_operator() { return _operators.empty() ? nullptr : _operators.front().get(); }
+    Operator* last_operator() { return _operators.empty() ? nullptr : _operators.back().get(); }
     ScanOperator* source_scan_operator() {
         return _operators.empty() ? nullptr : dynamic_cast<ScanOperator*>(_operators.front().get());
     }

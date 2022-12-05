@@ -48,9 +48,13 @@ public:
 
     Status push_chunk(RuntimeState* state, const vectorized::ChunkPtr& chunk) override;
 
+    bool is_epoch_finished() const override { return _is_epoch_finished; }
+
 private:
     bool _is_finished = false;
     const std::shared_ptr<LocalExchanger>& _exchanger;
+
+    bool _is_epoch_finished = false;
 };
 
 class LocalExchangeSinkOperatorFactory final : public OperatorFactory {

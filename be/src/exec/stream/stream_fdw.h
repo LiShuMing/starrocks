@@ -5,11 +5,13 @@
 #ifndef STARROCKS_STREAM_FDW_H
 #define STARROCKS_STREAM_FDW_H
 
+#include "column/barrier_chunk.h"
 #include "column/chunk.h"
 #include "column/column_helper.h"
 #include "column/hash_set.h"
 #include "column/stream_chunk.h"
 #include "column/type_traits.h"
+#include "exec/pipeline/operator.h"
 
 namespace starrocks::stream {
 
@@ -28,6 +30,10 @@ using StreamChunk = vectorized::StreamChunk;
 using StreamChunkPtr = vectorized::StreamChunkPtr;
 using StreamRowOp = vectorized::StreamRowOp;
 using StreamRowOps = vectorized::StreamRowOps;
+using BarrierChunk = vectorized::BarrierChunk;
+
+using Operator = pipeline::Operator;
+using OperatorPtr = pipeline::OperatorPtr;
 
 } // namespace starrocks::stream
 

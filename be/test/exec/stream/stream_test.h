@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include "exec/stream/aggregate/stream_aggregator.h"
 #include "exec/stream/stream_fdw.h"
 #include "testutil/column_test_helper.h"
 #include "testutil/desc_tbl_helper.h"
@@ -14,6 +15,7 @@ namespace starrocks::stream {
 using SlotTypeInfo = vectorized::SlotTypeInfo;
 using ExprsTestHelper = vectorized::ExprsTestHelper;
 using StreamRowOp = vectorized::StreamRowOp;
+using GroupByKeyInfo = SlotId;
 using AggInfo = std::tuple<SlotId, std::string, LogicalType, LogicalType>;
 
 class StreamTestBase : public testing::Test {
@@ -25,6 +27,67 @@ public:
     }
 
 protected:
+    DescriptorTbl* GenerateDescTbl(const std::vector<std::vector<SlotTypeInfo>>& slot_info_arrays) {
+        return vectorized::DescTblHelper::generate_desc_tbl(
+                _state, _obj_pool, vectorized::DescTblHelper::create_slot_type_desc_info_arrays(slot_info_arrays));
+    }
+
+    std::shared_ptr<StreamAggregator> _create_stream_aggregator(
+            const std::vector<std::vector<SlotTypeInfo>>& slot_infos, const std::vector<GroupByKeyInfo>& group_by_infos,
+            const std::vector<AggInfo>& agg_infos, bool is_generate_retract, int32_t count_agg_idx) {
+        auto params = std::make_shared<AggregatorParams>();
+        params->needs_finalize = false;
+        params->has_outer_join_child = false;
+        params->streaming_preaggregation_mode = TStreamingPreaggregationMode::AUTO;
+        params->intermediate_tuple_id = 1;
+        params->output_tuple_id = 2;
+        params->count_agg_idx = count_agg_idx;
+        params->sql_grouping_keys = "";
+        params->sql_aggregate_functions = "";
+        params->conjuncts = {};
+        params->is_testing = true;
+        params->is_stream_mv = true;
+        // TODO: test more cases.
+        params->is_append_only = false;
+        params->is_generate_retract = is_generate_retract;
+        params->grouping_exprs = _create_group_by_exprs(slot_infos[0], group_by_infos);
+        params->intermediate_aggr_exprs = {};
+        params->aggregate_functions = _create_agg_exprs(slot_infos[0], agg_infos);
+        return std::make_shared<StreamAggregator>(std::move(params));
+    }
+
+    std::vector<TExpr> _create_group_by_exprs(std::vector<SlotTypeInfo> slot_infos, std::vector<GroupByKeyInfo> infos) {
+        std::vector<TExpr> exprs;
+        for (auto& slot_id : infos) {
+            auto info = slot_infos[slot_id];
+            auto type = ExprsTestHelper::create_scalar_type_desc(to_thrift(std::get<1>(info)));
+            auto t_expr_node = ExprsTestHelper::create_slot_expr_node(0, slot_id, type, false);
+            exprs.emplace_back(ExprsTestHelper::create_slot_expr(t_expr_node));
+        }
+        return exprs;
+    }
+    std::vector<TExpr> _create_agg_exprs(std::vector<SlotTypeInfo> slot_infos, std::vector<AggInfo> infos) {
+        std::vector<TExpr> exprs;
+        for (auto& agg_info : infos) {
+            auto slot_id = std::get<0>(agg_info);
+            auto agg_name = std::get<1>(agg_info);
+            auto slot_info = slot_infos[slot_id];
+            // agg input type
+            auto t_type = ExprsTestHelper::create_scalar_type_desc(to_thrift(std::get<1>(slot_info)));
+            // agg intermediate type
+            auto intermediate_type = ExprsTestHelper::create_scalar_type_desc(to_thrift(std::get<2>(agg_info)));
+            // agg result type
+            auto ret_type = ExprsTestHelper::create_scalar_type_desc(to_thrift(std::get<3>(agg_info)));
+
+            auto child_node = ExprsTestHelper::create_slot_expr_node(0, slot_id, t_type, false);
+
+            auto f_fn = ExprsTestHelper::create_builtin_function(agg_name, {t_type}, intermediate_type, ret_type);
+            auto agg_expr = ExprsTestHelper::create_aggregate_expr(f_fn, {child_node});
+            exprs.emplace_back(agg_expr);
+        }
+        return exprs;
+    }
+
     template <typename T>
     StreamChunkPtr MakeStreamChunk(const std::vector<std::vector<T>>& cols, const std::vector<uint8_t>& ops) {
         auto chunk_ptr = std::make_shared<Chunk>();

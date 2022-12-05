@@ -1,6 +1,6 @@
 // This file is licensed under the Elastic License 2.0. Copyright 2021-present, StarRocks Inc.
 
-#include "exec/stream/stream_pipeline_test.h"
+#include "exec/stream/stream_pipeline.h"
 
 #include <gtest/gtest.h>
 
@@ -87,8 +87,61 @@ Status StreamPipelineTest::_execute() {
     return Status::OK();
 }
 
+OpFactories StreamPipelineTest::maybe_interpolate_local_passthrough_exchange(OpFactories& pred_operators) {
+    DCHECK(!pred_operators.empty() && pred_operators[0]->is_source());
+    auto* source_operator = down_cast<SourceOperatorFactory*>(pred_operators[0].get());
+    if (source_operator->degree_of_parallelism() > 1) {
+        auto pseudo_plan_node_id = -200;
+        auto mem_mgr = std::make_shared<pipeline::LocalExchangeMemoryManager>(config::vector_chunk_size);
+        auto local_exchange_source = std::make_shared<pipeline::LocalExchangeSourceOperatorFactory>(
+                next_operator_id(), pseudo_plan_node_id, mem_mgr);
+        auto local_exchange = std::make_shared<pipeline::PassthroughExchanger>(mem_mgr, local_exchange_source.get());
+        auto local_exchange_sink = std::make_shared<pipeline::LocalExchangeSinkOperatorFactory>(
+                next_operator_id(), pseudo_plan_node_id, local_exchange);
+        // Add LocalExchangeSinkOperator to predecessor pipeline.
+        pred_operators.emplace_back(std::move(local_exchange_sink));
+        // predecessor pipeline comes to end.
+        _pipelines.emplace_back(std::make_unique<pipeline::Pipeline>(next_pipeline_id(), pred_operators));
+
+        OpFactories operators_source_with_local_exchange;
+        // Multiple LocalChangeSinkOperators pipe into one LocalChangeSourceOperator.
+        local_exchange_source->set_degree_of_parallelism(1);
+        // A new pipeline is created, LocalExchangeSourceOperator is added as the head of the pipeline.
+        operators_source_with_local_exchange.emplace_back(std::move(local_exchange_source));
+        return operators_source_with_local_exchange;
+    } else {
+        return pred_operators;
+    }
+}
+
 void StreamPipelineTest::StopMV() {
     _fragment_ctx->cancel(Status::OK());
+}
+
+Status StreamPipelineTest::StartEpoch(EpochInfo epoch_info) {
+    auto drivers = _fragment_ctx->drivers();
+    for (auto& driver : drivers) {
+        auto* scan_op = driver->first_operator();
+        if (auto* stream_source_op = dynamic_cast<StreamSourceOperator*>(scan_op); stream_source_op != nullptr) {
+            stream_source_op->start_epoch(epoch_info);
+        }
+    }
+    return Status::OK();
+}
+
+Status StreamPipelineTest::WaitUntilEpochEnd(EpochInfo epoch_info) {
+    auto drivers = _fragment_ctx->drivers();
+    for (auto& driver : drivers) {
+        auto* sink_op = driver->last_operator();
+        if (auto* stream_sink_op = dynamic_cast<StreamSinkOperator*>(sink_op); stream_sink_op != nullptr) {
+            bool is_stream_barrier = stream_sink_op->is_stream_barrier();
+            while (!is_stream_barrier) {
+                sleep(0.01);
+                is_stream_barrier = stream_sink_op->is_stream_barrier();
+            }
+        }
+    }
+    return Status::OK();
 }
 
 } // namespace starrocks::stream

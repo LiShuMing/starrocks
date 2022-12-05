@@ -26,6 +26,8 @@ struct EpochInfo {
     int64_t max_binlog_ms;
     // max binlog offset which this epoch will run
     int64_t max_offsets;
+
+    TriggerMode trigger_mode;
 };
 
 struct CommitOffset {
@@ -49,9 +51,8 @@ public:
     bool is_finished() const override { return false; }
 
     // Start/End epoch implement
-    virtual void start_epoch(const EpochInfo& epoch) = 0;
     virtual bool is_epoch_finished() = 0;
-    virtual void stop_epoch(const EpochInfo& epoch) = 0;
+    virtual void start_epoch(const EpochInfo& epoch) = 0;
     virtual CommitOffset get_latest_offset() = 0;
 
 protected:
@@ -59,6 +60,18 @@ protected:
     EpochInfo _curren_epoch;
     int64_t _epoch_deadline{0};
     int64_t _epoch_process_rows{0};
+};
+
+class StreamSinkOperator : public pipeline::Operator {
+public:
+    StreamSinkOperator(OperatorFactory* factory, int32_t id, std::string name, int32_t plan_node_id,
+                       int32_t driver_sequence)
+            : Operator(factory, id, "stream_sink", plan_node_id, driver_sequence) {}
+
+    bool is_stream_barrier() const { return _is_stream_barrier; }
+
+protected:
+    bool _is_stream_barrier = false;
 };
 
 } // namespace starrocks::stream

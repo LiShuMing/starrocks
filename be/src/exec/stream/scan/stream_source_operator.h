@@ -56,7 +56,7 @@ public:
     virtual CommitOffset get_latest_offset() = 0;
 
 protected:
-    std::atomic_bool _start_epoch{true};
+    std::atomic_bool _is_epoch_finished{true};
     EpochInfo _curren_epoch;
     int64_t _epoch_deadline{0};
     int64_t _epoch_process_rows{0};

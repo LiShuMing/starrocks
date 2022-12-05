@@ -17,7 +17,7 @@ Status StreamPipelineTest::_prepare() {
     _exec_env = ExecEnv::GetInstance();
 
     const auto& params = _request.params;
-    const auto& query_id = params.query_id;
+    const auto& query_id = next_unique_id();
     const auto& fragment_id = params.fragment_instance_id;
 
     _query_ctx = _exec_env->query_context_mgr()->get_or_register(query_id);
@@ -31,9 +31,8 @@ Status StreamPipelineTest::_prepare() {
     _fragment_ctx = _query_ctx->fragment_mgr()->get_or_register(fragment_id);
     _fragment_ctx->set_query_id(query_id);
     _fragment_ctx->set_fragment_instance_id(fragment_id);
-    _fragment_ctx->set_runtime_state(
-            std::make_unique<RuntimeState>(_request.params.query_id, _request.params.fragment_instance_id,
-                                           _request.query_options, _request.query_globals, _exec_env));
+    _fragment_ctx->set_runtime_state(std::make_unique<RuntimeState>(query_id, fragment_id, _request.query_options,
+                                                                    _request.query_globals, _exec_env));
 
     _fragment_future = _fragment_ctx->finish_future();
     _runtime_state = _fragment_ctx->runtime_state();
@@ -61,7 +60,7 @@ Status StreamPipelineTest::_prepare() {
         const auto degree_of_parallelism = pipeline->source_operator_factory()->degree_of_parallelism();
 
         LOG(INFO) << "Pipeline " << pipeline->to_readable_string() << " parallel=" << degree_of_parallelism
-                  << " fragment_instance_id=" << print_id(params.fragment_instance_id);
+                  << " fragment_instance_id=" << print_id(fragment_id);
 
         DCHECK(!pipeline->source_operator_factory()->with_morsels());
 

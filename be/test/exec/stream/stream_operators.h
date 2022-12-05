@@ -33,7 +33,7 @@ public:
 private:
     TestStreamSourceParam _param;
     int64_t _epoch_id{0};
-    TriggerMode _trigger_mode;
+    TriggerMode _trigger_mode{TriggerMode::kManualTrigger};
     int64_t _processed_chunks{0};
     ;
 };

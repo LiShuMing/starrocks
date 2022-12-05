@@ -12,12 +12,13 @@
 namespace starrocks::stream {
 
 bool TestStreamSourceOperator::has_output() const {
-    VLOG_ROW << "[TestStreamSourceOperator] has_output=" << _start_epoch;
+    VLOG_ROW << "[TestStreamSourceOperator] has_output=" << !_is_epoch_finished;
     // TODO: exists new binlog
-    return _start_epoch.load();
+    return !_is_epoch_finished.load();
 }
 
 void TestStreamSourceOperator::start_epoch(const EpochInfo& epoch) {
+    DCHECK(_is_epoch_finished);
     auto now = duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
     // start must be after epoch is stopped
     DCHECK_LT(_epoch_deadline, now);
@@ -40,7 +41,8 @@ bool TestStreamSourceOperator::is_epoch_finished() {
         return now > _epoch_deadline;
     }
     default:
-        throw std::runtime_error("Unsupported trigger_mode: " + std::to_string((int)_trigger_mode));
+        return false;
+        //        throw std::runtime_error("Unsupported trigger_mode: " + std::to_string((int)_trigger_mode));
     }
 }
 
@@ -48,10 +50,11 @@ StatusOr<vectorized::ChunkPtr> TestStreamSourceOperator::pull_chunk(starrocks::R
     VLOG_ROW << "[TestStreamSourceOperator] pull_chunk";
     if (is_epoch_finished()) {
         // generate barrier
-        _start_epoch.store(false);
+        _is_epoch_finished.store(true);
         _processed_chunks += 1;
         return std::make_shared<vectorized::BarrierChunk>(1);
     } else {
+        _is_epoch_finished.store(false);
         // generate chunk
         auto chunk = std::make_shared<Chunk>();
         for (auto idx = 0; idx < _param.num_column; idx++) {

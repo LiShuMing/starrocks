@@ -163,12 +163,16 @@ DatumKeyRow MemStateTable::_convert_datum_row_to_key(const DatumRow& row, size_t
 Status MemStateTable::flush(RuntimeState* state, vectorized::StreamChunk* chunk) {
     DCHECK(chunk);
     auto chunk_size = chunk->num_rows();
+    VLOG_ROW << "1:" << chunk_size;
     auto ops = chunk->ops();
+    VLOG_ROW << "2";
     for (auto i = 0; i < chunk_size; i++) {
         if (ops[i] == StreamRowOp::UPDATE_BEFORE) {
             continue;
         }
+        VLOG_ROW << "3";
         auto k = _make_datum_key_row(chunk, 0, _k_num, i);
+        VLOG_ROW << "4";
         if (ops[i] == StreamRowOp::DELETE) {
             _kv_mapping.erase(k);
             continue;

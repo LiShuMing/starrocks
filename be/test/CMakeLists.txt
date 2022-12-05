@@ -312,6 +312,11 @@ set(EXEC_FILES
         ./service/lake_service_test.cpp
         )
 
+if (${MAKE_TEST} STREQUAL "ON")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGTEST_USE_OWN_TR1_TUPLE=0")
+    add_definitions(-DBE_TEST)
+endif()
+
 if ("${USE_STAROS}" STREQUAL "ON")
     list(APPEND EXEC_FILES ./fs/fs_starlet_test.cpp)
 endif ()
@@ -352,6 +357,7 @@ add_executable(stream_mv_test
         exec/stream/mem_state_table_test.cpp
         exec/stream/stream_operator_test.cpp
         exec/stream/stream_pipeline_test.cpp
+        exec/stream/stream_aggregator_test.cpp
         )
 TARGET_LINK_LIBRARIES(stream_mv_test ${TEST_LINK_LIBS})
 SET_TARGET_PROPERTIES(stream_mv_test PROPERTIES COMPILE_FLAGS "-fno-access-control")

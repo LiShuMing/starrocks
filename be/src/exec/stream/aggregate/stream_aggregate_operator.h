@@ -28,11 +28,13 @@ public:
     bool has_output() const override;
     bool need_input() const override { return !is_finished(); }
     bool is_finished() const override;
+    Status set_finishing(RuntimeState* state) override;
     Status set_finished(RuntimeState* state) override;
     bool is_epoch_finished() const override { return _is_epoch_finished; }
 
     StatusOr<vectorized::ChunkPtr> pull_chunk(RuntimeState* state) override;
     Status push_chunk(RuntimeState* state, const vectorized::ChunkPtr& chunk) override;
+    Status prepare(RuntimeState* state);
     void close(RuntimeState* state) override;
 
 private:
@@ -40,6 +42,8 @@ private:
     // Whether prev operator has no output
     bool _is_finished = false;
     bool _is_epoch_finished = false;
+    bool _has_output = false;
+    ChunkPtr _barrier_chunk;
 };
 
 class StreamAggregateOperatorFactory final : public OperatorFactory {

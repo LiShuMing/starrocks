@@ -20,16 +20,13 @@ using AggInfo = std::tuple<SlotId, std::string, LogicalType, LogicalType>;
 
 class StreamTestBase : public testing::Test {
 public:
-    StreamTestBase() {
-        _state = _obj_pool.add(new RuntimeState(TUniqueId(), TQueryOptions(), TQueryGlobals(), nullptr));
-        _runtime_profile = _state->runtime_profile();
-        _mem_tracker = std::make_unique<MemTracker>();
-    }
+    StreamTestBase() = default;
 
 protected:
-    DescriptorTbl* GenerateDescTbl(const std::vector<std::vector<SlotTypeInfo>>& slot_info_arrays) {
+    DescriptorTbl* GenerateDescTbl(RuntimeState* state, ObjectPool& obj_pool,
+                                   const std::vector<std::vector<SlotTypeInfo>>& slot_info_arrays) {
         return vectorized::DescTblHelper::generate_desc_tbl(
-                _state, _obj_pool, vectorized::DescTblHelper::create_slot_type_desc_info_arrays(slot_info_arrays));
+                state, obj_pool, vectorized::DescTblHelper::create_slot_type_desc_info_arrays(slot_info_arrays));
     }
 
     std::shared_ptr<StreamAggregator> _create_stream_aggregator(
@@ -145,10 +142,10 @@ protected:
     }
 
 protected:
-    RuntimeState* _state;
-    ObjectPool _obj_pool;
-    DescriptorTbl* _tbl;
-    RuntimeProfile* _runtime_profile;
-    std::unique_ptr<MemTracker> _mem_tracker;
+    //    RuntimeState* _stream_state;
+    ////    ObjectPool _stream_obj_pool;
+    ////    DescriptorTbl* _tbl;
+    ////    RuntimeProfile* _runtime_profile;
+    //    std::unique_ptr<MemTracker> _mem_tracker;
 };
 } // namespace starrocks::stream

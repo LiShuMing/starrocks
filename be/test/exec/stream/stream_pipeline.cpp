@@ -13,12 +13,13 @@
 
 namespace starrocks::stream {
 
-Status StreamPipelineTest::_prepare() {
+Status StreamPipelineTest::PreparePipeline() {
+    VLOG_ROW << "PreparePipeline";
     _exec_env = ExecEnv::GetInstance();
 
     const auto& params = _request.params;
-    const auto& query_id = next_unique_id();
     const auto& fragment_id = params.fragment_instance_id;
+    const auto& query_id = next_unique_id();
 
     _query_ctx = _exec_env->query_context_mgr()->get_or_register(query_id);
     _query_ctx->set_total_fragments(1);
@@ -31,8 +32,9 @@ Status StreamPipelineTest::_prepare() {
     _fragment_ctx = _query_ctx->fragment_mgr()->get_or_register(fragment_id);
     _fragment_ctx->set_query_id(query_id);
     _fragment_ctx->set_fragment_instance_id(fragment_id);
-    _fragment_ctx->set_runtime_state(std::make_unique<RuntimeState>(query_id, fragment_id, _request.query_options,
-                                                                    _request.query_globals, _exec_env));
+    _fragment_ctx->set_runtime_state(
+            std::make_unique<RuntimeState>(_request.params.query_id, _request.params.fragment_instance_id,
+                                           _request.query_options, _request.query_globals, _exec_env));
 
     _fragment_future = _fragment_ctx->finish_future();
     _runtime_state = _fragment_ctx->runtime_state();
@@ -76,7 +78,8 @@ Status StreamPipelineTest::_prepare() {
     return Status::OK();
 }
 
-Status StreamPipelineTest::_execute() {
+Status StreamPipelineTest::ExecutePipeline() {
+    VLOG_ROW << "ExecutePipeline";
     for (const auto& driver : _fragment_ctx->drivers()) {
         RETURN_IF_ERROR(driver->prepare(_fragment_ctx->runtime_state()));
     }
@@ -114,10 +117,25 @@ OpFactories StreamPipelineTest::maybe_interpolate_local_passthrough_exchange(OpF
 }
 
 void StreamPipelineTest::StopMV() {
+    VLOG_ROW << "StopMV";
+    auto drivers = _fragment_ctx->drivers();
+    for (auto& driver : drivers) {
+        auto* scan_op = driver->first_operator();
+        if (auto* stream_source_op = dynamic_cast<StreamSourceOperator*>(scan_op); stream_source_op != nullptr) {
+            stream_source_op->set_finished(_runtime_state);
+        }
+    }
+    ASSERT_EQ(std::future_status::ready, _fragment_future.wait_for(std::chrono::seconds(15)));
+}
+
+// TODO: Make it work!
+void StreamPipelineTest::CancelMV() {
+    VLOG_ROW << "CancelMV";
     _fragment_ctx->cancel(Status::OK());
 }
 
 Status StreamPipelineTest::StartEpoch(EpochInfo epoch_info) {
+    VLOG_ROW << "StartEpoch: " << epoch_info.debug_string();
     auto drivers = _fragment_ctx->drivers();
     for (auto& driver : drivers) {
         auto* scan_op = driver->first_operator();
@@ -129,15 +147,19 @@ Status StreamPipelineTest::StartEpoch(EpochInfo epoch_info) {
 }
 
 Status StreamPipelineTest::WaitUntilEpochEnd(EpochInfo epoch_info) {
+    VLOG_ROW << "WaitUntilEpochEnd: " << epoch_info.debug_string();
     auto drivers = _fragment_ctx->drivers();
     for (auto& driver : drivers) {
         auto* sink_op = driver->last_operator();
         if (auto* stream_sink_op = dynamic_cast<StreamSinkOperator*>(sink_op); stream_sink_op != nullptr) {
-            bool is_stream_barrier = stream_sink_op->is_stream_barrier();
-            while (!is_stream_barrier) {
+            bool is_epoch_finished = stream_sink_op->is_epoch_finished();
+            while (!is_epoch_finished) {
+                VLOG_ROW << "WaitUntilEpochEnd, is_epoch_finished:" << is_epoch_finished;
                 sleep(0.01);
-                is_stream_barrier = stream_sink_op->is_stream_barrier();
+                is_epoch_finished = stream_sink_op->is_epoch_finished();
             }
+            // reset its state
+            stream_sink_op->reset_epoch_finished();
         }
     }
     return Status::OK();

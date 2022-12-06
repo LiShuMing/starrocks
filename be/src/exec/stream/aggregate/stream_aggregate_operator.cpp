@@ -9,15 +9,27 @@
 namespace starrocks::stream {
 
 bool StreamAggregateOperator::has_output() const {
-    return is_epoch_finished();
+    return _has_output;
 }
 
 bool StreamAggregateOperator::is_finished() const {
-    return _aggregator->is_sink_complete() && _aggregator->is_ht_eos();
+    return _is_finished || _aggregator->is_finished();
+}
+
+Status StreamAggregateOperator::set_finishing(RuntimeState* state) {
+    _is_finished = true;
+    _aggregator->sink_complete();
+    return Status::OK();
 }
 
 Status StreamAggregateOperator::set_finished(RuntimeState* state) {
     return _aggregator->set_finished();
+}
+
+Status StreamAggregateOperator::prepare(RuntimeState* state) {
+    RETURN_IF_ERROR(Operator::prepare(state));
+    RETURN_IF_ERROR(_aggregator->prepare(state, state->obj_pool(), _unique_metrics.get(), _mem_tracker.get()));
+    return _aggregator->open(state);
 }
 
 void StreamAggregateOperator::close(RuntimeState* state) {
@@ -30,9 +42,13 @@ Status StreamAggregateOperator::push_chunk(RuntimeState* state, const vectorized
         return Status::OK();
     }
     if (typeid(*chunk) == typeid(BarrierChunk)) {
+        VLOG_ROW << "process barrier chunk:";
+        _barrier_chunk = chunk;
         _is_epoch_finished = true;
+        _has_output = true;
     } else {
         DCHECK(typeid(*chunk) == typeid(StreamChunk));
+        VLOG_ROW << "process input chunk:" << chunk->debug_string();
         RETURN_IF_ERROR(_aggregator->process_chunk(dynamic_cast<StreamChunk*>(chunk.get())));
         _is_epoch_finished = false;
     }
@@ -41,16 +57,24 @@ Status StreamAggregateOperator::push_chunk(RuntimeState* state, const vectorized
 
 StatusOr<vectorized::ChunkPtr> StreamAggregateOperator::pull_chunk(RuntimeState* state) {
     RETURN_IF_CANCELLED(state);
-
+    VLOG_ROW << "process pull chunk";
     DCHECK(!_aggregator->is_none_group_by_exprs());
-    const auto chunk_size = state->chunk_size();
-    StreamChunkPtr chunk = std::make_shared<vectorized::StreamChunk>();
-    RETURN_IF_ERROR(_aggregator->output_changes(chunk_size, &chunk));
+    if (_aggregator->is_ht_eos()) {
+        // yield the barrier_chunk
+        _has_output = false;
+        // reset_state
+        RETURN_IF_ERROR(_aggregator->reset_state(state));
+        return std::move(_barrier_chunk);
+    } else {
+        const auto chunk_size = state->chunk_size();
+        StreamChunkPtr chunk = std::make_shared<vectorized::StreamChunk>();
+        RETURN_IF_ERROR(_aggregator->output_changes(chunk_size, &chunk));
 
-    // For having
-    RETURN_IF_ERROR(eval_conjuncts_and_in_filters(_aggregator->conjunct_ctxs(), chunk.get()));
-    DCHECK_CHUNK(chunk);
-    return std::move(chunk);
+        // For having
+        RETURN_IF_ERROR(eval_conjuncts_and_in_filters(_aggregator->conjunct_ctxs(), chunk.get()));
+        DCHECK_CHUNK(chunk);
+        return std::move(chunk);
+    }
 }
 
 } // namespace starrocks::stream

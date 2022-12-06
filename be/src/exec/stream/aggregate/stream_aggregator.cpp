@@ -190,12 +190,9 @@ DatumRow StreamAggregator::_convert_to_datum_row(const vectorized::Columns& colu
 }
 
 Status StreamAggregator::output_changes(int32_t chunk_size, vectorized::StreamChunkPtr* result_chunk) {
-    SCOPED_TIMER(agg_compute_timer());
-    Status status;
-    TRY_CATCH_BAD_ALLOC(hash_map_variant().visit([&](auto& hash_map_with_key) {
-        status = _output_changes(*hash_map_with_key, chunk_size, result_chunk, nullptr, nullptr);
-    }));
-    return status;
+    vectorized::ChunkPtr intermediate_chunk = std::make_shared<Chunk>();
+    std::vector<vectorized::ChunkPtr> detail_chunks;
+    RETURN_IF_ERROR(output_changes(chunk_size, result_chunk, &intermediate_chunk, detail_chunks));
 }
 
 Status StreamAggregator::output_changes(int32_t chunk_size, vectorized::StreamChunkPtr* result_chunk,

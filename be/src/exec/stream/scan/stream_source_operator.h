@@ -26,8 +26,14 @@ struct EpochInfo {
     int64_t max_binlog_ms;
     // max binlog offset which this epoch will run
     int64_t max_offsets;
-
     TriggerMode trigger_mode;
+
+    std::string debug_string() const {
+        std::stringstream ss;
+        ss << "epoch_id=" << epoch_id << ", last_lsn_offset=" << last_lsn_offset << ", max_binlog_ms=" << max_binlog_ms
+           << ", max_offsets=" << max_offsets << ", trigger_mode=" << (int)(trigger_mode);
+        return ss.str();
+    }
 };
 
 struct CommitOffset {
@@ -48,15 +54,21 @@ public:
     ~StreamSourceOperator() override = default;
 
     // never finished
-    bool is_finished() const override { return false; }
+    bool is_finished() const override { return _is_finished; }
 
     // Start/End epoch implement
     virtual bool is_epoch_finished() = 0;
     virtual void start_epoch(const EpochInfo& epoch) = 0;
+    Status set_finishing(starrocks::RuntimeState* state) override { return Status::OK(); }
+    Status set_finished(starrocks::RuntimeState* state) override {
+        _is_finished.store(true);
+        return Status::OK();
+    };
     virtual CommitOffset get_latest_offset() = 0;
 
 protected:
     std::atomic_bool _is_epoch_finished{true};
+    std::atomic_bool _is_finished{false};
     EpochInfo _curren_epoch;
     int64_t _epoch_deadline{0};
     int64_t _epoch_process_rows{0};
@@ -66,12 +78,13 @@ class StreamSinkOperator : public pipeline::Operator {
 public:
     StreamSinkOperator(OperatorFactory* factory, int32_t id, std::string name, int32_t plan_node_id,
                        int32_t driver_sequence)
-            : Operator(factory, id, "stream_sink", plan_node_id, driver_sequence) {}
+            : Operator(factory, id, name, plan_node_id, driver_sequence) {}
 
-    bool is_stream_barrier() const { return _is_stream_barrier; }
+    bool is_epoch_finished() const override { return _is_epoch_finished.load(); }
+    void reset_epoch_finished() { _is_epoch_finished.store(false); }
 
 protected:
-    bool _is_stream_barrier = false;
+    std::atomic_bool _is_epoch_finished = false;
 };
 
 } // namespace starrocks::stream

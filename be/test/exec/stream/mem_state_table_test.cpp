@@ -13,7 +13,10 @@ namespace starrocks::stream {
 
 class MemStateTableTest : public StreamTestBase {
 public:
-    MemStateTableTest() = default;
+    MemStateTableTest()
+            : _runtime_state(_obj_pool.add(new RuntimeState(TUniqueId(), TQueryOptions(), TQueryGlobals(), nullptr))),
+              _runtime_profile(_runtime_state->runtime_profile()),
+              _mem_tracker(std::make_unique<MemTracker>()) {}
 
     void SetUp() override {
         std::vector<SlotTypeInfo> src_slots = std::vector<SlotTypeInfo>{
@@ -24,8 +27,8 @@ public:
                 //                {"op", TYPE_BOOLEAN, false}
         };
         auto slot_type_info_arrays = vectorized::DescTblHelper::create_slot_type_desc_info_arrays({src_slots});
-        _tbl = vectorized::DescTblHelper::generate_desc_tbl(_state, _obj_pool, slot_type_info_arrays);
-        _state->set_desc_tbl(_tbl);
+        _tbl = vectorized::DescTblHelper::generate_desc_tbl(_runtime_state, _obj_pool, slot_type_info_arrays);
+        _runtime_state->set_desc_tbl(_tbl);
     }
 
     void TearDown() override {}
@@ -95,6 +98,13 @@ protected:
             DCHECK_EQ((col->get(row_idx)).get_int32(), ans[i]);
         }
     }
+
+protected:
+    RuntimeState* _runtime_state;
+    ObjectPool _obj_pool;
+    DescriptorTbl* _tbl;
+    RuntimeProfile* _runtime_profile;
+    std::unique_ptr<MemTracker> _mem_tracker;
 };
 
 TEST_F(MemStateTableTest, TestSeekKey) {
@@ -105,7 +115,7 @@ TEST_F(MemStateTableTest, TestSeekKey) {
 
     auto chunk_ptr = MakeStreamChunk<int32_t>({{1, 2, 3}, {1, 2, 3}, {1, 2, 3}, {11, 12, 13}}, {0, 0, 0});
     // write table
-    state_table->flush(_state, chunk_ptr.get());
+    state_table->flush(_runtime_state, chunk_ptr.get());
     // read table
     CheckSeekKey(state_table.get(), {1}, {1, 1, 11});
     CheckSeekKey(state_table.get(), {2}, {2, 2, 12});
@@ -114,7 +124,7 @@ TEST_F(MemStateTableTest, TestSeekKey) {
     // UPDATE keys
     auto chunk_ptr2 = MakeStreamChunk<int32_t>({{1, 2, 3}, {1, 2, 3}, {1, 2, 3}, {21, 22, 23}}, {0, 0, 0});
     // write table
-    state_table->flush(_state, chunk_ptr2.get());
+    state_table->flush(_runtime_state, chunk_ptr2.get());
     // read table
     CheckSeekKey(state_table.get(), {1}, {1, 1, 21});
     CheckSeekKey(state_table.get(), {2}, {2, 2, 22});
@@ -129,7 +139,7 @@ TEST_F(MemStateTableTest, TestPrefixSeek) {
     CheckPrefixScanError(state_table.get(), {1, 1}, Status::EndOfFile(""));
 
     // write table
-    state_table->flush(_state, chunk_ptr.get());
+    state_table->flush(_runtime_state, chunk_ptr.get());
     // read table
     CheckPrefixScan(state_table.get(), {1, 1},
                     {
@@ -141,7 +151,7 @@ TEST_F(MemStateTableTest, TestPrefixSeek) {
     // UPDATE keys
     auto chunk_ptr2 = MakeStreamChunk<int32_t>({{1, 1, 1}, {1, 1, 1}, {1, 2, 3}, {21, 22, 23}}, {0, 0, 0});
     // write table
-    state_table->flush(_state, chunk_ptr2.get());
+    state_table->flush(_runtime_state, chunk_ptr2.get());
     // read table
     CheckPrefixScan(state_table.get(), {1, 1},
                     {

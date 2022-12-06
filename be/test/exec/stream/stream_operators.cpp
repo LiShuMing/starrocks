@@ -18,7 +18,9 @@ bool TestStreamSourceOperator::has_output() const {
 }
 
 void TestStreamSourceOperator::start_epoch(const EpochInfo& epoch) {
+    VLOG_ROW << "start epoch: " << epoch.debug_string();
     DCHECK(_is_epoch_finished);
+    _is_epoch_finished.store(false);
     auto now = duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
     // start must be after epoch is stopped
     DCHECK_LT(_epoch_deadline, now);
@@ -33,6 +35,7 @@ CommitOffset TestStreamSourceOperator::get_latest_offset() {
 }
 
 bool TestStreamSourceOperator::is_epoch_finished() {
+    VLOG_ROW << "trigger_mode: " + std::to_string((int)_trigger_mode);
     switch (_trigger_mode) {
     case TriggerMode::kManualTrigger:
         return (_processed_chunks + 1) % 2 == 0;
@@ -41,14 +44,15 @@ bool TestStreamSourceOperator::is_epoch_finished() {
         return now > _epoch_deadline;
     }
     default:
+        VLOG_ROW << "Unsupported trigger_mode: " + std::to_string((int)_trigger_mode);
         return false;
-        //        throw std::runtime_error("Unsupported trigger_mode: " + std::to_string((int)_trigger_mode));
     }
 }
 
 StatusOr<vectorized::ChunkPtr> TestStreamSourceOperator::pull_chunk(starrocks::RuntimeState* state) {
-    VLOG_ROW << "[TestStreamSourceOperator] pull_chunk";
-    if (is_epoch_finished()) {
+    bool is_epoch_finished = this->is_epoch_finished();
+    VLOG_ROW << "[TestStreamSourceOperator] pull_chunk, is_epoch_finished:" << is_epoch_finished;
+    if (is_epoch_finished) {
         // generate barrier
         _is_epoch_finished.store(true);
         _processed_chunks += 1;
@@ -62,7 +66,7 @@ StatusOr<vectorized::ChunkPtr> TestStreamSourceOperator::pull_chunk(starrocks::R
             for (int64_t i = 0; i < _param.chunk_size; i++) {
                 _param.start += _param.step;
                 VLOG_ROW << "Append col:" << idx << ", row:" << _param.start;
-                column->append(_param.start);
+                column->append(_param.start % _param.ndv_count);
             }
             chunk->append_column(column, SlotId(idx));
         }

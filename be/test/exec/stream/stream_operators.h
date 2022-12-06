@@ -10,6 +10,7 @@ struct TestStreamSourceParam {
     int64_t start;
     int64_t step;
     int64_t chunk_size;
+    int64_t ndv_count{100};
 };
 
 class TestStreamSourceOperator final : public StreamSourceOperator {
@@ -27,8 +28,6 @@ public:
     CommitOffset get_latest_offset() override;
 
     StatusOr<vectorized::ChunkPtr> pull_chunk(starrocks::RuntimeState* state) override;
-    Status set_finishing(starrocks::RuntimeState* state) override { return Status::OK(); }
-    Status set_finished(starrocks::RuntimeState* state) override { return Status::OK(); };
 
 private:
     TestStreamSourceParam _param;
@@ -58,7 +57,7 @@ public:
 
     ~TestStreamSinkOperator() override = default;
 
-    bool has_output() const override { return !_is_stream_barrier; }
+    bool has_output() const override { return !_is_finished && !_is_epoch_finished; }
 
     bool need_input() const override { return true; }
 
@@ -76,11 +75,15 @@ public:
     Status push_chunk(RuntimeState* state, const vectorized::ChunkPtr& chunk) override {
         if (chunk) {
             if (typeid(*chunk) == typeid(vectorized::BarrierChunk)) {
-                _is_stream_barrier = true;
+                _is_epoch_finished.store(true);
             } else {
-                _is_stream_barrier = false;
+                _is_epoch_finished.store(false);
             }
-            VLOG_ROW << "[StreamSinkOperator] result:" << chunk->debug_string();
+
+            VLOG_ROW << "[StreamSinkOperator] result:" << chunk->debug_string()
+                     << ", is_epoch_finished:" << _is_epoch_finished;
+
+            std::cout << "Sink Result: " << chunk->debug_string() << std::endl;
         }
         this->_output_chunks.push_back(chunk);
         return Status::OK();

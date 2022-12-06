@@ -21,19 +21,20 @@
 namespace starrocks::stream {
 
 using InitiliazeFunc = std::function<Status()>;
+using PrepareFunc = std::function<Status()>;
 
 class StreamPipelineTest {
 public:
     Status StartMV(InitiliazeFunc&& init_func) {
         RETURN_IF_ERROR(init_func());
-        RETURN_IF_ERROR(_prepare());
-        RETURN_IF_ERROR(_execute());
-        if (std::future_status::ready == _fragment_future.wait_for(std::chrono::seconds(15))) {
-            return Status::InternalError("fragment future error!");
-        }
+        RETURN_IF_ERROR(PreparePipeline());
+        RETURN_IF_ERROR(ExecutePipeline());
         return Status::OK();
     }
+    Status PreparePipeline();
+    Status ExecutePipeline();
     void StopMV();
+    void CancelMV();
 
     Status StartEpoch(EpochInfo epoch_info);
     Status WaitUntilEpochEnd(EpochInfo epoch_info);
@@ -45,16 +46,12 @@ public:
         TUniqueId next;
         next.__set_hi(_next_unique_id++);
         next.__set_lo(_next_unique_id++);
-        return next;
+        _unique_ids.emplace_back(std::move(next));
+        return _unique_ids.back();
     }
 
 protected:
     OpFactories maybe_interpolate_local_passthrough_exchange(OpFactories& pred_operators);
-
-    // Prepare execution context of pipeline
-    Status _prepare();
-    // execute pipeline
-    Status _execute();
 
     ExecEnv* _exec_env = nullptr;
     pipeline::QueryContext* _query_ctx = nullptr;
@@ -70,6 +67,7 @@ protected:
     size_t _next_plan_node_id = 0;
     uint32_t _next_pipeline_id = 0;
     int64_t _next_unique_id = 0;
+    std::vector<TUniqueId> _unique_ids;
 };
 
 } // namespace starrocks::stream

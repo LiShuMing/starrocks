@@ -23,11 +23,11 @@ void TestStreamSourceOperator::start_epoch(const EpochInfo& epoch) {
     _is_epoch_finished.store(false);
     auto now = duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
     // start must be after epoch is stopped
-    DCHECK_LT(_epoch_deadline, now);
+    //    DCHECK_LT(_epoch_deadline, now);
     _trigger_mode = epoch.trigger_mode;
     // refresh new deadline
     _curren_epoch = epoch;
-    _epoch_deadline = now + milliseconds(epoch.max_binlog_ms).count();
+    //    _epoch_deadline = now + milliseconds(epoch.max_binlog_ms).count();
 }
 
 CommitOffset TestStreamSourceOperator::get_latest_offset() {
@@ -41,7 +41,8 @@ bool TestStreamSourceOperator::is_epoch_finished() {
         return (_processed_chunks + 1) % 2 == 0;
     case TriggerMode::kProcessTimeTrigger: {
         auto now = duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
-        return now > _epoch_deadline;
+        return now > 0;
+        //        return now > _epoch_deadline;
     }
     default:
         VLOG_ROW << "Unsupported trigger_mode: " + std::to_string((int)_trigger_mode);

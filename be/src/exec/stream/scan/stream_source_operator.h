@@ -55,23 +55,22 @@ public:
 
     // never finished
     bool is_finished() const override { return _is_finished; }
-
-    // Start/End epoch implement
-    virtual bool is_epoch_finished() = 0;
-    virtual void start_epoch(const EpochInfo& epoch) = 0;
-    Status set_finishing(starrocks::RuntimeState* state) override { return Status::OK(); }
     Status set_finished(starrocks::RuntimeState* state) override {
         _is_finished.store(true);
         return Status::OK();
     };
+
+    // Start/End epoch implement
+    virtual bool is_epoch_finished() = 0;
+    Status set_epoch_finished(starrocks::RuntimeState* state) override { return Status::OK(); }
+
+    virtual void start_epoch(const EpochInfo& epoch) = 0;
     virtual CommitOffset get_latest_offset() = 0;
 
 protected:
     std::atomic_bool _is_epoch_finished{true};
     std::atomic_bool _is_finished{false};
     EpochInfo _curren_epoch;
-    int64_t _epoch_deadline{0};
-    int64_t _epoch_process_rows{0};
 };
 
 class StreamSinkOperator : public pipeline::Operator {

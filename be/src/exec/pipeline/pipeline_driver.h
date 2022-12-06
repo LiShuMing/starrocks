@@ -187,7 +187,7 @@ public:
     DriverPtr clone() { return std::make_shared<PipelineDriver>(*this); }
     void set_morsel_queue(MorselQueue* morsel_queue) { _morsel_queue = morsel_queue; }
     Status prepare(RuntimeState* runtime_state);
-    StatusOr<DriverState> process(RuntimeState* runtime_state, int worker_id);
+    virtual StatusOr<DriverState> process(RuntimeState* runtime_state, int worker_id);
     void finalize(RuntimeState* runtime_state, DriverState state);
     DriverAcct& driver_acct() { return _driver_acct; }
     DriverState driver_state() const { return _state; }
@@ -380,7 +380,7 @@ public:
 
     inline std::string get_name() const { return strings::Substitute("PipelineDriver (id=$0)", _driver_id); }
 
-private:
+protected:
     // Yield PipelineDriver when maximum time in nano-seconds has spent in current execution round.
     static constexpr int64_t YIELD_MAX_TIME_SPENT = 100'000'000L;
     // Yield PipelineDriver when maximum time in nano-seconds has spent in current execution round,

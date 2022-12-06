@@ -193,6 +193,7 @@ Status StreamAggregator::output_changes(int32_t chunk_size, vectorized::StreamCh
     vectorized::ChunkPtr intermediate_chunk = std::make_shared<Chunk>();
     std::vector<vectorized::ChunkPtr> detail_chunks;
     RETURN_IF_ERROR(output_changes(chunk_size, result_chunk, &intermediate_chunk, detail_chunks));
+    return Status::OK();
 }
 
 Status StreamAggregator::output_changes(int32_t chunk_size, vectorized::StreamChunkPtr* result_chunk,

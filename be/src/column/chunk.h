@@ -56,15 +56,15 @@ public:
 
     virtual std::vector<ChunkExtraDataMeta> chunk_data_metas() const = 0;
 
-    virtual void filter(const Buffer<uint8_t>& selection, bool force = false) const = 0;
+    virtual void filter(const Buffer<uint8_t>& selection) const = 0;
     virtual void filter_range(const Buffer<uint8_t>& selection, size_t from, size_t to) const = 0;
     virtual ChunkExtraDataPtr clone_empty(size_t size) const = 0;
     virtual void append(const ChunkExtraDataPtr& src, size_t offset, size_t count) = 0;
     virtual void append_selective(const ChunkExtraDataPtr& src, const uint32_t* indexes, uint32_t from,
                                   uint32_t size) = 0;
 
-    // serialize/deserialize to exchange
-    // TODO: only support encode_level=0
+    // serialize/deserialize to exchange, now only supports encode_level = 0
+    // TODO: support encode_level configuration.
     virtual int64_t max_serialized_size(const int encode_level = 0) = 0;
     virtual uint8_t* serialize(uint8_t* buff, bool sorted = false, const int encode_level = 0) = 0;
     virtual const uint8_t* deserialize(const uint8_t* buff, bool sorted = false, const int encode_level = 0) = 0;

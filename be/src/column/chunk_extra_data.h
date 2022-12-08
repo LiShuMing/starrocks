@@ -18,9 +18,9 @@ public:
 
     virtual std::vector<ChunkExtraDataMeta> chunk_data_metas() const override { return _data_metas; }
 
-    void filter(const Buffer<uint8_t>& selection, bool force = false) const override {
+    void filter(const Buffer<uint8_t>& selection) const override {
         for (auto& col : _columns) {
-            col->filter(selection, force);
+            col->filter(selection);
         }
     }
 

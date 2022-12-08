@@ -48,18 +48,18 @@ public:
         return std::make_shared<VectorizedSchema>(fields);
     }
 
-    ColumnPtr make_column(size_t start) {
+    ColumnPtr make_column(size_t start, size_t size = 100) {
         auto column = FixedLengthColumn<int32_t>::create();
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < size; i++) {
             column->append(start + i);
         }
         return column;
     }
 
-    Columns make_columns(size_t size) {
+    Columns make_columns(size_t num_cols, size_t size = 100) {
         Columns columns;
-        for (size_t i = 0; i < size; i++) {
-            columns.emplace_back(make_column(i));
+        for (size_t i = 0; i < num_cols; i++) {
+            columns.emplace_back(make_column(i, size));
         }
         return columns;
     }
@@ -76,12 +76,15 @@ public:
         }
     }
 
-    ChunkExtraColumnsDataPtr make_extra_data(size_t size) {
-        auto chunk = std::make_unique<vectorized::Chunk>(make_columns(size), make_schema(size));
-        auto extra_data_meta = std::vector<vectorized::ChunkExtraDataMeta>{
-                vectorized::ChunkExtraDataMeta{.type = TypeDescriptor(TYPE_INT), .is_null = false, .is_const = false}};
-        auto extra_data_cols = std::vector<vectorized::ColumnPtr>{make_columns(2)};
-        return std::make_shared<vectorized::ChunkExtraColumnsData>(std::move(extra_data_meta),
+    ChunkExtraColumnsDataPtr make_extra_data(size_t num_cols, size_t size = 100) {
+        auto chunk = std::make_unique<vectorized::Chunk>(make_columns(num_cols, size), make_schema(num_cols));
+        std::vector<vectorized::ChunkExtraDataMeta> extra_data_metas;
+        for (size_t i = 0; i < num_cols; i++) {
+            extra_data_metas.push_back(vectorized::ChunkExtraDataMeta{
+                    .type = TypeDescriptor(TYPE_INT), .is_null = false, .is_const = false});
+        }
+        auto extra_data_cols = std::vector<vectorized::ColumnPtr>{make_columns(num_cols, size)};
+        return std::make_shared<vectorized::ChunkExtraColumnsData>(std::move(extra_data_metas),
                                                                    std::move(extra_data_cols));
     }
 };
@@ -300,11 +303,15 @@ TEST_F(ChunkTest, test_clone_unique) {
 // Test Chunk with extra data
 // NOLINTNEXTLINE
 TEST_F(ChunkTest, test_append_chunk_with_extra_data) {
-    auto extra_data1 = make_extra_data(2);
-    auto chunk1 = std::make_unique<Chunk>(make_columns(2), make_schema(2), extra_data1);
+    auto extra_data1 = make_extra_data(2, 2);
+    // col0: 0, 1, 2, 3
+    // col1: 1, 2, 3, 4
+    auto chunk1 = std::make_unique<Chunk>(make_columns(2, 2), make_schema(2), extra_data1);
 
-    auto extra_data2 = make_extra_data(2);
-    auto chunk2 = std::make_unique<Chunk>(make_columns(2), make_schema(2), extra_data2);
+    // col0: 0, 1, 2, 3
+    // col1: 1, 2, 3, 4
+    auto extra_data2 = make_extra_data(2, 2);
+    auto chunk2 = std::make_unique<Chunk>(make_columns(2, 2), make_schema(2), extra_data2);
 
     chunk1->append(*chunk2);
 
@@ -313,7 +320,7 @@ TEST_F(ChunkTest, test_append_chunk_with_extra_data) {
     ASSERT_EQ(4, chunk1->num_rows());
 
     check_column(reinterpret_cast<FixedLengthColumn<int32_t>*>(columns[0].get()), {0, 1, 0, 1});
-    check_column(reinterpret_cast<FixedLengthColumn<int32_t>*>(columns[1].get()), {0, 1, 0, 1});
+    check_column(reinterpret_cast<FixedLengthColumn<int32_t>*>(columns[1].get()), {1, 2, 1, 2});
 
     ASSERT_TRUE(chunk1->has_extra_data());
     auto* extra_data = dynamic_cast<ChunkExtraColumnsData*>(chunk1->get_extra_data().get());
@@ -321,27 +328,31 @@ TEST_F(ChunkTest, test_append_chunk_with_extra_data) {
     auto extra_data_columns = extra_data->columns();
     ASSERT_EQ(2, extra_data_columns.size());
     check_column(reinterpret_cast<FixedLengthColumn<int32_t>*>(extra_data_columns[0].get()), {0, 1, 0, 1});
-    check_column(reinterpret_cast<FixedLengthColumn<int32_t>*>(extra_data_columns[1].get()), {0, 1, 0, 1});
+    check_column(reinterpret_cast<FixedLengthColumn<int32_t>*>(extra_data_columns[1].get()), {1, 2, 1, 2});
 }
 
 // NOLINTNEXTLINE
 TEST_F(ChunkTest, test_filter_with_extra_data) {
-    auto extra_data1 = make_extra_data(4);
-    auto chunk1 = std::make_unique<Chunk>(make_columns(4), make_schema(4), extra_data1);
+    auto extra_data1 = make_extra_data(2, 4);
+    // 0, 1, 2, 3
+    // 1, 2, 3, 4
+    auto chunk1 = std::make_unique<Chunk>(make_columns(2, 4), make_schema(2), extra_data1);
     ASSERT_EQ(4, chunk1->num_rows());
 
-    Buffer<uint8_t> selection = {0, 1, 0, 1};
+    Buffer<uint8_t> selection{0, 1, 0, 1};
     auto filtered = chunk1->filter(selection);
     ASSERT_EQ(2, filtered);
     chunk1->check_or_die();
 
     ASSERT_EQ(chunk1->num_rows(), 2);
+    check_column(reinterpret_cast<FixedLengthColumn<int32_t>*>(chunk1->columns()[0].get()), {1, 3});
+    check_column(reinterpret_cast<FixedLengthColumn<int32_t>*>(chunk1->columns()[1].get()), {2, 4});
     ASSERT_TRUE(chunk1->has_extra_data());
     auto* extra_data = dynamic_cast<ChunkExtraColumnsData*>(chunk1->get_extra_data().get());
     ASSERT_TRUE(extra_data);
     ASSERT_EQ(extra_data->columns().size(), 2);
     check_column(reinterpret_cast<FixedLengthColumn<int32_t>*>(extra_data->columns()[0].get()), {1, 3});
-    check_column(reinterpret_cast<FixedLengthColumn<int32_t>*>(extra_data->columns()[1].get()), {1, 3});
+    check_column(reinterpret_cast<FixedLengthColumn<int32_t>*>(extra_data->columns()[1].get()), {2, 4});
 }
 
 // NOLINTNEXTLINE
@@ -380,15 +391,12 @@ TEST_F(ChunkTest, test_clone_unique_with_extra_data) {
 TEST_F(ChunkTest, test_reset_with_extra_data) {
     auto extra_data1 = make_extra_data(2);
     auto chunk1 = std::make_unique<Chunk>(make_columns(2), make_schema(2), extra_data1);
-    ASSERT_EQ(2, chunk1->num_rows());
+    ASSERT_EQ(100, chunk1->num_rows());
     ASSERT_TRUE(chunk1->has_extra_data());
 
     chunk1->reset();
-    ASSERT_EQ(1, chunk1->num_columns());
-    ASSERT_EQ(1, chunk1->get_slot_id_to_index_map().size());
-    ASSERT_EQ(0, chunk1->get_slot_id_to_index_map().find(1)->second);
+    ASSERT_EQ(2, chunk1->num_columns());
     ASSERT_EQ(0, chunk1->num_rows());
-    ASSERT_EQ(DEL_NOT_SATISFIED, chunk1->delete_state());
     ASSERT_TRUE(!chunk1->has_extra_data());
 }
 

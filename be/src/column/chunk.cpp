@@ -302,7 +302,7 @@ size_t Chunk::filter(const Buffer<uint8_t>& selection, bool force) {
         column->filter(selection);
     }
     if (_extra_data) {
-        _extra_data->filter(selection, force);
+        _extra_data->filter(selection);
     }
     return num_rows();
 }

@@ -78,7 +78,7 @@ StatusOr<vectorized::ChunkPtr> TestStreamSourceOperator::pull_chunk(starrocks::R
             ops->append(0);
         }
         _processed_chunks += 1;
-        return std::make_shared<StreamChunk>(std::move(chunk), std::move(ops));
+        return StreamChunkConverter::make_stream_chunk(std::move(chunk), std::move(ops));
     }
 }
 

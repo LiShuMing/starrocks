@@ -17,11 +17,7 @@ public:
         std::vector<uint8_t> ops;
     };
 
-    StreamAggregateTestBase()
-            : _runtime_state(_obj_pool.add(new RuntimeState(TUniqueId(), TQueryOptions(), TQueryGlobals(), nullptr))),
-              _runtime_profile(_runtime_state->runtime_profile()),
-              _mem_tracker(std::make_unique<MemTracker>()) {}
-
+    StreamAggregateTestBase(bool is_generate_retract) : _is_generate_retract(is_generate_retract) {}
     ~StreamAggregateTestBase() = default;
 
     std::vector<LogicalType> get_slot_types(std::vector<SlotTypeInfo> slot_infos) {
@@ -76,11 +72,16 @@ public:
         }
     }
 
-    void SetUp() override {}
+    void SetUp() override {
+        _runtime_state = _obj_pool.add(new RuntimeState(TUniqueId(), TQueryOptions(), TQueryGlobals(), nullptr));
+        _runtime_profile = _runtime_state->runtime_profile();
+        _mem_tracker = std::make_unique<MemTracker>();
+    }
 
     void TearDown() override {}
 
 protected:
+    bool _is_generate_retract;
     RuntimeState* _runtime_state;
     ObjectPool _obj_pool;
     DescriptorTbl* _tbl;
@@ -96,12 +97,16 @@ protected:
 ///////////////  Count Aggregate Function ///////////////
 class CountStreamAggregateTestBase : public StreamAggregateTestBase {
 public:
-    CountStreamAggregateTestBase(bool is_generate_retract) {
+    CountStreamAggregateTestBase(bool is_generate_retract) : StreamAggregateTestBase(is_generate_retract) {}
+
+    void SetUp() override {
+        StreamAggregateTestBase::SetUp();
+
         _slot_infos = std::vector<std::vector<SlotTypeInfo>>{
                 // input slots
                 {
-                        {"col1", TYPE_BIGINT, false}, {"col2", TYPE_BIGINT, false},
-                        //                        {"op", TYPE_BOOLEAN, false}
+                        {"col1", TYPE_BIGINT, false},
+                        {"col2", TYPE_BIGINT, false},
                 },
                 // intermediate slots
                 {
@@ -110,8 +115,8 @@ public:
                 },
                 // result slots
                 {
-                        {"col1", TYPE_BIGINT, false}, {"count_agg", TYPE_BIGINT, false},
-                        //                 {"op", TYPE_BOOLEAN, false}
+                        {"col1", TYPE_BIGINT, false},
+                        {"count_agg", TYPE_BIGINT, false},
                 },
         };
         _group_by_infos = {0};
@@ -121,7 +126,7 @@ public:
         _tbl = GenerateDescTbl(_runtime_state, _obj_pool, _slot_infos);
         _runtime_state->set_desc_tbl(_tbl);
         _stream_aggregator =
-                _create_stream_aggregator(_slot_infos, _group_by_infos, _agg_infos, is_generate_retract, 0);
+                _create_stream_aggregator(_slot_infos, _group_by_infos, _agg_infos, _is_generate_retract, 0);
     }
 };
 
@@ -323,12 +328,15 @@ TEST_F(CountStreamAggregateTestWithGenerateRetracts, TestWithRetracts_MultiRuns)
 ///////////////  Min/Max Aggregate Function ///////////////
 class SumAvgCountStreamAggregateTest : public StreamAggregateTestBase {
 public:
-    SumAvgCountStreamAggregateTest(bool is_generate_retract) {
+    SumAvgCountStreamAggregateTest(bool is_generate_retract) : StreamAggregateTestBase(is_generate_retract) {}
+
+    void SetUp() override {
+        StreamAggregateTestBase::SetUp();
         _slot_infos = std::vector<std::vector<SlotTypeInfo>>{
                 // input slots
                 {
-                        {"col1", TYPE_BIGINT, false}, {"col2", TYPE_BIGINT, false},
-                        //                        {"op", TYPE_BOOLEAN, false}
+                        {"col1", TYPE_BIGINT, false},
+                        {"col2", TYPE_BIGINT, false},
                 },
                 // intermediate slots
                 {
@@ -343,8 +351,6 @@ public:
                         {"sum_agg", TYPE_BIGINT, false},
                         {"avg_agg", TYPE_DOUBLE, false},
                         {"count_agg", TYPE_BIGINT, false},
-                        // TODO: result output should contain ops column
-                        //                        {"op", TYPE_BOOLEAN, false}
                 },
         };
         _group_by_infos = {0};
@@ -358,7 +364,7 @@ public:
         _tbl = GenerateDescTbl(_runtime_state, _obj_pool, _slot_infos);
         _runtime_state->set_desc_tbl(_tbl);
         _stream_aggregator =
-                _create_stream_aggregator(_slot_infos, _group_by_infos, _agg_infos, is_generate_retract, 2);
+                _create_stream_aggregator(_slot_infos, _group_by_infos, _agg_infos, _is_generate_retract, 2);
     }
 };
 
@@ -386,7 +392,7 @@ TEST_F(SumAvgStreamAggregateTestWithoutRetract, TestNoRetracts_OneRun) {
     // count(col2)
     CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(3), {2, 1});
     // ops
-    CheckColumn(result_chunk_ptr->ops(), {0, 0});
+    CheckColumn(StreamChunkConverter::ops(result_chunk_ptr), {0, 0});
 
     DCHECK_EQ(intermediate_chunk_ptr->num_columns(), 2);
     DCHECK_EQ(intermediate_chunk_ptr->num_rows(), 2);
@@ -413,7 +419,7 @@ TEST_F(SumAvgStreamAggregateTestWithoutRetract, TestNoRetracts_MultiRun) {
     // count(col2)
     CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(3), {2, 1});
     // ops
-    CheckColumn(result_chunk_ptr->ops(), {0, 0});
+    CheckColumn(StreamChunkConverter::ops(result_chunk_ptr), {0, 0});
     DCHECK_EQ(intermediate_chunk_ptr->num_columns(), 2);
     DCHECK_EQ(intermediate_chunk_ptr->num_rows(), 2);
     DCHECK(detail_chunks.empty());
@@ -430,7 +436,7 @@ TEST_F(SumAvgStreamAggregateTestWithoutRetract, TestNoRetracts_MultiRun) {
     // count(col2)
     CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(3), {3, 2, 1});
     // ops
-    CheckColumn(result_chunk_ptr->ops(), {0, 0, 0});
+    CheckColumn(StreamChunkConverter::ops(result_chunk_ptr), {0, 0, 0});
     DCHECK_EQ(intermediate_chunk_ptr->num_columns(), 2);
     DCHECK_EQ(intermediate_chunk_ptr->num_rows(), 3);
     DCHECK(detail_chunks.empty());
@@ -446,7 +452,7 @@ TEST_F(SumAvgStreamAggregateTestWithoutRetract, TestNoRetracts_MultiRun) {
     // count(col2)
     CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(3), {3, 2});
     // ops
-    CheckColumn(result_chunk_ptr->ops(), {0, 0});
+    CheckColumn(StreamChunkConverter::ops(result_chunk_ptr), {0, 0});
     DCHECK_EQ(intermediate_chunk_ptr->num_columns(), 2);
     DCHECK_EQ(intermediate_chunk_ptr->num_rows(), 2);
     DCHECK(detail_chunks.empty());
@@ -457,12 +463,16 @@ TEST_F(SumAvgStreamAggregateTestWithoutRetract, TestNoRetracts_MultiRun) {
 ///////////////  Min/Max Aggregate Function ///////////////
 class MinMaxCountStreamAggregateTest : public StreamAggregateTestBase {
 public:
-    MinMaxCountStreamAggregateTest(bool is_generate_retract) {
+    MinMaxCountStreamAggregateTest(bool is_generate_retract) : StreamAggregateTestBase(is_generate_retract) {}
+
+    void SetUp() override {
+        StreamAggregateTestBase::SetUp();
+
         _slot_infos = std::vector<std::vector<SlotTypeInfo>>{
                 // input slots
                 {
-                        {"col1", TYPE_BIGINT, false}, {"col2", TYPE_BIGINT, false},
-                        //                        {"op", TYPE_BOOLEAN, false}
+                        {"col1", TYPE_BIGINT, false},
+                        {"col2", TYPE_BIGINT, false},
                 },
                 // intermediate slots
                 {
@@ -477,8 +487,6 @@ public:
                         {"min_agg", TYPE_BIGINT, false},
                         {"max_agg", TYPE_BIGINT, false},
                         {"count_agg", TYPE_BIGINT, false},
-                        // TODO: result output should contain ops column
-                        //                        {"op", TYPE_BOOLEAN, false}
                 },
         };
         _group_by_infos = {0};
@@ -491,7 +499,7 @@ public:
         _tbl = GenerateDescTbl(_runtime_state, _obj_pool, _slot_infos);
         _runtime_state->set_desc_tbl(_tbl);
         _stream_aggregator =
-                _create_stream_aggregator(_slot_infos, _group_by_infos, _agg_infos, is_generate_retract, 2);
+                _create_stream_aggregator(_slot_infos, _group_by_infos, _agg_infos, _is_generate_retract, 2);
     }
 };
 
@@ -628,12 +636,16 @@ TEST_F(MinMaxCountStreamAggregateTestWithRetract, TestWihRetracts_MultiRun_Retra
 ///////////////  Min/Max Aggregate Function ///////////////
 class AllStreamAggregateFunctionsTestBase : public StreamAggregateTestBase {
 public:
-    AllStreamAggregateFunctionsTestBase(bool is_generate_retract) {
+    AllStreamAggregateFunctionsTestBase(bool is_generate_retract) : StreamAggregateTestBase(is_generate_retract) {}
+
+    void SetUp() override {
+        StreamAggregateTestBase::SetUp();
         _slot_infos = std::vector<std::vector<SlotTypeInfo>>{
                 // input slots
                 {
-                        {"col1", TYPE_BIGINT, false}, {"col2", TYPE_BIGINT, false}, {"col3", TYPE_BIGINT, false},
-                        //                        {"op", TYPE_BOOLEAN, false}
+                        {"col1", TYPE_BIGINT, false},
+                        {"col2", TYPE_BIGINT, false},
+                        {"col3", TYPE_BIGINT, false},
                 },
                 // intermediate slots
                 {
@@ -652,8 +664,6 @@ public:
                         {"avg_agg", TYPE_DOUBLE, false},
                         {"max_agg", TYPE_BIGINT, false},
                         {"count_agg", TYPE_BIGINT, false},
-                        // TODO: result output should contain ops column
-                        //                        {"op", TYPE_BOOLEAN, false}
                 },
         };
         _group_by_infos = {0};
@@ -669,7 +679,7 @@ public:
         _tbl = GenerateDescTbl(_runtime_state, _obj_pool, _slot_infos);
         _runtime_state->set_desc_tbl(_tbl);
         _stream_aggregator =
-                _create_stream_aggregator(_slot_infos, _group_by_infos, _agg_infos, is_generate_retract, 4);
+                _create_stream_aggregator(_slot_infos, _group_by_infos, _agg_infos, _is_generate_retract, 4);
     }
 };
 
@@ -701,7 +711,7 @@ TEST_F(AllStreamAggregateFunctionsTestWithoutRetract, TestNoRetracts_OneRun) {
     // count(col2)
     CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(5), {2, 1});
     // ops
-    CheckColumn(result_chunk_ptr->ops(), {0, 0});
+    CheckColumn(StreamChunkConverter::ops(result_chunk_ptr), {0, 0});
     DCHECK_EQ(intermediate_chunk_ptr->num_columns(), 2);
     DCHECK_EQ(intermediate_chunk_ptr->num_rows(), 2);
     DCHECK_EQ(detail_chunks.size(), 2);
@@ -737,7 +747,7 @@ TEST_F(AllStreamAggregateFunctionsTestWithoutRetract, TestNoRetracts_MultiRun) {
         // count(col2)
         CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(5), {2, 1});
         // ops
-        CheckColumn(result_chunk_ptr->ops(), {0, 0});
+        CheckColumn(StreamChunkConverter::ops(result_chunk_ptr), {0, 0});
     }
 
     // Run 2
@@ -759,7 +769,7 @@ TEST_F(AllStreamAggregateFunctionsTestWithoutRetract, TestNoRetracts_MultiRun) {
         // count(col2)
         CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(5), {2, 1});
         // ops
-        CheckColumn(result_chunk_ptr->ops(), {0, 0});
+        CheckColumn(StreamChunkConverter::ops(result_chunk_ptr), {0, 0});
     }
 
     // Run 3
@@ -781,7 +791,7 @@ TEST_F(AllStreamAggregateFunctionsTestWithoutRetract, TestNoRetracts_MultiRun) {
         // count(col2)
         CheckColumn<int64_t>(result_chunk_ptr->get_column_by_index(5), {3, 2});
         // ops
-        CheckColumn(result_chunk_ptr->ops(), {0, 0});
+        CheckColumn(StreamChunkConverter::ops(result_chunk_ptr), {0, 0});
     }
 
     _stream_aggregator->close(_runtime_state);

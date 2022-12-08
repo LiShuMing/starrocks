@@ -60,7 +60,6 @@ public:
     ChunkIteratorPtrOr prefix_scan_key(const DatumRow& key) const override;
     std::vector<ChunkIteratorPtrOr> prefix_scan_keys(const std::vector<DatumRow>& keys) const override;
     Status flush(RuntimeState* state, vectorized::StreamChunk* chunk) override;
-    Status flush(RuntimeState* state, vectorized::Chunk* chunk) override;
 
 private:
     VectorizedSchema _make_schema_from_slots(const std::vector<SlotDescriptor*>& slots) const;

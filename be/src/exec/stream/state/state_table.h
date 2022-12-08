@@ -37,9 +37,6 @@ public:
     // NOTE: The count of the result of `seek_keys` must be exactly same to the input keys' count.
     virtual std::vector<ChunkIteratorPtrOr> prefix_scan_keys(const std::vector<DatumRow>& keys) const = 0;
 
-    // Flush the input chunk into the state table.
-    virtual Status flush(RuntimeState* state, vectorized::Chunk* chunk) = 0;
-
     // Flush the input chunk into the state table: StreamChunk contains the ops columns.
     virtual Status flush(RuntimeState* state, vectorized::StreamChunk* chunk) = 0;
 

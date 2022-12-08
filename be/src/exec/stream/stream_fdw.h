@@ -32,6 +32,7 @@ using StreamRowOp = vectorized::StreamRowOp;
 using StreamRowOps = vectorized::StreamRowOps;
 using BarrierChunk = vectorized::BarrierChunk;
 using BarrierChunkPtr = vectorized::BarrierChunkPtr;
+using StreamChunkConverter = vectorized::StreamChunkConverter;
 
 using Operator = pipeline::Operator;
 using OperatorPtr = pipeline::OperatorPtr;

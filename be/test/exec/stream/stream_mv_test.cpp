@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
         exit(-1);
     }
     // Load config from config file.
-    std::string conffile = std::string(getenv("STARROCKS_HOME")) + "/conf/be_test.conf";
+    std::string conffile = std::string(getenv("STARROCKS_HOME")) + "/conf/be.conf";
     if (!starrocks::config::init(conffile.c_str(), false)) {
         fprintf(stderr, "error read config file. \n");
         return -1;
@@ -53,11 +53,11 @@ int main(int argc, char** argv) {
 
     std::cout << "load be conf:" << conffile << std::endl;
 
-    butil::FilePath curr_dir(std::filesystem::current_path());
-    butil::FilePath storage_root;
-    CHECK(butil::CreateNewTempDirectory("tmp_mv_ut_", &storage_root));
-    starrocks::config::storage_root_path = storage_root.value();
-    starrocks::config::enable_event_based_compaction_framework = false;
+    //    butil::FilePath curr_dir(std::filesystem::current_path());
+    //    butil::FilePath storage_root;
+    //    CHECK(butil::CreateNewTempDirectory("tmp_mv_ut_", &storage_root));
+    //    starrocks::config::storage_root_path = storage_root.value();
+    //    starrocks::config::enable_event_based_compaction_framework = false;
 
     starrocks::init_glog("be_test", true);
 
@@ -69,17 +69,17 @@ int main(int argc, char** argv) {
     starrocks::vectorized::date::init_date_cache();
     starrocks::TimezoneUtils::init_time_zones();
 
-    std::vector<starrocks::StorePath> paths;
-    paths.emplace_back(starrocks::config::storage_root_path);
-
+    //    std::vector<starrocks::StorePath> paths;
+    //    paths.emplace_back(starrocks::config::storage_root_path);
+    //
     auto* exec_env = starrocks::ExecEnv::GetInstance();
-    // Pagecache is turned on by default, and some test cases require cache to be turned on,
-    // and some test cases do not. For easy management, we turn cache off during unit test
-    // initialization. If there are test cases that require Pagecache, it must be responsible
-    // for managing it.
-    starrocks::config::disable_storage_page_cache = true;
-    exec_env->init_mem_tracker();
-    starrocks::ExecEnv::init(exec_env, paths);
+    //    // Pagecache is turned on by default, and some test cases require cache to be turned on,
+    //    // and some test cases do not. For easy management, we turn cache off during unit test
+    //    // initialization. If there are test cases that require Pagecache, it must be responsible
+    //    // for managing it.
+    //    starrocks::config::disable_storage_page_cache = true;
+    //    exec_env->init_mem_tracker();
+    //    starrocks::ExecEnv::init(exec_env, paths);
 
     int r = RUN_ALL_TESTS();
 
@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
     //        sleep(10);
     //    }
 
-    starrocks::wait_for_query_contexts_finish(exec_env, starrocks::config::loop_count_wait_fragments_finish);
+    //    starrocks::wait_for_query_contexts_finish(exec_env, starrocks::config::loop_count_wait_fragments_finish);
 
     // clear some trash objects kept in tablet_manager so mem_tracker checks will not fail
     //    starrocks::StorageEngine::instance()->tablet_manager()->start_trash_sweep();

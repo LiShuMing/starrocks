@@ -163,7 +163,7 @@ Status StreamAggregator::process_chunk(vectorized::StreamChunk* chunk) {
     }
 
     // batch fetch intermediate results from imt table
-    auto ops = chunk->ops();
+    auto ops = StreamChunkConverter::ops(chunk);
     if (_result_agg_group) {
         _result_agg_group->process_chunk(chunk_size, _non_found_keys, _streaming_selection, ops, _agg_input_raw_columns,
                                          _tmp_agg_states);
@@ -427,8 +427,6 @@ Status StreamAggregator::_output_result_post_retract_changes(size_t chunk_size,
     DCHECK_EQ(selected_count, post_chunk_result->num_rows());
 
     prev_result_chunk->append_safe(*post_chunk_result);
-    auto& post_op_col = *(post_chunk_result->ops_col());
-    prev_result_chunk->ops_col()->append(post_op_col, 0, selected_count);
     *result_chunk = prev_result_chunk;
 
     return Status::OK();
@@ -558,8 +556,7 @@ vectorized::StreamChunkPtr StreamAggregator::_build_output_chunk_with_ops(const 
         }
     }
     //        // TODO: Add a new type of stream chunk?
-    //        result_chunk->append_column(ops, (SlotId)(group_by_columns.size() + agg_result_columns.size()));
-    return std::make_shared<vectorized::StreamChunk>(std::move(result_chunk), std::move(ops));
+    return StreamChunkConverter::make_stream_chunk(std::move(result_chunk), std::move(ops));
 }
 
 void StreamAggregator::close(RuntimeState* state) {

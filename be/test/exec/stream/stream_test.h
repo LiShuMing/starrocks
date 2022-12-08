@@ -21,6 +21,11 @@ using AggInfo = std::tuple<SlotId, std::string, LogicalType, LogicalType>;
 class StreamTestBase : public testing::Test {
 public:
     StreamTestBase() = default;
+    ~StreamTestBase() = default;
+
+protected:
+    void SetUp() override {}
+    void TearDown() override {}
 
 protected:
     DescriptorTbl* GenerateDescTbl(RuntimeState* state, ObjectPool& obj_pool,
@@ -94,7 +99,7 @@ protected:
         }
         vectorized::UInt8ColumnPtr ops_col = vectorized::UInt8Column::create();
         ops_col->append_numbers(ops.data(), ops.size() * sizeof(uint8_t));
-        return std::make_shared<StreamChunk>(std::move(chunk_ptr), std::move(ops_col));
+        return StreamChunkConverter::make_stream_chunk(std::move(chunk_ptr), std::move(ops_col));
     }
 
     template <class T>
@@ -115,8 +120,8 @@ protected:
         if (ops.size() > 0) {
             DCHECK_EQ(chunk_size, ops.size());
             StreamChunk* stream_chunk = dynamic_cast<StreamChunk*>(chunk.get());
-            auto col = stream_chunk->ops_col();
-            CheckColumn<uint8_t>(col, ops);
+            auto col = StreamChunkConverter::ops(stream_chunk);
+            CheckColumn(col, ops);
         }
     }
 
@@ -140,12 +145,5 @@ protected:
     void CheckDatum(Datum datum, T data) {
         DCHECK_EQ(datum.get<T>(), data);
     }
-
-protected:
-    //    RuntimeState* _stream_state;
-    ////    ObjectPool _stream_obj_pool;
-    ////    DescriptorTbl* _tbl;
-    ////    RuntimeProfile* _runtime_profile;
-    //    std::unique_ptr<MemTracker> _mem_tracker;
 };
 } // namespace starrocks::stream

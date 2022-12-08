@@ -13,24 +13,23 @@ namespace starrocks::stream {
 
 class MemStateTableTest : public StreamTestBase {
 public:
-    MemStateTableTest()
-            : _runtime_state(_obj_pool.add(new RuntimeState(TUniqueId(), TQueryOptions(), TQueryGlobals(), nullptr))),
-              _runtime_profile(_runtime_state->runtime_profile()),
-              _mem_tracker(std::make_unique<MemTracker>()) {}
+    MemStateTableTest() = default;
+    ~MemStateTableTest() = default;
 
     void SetUp() override {
+        _runtime_state = _obj_pool.add(new RuntimeState(TUniqueId(), TQueryOptions(), TQueryGlobals(), nullptr));
+        _runtime_profile = _runtime_state->runtime_profile();
+        _mem_tracker = std::make_unique<MemTracker>();
         std::vector<SlotTypeInfo> src_slots = std::vector<SlotTypeInfo>{
                 {"col1", TYPE_INT, false},
                 {"col2", TYPE_INT, false},
                 {"col3", TYPE_INT, false},
                 {"agg1", TYPE_INT, false},
-                //                {"op", TYPE_BOOLEAN, false}
         };
         auto slot_type_info_arrays = vectorized::DescTblHelper::create_slot_type_desc_info_arrays({src_slots});
         _tbl = vectorized::DescTblHelper::generate_desc_tbl(_runtime_state, _obj_pool, slot_type_info_arrays);
         _runtime_state->set_desc_tbl(_tbl);
     }
-
     void TearDown() override {}
 
 protected:

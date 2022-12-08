@@ -163,34 +163,26 @@ DatumKeyRow MemStateTable::_convert_datum_row_to_key(const DatumRow& row, size_t
 Status MemStateTable::flush(RuntimeState* state, vectorized::StreamChunk* chunk) {
     DCHECK(chunk);
     auto chunk_size = chunk->num_rows();
-    VLOG_ROW << "1:" << chunk_size;
-    auto ops = chunk->ops();
-    VLOG_ROW << "2";
-    for (auto i = 0; i < chunk_size; i++) {
-        if (ops[i] == StreamRowOp::UPDATE_BEFORE) {
-            continue;
+    if (StreamChunkConverter::has_ops_colum(chunk)) {
+        auto ops = StreamChunkConverter::ops(chunk);
+        for (auto i = 0; i < chunk_size; i++) {
+            if (ops[i] == StreamRowOp::UPDATE_BEFORE) {
+                continue;
+            }
+            auto k = _make_datum_key_row(chunk, 0, _k_num, i);
+            if (ops[i] == StreamRowOp::DELETE) {
+                _kv_mapping.erase(k);
+                continue;
+            }
+            auto v = _make_datum_row(chunk, _k_num, _cols_num, i);
+            _kv_mapping[k] = std::move(v);
         }
-        VLOG_ROW << "3";
-        auto k = _make_datum_key_row(chunk, 0, _k_num, i);
-        VLOG_ROW << "4";
-        if (ops[i] == StreamRowOp::DELETE) {
-            _kv_mapping.erase(k);
-            continue;
+    } else {
+        for (auto i = 0; i < chunk_size; i++) {
+            auto k = _make_datum_key_row(chunk, 0, _k_num, i);
+            auto v = _make_datum_row(chunk, _k_num, _cols_num, i);
+            _kv_mapping[k] = std::move(v);
         }
-        auto v = _make_datum_row(chunk, _k_num, _cols_num, i);
-        _kv_mapping[k] = std::move(v);
-    }
-    return Status::OK();
-}
-
-Status MemStateTable::flush(RuntimeState* state, vectorized::Chunk* chunk) {
-    DCHECK(chunk);
-    auto chunk_size = chunk->num_rows();
-
-    for (auto i = 0; i < chunk_size; i++) {
-        auto k = _make_datum_key_row(chunk, 0, _k_num, i);
-        auto v = _make_datum_row(chunk, _k_num, _cols_num, i);
-        _kv_mapping[k] = std::move(v);
     }
     return Status::OK();
 }

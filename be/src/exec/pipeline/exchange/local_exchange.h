@@ -47,7 +47,7 @@ public:
     }
 
     virtual void epoch_finish(RuntimeState* state) {
-        if (increment_sink_epoch_finished_number() == _sink_number) {
+        if (increment_sink_epoch_finished_number() + 1 == _sink_number) {
             for (auto* source : _source->get_sources()) {
                 source->set_epoch_finishing(state);
             }

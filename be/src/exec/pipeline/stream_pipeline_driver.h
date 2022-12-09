@@ -12,7 +12,7 @@ public:
     StreamPipelineDriver(const Operators& operators, QueryContext* query_ctx, FragmentContext* fragment_ctx,
                          int32_t driver_id)
             : PipelineDriver(operators, query_ctx, fragment_ctx, driver_id) {}
-    ~StreamPipelineDriver() override { PipelineDriver::~PipelineDriver(); }
+    ~StreamPipelineDriver() override = default;
 
     StatusOr<DriverState> process(RuntimeState* runtime_state, int worker_id) override;
 

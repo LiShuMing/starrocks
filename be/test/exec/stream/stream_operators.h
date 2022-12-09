@@ -25,11 +25,18 @@ public:
 
     void start_epoch(const EpochInfo& epoch) override;
     bool is_epoch_finished() const override;
+    Status set_epoch_finishing(starrocks::RuntimeState* state) override {
+        _is_epoch_finished = true;
+        return Status::OK();
+    }
+
     CommitOffset get_latest_offset() override;
 
     StatusOr<vectorized::ChunkPtr> pull_chunk(starrocks::RuntimeState* state) override;
 
 private:
+    void update_epoch_state();
+
     TestStreamSourceParam _param;
     int64_t _epoch_id{0};
     TriggerMode _trigger_mode{TriggerMode::kManualTrigger};
@@ -68,29 +75,33 @@ public:
         return Status::OK();
     }
 
+    bool is_epoch_finished() const override { return _is_epoch_finished; }
+    Status set_epoch_finishing(RuntimeState* state) override {
+        _is_epoch_finished = true;
+        return Status::OK();
+    }
+
     StatusOr<vectorized::ChunkPtr> pull_chunk(RuntimeState* state) override {
         return Status::NotSupported("pull_chunk in StreamSinkOperator is not supported.");
     }
 
     Status push_chunk(RuntimeState* state, const vectorized::ChunkPtr& chunk) override {
-        if (chunk) {
-            if (typeid(*chunk) == typeid(vectorized::BarrierChunk)) {
-                _is_epoch_finished.store(true);
-            } else {
-                _is_epoch_finished.store(false);
-            }
-
-            VLOG_ROW << "[StreamSinkOperator] result:" << chunk->debug_string()
-                     << ", is_epoch_finished:" << _is_epoch_finished;
-
-            std::cout << "Sink Result: " << chunk->debug_string() << std::endl;
+        DCHECK(chunk);
+        VLOG_ROW << "[StreamSinkOperator] result:" << chunk->debug_string()
+                 << ", is_epoch_finished:" << _is_epoch_finished;
+        std::cout << "<<<<<<<<< Sink Result: " << chunk->debug_string() << std::endl;
+        for (auto& col : chunk->columns()) {
+            std::cout << col->debug_string() << std::endl;
         }
+
         this->_output_chunks.push_back(chunk);
         return Status::OK();
     }
 
 private:
     bool _is_finished = false;
+    bool _is_epoch_finished = false;
+
     // Result to be tested.
     std::vector<ChunkPtr> _output_chunks;
 };

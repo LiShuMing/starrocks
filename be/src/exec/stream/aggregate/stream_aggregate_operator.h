@@ -30,7 +30,10 @@ public:
     bool is_finished() const override;
     Status set_finishing(RuntimeState* state) override;
     Status set_finished(RuntimeState* state) override;
+
     bool is_epoch_finished() const override { return _is_epoch_finished; }
+    Status set_epoch_finishing(RuntimeState* state) override;
+    Status set_epoch_finished(RuntimeState* state) override;
 
     StatusOr<vectorized::ChunkPtr> pull_chunk(RuntimeState* state) override;
     Status push_chunk(RuntimeState* state, const vectorized::ChunkPtr& chunk) override;
@@ -43,7 +46,6 @@ private:
     bool _is_finished = false;
     bool _is_epoch_finished = false;
     bool _has_output = false;
-    ChunkPtr _barrier_chunk;
 };
 
 class StreamAggregateOperatorFactory final : public OperatorFactory {

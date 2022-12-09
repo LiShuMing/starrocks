@@ -224,7 +224,7 @@ Status StreamPipelineDriver::_mark_operator_epoch_finished(OperatorPtr& op, Runt
         return Status::OK();
     }
 
-    VLOG_ROW << strings::Substitute("[Driver] finished operator [fragment_id=$0] [driver=$1] [operator=$2]",
+    VLOG_ROW << strings::Substitute("[Driver] epoch finished operator [fragment_id=$0] [driver=$1] [operator=$2]",
                                     print_id(state->fragment_instance_id()), to_readable_string(), op->get_name());
     {
         SCOPED_TIMER(op->_finished_timer);

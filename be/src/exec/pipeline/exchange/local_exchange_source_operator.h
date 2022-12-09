@@ -62,7 +62,6 @@ public:
     }
 
     bool is_epoch_finished() const override { return _is_epoch_finished; }
-    //    Status set_epoch_finished(RuntimeState* state) override;
     Status set_epoch_finishing(RuntimeState* state) override {
         std::lock_guard<std::mutex> l(_chunk_lock);
         _is_epoch_finished = true;

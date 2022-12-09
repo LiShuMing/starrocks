@@ -69,17 +69,17 @@ int main(int argc, char** argv) {
     starrocks::vectorized::date::init_date_cache();
     starrocks::TimezoneUtils::init_time_zones();
 
-    //    std::vector<starrocks::StorePath> paths;
-    //    paths.emplace_back(starrocks::config::storage_root_path);
-    //
+    std::vector<starrocks::StorePath> paths;
+    paths.emplace_back(starrocks::config::storage_root_path);
+
     auto* exec_env = starrocks::ExecEnv::GetInstance();
     //    // Pagecache is turned on by default, and some test cases require cache to be turned on,
     //    // and some test cases do not. For easy management, we turn cache off during unit test
     //    // initialization. If there are test cases that require Pagecache, it must be responsible
     //    // for managing it.
     //    starrocks::config::disable_storage_page_cache = true;
-    //    exec_env->init_mem_tracker();
-    //    starrocks::ExecEnv::init(exec_env, paths);
+    exec_env->init_mem_tracker();
+    starrocks::ExecEnv::init(exec_env, paths);
 
     int r = RUN_ALL_TESTS();
 

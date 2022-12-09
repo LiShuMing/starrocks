@@ -51,8 +51,8 @@ struct ChunkExtraDataMeta {
 };
 class ChunkExtraData {
 public:
-    virtual ~ChunkExtraData() = default;
     ChunkExtraData() = default;
+    virtual ~ChunkExtraData() = default;
 
     virtual std::vector<ChunkExtraDataMeta> chunk_data_metas() const = 0;
 
@@ -63,7 +63,7 @@ public:
     virtual void append_selective(const ChunkExtraDataPtr& src, const uint32_t* indexes, uint32_t from,
                                   uint32_t size) = 0;
     virtual size_t memory_usage() const = 0;
-    virtual size_t bytes_usage() const = 0;
+    virtual size_t bytes_usage(size_t from, size_t size) const = 0;
 
     // serialize/deserialize to exchange, now only supports encode_level = 0
     // TODO: support encode_level configuration.

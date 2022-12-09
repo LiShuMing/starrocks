@@ -193,6 +193,7 @@ public:
 
     // MV Methods
     virtual bool is_epoch_finished() const { return false; }
+    virtual Status set_epoch_finishing(starrocks::RuntimeState* state) { return Status::OK(); }
     virtual Status set_epoch_finished(starrocks::RuntimeState* state) { return Status::OK(); }
 
 protected:

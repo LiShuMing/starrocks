@@ -39,6 +39,12 @@ Status LocalExchangeSinkOperator::set_finishing(RuntimeState* state) {
     return Status::OK();
 }
 
+Status LocalExchangeSinkOperator::set_epoch_finishing(RuntimeState* state) {
+    _is_epoch_finished = true;
+    _exchanger->epoch_finish(state);
+    return Status::OK();
+}
+
 Status LocalExchangeSinkOperator::push_chunk(RuntimeState* state, const vectorized::ChunkPtr& chunk) {
     return _exchanger->accept(chunk, _driver_sequence);
 }

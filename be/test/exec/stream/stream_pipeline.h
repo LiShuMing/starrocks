@@ -42,7 +42,7 @@ public:
     size_t next_operator_id() { return ++_next_operator_id; }
     size_t next_plan_node_id() { return ++_next_plan_node_id; }
     uint32_t next_pipeline_id() { return ++_next_pipeline_id; }
-    TUniqueId next_unique_id() {
+    TUniqueId& next_unique_id() {
         TUniqueId next;
         next.__set_hi(_next_unique_id++);
         next.__set_lo(_next_unique_id++);

@@ -8,6 +8,7 @@
 
 #include "exec/pipeline/pipeline_builder.h"
 #include "exec/pipeline/pipeline_driver_executor.h"
+#include "exec/pipeline/stream_pipeline_driver.h"
 #include "runtime/exec_env.h"
 #include "testutil/desc_tbl_helper.h"
 
@@ -18,8 +19,8 @@ Status StreamPipelineTest::PreparePipeline() {
     _exec_env = ExecEnv::GetInstance();
 
     const auto& params = _request.params;
+    const auto& query_id = params.query_id;
     const auto& fragment_id = params.fragment_instance_id;
-    const auto& query_id = next_unique_id();
 
     _query_ctx = _exec_env->query_context_mgr()->get_or_register(query_id);
     _query_ctx->set_total_fragments(1);
@@ -68,8 +69,8 @@ Status StreamPipelineTest::PreparePipeline() {
 
         for (size_t i = 0; i < degree_of_parallelism; ++i) {
             auto&& operators = pipeline->create_operators(degree_of_parallelism, i);
-            pipeline::DriverPtr driver =
-                    std::make_shared<pipeline::PipelineDriver>(std::move(operators), _query_ctx, _fragment_ctx, i);
+            pipeline::DriverPtr driver = std::make_shared<pipeline::StreamPipelineDriver>(std::move(operators),
+                                                                                          _query_ctx, _fragment_ctx, i);
             drivers.emplace_back(driver);
         }
     }

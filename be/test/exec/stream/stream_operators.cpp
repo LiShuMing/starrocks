@@ -34,7 +34,7 @@ CommitOffset TestStreamSourceOperator::get_latest_offset() {
     return CommitOffset{_epoch_id, _param.start};
 }
 
-bool TestStreamSourceOperator::is_epoch_finished() {
+bool TestStreamSourceOperator::is_epoch_finished() const {
     VLOG_ROW << "trigger_mode: " + std::to_string((int)_trigger_mode);
     switch (_trigger_mode) {
     case TriggerMode::kManualTrigger:

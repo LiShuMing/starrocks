@@ -41,6 +41,9 @@ Status ExchangeSourceOperator::set_finishing(RuntimeState* state) {
     static_cast<ExchangeSourceOperatorFactory*>(_factory)->close_stream_recvr();
     return Status::OK();
 }
+bool ExchangeSourceOperator::is_epoch_finished() const {
+    return _stream_recvr->is_finished();
+}
 
 StatusOr<vectorized::ChunkPtr> ExchangeSourceOperator::pull_chunk(RuntimeState* state) {
     auto chunk = std::make_unique<vectorized::Chunk>();

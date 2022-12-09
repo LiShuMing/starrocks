@@ -3,16 +3,12 @@
 #include "exec/pipeline/stream_pipeline_driver.h"
 
 #include "common/statusor.h"
-#include "exec/pipeline/fragment_context.h"
 #include "exec/pipeline/operator.h"
-#include "exec/pipeline/operator_with_dependency.h"
 #include "exec/pipeline/pipeline_driver.h"
 #include "exec/pipeline/pipeline_fwd.h"
-#include "exec/pipeline/query_context.h"
 #include "exec/pipeline/runtime_filter_types.h"
 #include "exec/pipeline/scan/morsel.h"
-#include "exec/pipeline/scan/scan_operator.h"
-#include "exec/pipeline/source_operator.h"
+#include "exec/workgroup/work_group.h"
 #include "exec/workgroup/work_group_fwd.h"
 
 namespace starrocks::pipeline {
@@ -31,6 +27,7 @@ StatusOr<DriverState> StreamPipelineDriver::process(RuntimeState* runtime_state,
             _update_statistics(total_chunks_moved, total_rows_moved, time_spent);
         }
     });
+
     while (true) {
         RETURN_IF_LIMIT_EXCEEDED(runtime_state, "Pipeline");
 
@@ -38,6 +35,7 @@ StatusOr<DriverState> StreamPipelineDriver::process(RuntimeState* runtime_state,
         bool should_yield = false;
         size_t num_operators = _operators.size();
         size_t new_first_unfinished = _first_unfinished;
+        size_t new_first_epoch_unfinished = _first_epoch_unfinished;
         for (size_t i = _first_unfinished; i < num_operators - 1; ++i) {
             {
                 SCOPED_RAW_TIMER(&time_spent);
@@ -56,13 +54,13 @@ StatusOr<DriverState> StreamPipelineDriver::process(RuntimeState* runtime_state,
                 }
 
                 // Check curr_op finished firstly
-                if (UNLIKELY(curr_op->is_epoch_finished())) {
+                if (curr_op->is_epoch_finished()) {
                     if (i == 0) {
                         // For source operators
                         RETURN_IF_ERROR(return_status = _mark_operator_epoch_finishing(curr_op, runtime_state));
                     }
                     RETURN_IF_ERROR(return_status = _mark_operator_epoch_finishing(next_op, runtime_state));
-                    new_first_unfinished = i + 1;
+                    new_first_epoch_unfinished = i + 1;
                     continue;
                 }
 
@@ -121,12 +119,12 @@ StatusOr<DriverState> StreamPipelineDriver::process(RuntimeState* runtime_state,
 
                 // Check curr_op finished again
                 if (curr_op->is_epoch_finished()) {
-                    // TODO: need add control flag
                     if (i == 0) {
                         // For source operators
                         RETURN_IF_ERROR(return_status = _mark_operator_epoch_finishing(curr_op, runtime_state));
                     }
                     RETURN_IF_ERROR(return_status = _mark_operator_epoch_finishing(next_op, runtime_state));
+                    new_first_epoch_unfinished = i + 1;
                     continue;
                 }
 
@@ -142,27 +140,40 @@ StatusOr<DriverState> StreamPipelineDriver::process(RuntimeState* runtime_state,
                     continue;
                 }
             }
-            // yield when total chunks moved or time spent on-core for evaluation
-            // exceed the designated thresholds.
-            if (time_spent >= YIELD_MAX_TIME_SPENT) {
-                should_yield = true;
-                COUNTER_UPDATE(_yield_by_time_limit_counter, 1);
-                break;
-            }
-            if (_workgroup != nullptr && time_spent >= YIELD_PREEMPT_MAX_TIME_SPENT &&
-                _workgroup->driver_sched_entity()->in_queue()->should_yield(this, time_spent)) {
-                should_yield = true;
-                COUNTER_UPDATE(_yield_by_preempt_counter, 1);
-                break;
+
+            // TODO: Refine yield policy to be adaptive to StreamMV.
+            {
+                // yield when total chunks moved or time spent on-core for evaluation
+                // exceed the designated thresholds.
+                if (time_spent >= YIELD_MAX_TIME_SPENT) {
+                    should_yield = true;
+                    COUNTER_UPDATE(_yield_by_time_limit_counter, 1);
+                    break;
+                }
+                if (_workgroup != nullptr && time_spent >= YIELD_PREEMPT_MAX_TIME_SPENT &&
+                    _workgroup->driver_sched_entity()->in_queue()->should_yield(this, time_spent)) {
+                    should_yield = true;
+                    COUNTER_UPDATE(_yield_by_preempt_counter, 1);
+                    break;
+                }
             }
         }
+        for (auto i = _first_epoch_unfinished; i < new_first_epoch_unfinished; ++i) {
+            RETURN_IF_ERROR(return_status = _mark_operator_epoch_finished(_operators[i], runtime_state));
+        }
+        // If all operators are epoch finished, set the driver yield.
+        if (!should_yield && new_first_epoch_unfinished == num_operators) {
+            // TODO: Add a new profile type.
+            COUNTER_UPDATE(_yield_by_preempt_counter, 1);
+            should_yield = true;
+        }
+
         // close finished operators and update _first_unfinished index
         for (auto i = _first_unfinished; i < new_first_unfinished; ++i) {
             RETURN_IF_ERROR(return_status = _mark_operator_finished(_operators[i], runtime_state));
         }
         _first_unfinished = new_first_unfinished;
-
-        if (sink_operator()->is_finished()) {
+        if (UNLIKELY(sink_operator()->is_finished())) {
             finish_operators(runtime_state);
             set_driver_state(is_still_pending_finish() ? DriverState::PENDING_FINISH : DriverState::FINISH);
             return _state;
@@ -190,12 +201,37 @@ StatusOr<DriverState> StreamPipelineDriver::process(RuntimeState* runtime_state,
     }
 }
 
-Status StreamPipelineDriver::_mark_operator_epoch_finishing(OperatorPtr& op, RuntimeState* runtime_state) {
-    return Status::OK();
+Status StreamPipelineDriver::_mark_operator_epoch_finishing(OperatorPtr& op, RuntimeState* state) {
+    auto& op_state = _operator_stages[op->get_id()];
+    if (op_state >= OperatorStage::EPOCH_FINISHING) {
+        return Status::OK();
+    }
+
+    VLOG_ROW << strings::Substitute("[Driver] epoch finishing operator [fragment_id=$0] [driver=$1] [operator=$2]",
+                                    print_id(state->fragment_instance_id()), to_readable_string(), op->get_name());
+    {
+        SCOPED_TIMER(op->_finishing_timer);
+        op_state = OperatorStage::EPOCH_FINISHING;
+        QUERY_TRACE_SCOPED(op->get_name(), "set_epoch_finishing");
+        return op->set_epoch_finishing(state);
+    }
 }
 
-Status StreamPipelineDriver::_mark_operator_epoch_finished(OperatorPtr& op, RuntimeState* runtime_state) {
-    return Status::OK();
+Status StreamPipelineDriver::_mark_operator_epoch_finished(OperatorPtr& op, RuntimeState* state) {
+    RETURN_IF_ERROR(_mark_operator_epoch_finishing(op, state));
+    auto& op_state = _operator_stages[op->get_id()];
+    if (op_state >= OperatorStage::EPOCH_FINISHED) {
+        return Status::OK();
+    }
+
+    VLOG_ROW << strings::Substitute("[Driver] finished operator [fragment_id=$0] [driver=$1] [operator=$2]",
+                                    print_id(state->fragment_instance_id()), to_readable_string(), op->get_name());
+    {
+        SCOPED_TIMER(op->_finished_timer);
+        op_state = OperatorStage::EPOCH_FINISHED;
+        QUERY_TRACE_SCOPED(op->get_name(), "set_epoch_finished");
+        return op->set_epoch_finished(state);
+    }
 }
 
 } // namespace starrocks::pipeline

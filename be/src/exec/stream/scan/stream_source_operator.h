@@ -61,8 +61,8 @@ public:
     };
 
     // Start/End epoch implement
-    virtual bool is_epoch_finished() = 0;
     Status set_epoch_finished(starrocks::RuntimeState* state) override { return Status::OK(); }
+    Status set_epoch_finishing(starrocks::RuntimeState* state) override { return Status::OK(); }
 
     virtual void start_epoch(const EpochInfo& epoch) = 0;
     virtual CommitOffset get_latest_offset() = 0;

@@ -46,6 +46,25 @@ public:
         }
     }
 
+    virtual void epoch_finish(RuntimeState* state) {
+        if (increment_sink_epoch_finished_number() == _sink_number) {
+            for (auto* source : _source->get_sources()) {
+                source->set_epoch_finishing(state);
+            }
+            _sink_epoch_finished_number = 0;
+        }
+    }
+
+    // All LocalExchangeSourceOperators have finished.
+    virtual bool is_all_sources_epoch_finished() const {
+        for (const auto& source_op : _source->get_sources()) {
+            if (!source_op->is_epoch_finished()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     // All LocalExchangeSourceOperators have finished.
     virtual bool is_all_sources_finished() const {
         for (const auto& source_op : _source->get_sources()) {
@@ -60,9 +79,14 @@ public:
 
     bool need_input() const;
 
-    void increment_sink_number() { _sink_number++; }
+    void increment_sink_number() {
+        _sink_finished_number++;
+        _sink_number++;
+    }
 
-    int32_t decrement_sink_number() { return _sink_number--; }
+    int32_t decrement_sink_number() { return _sink_finished_number--; }
+
+    int32_t increment_sink_epoch_finished_number() { return _sink_epoch_finished_number++; }
 
     int32_t source_dop() const { return _source->get_sources().size(); }
 
@@ -70,6 +94,8 @@ protected:
     const std::string _name;
     std::shared_ptr<LocalExchangeMemoryManager> _memory_manager;
     std::atomic<int32_t> _sink_number = 0;
+    std::atomic<int32_t> _sink_finished_number = 0;
+    std::atomic<int32_t> _sink_epoch_finished_number = 0;
     LocalExchangeSourceOperatorFactory* _source;
 };
 

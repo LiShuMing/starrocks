@@ -148,10 +148,12 @@ enum OperatorStage {
     PREPARED = 1,
     PRECONDITION_NOT_READY = 2,
     PROCESSING = 3,
-    FINISHING = 4,
-    FINISHED = 5,
-    CANCELLED = 6,
-    CLOSED = 7,
+    EPOCH_FINISHING = 4,
+    EPOCH_FINISHED = 5,
+    FINISHING = 6,
+    FINISHED = 7,
+    CANCELLED = 8,
+    CLOSED = 9,
 };
 
 class PipelineDriver {
@@ -176,7 +178,7 @@ public:
     PipelineDriver(const PipelineDriver& driver)
             : PipelineDriver(driver._operators, driver._query_ctx, driver._fragment_ctx, driver._driver_id) {}
 
-    ~PipelineDriver() noexcept;
+    virtual ~PipelineDriver() noexcept;
 
     QueryContext* query_ctx() { return _query_ctx; }
     const QueryContext* query_ctx() const { return _query_ctx; }

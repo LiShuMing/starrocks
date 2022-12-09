@@ -61,6 +61,14 @@ public:
         return Status::OK();
     }
 
+    bool is_epoch_finished() const override { return _is_epoch_finished; }
+    //    Status set_epoch_finished(RuntimeState* state) override;
+    Status set_epoch_finishing(RuntimeState* state) override {
+        std::lock_guard<std::mutex> l(_chunk_lock);
+        _is_epoch_finished = true;
+        return Status::OK();
+    }
+
     StatusOr<vectorized::ChunkPtr> pull_chunk(RuntimeState* state) override;
 
 private:
@@ -69,6 +77,7 @@ private:
     vectorized::ChunkPtr _pull_shuffle_chunk(RuntimeState* state);
 
     bool _is_finished = false;
+    bool _is_epoch_finished = false;
     std::queue<vectorized::ChunkPtr> _full_chunk_queue;
     std::queue<PartitionChunk> _partition_chunk_queue;
     int64_t _partition_rows_num = 0;

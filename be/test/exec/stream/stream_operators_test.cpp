@@ -14,6 +14,10 @@
 namespace starrocks::stream {
 
 class StreamOperatorsTest : public StreamPipelineTest, public StreamTestBase {
+public:
+    void SetUp() override { StreamTestBase::SetUp(); }
+    void TearDown() override {}
+
 protected:
     DescriptorTbl* _tbl;
     std::vector<std::vector<SlotTypeInfo>> _slot_infos;

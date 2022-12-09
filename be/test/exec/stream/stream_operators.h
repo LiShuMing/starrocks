@@ -24,7 +24,7 @@ public:
     bool has_output() const override;
 
     void start_epoch(const EpochInfo& epoch) override;
-    bool is_epoch_finished() override;
+    bool is_epoch_finished() const override;
     CommitOffset get_latest_offset() override;
 
     StatusOr<vectorized::ChunkPtr> pull_chunk(starrocks::RuntimeState* state) override;

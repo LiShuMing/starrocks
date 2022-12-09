@@ -45,12 +45,23 @@ StatusOr<DriverState> StreamPipelineDriver::process(RuntimeState* runtime_state,
                 auto& next_op = _operators[i + 1];
 
                 // Check curr_op finished firstly
-                if (curr_op->is_finished()) {
+                if (UNLIKELY(curr_op->is_finished())) {
                     if (i == 0) {
                         // For source operators
                         RETURN_IF_ERROR(return_status = _mark_operator_finishing(curr_op, runtime_state));
                     }
                     RETURN_IF_ERROR(return_status = _mark_operator_finishing(next_op, runtime_state));
+                    new_first_unfinished = i + 1;
+                    continue;
+                }
+
+                // Check curr_op finished firstly
+                if (UNLIKELY(curr_op->is_epoch_finished())) {
+                    if (i == 0) {
+                        // For source operators
+                        RETURN_IF_ERROR(return_status = _mark_operator_epoch_finishing(curr_op, runtime_state));
+                    }
+                    RETURN_IF_ERROR(return_status = _mark_operator_epoch_finishing(next_op, runtime_state));
                     new_first_unfinished = i + 1;
                     continue;
                 }
@@ -179,7 +190,12 @@ StatusOr<DriverState> StreamPipelineDriver::process(RuntimeState* runtime_state,
     }
 }
 
-Status StreamPipelineDriver::_mark_operator_epoch_finishing(OperatorPtr& op, RuntimeState* runtime_state) {}
-Status StreamPipelineDriver::_mark_operator_epoch_finished(OperatorPtr& op, RuntimeState* runtime_state) {}
+Status StreamPipelineDriver::_mark_operator_epoch_finishing(OperatorPtr& op, RuntimeState* runtime_state) {
+    return Status::OK();
+}
+
+Status StreamPipelineDriver::_mark_operator_epoch_finished(OperatorPtr& op, RuntimeState* runtime_state) {
+    return Status::OK();
+}
 
 } // namespace starrocks::pipeline

@@ -3,6 +3,7 @@
 
 #include "column/barrier_chunk.h"
 #include "exec/stream/scan/stream_source_operator.h"
+#include "exec/stream/stream_fdw.h"
 
 namespace starrocks::stream {
 struct TestStreamSourceParam {
@@ -26,10 +27,10 @@ public:
     void start_epoch(const EpochInfo& epoch) override;
     bool is_epoch_finished() const override;
     Status set_epoch_finishing(starrocks::RuntimeState* state) override {
-        _is_epoch_finished = true;
+        std::lock_guard<std::mutex> lock(_start_epoch_lock);
+        _is_epoch_finished.store(true);
         return Status::OK();
     }
-
     CommitOffset get_latest_offset() override;
 
     StatusOr<vectorized::ChunkPtr> pull_chunk(starrocks::RuntimeState* state) override;
@@ -41,13 +42,13 @@ private:
     int64_t _epoch_id{0};
     TriggerMode _trigger_mode{TriggerMode::kManualTrigger};
     int64_t _processed_chunks{0};
-    ;
+    mutable std::mutex _start_epoch_lock;
 };
 
 class TestStreamSourceOperatorFactory final : public pipeline::SourceOperatorFactory {
 public:
     TestStreamSourceOperatorFactory(int32_t id, int32_t plan_node_id, TestStreamSourceParam param)
-            : SourceOperatorFactory(id, "stream_source", plan_node_id), _param(param) {}
+            : SourceOperatorFactory(id, "stream_source_toy", plan_node_id), _param(param) {}
     ~TestStreamSourceOperatorFactory() override = default;
     pipeline::OperatorPtr create(int32_t degree_of_parallelism, int32_t driver_sequence) override {
         return std::make_shared<TestStreamSourceOperator>(this, _id, _name, _plan_node_id, driver_sequence, _param);
@@ -60,7 +61,7 @@ private:
 class TestStreamSinkOperator final : public StreamSinkOperator {
 public:
     TestStreamSinkOperator(OperatorFactory* factory, int32_t id, int32_t plan_node_id, int32_t driver_sequence)
-            : StreamSinkOperator(factory, id, "stream_sink", plan_node_id, driver_sequence) {}
+            : StreamSinkOperator(factory, id, "stream_sink_toy", plan_node_id, driver_sequence) {}
 
     ~TestStreamSinkOperator() override = default;
 
@@ -75,9 +76,15 @@ public:
         return Status::OK();
     }
 
-    bool is_epoch_finished() const override { return _is_epoch_finished; }
+    bool is_epoch_finished() const override { return _is_epoch_finished.load(); }
     Status set_epoch_finishing(RuntimeState* state) override {
-        _is_epoch_finished = true;
+        _is_epoch_finished.store(true);
+        return Status::OK();
+    }
+    // TODO: Is there a better way to reset the state?
+    Status set_epoch_finished(RuntimeState* state) override {
+        // reset the state.
+        _is_epoch_finished.store(true);
         return Status::OK();
     }
 
@@ -87,9 +94,14 @@ public:
 
     Status push_chunk(RuntimeState* state, const vectorized::ChunkPtr& chunk) override {
         DCHECK(chunk);
-        VLOG_ROW << "[StreamSinkOperator] result:" << chunk->debug_string()
-                 << ", is_epoch_finished:" << _is_epoch_finished;
+        VLOG_ROW << "[StreamSinkOperator] is_epoch_finished:" << _is_epoch_finished;
+        if (BarrierChunkConverter::is_barrier_chunk(chunk)) {
+            _epoch_info = BarrierChunkConverter::get_barrier_info(chunk);
+            _is_epoch_finished.store(true);
+            return Status::OK();
+        }
         std::cout << "<<<<<<<<< Sink Result: " << chunk->debug_string() << std::endl;
+        _is_epoch_finished.store(false);
         for (auto& col : chunk->columns()) {
             std::cout << col->debug_string() << std::endl;
         }
@@ -99,9 +111,6 @@ public:
     }
 
 private:
-    bool _is_finished = false;
-    bool _is_epoch_finished = false;
-
     // Result to be tested.
     std::vector<ChunkPtr> _output_chunks;
 };

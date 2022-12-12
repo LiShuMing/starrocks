@@ -42,6 +42,7 @@ public:
 
 private:
     StreamAggregatorPtr _aggregator = nullptr;
+    ChunkPtr _barrier_chunk;
     // Whether prev operator has no output
     bool _is_finished = false;
     bool _is_epoch_finished = false;

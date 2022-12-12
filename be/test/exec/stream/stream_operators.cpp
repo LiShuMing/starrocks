@@ -12,12 +12,14 @@
 namespace starrocks::stream {
 
 bool TestStreamSourceOperator::has_output() const {
-    return !_is_epoch_finished.load();
+    return _has_output;
 }
 
 void TestStreamSourceOperator::start_epoch(const EpochInfo& epoch) {
+    std::lock_guard<std::mutex> lock(_start_epoch_lock);
     VLOG_ROW << ">>>>>>>>>>>> start epoch: " << epoch.debug_string() << ", is_epoch_finished:" << _is_epoch_finished;
     DCHECK(_is_epoch_finished);
+    _has_output = true;
     _is_epoch_finished.store(false);
     _trigger_mode = epoch.trigger_mode;
     _curren_epoch = epoch;
@@ -32,9 +34,12 @@ bool TestStreamSourceOperator::is_epoch_finished() const {
 }
 
 void TestStreamSourceOperator::update_epoch_state() {
+    DCHECK(!_is_epoch_finished);
+
+    std::lock_guard<std::mutex> lock(_start_epoch_lock);
     switch (_trigger_mode) {
     case TriggerMode::kManualTrigger: {
-        _is_epoch_finished.store((_processed_chunks + 1) % 2 == 0);
+        _is_epoch_finished.store(true);
         break;
     }
     case TriggerMode::kProcessTimeTrigger: {
@@ -49,7 +54,12 @@ void TestStreamSourceOperator::update_epoch_state() {
 }
 
 StatusOr<vectorized::ChunkPtr> TestStreamSourceOperator::pull_chunk(starrocks::RuntimeState* state) {
-    VLOG_ROW << "[TestStreamSourceOperator] pull_chunk";
+    VLOG_ROW << "[TestStreamSourceOperator] pull_chunk, is_epoch_finished:" << _is_epoch_finished;
+    if (is_epoch_finished()) {
+        _has_output = false;
+        return BarrierChunkConverter::make_barrier_chunk(_curren_epoch);
+    }
+
     auto chunk = std::make_shared<Chunk>();
     for (auto idx = 0; idx < _param.num_column; idx++) {
         auto column = vectorized::Int64Column::create();

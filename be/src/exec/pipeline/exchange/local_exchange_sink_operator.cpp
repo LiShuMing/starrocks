@@ -14,6 +14,7 @@
 
 #include "exec/pipeline/exchange/local_exchange_sink_operator.h"
 
+#include "column/barrier_chunk.h"
 #include "column/chunk.h"
 #include "runtime/runtime_state.h"
 
@@ -41,11 +42,20 @@ Status LocalExchangeSinkOperator::set_finishing(RuntimeState* state) {
 
 Status LocalExchangeSinkOperator::set_epoch_finishing(RuntimeState* state) {
     _is_epoch_finished = true;
-    _exchanger->epoch_finish(state);
+    _exchanger->epoch_finish(state, nullptr);
     return Status::OK();
 }
 
 Status LocalExchangeSinkOperator::push_chunk(RuntimeState* state, const vectorized::ChunkPtr& chunk) {
+    if (vectorized::BarrierChunkConverter::is_barrier_chunk(chunk)) {
+        VLOG_ROW << "LocalExchangeSinkOperator is_barrier_chunk:"
+                 << vectorized::BarrierChunkConverter::get_barrier_info(chunk).debug_string();
+
+        _exchanger->epoch_finish(state, chunk);
+        return Status::OK();
+    }
+    VLOG_ROW << "LocalExchangeSinkOperator chunk:" << chunk->debug_string();
+    _is_epoch_finished = false;
     return _exchanger->accept(chunk, _driver_sequence);
 }
 

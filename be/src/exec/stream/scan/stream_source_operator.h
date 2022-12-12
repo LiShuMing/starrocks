@@ -8,7 +8,7 @@
 #include "exec/pipeline/context_with_dependency.h"
 #include "exec/pipeline/operator.h"
 #include "exec/pipeline/source_operator.h"
-#include "exec/stream/scan/trigger.h"
+#include "exec/stream/stream_fdw.h"
 
 namespace starrocks::stream {
 
@@ -16,25 +16,6 @@ using std::chrono::seconds;
 using std::chrono::milliseconds;
 using std::chrono::steady_clock;
 using std::chrono::duration_cast;
-
-struct EpochInfo {
-    // epoch marker id
-    int64_t epoch_id;
-    // last lsn offset
-    int64_t last_lsn_offset;
-    // max binlog duration which this epoch will run
-    int64_t max_binlog_ms;
-    // max binlog offset which this epoch will run
-    int64_t max_offsets;
-    TriggerMode trigger_mode;
-
-    std::string debug_string() const {
-        std::stringstream ss;
-        ss << "epoch_id=" << epoch_id << ", last_lsn_offset=" << last_lsn_offset << ", max_binlog_ms=" << max_binlog_ms
-           << ", max_offsets=" << max_offsets << ", trigger_mode=" << (int)(trigger_mode);
-        return ss.str();
-    }
-};
 
 struct CommitOffset {
     // epoch mark id
@@ -60,16 +41,13 @@ public:
         return Status::OK();
     };
 
-    // Start/End epoch implement
-    Status set_epoch_finished(starrocks::RuntimeState* state) override { return Status::OK(); }
-    Status set_epoch_finishing(starrocks::RuntimeState* state) override { return Status::OK(); }
-
     virtual void start_epoch(const EpochInfo& epoch) = 0;
     virtual CommitOffset get_latest_offset() = 0;
 
 protected:
     std::atomic_bool _is_epoch_finished{true};
     std::atomic_bool _is_finished{false};
+    bool _has_output{true};
     EpochInfo _curren_epoch;
 };
 
@@ -80,10 +58,13 @@ public:
             : Operator(factory, id, name, plan_node_id, driver_sequence) {}
 
     bool is_epoch_finished() const override { return _is_epoch_finished.load(); }
+    bool is_epoch_finished(const EpochInfo& epoch_info) const { return _epoch_info.epoch_id >= epoch_info.epoch_id; }
     void reset_epoch_finished() { _is_epoch_finished.store(false); }
 
 protected:
+    EpochInfo _epoch_info;
     std::atomic_bool _is_epoch_finished = false;
+    std::atomic_bool _is_finished = false;
 };
 
 } // namespace starrocks::stream

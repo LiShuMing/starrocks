@@ -17,6 +17,7 @@
 #include <memory>
 #include <utility>
 
+#include "column/barrier_chunk.h"
 #include "column/vectorized_fwd.h"
 #include "exec/pipeline/exchange/local_exchange_memory_manager.h"
 #include "exec/pipeline/exchange/local_exchange_source_operator.h"
@@ -46,10 +47,13 @@ public:
         }
     }
 
-    virtual void epoch_finish(RuntimeState* state) {
+    virtual void epoch_finish(RuntimeState* state, vectorized::BarrierChunkPtr barrier_chunk) {
+        // TODO: CHECK barrier chunk is same except the first
+        VLOG_ROW << "sink_epoch_finished_number:" << _sink_epoch_finished_number << " sink_number:" << _sink_number;
         if (increment_sink_epoch_finished_number() + 1 == _sink_number) {
             for (auto* source : _source->get_sources()) {
                 source->set_epoch_finishing(state);
+                source->set_barrier_chunk(barrier_chunk);
             }
             _sink_epoch_finished_number = 0;
         }
@@ -97,6 +101,7 @@ protected:
     std::atomic<int32_t> _sink_finished_number = 0;
     std::atomic<int32_t> _sink_epoch_finished_number = 0;
     LocalExchangeSourceOperatorFactory* _source;
+    vectorized::BarrierChunkPtr _barrier_chunk;
 };
 
 // Exchange the local data for shuffle

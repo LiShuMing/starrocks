@@ -61,10 +61,16 @@ public:
         return Status::OK();
     }
 
-    bool is_epoch_finished() const override { return _is_epoch_finished; }
+    bool is_epoch_finished() const override {
+        return _is_epoch_finished && _full_chunk_queue.empty() && !_partition_rows_num;
+    }
     Status set_epoch_finishing(RuntimeState* state) override {
         std::lock_guard<std::mutex> l(_chunk_lock);
         _is_epoch_finished = true;
+        return Status::OK();
+    }
+    Status set_barrier_chunk(ChunkPtr barrier_chunk) {
+        this->_barrier_chunk = barrier_chunk;
         return Status::OK();
     }
 
@@ -84,6 +90,7 @@ private:
     // TODO(KKS): make it lock free
     mutable std::mutex _chunk_lock;
     const std::shared_ptr<LocalExchangeMemoryManager>& _memory_manager;
+    ChunkPtr _barrier_chunk;
 };
 
 class LocalExchangeSourceOperatorFactory final : public SourceOperatorFactory {

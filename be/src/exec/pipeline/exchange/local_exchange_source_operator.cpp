@@ -14,6 +14,7 @@
 
 #include "exec/pipeline/exchange/local_exchange_source_operator.h"
 
+#include "column/barrier_chunk.h"
 #include "column/chunk.h"
 #include "runtime/runtime_state.h"
 
@@ -50,7 +51,6 @@ Status LocalExchangeSourceOperator::add_chunk(vectorized::ChunkPtr chunk,
 
 bool LocalExchangeSourceOperator::is_finished() const {
     std::lock_guard<std::mutex> l(_chunk_lock);
-
     return _is_finished && _full_chunk_queue.empty() && !_partition_rows_num;
 }
 
@@ -58,7 +58,7 @@ bool LocalExchangeSourceOperator::has_output() const {
     std::lock_guard<std::mutex> l(_chunk_lock);
 
     return !_full_chunk_queue.empty() || _partition_rows_num >= _factory->runtime_state()->chunk_size() ||
-           (_is_finished && _partition_rows_num > 0);
+           (_is_finished && _partition_rows_num > 0) || (_barrier_chunk != nullptr);
 }
 
 Status LocalExchangeSourceOperator::set_finished(RuntimeState* state) {
@@ -82,10 +82,19 @@ Status LocalExchangeSourceOperator::set_finished(RuntimeState* state) {
 }
 
 StatusOr<vectorized::ChunkPtr> LocalExchangeSourceOperator::pull_chunk(RuntimeState* state) {
+    VLOG_ROW << "LocalExchangeSourceOperator, is_epoch_finished:" << is_epoch_finished();
+    if (this->is_epoch_finished()) {
+        VLOG_ROW << "LocalExchangeSinkOperator is_epoch_finished:"
+                 << vectorized::BarrierChunkConverter::get_barrier_info(_barrier_chunk).debug_string();
+        // pass through barrier chunk.
+        _is_epoch_finished = false;
+        return std::move(_barrier_chunk);
+    }
     vectorized::ChunkPtr chunk = _pull_passthrough_chunk(state);
     if (chunk == nullptr) {
         chunk = _pull_shuffle_chunk(state);
     }
+    VLOG_ROW << "LocalExchangeSourceOperator chunk:" << chunk->debug_string();
     _memory_manager->update_row_count(-(static_cast<int32_t>(chunk->num_rows())));
     return std::move(chunk);
 }

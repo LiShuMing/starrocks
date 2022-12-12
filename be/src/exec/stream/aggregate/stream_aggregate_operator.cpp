@@ -9,7 +9,7 @@
 namespace starrocks::stream {
 
 bool StreamAggregateOperator::has_output() const {
-    return _has_output && !_is_epoch_finished;
+    return _has_output;
 }
 
 bool StreamAggregateOperator::is_finished() const {
@@ -45,6 +45,7 @@ Status StreamAggregateOperator::set_epoch_finishing(RuntimeState* state) {
 Status StreamAggregateOperator::set_epoch_finished(RuntimeState* state) {
     _has_output = false;
     RETURN_IF_ERROR(_aggregator->reset_state(state));
+    _is_epoch_finished = false;
     return Status::OK();
 }
 
@@ -53,16 +54,28 @@ Status StreamAggregateOperator::push_chunk(RuntimeState* state, const vectorized
         return Status::OK();
     }
 
+    if (BarrierChunkConverter::is_barrier_chunk(chunk)) {
+        VLOG_ROW << "process input barrier chunk.";
+        _has_output = true;
+        _barrier_chunk = std::move(chunk);
+        return Status::OK();
+    }
+    _has_output = false;
     VLOG_ROW << "process input chunk:" << chunk->debug_string();
     RETURN_IF_ERROR(_aggregator->process_chunk(dynamic_cast<StreamChunk*>(chunk.get())));
     return Status::OK();
 }
 
 StatusOr<vectorized::ChunkPtr> StreamAggregateOperator::pull_chunk(RuntimeState* state) {
-    RETURN_IF_CANCELLED(state);
-    VLOG_ROW << "process pull chunk";
     DCHECK(!_aggregator->is_none_group_by_exprs());
-
+    RETURN_IF_CANCELLED(state);
+    _has_output = !_aggregator->is_ht_eos();
+    VLOG_ROW << "process pull chunk, has_output:" << _has_output;
+    if (!_has_output) {
+        // need reset state
+        RETURN_IF_ERROR(_aggregator->reset_state(state));
+        return std::move(_barrier_chunk);
+    }
     const auto chunk_size = state->chunk_size();
     StreamChunkPtr chunk = std::make_shared<vectorized::StreamChunk>();
     RETURN_IF_ERROR(_aggregator->output_changes(chunk_size, &chunk));
@@ -70,7 +83,6 @@ StatusOr<vectorized::ChunkPtr> StreamAggregateOperator::pull_chunk(RuntimeState*
     // For having
     RETURN_IF_ERROR(eval_conjuncts_and_in_filters(_aggregator->conjunct_ctxs(), chunk.get()));
     DCHECK_CHUNK(chunk);
-    _is_epoch_finished = _aggregator->is_ht_eos();
     return std::move(chunk);
 }
 

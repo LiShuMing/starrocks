@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
         exit(-1);
     }
     // Load config from config file.
-    std::string conffile = std::string(getenv("STARROCKS_HOME")) + "/conf/be.conf";
+    std::string conffile = std::string(getenv("STARROCKS_HOME")) + "/conf/be_test.conf";
     if (!starrocks::config::init(conffile.c_str(), false)) {
         fprintf(stderr, "error read config file. \n");
         return -1;

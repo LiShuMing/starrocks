@@ -98,7 +98,7 @@ TEST_F(StreamOperatorsTest, Test_StreamAggregator_Dop1) {
 
             _tbl = GenerateDescTbl(_runtime_state, (*_obj_pool), _slot_infos);
             _runtime_state->set_desc_tbl(_tbl);
-            _stream_aggregator = _create_stream_aggregator(_slot_infos, _group_by_infos, _agg_infos, true, 0);
+            _stream_aggregator = _create_stream_aggregator(_slot_infos, _group_by_infos, _agg_infos, false, 0);
             OpFactories op_factories{
                     std::make_shared<TestStreamSourceOperatorFactory>(
                             next_operator_id(), next_plan_node_id(),

@@ -135,7 +135,7 @@ void StreamPipelineTest::CancelMV() {
     _fragment_ctx->cancel(Status::OK());
 }
 
-Status StreamPipelineTest::StartEpoch(EpochInfo epoch_info) {
+Status StreamPipelineTest::StartEpoch(const EpochInfo& epoch_info) {
     VLOG_ROW << "StartEpoch: " << epoch_info.debug_string();
     auto drivers = _fragment_ctx->drivers();
     for (auto& driver : drivers) {
@@ -147,7 +147,7 @@ Status StreamPipelineTest::StartEpoch(EpochInfo epoch_info) {
     return Status::OK();
 }
 
-Status StreamPipelineTest::WaitUntilEpochEnd(EpochInfo epoch_info) {
+Status StreamPipelineTest::WaitUntilEpochEnd(const EpochInfo& epoch_info) {
     VLOG_ROW << "WaitUntilEpochEnd: " << epoch_info.debug_string();
     auto drivers = _fragment_ctx->drivers();
     for (auto& driver : drivers) {

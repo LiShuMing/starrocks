@@ -9,6 +9,7 @@
 #include "exec/pipeline/exchange/local_exchange.h"
 #include "exec/pipeline/exchange/local_exchange_sink_operator.h"
 #include "exec/pipeline/exchange/local_exchange_source_operator.h"
+#include "exec/pipeline/fragment_context.h"
 #include "exec/stream/scan/stream_source_operator.h"
 #include "gen_cpp/InternalService_types.h"
 #include "gtest/gtest.h"
@@ -35,8 +36,11 @@ public:
     void StopMV();
     void CancelMV();
 
-    Status StartEpoch(EpochInfo epoch_info);
-    Status WaitUntilEpochEnd(EpochInfo epoch_info);
+    Status StartEpoch(const EpochInfo& epoch_info);
+    Status WaitUntilEpochEnd(const EpochInfo& epoch_info);
+
+    template <typename T>
+    std::vector<ChunkPtr> FetchResults(const EpochInfo& epoch_info);
 
     size_t next_operator_id() { return ++_next_operator_id; }
     size_t next_plan_node_id() { return ++_next_plan_node_id; }
@@ -68,5 +72,24 @@ protected:
     int64_t _next_unique_id = 0;
     std::vector<TUniqueId> _unique_ids;
 };
+
+template <typename T>
+std::vector<ChunkPtr> StreamPipelineTest::FetchResults(const EpochInfo& epoch_info) {
+    VLOG_ROW << "FetchResults: " << epoch_info.debug_string();
+    std::vector<ChunkPtr> result_chunks;
+    auto drivers = _fragment_ctx->drivers();
+    for (auto& driver : drivers) {
+        auto* sink_op = driver->last_operator();
+        if (auto* stream_sink_op = dynamic_cast<T*>(sink_op); stream_sink_op != nullptr) {
+            result_chunks = stream_sink_op->output_chunks();
+            for (auto& chunk : result_chunks) {
+                VLOG_ROW << "FetchResults, result: " << chunk->debug_columns();
+            }
+            stream_sink_op->reset_output_chunks();
+            break;
+        }
+    }
+    return result_chunks;
+}
 
 } // namespace starrocks::stream

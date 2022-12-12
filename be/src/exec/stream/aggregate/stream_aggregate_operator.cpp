@@ -9,7 +9,7 @@
 namespace starrocks::stream {
 
 bool StreamAggregateOperator::has_output() const {
-    return _has_output;
+    return _has_output || (_barrier_chunk != nullptr);
 }
 
 bool StreamAggregateOperator::is_finished() const {
@@ -53,7 +53,6 @@ Status StreamAggregateOperator::push_chunk(RuntimeState* state, const vectorized
 StatusOr<vectorized::ChunkPtr> StreamAggregateOperator::pull_chunk(RuntimeState* state) {
     DCHECK(!_aggregator->is_none_group_by_exprs());
     RETURN_IF_CANCELLED(state);
-    _has_output = !_aggregator->is_ht_eos();
     VLOG_ROW << "process pull chunk, has_output:" << _has_output;
     if (!_has_output) {
         // need reset state
@@ -67,6 +66,7 @@ StatusOr<vectorized::ChunkPtr> StreamAggregateOperator::pull_chunk(RuntimeState*
         // For having
         RETURN_IF_ERROR(eval_conjuncts_and_in_filters(_aggregator->conjunct_ctxs(), chunk.get()));
         DCHECK_CHUNK(chunk);
+        _has_output = !_aggregator->is_ht_eos();
         return std::move(chunk);
     }
 }

@@ -18,6 +18,20 @@ public:
     void SetUp() override { StreamTestBase::SetUp(); }
     void TearDown() override {}
 
+    void CheckResult(std::vector<ChunkPtr> epoch_results,
+                     std::vector<std::vector<std::vector<int64_t>>> expect_results) {
+        DCHECK(!epoch_results.empty());
+        for (size_t i = 0; i < epoch_results.size(); i++) {
+            auto result = epoch_results[i];
+            auto columns = result->columns();
+            auto expect = expect_results[i];
+            DCHECK_EQ(columns.size(), expect.size());
+            for (size_t j = 0; j < expect.size(); j++) {
+                CheckColumn<int64_t>(columns[j], expect[j]);
+            }
+        }
+    }
+
 protected:
     DescriptorTbl* _tbl;
     std::vector<std::vector<SlotTypeInfo>> _slot_infos;
@@ -43,6 +57,7 @@ TEST_F(StreamOperatorsTest, Dop_1) {
     EpochInfo epoch_info{.epoch_id = 0, .trigger_mode = TriggerMode::kManualTrigger};
     DCHECK_IF_ERROR(StartEpoch(epoch_info));
     DCHECK_IF_ERROR(WaitUntilEpochEnd(epoch_info));
+    CheckResult(FetchResults<TestStreamSinkOperator>(epoch_info), {{{1, 2, 3, 4}, {5, 6, 7, 8}}});
 
     StopMV();
 }
@@ -53,7 +68,7 @@ TEST_F(StreamOperatorsTest, MultiDop) {
             OpFactories op_factories;
             auto source_factory = std::make_shared<TestStreamSourceOperatorFactory>(
                     next_operator_id(), next_plan_node_id(),
-                    TestStreamSourceParam{.num_column = 2, .start = 0, .step = 1, .chunk_size = 4, .ndv_count = 4});
+                    TestStreamSourceParam{.num_column = 2, .start = 0, .step = 1, .chunk_size = 4, .ndv_count = 8});
             source_factory->set_degree_of_parallelism(4);
             op_factories.emplace_back(std::move(source_factory));
             // add exchange node to gather multi source operator to one sink operator
@@ -68,6 +83,10 @@ TEST_F(StreamOperatorsTest, MultiDop) {
     EpochInfo epoch_info{.epoch_id = 0, .trigger_mode = TriggerMode::kManualTrigger};
     DCHECK_IF_ERROR(StartEpoch(epoch_info));
     DCHECK_IF_ERROR(WaitUntilEpochEnd(epoch_info));
+    CheckResult(FetchResults<TestStreamSinkOperator>(epoch_info), {{{1, 2, 3, 4}, {5, 6, 7, 0}}, // chunk 0
+                                                                   {{1, 2, 3, 4}, {5, 6, 7, 0}}, // chunk 1
+                                                                   {{1, 2, 3, 4}, {5, 6, 7, 0}},
+                                                                   {{1, 2, 3, 4}, {5, 6, 7, 0}}});
 
     StopMV();
 }
@@ -113,11 +132,13 @@ TEST_F(StreamOperatorsTest, Test_StreamAggregator_Dop1) {
         return Status::OK();
     }));
 
-    for (auto i = 0; i < 10; i++) {
+    for (auto i = 0; i < 3; i++) {
         EpochInfo epoch_info{.epoch_id = i, .trigger_mode = TriggerMode::kManualTrigger};
         DCHECK_IF_ERROR(StartEpoch(epoch_info));
         DCHECK_IF_ERROR(WaitUntilEpochEnd(epoch_info));
+        CheckResult(FetchResults<TestStreamSinkOperator>(epoch_info), {{{1, 2, 3, 0}, {i + 1, i + 1, i + 1, i + 1}}});
     }
+
     StopMV();
 }
 
@@ -169,6 +190,8 @@ TEST_F(StreamOperatorsTest, Test_StreamAggregator_MultiDop) {
         EpochInfo epoch_info{.epoch_id = i, .trigger_mode = TriggerMode::kManualTrigger};
         DCHECK_IF_ERROR(StartEpoch(epoch_info));
         DCHECK_IF_ERROR(WaitUntilEpochEnd(epoch_info));
+        CheckResult(FetchResults<TestStreamSinkOperator>(epoch_info),
+                    {{{1, 2, 3, 4}, {(i + 1) * 4, (i + 1) * 4, (i + 1) * 4, (i + 1) * 4}}});
     }
     StopMV();
 }

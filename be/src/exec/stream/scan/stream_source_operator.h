@@ -61,7 +61,6 @@ public:
 
 protected:
     EpochInfo _epoch_info;
-    std::atomic_bool _is_epoch_finished = false;
     std::atomic_bool _is_finished = false;
 };
 

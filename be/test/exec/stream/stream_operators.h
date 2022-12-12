@@ -58,8 +58,9 @@ public:
     ~TestStreamSinkOperator() override = default;
 
     bool need_input() const override { return true; }
-    bool has_output() const override { return !_is_finished && !_is_epoch_finished; }
+    bool has_output() const override { return !_is_finished; }
     const std::vector<ChunkPtr> output_chunks() const { return _output_chunks; }
+    void reset_output_chunks() { _output_chunks.clear(); }
 
     bool is_finished() const override { return _is_finished; }
     Status set_finishing(RuntimeState* state) override {
@@ -73,13 +74,11 @@ public:
 
     Status push_chunk(RuntimeState* state, const vectorized::ChunkPtr& chunk) override {
         DCHECK(chunk);
-        VLOG_ROW << "[StreamSinkOperator] is_epoch_finished:" << _is_epoch_finished;
         if (BarrierChunkConverter::is_barrier_chunk(chunk)) {
+            VLOG_ROW << "[StreamSinkOperator] is barrier chunk";
             _epoch_info = BarrierChunkConverter::get_barrier_info(chunk);
-            _is_epoch_finished.store(true);
         } else {
             std::cout << "<<<<<<<<< Sink Result: " << chunk->debug_string() << std::endl;
-            _is_epoch_finished.store(false);
             for (auto& col : chunk->columns()) {
                 std::cout << col->debug_string() << std::endl;
             }

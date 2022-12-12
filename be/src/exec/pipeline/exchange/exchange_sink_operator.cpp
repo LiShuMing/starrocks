@@ -22,6 +22,7 @@
 #include <random>
 #include <utility>
 
+#include "column/barrier_chunk.h"
 #include "common/config.h"
 #include "exec/pipeline/exchange/shuffler.h"
 #include "exec/pipeline/exchange/sink_buffer.h"
@@ -466,10 +467,12 @@ StatusOr<vectorized::ChunkPtr> ExchangeSinkOperator::pull_chunk(RuntimeState* st
 }
 
 Status ExchangeSinkOperator::push_chunk(RuntimeState* state, const vectorized::ChunkPtr& chunk) {
-    uint16_t num_rows = chunk->num_rows();
-    if (num_rows == 0) {
+    if (vectorized::BarrierChunkConverter::is_barrier_chunk(chunk)) {
+        // TODO: send BarrierChunk cross exchange.
         return Status::OK();
     }
+    uint16_t num_rows = chunk->num_rows();
+    DCHECK_LT(0, num_rows);
     DCHECK_LE(num_rows, state->chunk_size());
 
     vectorized::Chunk temp_chunk;

@@ -42,10 +42,6 @@ Status ExchangeSourceOperator::set_finishing(RuntimeState* state) {
     return Status::OK();
 }
 
-bool ExchangeSourceOperator::is_epoch_finished() const {
-    return _stream_recvr->is_finished();
-}
-
 StatusOr<vectorized::ChunkPtr> ExchangeSourceOperator::pull_chunk(RuntimeState* state) {
     auto chunk = std::make_unique<vectorized::Chunk>();
     RETURN_IF_ERROR(_stream_recvr->get_chunk_for_pipeline(&chunk, _driver_sequence));

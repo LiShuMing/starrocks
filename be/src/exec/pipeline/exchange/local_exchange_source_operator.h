@@ -61,9 +61,7 @@ public:
         return Status::OK();
     }
 
-    bool is_epoch_finished() const override {
-        return _is_epoch_finished && _full_chunk_queue.empty() && !_partition_rows_num;
-    }
+    bool is_epoch_finished() const { return _is_epoch_finished && _full_chunk_queue.empty() && !_partition_rows_num; }
     Status set_epoch_finishing(RuntimeState* state, ChunkPtr barrier_chunk) {
         std::lock_guard<std::mutex> l(_chunk_lock);
         _is_epoch_finished = true;

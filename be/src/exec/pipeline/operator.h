@@ -191,9 +191,6 @@ public:
 
     void set_prepare_time(int64_t cost_ns);
 
-    // MV Methods
-    virtual bool is_epoch_finished() const { return false; }
-
 protected:
     OperatorFactory* _factory;
     const int32_t _id;

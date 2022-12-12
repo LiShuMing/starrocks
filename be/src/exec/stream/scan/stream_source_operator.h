@@ -57,7 +57,6 @@ public:
                        int32_t driver_sequence)
             : Operator(factory, id, name, plan_node_id, driver_sequence) {}
 
-    bool is_epoch_finished() const override { return _is_epoch_finished.load(); }
     bool is_epoch_finished(const EpochInfo& epoch_info) const { return _epoch_info.epoch_id >= epoch_info.epoch_id; }
 
 protected:

@@ -71,8 +71,6 @@ public:
 
     Status set_cancelled(RuntimeState* state) override;
 
-    bool is_epoch_finished() const override { return _is_epoch_finished; }
-
     StatusOr<vectorized::ChunkPtr> pull_chunk(RuntimeState* state) override;
 
     Status push_chunk(RuntimeState* state, const vectorized::ChunkPtr& chunk) override;
@@ -180,7 +178,6 @@ private:
 
     std::atomic<bool> _is_finished = false;
     std::atomic<bool> _is_cancelled = false;
-    std::atomic<bool> _is_epoch_finished = false;
 
     // The following fields are for shuffle exchange:
     const std::vector<ExprContext*>& _partition_expr_ctxs; // compute per-row partition values

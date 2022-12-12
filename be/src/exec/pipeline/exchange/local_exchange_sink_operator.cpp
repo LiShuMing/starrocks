@@ -40,23 +40,15 @@ Status LocalExchangeSinkOperator::set_finishing(RuntimeState* state) {
     return Status::OK();
 }
 
-Status LocalExchangeSinkOperator::set_epoch_finishing(RuntimeState* state) {
-    _is_epoch_finished = true;
-    _exchanger->epoch_finish(state, nullptr);
-    return Status::OK();
-}
-
 Status LocalExchangeSinkOperator::push_chunk(RuntimeState* state, const vectorized::ChunkPtr& chunk) {
     if (vectorized::BarrierChunkConverter::is_barrier_chunk(chunk)) {
         VLOG_ROW << "LocalExchangeSinkOperator is_barrier_chunk:"
                  << vectorized::BarrierChunkConverter::get_barrier_info(chunk).debug_string();
-
         _exchanger->epoch_finish(state, chunk);
         return Status::OK();
+    } else {
+        return _exchanger->accept(chunk, _driver_sequence);
     }
-    VLOG_ROW << "LocalExchangeSinkOperator chunk:" << chunk->debug_string();
-    _is_epoch_finished = false;
-    return _exchanger->accept(chunk, _driver_sequence);
 }
 
 } // namespace starrocks::pipeline

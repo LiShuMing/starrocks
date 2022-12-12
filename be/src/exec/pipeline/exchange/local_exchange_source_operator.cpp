@@ -86,17 +86,17 @@ StatusOr<vectorized::ChunkPtr> LocalExchangeSourceOperator::pull_chunk(RuntimeSt
     if (this->is_epoch_finished()) {
         VLOG_ROW << "LocalExchangeSinkOperator is_epoch_finished:"
                  << vectorized::BarrierChunkConverter::get_barrier_info(_barrier_chunk).debug_string();
-        // pass through barrier chunk.
+        // reset state and pass through barrier chunk.
         _is_epoch_finished = false;
         return std::move(_barrier_chunk);
+    } else {
+        vectorized::ChunkPtr chunk = _pull_passthrough_chunk(state);
+        if (chunk == nullptr) {
+            chunk = _pull_shuffle_chunk(state);
+        }
+        _memory_manager->update_row_count(-(static_cast<int32_t>(chunk->num_rows())));
+        return std::move(chunk);
     }
-    vectorized::ChunkPtr chunk = _pull_passthrough_chunk(state);
-    if (chunk == nullptr) {
-        chunk = _pull_shuffle_chunk(state);
-    }
-    VLOG_ROW << "LocalExchangeSourceOperator chunk:" << chunk->debug_string();
-    _memory_manager->update_row_count(-(static_cast<int32_t>(chunk->num_rows())));
-    return std::move(chunk);
 }
 
 vectorized::ChunkPtr LocalExchangeSourceOperator::_pull_passthrough_chunk(RuntimeState* state) {

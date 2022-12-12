@@ -38,7 +38,6 @@ public:
     Status set_finishing(RuntimeState* state) override;
 
     bool is_epoch_finished() const override;
-    Status set_epoch_finishing(RuntimeState* state) override { return Status::OK(); }
 
     StatusOr<vectorized::ChunkPtr> pull_chunk(RuntimeState* state) override;
 

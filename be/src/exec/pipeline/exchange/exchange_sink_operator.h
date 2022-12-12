@@ -72,7 +72,6 @@ public:
     Status set_cancelled(RuntimeState* state) override;
 
     bool is_epoch_finished() const override { return _is_epoch_finished; }
-    Status set_epoch_finishing(RuntimeState* state) override;
 
     StatusOr<vectorized::ChunkPtr> pull_chunk(RuntimeState* state) override;
 

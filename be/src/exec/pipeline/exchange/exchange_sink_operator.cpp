@@ -636,11 +636,6 @@ Status ExchangeSinkOperator::set_finishing(RuntimeState* state) {
     return status;
 }
 
-Status ExchangeSinkOperator::set_epoch_finishing(RuntimeState* state) {
-    _is_epoch_finished = true;
-    return Status::OK();
-}
-
 void ExchangeSinkOperator::close(RuntimeState* state) {
     _buffer->update_profile(_unique_metrics.get());
     Operator::close(state);

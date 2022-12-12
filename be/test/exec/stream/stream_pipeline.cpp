@@ -155,12 +155,8 @@ Status StreamPipelineTest::WaitUntilEpochEnd(EpochInfo epoch_info) {
         if (auto* stream_sink_op = dynamic_cast<StreamSinkOperator*>(sink_op); stream_sink_op != nullptr) {
             bool is_epoch_finished = stream_sink_op->is_epoch_finished(epoch_info);
             while (!is_epoch_finished) {
-                sleep(1);
-                is_epoch_finished = stream_sink_op->is_epoch_finished();
-                VLOG_ROW << "WaitUntilEpochEnd, is_epoch_finished:" << is_epoch_finished;
+                is_epoch_finished = stream_sink_op->is_epoch_finished(epoch_info);
             }
-            // reset its state
-            stream_sink_op->reset_epoch_finished();
         }
     }
     return Status::OK();

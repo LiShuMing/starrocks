@@ -48,7 +48,7 @@ protected:
     std::atomic_bool _is_epoch_finished{true};
     std::atomic_bool _is_finished{false};
     bool _has_output{true};
-    EpochInfo _curren_epoch;
+    EpochInfo _epoch_info;
 };
 
 class StreamSinkOperator : public pipeline::Operator {
@@ -59,7 +59,6 @@ public:
 
     bool is_epoch_finished() const override { return _is_epoch_finished.load(); }
     bool is_epoch_finished(const EpochInfo& epoch_info) const { return _epoch_info.epoch_id >= epoch_info.epoch_id; }
-    void reset_epoch_finished() { _is_epoch_finished.store(false); }
 
 protected:
     EpochInfo _epoch_info;

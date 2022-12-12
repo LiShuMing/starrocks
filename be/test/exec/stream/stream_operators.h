@@ -25,12 +25,6 @@ public:
     bool has_output() const override;
 
     void start_epoch(const EpochInfo& epoch) override;
-    bool is_epoch_finished() const override;
-    Status set_epoch_finishing(starrocks::RuntimeState* state) override {
-        std::lock_guard<std::mutex> lock(_start_epoch_lock);
-        _is_epoch_finished.store(true);
-        return Status::OK();
-    }
     CommitOffset get_latest_offset() override;
 
     StatusOr<vectorized::ChunkPtr> pull_chunk(starrocks::RuntimeState* state) override;
@@ -39,8 +33,6 @@ private:
     void update_epoch_state();
 
     TestStreamSourceParam _param;
-    int64_t _epoch_id{0};
-    TriggerMode _trigger_mode{TriggerMode::kManualTrigger};
     int64_t _processed_chunks{0};
     mutable std::mutex _start_epoch_lock;
 };
@@ -65,26 +57,13 @@ public:
 
     ~TestStreamSinkOperator() override = default;
 
-    bool has_output() const override { return !_is_finished && !_is_epoch_finished; }
-
     bool need_input() const override { return true; }
+    bool has_output() const override { return !_is_finished && !_is_epoch_finished; }
+    const std::vector<ChunkPtr> output_chunks() const { return _output_chunks; }
 
     bool is_finished() const override { return _is_finished; }
-
     Status set_finishing(RuntimeState* state) override {
         _is_finished = true;
-        return Status::OK();
-    }
-
-    bool is_epoch_finished() const override { return _is_epoch_finished.load(); }
-    Status set_epoch_finishing(RuntimeState* state) override {
-        _is_epoch_finished.store(true);
-        return Status::OK();
-    }
-    // TODO: Is there a better way to reset the state?
-    Status set_epoch_finished(RuntimeState* state) override {
-        // reset the state.
-        _is_epoch_finished.store(true);
         return Status::OK();
     }
 
@@ -98,15 +77,14 @@ public:
         if (BarrierChunkConverter::is_barrier_chunk(chunk)) {
             _epoch_info = BarrierChunkConverter::get_barrier_info(chunk);
             _is_epoch_finished.store(true);
-            return Status::OK();
+        } else {
+            std::cout << "<<<<<<<<< Sink Result: " << chunk->debug_string() << std::endl;
+            _is_epoch_finished.store(false);
+            for (auto& col : chunk->columns()) {
+                std::cout << col->debug_string() << std::endl;
+            }
+            this->_output_chunks.push_back(chunk);
         }
-        std::cout << "<<<<<<<<< Sink Result: " << chunk->debug_string() << std::endl;
-        _is_epoch_finished.store(false);
-        for (auto& col : chunk->columns()) {
-            std::cout << col->debug_string() << std::endl;
-        }
-
-        this->_output_chunks.push_back(chunk);
         return Status::OK();
     }
 

@@ -64,12 +64,9 @@ public:
     bool is_epoch_finished() const override {
         return _is_epoch_finished && _full_chunk_queue.empty() && !_partition_rows_num;
     }
-    Status set_epoch_finishing(RuntimeState* state) override {
+    Status set_epoch_finishing(RuntimeState* state, ChunkPtr barrier_chunk) {
         std::lock_guard<std::mutex> l(_chunk_lock);
         _is_epoch_finished = true;
-        return Status::OK();
-    }
-    Status set_barrier_chunk(ChunkPtr barrier_chunk) {
         this->_barrier_chunk = barrier_chunk;
         return Status::OK();
     }
@@ -82,7 +79,6 @@ private:
     vectorized::ChunkPtr _pull_shuffle_chunk(RuntimeState* state);
 
     bool _is_finished = false;
-    bool _is_epoch_finished = false;
     std::queue<vectorized::ChunkPtr> _full_chunk_queue;
     std::queue<PartitionChunk> _partition_chunk_queue;
     int64_t _partition_rows_num = 0;
@@ -90,6 +86,9 @@ private:
     // TODO(KKS): make it lock free
     mutable std::mutex _chunk_lock;
     const std::shared_ptr<LocalExchangeMemoryManager>& _memory_manager;
+
+    // Stream MV
+    bool _is_epoch_finished = false;
     ChunkPtr _barrier_chunk;
 };
 

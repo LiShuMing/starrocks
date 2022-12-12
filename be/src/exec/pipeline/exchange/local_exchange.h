@@ -52,9 +52,9 @@ public:
         VLOG_ROW << "sink_epoch_finished_number:" << _sink_epoch_finished_number << " sink_number:" << _sink_number;
         if (increment_sink_epoch_finished_number() + 1 == _sink_number) {
             for (auto* source : _source->get_sources()) {
-                source->set_epoch_finishing(state);
-                source->set_barrier_chunk(barrier_chunk);
+                source->set_epoch_finishing(state, barrier_chunk);
             }
+            // reset the number to be reused in the next epoch.
             _sink_epoch_finished_number = 0;
         }
     }
@@ -99,8 +99,10 @@ protected:
     std::shared_ptr<LocalExchangeMemoryManager> _memory_manager;
     std::atomic<int32_t> _sink_number = 0;
     std::atomic<int32_t> _sink_finished_number = 0;
-    std::atomic<int32_t> _sink_epoch_finished_number = 0;
     LocalExchangeSourceOperatorFactory* _source;
+
+    // Stream MV
+    std::atomic<int32_t> _sink_epoch_finished_number = 0;
     vectorized::BarrierChunkPtr _barrier_chunk;
 };
 

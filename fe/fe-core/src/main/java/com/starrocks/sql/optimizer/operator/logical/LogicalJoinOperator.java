@@ -4,6 +4,8 @@ package com.starrocks.sql.optimizer.operator.logical;
 
 import com.google.common.base.Preconditions;
 import com.starrocks.analysis.JoinOperator;
+import com.starrocks.sql.common.ErrorType;
+import com.starrocks.sql.common.StarRocksPlannerException;
 import com.starrocks.sql.optimizer.ExpressionContext;
 import com.starrocks.sql.optimizer.OptExpression;
 import com.starrocks.sql.optimizer.OptExpressionVisitor;
@@ -126,6 +128,9 @@ public class LogicalJoinOperator extends LogicalOperator {
         }
         if (required != null) {
             candidate.intersect(required);
+        }
+        if (!candidate.containsAll(required)) {
+            throw new StarRocksPlannerException("Candidate cannot satisfy the required columns", ErrorType.INTERNAL_ERROR);
         }
         return Utils.findSmallestColumnRef(
                 candidate.getStream().mapToObj(columnRefFactory::getColumnRef).collect(Collectors.toList()));

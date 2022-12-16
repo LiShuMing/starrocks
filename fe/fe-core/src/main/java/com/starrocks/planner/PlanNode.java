@@ -458,7 +458,8 @@ abstract public class PlanNode extends TreeNode<PlanNode> {
                 new TreeMap<>(Comparator.comparingInt(ColumnRefOperator::getId));
         sortMap.putAll(columnStatistics);
         sortMap.forEach((key, value) -> {
-            outputBuilder.append(prefix).append("* ").append(key.getName());
+            outputBuilder.append(prefix).append("* ").append(key.getName())
+                .append("(").append(key.getId()).append(")");
             outputBuilder.append("-->").append(value).append("\n");
         });
         return outputBuilder.toString();

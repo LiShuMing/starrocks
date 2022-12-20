@@ -250,8 +250,9 @@ public class OptimizerTraceUtil {
         @Override
         public String visitLogicalAggregation(LogicalAggregationOperator node, Void context) {
             return "LogicalAggregation" + " {type=" + node.getType() +
-                    " ,aggregations=" + node.getAggregations() +
-                    " ,groupKeys=" + node.getGroupingKeys() + "}";
+                " ,aggregations=" + node.getAggregations() +
+                " ,groupKeys=" + node.getGroupingKeys() +
+                " ,projection=" + node.getProjection()  + "}";
         }
 
         @Override
@@ -365,6 +366,7 @@ public class OptimizerTraceUtil {
                     ", groupBy=" + node.getGroupBys() +
                     ", partitionBy=" + node.getPartitionByColumns() +
                     " ,aggregations=" + node.getAggregations() +
+                    " ,projection=" + node.getProjection() +
                     "}";
         }
 

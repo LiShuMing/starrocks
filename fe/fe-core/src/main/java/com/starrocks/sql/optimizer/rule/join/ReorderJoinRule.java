@@ -144,6 +144,9 @@ public class ReorderJoinRule extends Rule {
                 if (!multiJoinNode.checkDependsPredicate()) {
                     continue;
                 }
+                if (multiJoinNode.checkMultiProjectionInJoin()) {
+                    continue;
+                }
                 enumerate(new JoinReorderLeftDeep(context), context, innerJoinRoot, multiJoinNode);
                 // If there is no statistical information, the DP and greedy reorder algorithm are disabled,
                 // and the query plan degenerates to the left deep tree

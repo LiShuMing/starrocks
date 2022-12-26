@@ -381,8 +381,12 @@ public class UtFrameUtils {
         }
     }
 
-    public static Pair<String, ExecPlan> getPlanAndFragment(ConnectContext connectContext, String originStmt)
-            throws Exception {
+    public static Pair<String, ExecPlan> getPlanAndFragment(ConnectContext connectContext, String originStmt) throws Exception {
+        return getPlanAndFragment(connectContext, originStmt, true);
+    }
+
+    public static Pair<String, ExecPlan> getPlanAndFragment(ConnectContext connectContext, String originStmt,
+                                                            boolean supportCreateView) throws Exception {
         connectContext.setDumpInfo(new QueryDumpInfo(connectContext.getSessionVariable()));
 
         List<StatementBase> statements =
@@ -409,7 +413,7 @@ public class UtFrameUtils {
 
             ExecPlan execPlan = new StatementPlanner().plan(statementBase, connectContext);
 
-            if (statementBase instanceof QueryStatement && !connectContext.getDatabase().isEmpty() &&
+            if (supportCreateView && statementBase instanceof QueryStatement && !connectContext.getDatabase().isEmpty() &&
                     !statementBase.isExplain()) {
                 String viewName = "view" + INDEX.getAndIncrement();
                 String createView = "create view " + viewName + " as " + originStmt;

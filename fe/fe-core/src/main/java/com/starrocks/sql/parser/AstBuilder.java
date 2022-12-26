@@ -3562,6 +3562,10 @@ public class AstBuilder extends StarRocksBaseVisitor<ParseNode> {
                 if (identifier.getValue().equals("_META_")) {
                     tableRelation.setMetaQuery(true);
                 }
+
+                if (identifier.getValue().equals("_BINLOG_")) {
+                    tableRelation.setBinlogHint(true);
+                }
             }
         }
 

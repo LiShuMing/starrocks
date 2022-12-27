@@ -220,7 +220,11 @@ set(EXEC_FILES
     query_cache/ticket_checker.cpp
     stream/state/mem_state_table.cpp
     stream/aggregate/agg_state_data.cpp
-    stream/aggregate/stream_aggregator.cpp)
+    stream/aggregate/stream_aggregator.cpp
+    stream/stream_aggregate_node.cpp
+    stream/stream_join_node.cpp
+    )
+>>>>>>> b4017a46e (Add task executor)
 
 # simdjson Runtime Implement Dispatch: https://github.com/simdjson/simdjson/blob/master/doc/implementation-selection.md#runtime-cpu-detection
 # Unset architecture-specific flags to avoid breaking implement runtime dispatch.

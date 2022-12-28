@@ -90,6 +90,19 @@ public class MVManager {
         return checksum;
     }
 
+    public void replay(MVMaintenanceJob job) throws IOException {
+        Preconditions.checkState(jobMap.isEmpty());
+
+        try {
+            long viewId = job.getViewId();
+            MaterializedView view;
+            jobMap.put(job.getView().getMvId(), job);
+            LOG.info("reload MV maintenance jobs: {}", job);
+        } catch (Exception ignored) {
+            LOG.warn("Replay MV maintenannce job failed: {}", job);
+        }
+    }
+
     /**
      * Store jobs in meta store
      */

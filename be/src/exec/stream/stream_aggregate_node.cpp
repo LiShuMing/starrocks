@@ -14,6 +14,8 @@
 
 #include "exec/stream/stream_aggregate_node.h"
 
+#include "exec/pipeline/pipeline_builder.h"
+
 namespace starrocks {
 
 Status StreamAggregateNode::init(const TPlanNode& tnode, RuntimeState* state) {
@@ -44,29 +46,21 @@ Status StreamAggregateNode::init(const TPlanNode& tnode, RuntimeState* state) {
 
 std::vector<std::shared_ptr<pipeline::OperatorFactory> > StreamAggregateNode::decompose_to_pipeline(
         pipeline::PipelineBuilderContext* context) {
-    // OpFactories operators_with_sink = _children[0]->decompose_to_pipeline(context);
-    // // We cannot get degree of parallelism from PipelineBuilderContext, of which is only a suggest value
-    // // and we may set other parallelism for source operator in many special cases
-    // size_t degree_of_parallelism =
-    //         down_cast<pipeline::SourceOperatorFactory*>(operators_with_sink[0].get())->degree_of_parallelism();
+    OpFactories operators_with_sink = _children[0]->decompose_to_pipeline(context);
+    // We cannot get degree of parallelism from PipelineBuilderContext, of which is only a suggest value
+    // and we may set other parallelism for source operator in many special cases
+    size_t degree_of_parallelism =
+            down_cast<pipeline::SourceOperatorFactory*>(operators_with_sink[0].get())->degree_of_parallelism();
 
-    // // shared by sink operator factory and source operator factory
-    // AggregatorFactoryPtr aggregator_factory = std::make_shared<AggregatorFactory>(_tnode);
-
-    // // Create a shared RefCountedRuntimeFilterCollector
-    // auto sink_operator = std::make_shared<pipeline::StreamingAggregateSinkOperatorFactory>(
-    //         context->next_operator_id(), id(), aggregator_factory, _imt_detail, _imt_agg_result);
-    // // Initialize OperatorFactory's fields involving runtime filters.
-    // operators_with_sink.emplace_back(sink_operator);
-    // context->add_pipeline(operators_with_sink);
-
+    // shared by sink operator and source operator
     OpFactories operators_with_source;
-    // auto source_operator = std::make_shared<pipeline::StreamingAggregateSourceOperatorFactory>(
-    //         context->next_operator_id(), id(), aggregator_factory, _imt_detail, _imt_agg_result);
-    // // Aggregator must be used by a pair of sink and source operators,
-    // // so operators_with_source's degree of parallelism must be equal with operators_with_sink's
-    // source_operator->set_degree_of_parallelism(degree_of_parallelism);
-    // operators_with_source.push_back(std::move(source_operator));
+    auto aggregator_factory = std::make_shared<stream::StreamAggregatorFactory>(_tnode);
+    auto source_operator = std::make_shared<stream::StreamAggregateOperatorFactory>(context->next_operator_id(), id(),
+                                                                                    aggregator_factory);
+    // Aggregator must be used by a pair of sink and source operators,
+    // so operators_with_source's degree of parallelism must be equal with operators_with_sink's
+    source_operator->set_degree_of_parallelism(degree_of_parallelism);
+    operators_with_source.push_back(std::move(source_operator));
     return operators_with_source;
 }
 } // namespace starrocks

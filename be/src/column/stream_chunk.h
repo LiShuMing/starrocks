@@ -37,8 +37,7 @@ using EpochInfoPtr = std::shared_ptr<EpochInfo>;
  * `UPDATE_BEFORE`/`UPDATE_AFTER`   : Represents previous and postvious detail of `UPDATE`
  *                                    which always come in pair and next to each other.
  */
-// enum StreamRowOp : std::int8_t { OP_INSERT = 0, OP_DELETE = 1, OP_UPDATE_BEFORE = 2, OP_UPDATE_AFTER = 3 };
-enum StreamRowOp { OP_INSERT = 0, OP_DELETE = 1, UPDATE_BEFORE = 2, UPDATE_AFTER = 3 };
+enum StreamRowOp : std::int8_t { OP_INSERT = 0, OP_DELETE = 1, OP_UPDATE_BEFORE = 2, OP_UPDATE_AFTER = 3 };
 
 /**
  * Epoch trigger mode represents a different kind of incremental source consume method:

@@ -49,6 +49,7 @@
 #include "common/status.h"
 #include "exec/pipeline/fragment_context.h"
 #include "exec/pipeline/fragment_executor.h"
+#include "exec/pipeline/pipeline_driver_executor.h"
 #include "exec/pipeline/query_context.h"
 #include "gen_cpp/AgentService_types.h"
 #include "gen_cpp/BackendService.h"
@@ -70,6 +71,10 @@
 #include "util/uid_util.h"
 
 namespace starrocks {
+
+namespace pipeline {
+class DriverExecutor;
+} // namespace pipeline
 
 extern std::atomic<bool> k_starrocks_exit;
 
@@ -673,7 +678,6 @@ void PInternalServiceImplBase<T>::submit_mv_maintenance_task(google::protobuf::R
         LOG(WARNING) << "submit mv maintenance task failed, errmsg=" << st.get_error_msg();
     }
     st.to_protobuf(response->mutable_status());
-    return;
 }
 
 template <typename T>
@@ -686,8 +690,9 @@ Status PInternalServiceImplBase<T>::_submit_mv_maintenance_task(brpc::Controller
         RETURN_IF_ERROR(deserialize_thrift_msg(buf, &len, TProtocolType::BINARY, &t_request));
     }
     LOG(INFO) << "[MV] mv maintenance task, query_id=" << t_request.query_id << ", mv_task_type:" << t_request.task_type
-              << "db_name=" << t_request.db_name << ", mv_name=" << t_request.mv_name << ", job_id=" << t_request.job_id
-              << ", task_id=" << t_request.task_id << ", signature=" << t_request.signature;
+              << ", db_name=" << t_request.db_name << ", mv_name=" << t_request.mv_name
+              << ", job_id=" << t_request.job_id << ", task_id=" << t_request.task_id
+              << ", signature=" << t_request.signature;
 
     auto mv_task_type = t_request.task_type;
     const TUniqueId& query_id = t_request.query_id;
@@ -734,6 +739,13 @@ Status PInternalServiceImplBase<T>::_submit_mv_maintenance_task(brpc::Controller
     //     break;
     // }
     case MVTaskType::STOP_MAINTENANCE: {
+        // Find the fragment context for the specific MV job
+        TUniqueId query_id;
+        auto&& existing_query_ctx = _exec_env->query_context_mgr()->get(query_id);
+        if (!existing_query_ctx) {
+            return Status::InternalError("MV Job has been cancelled.");
+        }
+        existing_query_ctx->stream_epoch_manager()->set_is_finished(true);
         break;
     }
     default:
@@ -760,12 +772,35 @@ template <typename T>
 Status PInternalServiceImplBase<T>::_mv_start_epoch(const pipeline::QueryContextPtr& query_ctx,
                                                     const TMVMaintenanceTasks& task) {
     RETURN_IF(!task.__isset.start_epoch, Status::InternalError("must be start_epoch task"));
+    const TUniqueId& query_id = task.query_id;
     auto& start_epoch_task = task.start_epoch;
     auto epoch_manager = query_ctx->stream_epoch_manager();
-    EpochInfo epoch_info = EpochInfo::from_start_epoch_task(start_epoch_task);
-    ScanRangeInfo scan_info = ScanRangeInfo::from_start_epoch_start(start_epoch_task);
 
-    return epoch_manager->update_epoch(epoch_info, scan_info);
+    // Update StreamEpochManager
+    EpochInfo epoch_info = EpochInfo::from_start_epoch_task(start_epoch_task);
+    auto scan_info = pipeline::ScanRangeInfo::from_start_epoch_start(start_epoch_task);
+    RETURN_IF_ERROR(epoch_manager->start_epoch(epoch_info, scan_info));
+
+    // Reset all fragment instances
+    auto per_node_scan_ranges = start_epoch_task.per_node_scan_ranges;
+    for (auto& [fragment_instance_id, node_to_scan_ranges] : per_node_scan_ranges) {
+        // step1: Find the fragment_ctx by fragment_instance_id;
+        auto&& fragment_ctx = query_ctx->fragment_mgr()->get(fragment_instance_id);
+        if (!fragment_ctx) {
+            LOG(WARNING) << "start_epoch maintenance failed, fragment instance id not found:"
+                         << print_id(fragment_instance_id);
+            return Status::InternalError("MV Job fragment_instance_id has been cancelled.");
+        }
+        RETURN_IF_ERROR(fragment_ctx->reset_epoch());
+    }
+
+    // Active all drivers for the query_id from the parked driver queue.
+    // TODO: how to decide use driver_executor or wg_driver_executor?
+    _exec_env->driver_executor()->activate_parked_driver(
+            [query_id](const pipeline::PipelineDriver* driver) { return driver->query_ctx()->query_id() == query_id; });
+    _exec_env->wg_driver_executor()->activate_parked_driver(
+            [query_id](const pipeline::PipelineDriver* driver) { return driver->query_ctx()->query_id() == query_id; });
+    return Status::OK();
 }
 
 template <typename T>

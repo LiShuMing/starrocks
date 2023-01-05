@@ -21,13 +21,13 @@
 
 #include "exec/pipeline/fragment_context.h"
 #include "exec/pipeline/pipeline_fwd.h"
+#include "exec/pipeline/stream_epoch_manager.h"
 #include "gen_cpp/InternalService_types.h" // for TQueryOptions
 #include "gen_cpp/Types_types.h"           // for TUniqueId
 #include "gen_cpp/internal_service.pb.h"
 #include "runtime/profile_report_worker.h"
 #include "runtime/query_statistics.h"
 #include "runtime/runtime_state.h"
-#include "runtime/stream_epoch_manager.h"
 #include "util/debug/query_trace.h"
 #include "util/hash_util.hpp"
 #include "util/time.h"

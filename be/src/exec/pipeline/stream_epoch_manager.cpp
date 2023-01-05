@@ -12,16 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "runtime/stream_epoch_manager.h"
+#include "exec/pipeline/stream_epoch_manager.h"
 
 #include <fmt/format.h>
 
+#include "exec/pipeline/pipeline_driver_executor.h"
 #include "gen_cpp/MVMaintenance_types.h"
 #include "gen_cpp/PlanNodes_types.h"
+#include "runtime/exec_env.h"
 
-namespace starrocks {
+namespace starrocks::pipeline {
 
-ScanRangeInfo ScanRangeInfo::from_start_epoch_start(const TMVStartEpochTask& start_epoch) {
+class ExecEnv;
+
+ScanRangeInfo ScanRangeInfo::from_start_epoch_start(const starrocks::TMVStartEpochTask& start_epoch) {
     ScanRangeInfo res;
     for (auto& [instance, instance_scan] : start_epoch.per_node_scan_ranges) {
         auto& instance_scan_info = res.instance_scan_range_map[instance];
@@ -41,7 +45,7 @@ ScanRangeInfo ScanRangeInfo::from_start_epoch_start(const TMVStartEpochTask& sta
 }
 
 // Start the new epoch from input epoch info
-Status StreamEpochManager::update_epoch(const EpochInfo& epoch_info, const ScanRangeInfo& scan_info) {
+Status StreamEpochManager::start_epoch(const EpochInfo& epoch_info, const ScanRangeInfo& scan_info) {
     auto& fragment_id_to_node_id_scan_ranges = scan_info.instance_scan_range_map;
     std::unique_lock<std::shared_mutex> l(_epoch_lock);
     if (!_fragment_id_to_node_id_scan_ranges.empty() &&
@@ -52,6 +56,7 @@ Status StreamEpochManager::update_epoch(const EpochInfo& epoch_info, const ScanR
     }
 
     // reset state
+    _finished_fragment_ctxs.clear();
     _epoch_info = epoch_info;
     _fragment_id_to_node_id_scan_ranges = fragment_id_to_node_id_scan_ranges;
     return Status::OK();
@@ -107,6 +112,19 @@ const std::unordered_map<TUniqueId, NodeId2ScanRanges>& StreamEpochManager::frag
     return _fragment_id_to_node_id_scan_ranges;
 }
 
+void StreamEpochManager::count_down_fragment_ctx(RuntimeState* state, FragmentContext* fragment_ctx, size_t val) {
+    std::unique_lock<std::shared_mutex> l(_epoch_lock);
+    _finished_fragment_ctxs.emplace_back(fragment_ctx);
+    bool all_fragment_finished = _finished_fragment_ctxs.size() == _fragment_id_to_node_id_scan_ranges.size();
+    if (!all_fragment_finished) {
+        return;
+    }
+
+    // do epoch report stats
+    auto* query_ctx = state->query_ctx();
+    state->exec_env()->driver_executor()->report_epoch(state->exec_env(), query_ctx, _finished_fragment_ctxs);
+}
+
 const BinlogOffset* StreamEpochManager::_get_epoch_unlock(const TabletId2BinlogOffset& tablet_id_scan_ranges_mapping,
                                                           int64_t tablet_id) const {
     auto iter = tablet_id_scan_ranges_mapping.find(tablet_id);
@@ -117,4 +135,4 @@ const BinlogOffset* StreamEpochManager::_get_epoch_unlock(const TabletId2BinlogO
     }
 }
 
-} // namespace starrocks
+} // namespace starrocks::pipeline

@@ -15,16 +15,11 @@
 #pragma once
 
 #include "column/stream_chunk.h"
+#include "runtime/runtime_state.h"
 
-namespace starrocks {
+namespace starrocks::pipeline {
 
-/**
- * `StreamEpochManager` is used to manage the binlog source operators' start or final epoch, and
- *  can be used to interact with RuntimeState which can be controlled by FE.
- * 
- * `StreamEpochManager` manages all fragment instances in one BE, operators in all fragment
- * instances may interact with it, so methods should be thread-safe in MVEpochMangaer.
- */
+using FragmentContext = pipeline::FragmentContext;
 using TabletId2BinlogOffset = std::unordered_map<int64_t, BinlogOffset>;
 using NodeId2ScanRanges = std::unordered_map<int64_t, TabletId2BinlogOffset>;
 
@@ -33,16 +28,24 @@ class TMVStartEpochTask;
 struct ScanRangeInfo {
     std::unordered_map<TUniqueId, NodeId2ScanRanges> instance_scan_range_map;
 
-    static ScanRangeInfo from_start_epoch_start(const TMVStartEpochTask& start_epoch);
+    static ScanRangeInfo from_start_epoch_start(const starrocks::TMVStartEpochTask& start_epoch);
 };
 
+/**
+ * `StreamEpochManager` is used to manage the binlog source operators' start or final epoch, and
+ *  can be used to interact with RuntimeState which can be controlled by FE.
+ * 
+ * `StreamEpochManager` manages all fragment instances in one BE, operators in all fragment
+ * instances may interact with it, so methods should be thread-safe in MVEpochMangaer.
+ */
 class StreamEpochManager {
 public:
     StreamEpochManager() = default;
     ~StreamEpochManager() = default;
 
     // Start the new epoch from input epoch info
-    Status update_epoch(const EpochInfo& epoch_info, const ScanRangeInfo& scan_info);
+    Status start_epoch(const EpochInfo& epoch_info, const ScanRangeInfo& scan_info);
+
     Status update_binlog_offset(const TUniqueId& fragment_instance_id, int64_t scan_node_id, int64_t tablet_id,
                                 BinlogOffset binlog_offset);
 
@@ -53,6 +56,7 @@ public:
 
     bool is_finished() const { return _is_finished.load(std::memory_order_acquire); }
     void set_is_finished(bool v) { _is_finished.store(v, std::memory_order_release); }
+    void count_down_fragment_ctx(RuntimeState* state, FragmentContext* fragment_ctx, size_t val = 1);
 
 private:
     const BinlogOffset* _get_epoch_unlock(const TabletId2BinlogOffset& tablet_id_scan_ranges_mapping,
@@ -63,6 +67,7 @@ private:
     std::atomic_bool _is_finished{false};
     EpochInfo _epoch_info;
     std::unordered_map<TUniqueId, NodeId2ScanRanges> _fragment_id_to_node_id_scan_ranges;
+    std::vector<FragmentContext*> _finished_fragment_ctxs;
 };
 
-} // namespace starrocks
+} // namespace starrocks::pipeline

@@ -41,6 +41,7 @@ import com.starrocks.sql.optimizer.OptExpressionVisitor;
 import com.starrocks.sql.optimizer.base.ColumnRefFactory;
 import com.starrocks.sql.optimizer.base.ColumnRefSet;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
+import com.starrocks.sql.optimizer.operator.stream.PhysicalStreamAggOperator;
 import com.starrocks.sql.optimizer.rule.mv.KeyInference;
 import com.starrocks.sql.optimizer.rule.mv.MVOperatorProperty;
 import com.starrocks.sql.plan.ExecPlan;
@@ -129,6 +130,20 @@ class IMTCreator {
         }
     }
 
+    public static void createIMTInfo(CreateMaterializedViewStatement stmt, MaterializedView view) throws DdlException {
+        ExecPlan maintenancePlan = stmt.getMaintenancePlan();
+        OptExpression optExpr = maintenancePlan.getPhysicalPlan();
+
+        LOG.info("creating IMT Info for MV {}",  view.getName());
+        try {
+            IMTCreatorVisitor.createIMTForOperator(stmt, optExpr, view);
+        } catch (Exception e) {
+            // TODO(murphy) cleanup created IMT, or make it atomic
+            LOG.warn("create IMT info failed due to ",  e);
+            throw e;
+        }
+    }
+
     static class IMTCreatorVisitor extends OptExpressionVisitor<Void, Void> {
         private CreateMaterializedViewStatement stmt;
         private MaterializedView view;
@@ -174,6 +189,7 @@ class IMTCreator {
             MVOperatorProperty property = optExpr.getMvOperatorProperty();
             ColumnRefFactory columnRefFactory = stmt.getColumnRefFactory();
             Map<String, String> properties = view.getProperties();
+            PhysicalStreamAggOperator streamAgg = (PhysicalStreamAggOperator) optExpr.getOp();
 
             if (!property.getModify().isInsertOnly()) {
                 throw UnsupportedException.unsupportedException("Not support retractable aggregate");
@@ -224,8 +240,10 @@ class IMTCreator {
             // TODO(murphy) refine it
             String mvName = stmt.getTableName().getTbl();
             long seq = GlobalStateMgr.getCurrentState().getNextId();
-            String tableName = "imt_" + mvName + seq;
+            String tableName = "imt_agg_" + mvName + seq;
             TableName canonicalName = new TableName(stmt.getTableName().getDb(), tableName);
+
+            streamAgg.setResultIMTName(canonicalName);
 
             // Properties
             Map<String, String> extProperties = Maps.newTreeMap();
@@ -236,7 +254,5 @@ class IMTCreator {
                     extProperties, comment));
             return null;
         }
-
     }
-
 }

@@ -14,6 +14,7 @@
 
 package com.starrocks.sql.optimizer.operator.stream;
 
+import com.starrocks.analysis.TableName;
 import com.starrocks.sql.optimizer.OptExpression;
 import com.starrocks.sql.optimizer.OptExpressionVisitor;
 import com.starrocks.sql.optimizer.base.ColumnRefSet;
@@ -35,10 +36,9 @@ public class PhysicalStreamAggOperator extends PhysicalStreamOperator {
     private final Map<ColumnRefOperator, CallOperator> aggregations;
 
     // IMT information
-    private IMTInfo aggImt;
-
-    // TODO: support more IMT
-    private IMTInfo detailImt;
+    private TableName resultIMTName;
+    private TableName intermediateIMTName;
+    private TableName detailIMTName;
 
     public PhysicalStreamAggOperator(List<ColumnRefOperator> groupBys,
                                      Map<ColumnRefOperator, CallOperator> aggregations, ScalarOperator predicate,
@@ -56,12 +56,24 @@ public class PhysicalStreamAggOperator extends PhysicalStreamOperator {
         return aggregations;
     }
 
-    public IMTInfo getAggImt() {
-        return this.aggImt;
+    public TableName getResultIMTName() {
+        return resultIMTName;
     }
 
-    public void setAggImt(IMTInfo imt) {
-        this.aggImt = imt;
+    public void setResultIMTName(TableName resultIMTName) {
+        this.resultIMTName = resultIMTName;
+    }
+
+    public TableName getIntermediateIMTName() {
+        return intermediateIMTName;
+    }
+
+    public void setIntermediateIMTName(TableName intermediateIMTName) {
+        this.intermediateIMTName = intermediateIMTName;
+    }
+
+    public TableName getDetailIMTName() {
+        return detailIMTName;
     }
 
     @Override

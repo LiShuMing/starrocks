@@ -156,7 +156,6 @@ import com.starrocks.sql.optimizer.operator.scalar.CallOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ConstantOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
-import com.starrocks.sql.optimizer.operator.stream.IMTInfo;
 import com.starrocks.sql.optimizer.operator.stream.PhysicalStreamAggOperator;
 import com.starrocks.sql.optimizer.operator.stream.PhysicalStreamJoinOperator;
 import com.starrocks.sql.optimizer.operator.stream.PhysicalStreamScanOperator;
@@ -2894,21 +2893,15 @@ public class PlanFragmentBuilder {
                     AggregateInfo.create(aggExpr.groupExpr, aggExpr.aggregateExpr, outputTupleDesc, outputTupleDesc,
                             AggregateInfo.AggPhase.FIRST);
             StreamAggNode aggNode = new StreamAggNode(context.getNextNodeId(), inputFragment.getPlanRoot(), aggInfo);
+
             aggNode.setIntermediateTuple();
-            long dbId = GlobalStateMgr.getCurrentState().getDb(node.getResultIMTName().getDb()).getId();
-            try {
-                Preconditions.checkState(node.getResultIMTName() != null);
-                aggNode.setResultImt(IMTInfo.fromTableName(dbId, node.getResultIMTName(), true));
-                if (node.getIntermediateIMTName() != null) {
-                    aggNode.setIntermediateImt(IMTInfo.fromTableName(dbId, node.getIntermediateIMTName(), true));
-                }
-                if (node.getDetailIMTName() != null) {
-                    aggNode.setDetailImt(IMTInfo.fromTableName(dbId, node.getDetailIMTName(), true));
-                }
-            } catch (UserException e) {
-                throw new StarRocksPlannerException(
-                        "Failed to deduce IMT Info, " + e.getMessage(), INTERNAL_ERROR);
-            }
+
+            // Set imt infos
+            node.setOutputTupleDesc(outputTupleDesc);
+            node.setStreamAggNode(aggNode);
+            // aggNode.setResultImt(node.getResultIMT());
+            // aggNode.setIntermediateImt(node.getIntermediateIMT());
+            // aggNode.setDetailImt(node.getDetailIMT());
 
             aggNode.setHasNullableGenerateChild();
             aggNode.computeStatistics(optExpr.getStatistics());

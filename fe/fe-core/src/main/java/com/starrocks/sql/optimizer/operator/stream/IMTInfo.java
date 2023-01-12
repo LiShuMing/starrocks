@@ -38,17 +38,19 @@ public class IMTInfo {
     private TUniqueId loadId;
     private long txnId;
 
-    public static IMTInfo fromOlapTable(long dbId, OlapTable table, boolean needMaintain) throws UserException {
+    public static IMTInfo fromOlapTable(long dbId, TupleDescriptor outputTupleDesc,
+                                        OlapTable table, boolean needMaintain) throws UserException {
         IMTInfo res = new IMTInfo();
         res.type = TIMTType.OLAP_TABLE;
         res.needMaintain = needMaintain;
-        res.olapTable = OlapTableRouteInfo.create(dbId, table);
+        res.olapTable = OlapTableRouteInfo.create(dbId, table, outputTupleDesc);
         return res;
     }
-    public static IMTInfo fromTableName(long dbId, TableName tableName, boolean needMaintain) throws UserException {
+    public static IMTInfo fromTableName(long dbId, TupleDescriptor outputTupleDesc,
+                                        TableName tableName, boolean needMaintain) throws UserException {
         Preconditions.checkState(tableName != null);
         OlapTable resultTable = (OlapTable) MetaUtils.getTable(tableName);
-        return IMTInfo.fromOlapTable(dbId, resultTable, needMaintain);
+        return IMTInfo.fromOlapTable(dbId, outputTupleDesc, resultTable, needMaintain);
     }
 
     public String getName() {

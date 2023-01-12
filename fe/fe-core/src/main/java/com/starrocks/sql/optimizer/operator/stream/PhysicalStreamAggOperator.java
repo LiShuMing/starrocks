@@ -14,7 +14,14 @@
 
 package com.starrocks.sql.optimizer.operator.stream;
 
+import com.google.common.base.Preconditions;
 import com.starrocks.analysis.TableName;
+import com.starrocks.analysis.TupleDescriptor;
+import com.starrocks.common.DdlException;
+import com.starrocks.common.UserException;
+import com.starrocks.planner.BinlogScanNode;
+import com.starrocks.planner.stream.StreamAggNode;
+import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.optimizer.OptExpression;
 import com.starrocks.sql.optimizer.OptExpressionVisitor;
 import com.starrocks.sql.optimizer.base.ColumnRefSet;
@@ -25,6 +32,8 @@ import com.starrocks.sql.optimizer.operator.scalar.CallOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 import java.util.Map;
@@ -32,13 +41,26 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class PhysicalStreamAggOperator extends PhysicalStreamOperator {
+
+    private static final Logger LOG = LogManager.getLogger(BinlogScanNode.class);
+
     private final List<ColumnRefOperator> groupBys;
     private final Map<ColumnRefOperator, CallOperator> aggregations;
 
     // IMT information
+    TupleDescriptor outputTupleDesc;
+
     private TableName resultIMTName;
     private TableName intermediateIMTName;
     private TableName detailIMTName;
+
+    private IMTInfo resultIMT;
+
+    private IMTInfo intermediateIMT;
+
+    private IMTInfo detailIMT;
+
+    private StreamAggNode streamAggNode;
 
     public PhysicalStreamAggOperator(List<ColumnRefOperator> groupBys,
                                      Map<ColumnRefOperator, CallOperator> aggregations, ScalarOperator predicate,
@@ -76,6 +98,26 @@ public class PhysicalStreamAggOperator extends PhysicalStreamOperator {
         return detailIMTName;
     }
 
+    public IMTInfo getResultIMT() {
+        return resultIMT;
+    }
+
+    public IMTInfo getIntermediateIMT() {
+        return intermediateIMT;
+    }
+
+    public IMTInfo getDetailIMT() {
+        return detailIMT;
+    }
+
+    public void setStreamAggNode(StreamAggNode streamAggNode) {
+        this.streamAggNode = streamAggNode;
+    }
+
+    public void setOutputTupleDesc(TupleDescriptor outputTupleDesc) {
+        this.outputTupleDesc = outputTupleDesc;
+    }
+
     @Override
     public <R, C> R accept(OperatorVisitor<R, C> visitor, C context) {
         return visitor.visitPhysicalStreamAgg(this, context);
@@ -92,6 +134,29 @@ public class PhysicalStreamAggOperator extends PhysicalStreamOperator {
         groupBys.forEach(columns::union);
         aggregations.values().forEach(d -> columns.union(d.getUsedColumns()));
         return columns;
+    }
+
+    @Override
+    public void assignIMTInfos() throws DdlException  {
+        Preconditions.checkState(resultIMTName != null);
+        try {
+            long dbId = GlobalStateMgr.getCurrentState().getDb(resultIMTName.getDb()).getId();
+            LOG.info("Create result IMTInfo: {}", resultIMTName);
+            resultIMT = IMTInfo.fromTableName(dbId, outputTupleDesc, resultIMTName, true);
+            streamAggNode.setResultImt(resultIMT);
+            if (intermediateIMTName != null) {
+                LOG.info("Create intermediate IMTInfo: {}", intermediateIMT);
+                intermediateIMT = IMTInfo.fromTableName(dbId, outputTupleDesc, intermediateIMTName, true);
+                streamAggNode.setIntermediateImt(intermediateIMT);
+            }
+            if (detailIMTName != null) {
+                LOG.info("Create detail IMTInfo: {}", detailIMTName);
+                detailIMT = IMTInfo.fromTableName(dbId, outputTupleDesc, detailIMTName, true);
+                streamAggNode.setDetailImt(detailIMT);
+            }
+        } catch (UserException e) {
+            throw new DdlException("Failed to deduce IMT Info, " + e.getMessage(), e);
+        }
     }
 
     @Override

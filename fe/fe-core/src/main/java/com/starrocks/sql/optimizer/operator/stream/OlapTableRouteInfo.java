@@ -69,15 +69,20 @@ public class OlapTableRouteInfo {
 
     private final int numReplicas;
     private final String tableName;
+
+    private final TupleDescriptor tupleDescriptor;
+
     private final TOlapTableSchemaParam tableSchema;
     private final TOlapTablePartitionParam partition;
     private final TOlapTableLocationParam location;
     private final TNodesInfo nodes;
     private final OlapTable tableInfo;
 
-    public OlapTableRouteInfo(OlapTable table, int numReplicas, TOlapTableSchemaParam tableSchema,
+    public OlapTableRouteInfo(OlapTable table, int numReplicas, TupleDescriptor tupleDescriptor,
+                              TOlapTableSchemaParam tableSchema,
                               TOlapTablePartitionParam partition, TOlapTableLocationParam location, TNodesInfo nodes) {
         this.numReplicas = numReplicas;
+        this.tupleDescriptor = tupleDescriptor;
         this.tableSchema = tableSchema;
         this.partition = partition;
         this.location = location;
@@ -101,17 +106,21 @@ public class OlapTableRouteInfo {
     /**
      * Create a route info for all partitions
      */
-    public static OlapTableRouteInfo create(long dbId, OlapTable olapTable) throws UserException {
-        List<Long> partitionIds = olapTable.getAllPartitions().stream().map(Partition::getId).collect(Collectors.toList());
-        return create(dbId, olapTable, partitionIds);
+    public static OlapTableRouteInfo create(long dbId, OlapTable olapTable,
+                                            TupleDescriptor outputTupleDesc) throws UserException {
+        List<Long> partitionIds =
+                olapTable.getAllPartitions().stream().map(Partition::getId).collect(Collectors.toList());
+        return create(dbId, olapTable, partitionIds, outputTupleDesc);
     }
 
-    public static OlapTableRouteInfo create(long dbId, OlapTable olapTable, List<Long> partitionIds) throws UserException {
-        TOlapTableSchemaParam tableSchema = createTableSchema(dbId, olapTable);
+    public static OlapTableRouteInfo create(long dbId, OlapTable olapTable, List<Long> partitionIds,
+                                            TupleDescriptor outputTupleDesc) throws UserException {
+        TOlapTableSchemaParam tableSchema = createTableSchema(dbId, olapTable, outputTupleDesc);
         TOlapTablePartitionParam partition = createPartitionParam(dbId, olapTable, partitionIds);
         TOlapTableLocationParam location = createLocation(olapTable, partitionIds);
         TNodesInfo nodes = createNodesInfo();
-        return new OlapTableRouteInfo(olapTable, getNumReplicas(olapTable), tableSchema, partition, location, nodes);
+        return new OlapTableRouteInfo(olapTable, getNumReplicas(olapTable),
+                outputTupleDesc, tableSchema, partition, location, nodes);
     }
 
     public TOlapTableRouteInfo toThrift() {
@@ -128,13 +137,19 @@ public class OlapTableRouteInfo {
         return res;
     }
 
-    private static TOlapTableSchemaParam createTableSchema(long dbId, OlapTable table) {
+    private static TOlapTableSchemaParam createTableSchema(long dbId, OlapTable table, TupleDescriptor tupleDescriptor) {
         TOlapTableSchemaParam schemaParam = new TOlapTableSchemaParam();
         schemaParam.setDb_id(dbId);
         schemaParam.setTable_id(table.getId());
+
         // TODO: Optimize it later, how to get IMT's version.
         long version = table.getAllPartitions().stream().findFirst().get().getVisibleVersion();
         schemaParam.setVersion(version);
+
+        schemaParam.tuple_desc = tupleDescriptor.toThrift();
+        for (SlotDescriptor slotDesc : tupleDescriptor.getSlots()) {
+            schemaParam.addToSlot_descs(slotDesc.toThrift());
+        }
 
         for (Map.Entry<Long, MaterializedIndexMeta> pair : table.getIndexIdToMeta().entrySet()) {
             MaterializedIndexMeta indexMeta = pair.getValue();

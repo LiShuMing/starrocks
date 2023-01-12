@@ -24,7 +24,6 @@ import com.starrocks.analysis.TypeDef;
 import com.starrocks.catalog.CatalogUtils;
 import com.starrocks.catalog.Column;
 import com.starrocks.catalog.DistributionInfo;
-import com.starrocks.catalog.HashDistributionInfo;
 import com.starrocks.catalog.KeysType;
 import com.starrocks.catalog.MaterializedView;
 import com.starrocks.catalog.PartitionInfo;
@@ -34,6 +33,7 @@ import com.starrocks.sql.analyzer.CreateTableAnalyzer;
 import com.starrocks.sql.ast.CreateMaterializedViewStatement;
 import com.starrocks.sql.ast.CreateTableStmt;
 import com.starrocks.sql.ast.DistributionDesc;
+import com.starrocks.sql.ast.HashDistributionDesc;
 import com.starrocks.sql.ast.PartitionDesc;
 import com.starrocks.sql.common.UnsupportedException;
 import com.starrocks.sql.optimizer.OptExpression;
@@ -42,6 +42,7 @@ import com.starrocks.sql.optimizer.base.ColumnRefFactory;
 import com.starrocks.sql.optimizer.base.ColumnRefSet;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.stream.PhysicalStreamAggOperator;
+import com.starrocks.sql.optimizer.operator.stream.PhysicalStreamOperator;
 import com.starrocks.sql.optimizer.rule.mv.KeyInference;
 import com.starrocks.sql.optimizer.rule.mv.MVOperatorProperty;
 import com.starrocks.sql.plan.ExecPlan;
@@ -116,42 +117,65 @@ class IMTCreator {
     public static void createIMT(CreateMaterializedViewStatement stmt, MaterializedView view) throws DdlException {
         ExecPlan maintenancePlan = stmt.getMaintenancePlan();
         OptExpression optExpr = maintenancePlan.getPhysicalPlan();
-        List<CreateTableStmt> createTables = IMTCreatorVisitor.createIMTForOperator(stmt, optExpr, view);
+        List<IMTCreatorVisitor.IMTCreatorResult> createTables = IMTCreatorVisitor.createIMTForOperator(stmt, optExpr, view);
 
-        for (CreateTableStmt create : createTables) {
-            LOG.info("creating IMT {} for MV {}", create.getTableName(), view.getName());
-            try {
-                GlobalStateMgr.getCurrentState().createTable(create);
-            } catch (DdlException e) {
-                // TODO(murphy) cleanup created IMT, or make it atomic
-                LOG.warn("create IMT {} failed due to ", create.getTableName(), e);
-                throw e;
+        // Create IMT tables in batch
+        for (IMTCreatorVisitor.IMTCreatorResult creatorResult : createTables) {
+            List<CreateTableStmt> stmts = creatorResult.getImtTables();
+            for (CreateTableStmt create : stmts) {
+                LOG.info("creating IMT {} for MV {}", create.getTableName(), view.getName());
+                try {
+                    GlobalStateMgr.getCurrentState().createTable(create);
+                } catch (DdlException e) {
+                    // TODO(murphy) cleanup created IMT, or make it atomic
+                    LOG.warn("create IMT {} failed due to ", create.getTableName(), e);
+                    throw e;
+                }
             }
         }
-    }
 
-    public static void createIMTInfo(CreateMaterializedViewStatement stmt, MaterializedView view) throws DdlException {
-        ExecPlan maintenancePlan = stmt.getMaintenancePlan();
-        OptExpression optExpr = maintenancePlan.getPhysicalPlan();
-
-        LOG.info("creating IMT Info for MV {}",  view.getName());
-        try {
-            IMTCreatorVisitor.createIMTForOperator(stmt, optExpr, view);
-        } catch (Exception e) {
-            // TODO(murphy) cleanup created IMT, or make it atomic
-            LOG.warn("create IMT info failed due to ",  e);
-            throw e;
+        // Assign imt infos to each operator
+        for (IMTCreatorVisitor.IMTCreatorResult creatorResult : createTables) {
+            OptExpression optExpression = creatorResult.getOptWithIMTs();
+            Preconditions.checkState(optExpression.getOp() instanceof PhysicalStreamOperator);
+            PhysicalStreamOperator streamOperator = (PhysicalStreamOperator) optExpression.getOp();
+            try {
+                streamOperator.assignIMTInfos();
+            } catch (DdlException e) {
+                // TODO(lism) cleanup created IMT, or make it atomic
+                LOG.warn("Assign IMT info failed due to ", e);
+                throw e;
+            }
         }
     }
 
     static class IMTCreatorVisitor extends OptExpressionVisitor<Void, Void> {
         private CreateMaterializedViewStatement stmt;
         private MaterializedView view;
-        private List<CreateTableStmt> result = new ArrayList<>();
 
-        public static List<CreateTableStmt> createIMTForOperator(CreateMaterializedViewStatement stmt,
-                                                                 OptExpression optExpr,
-                                                                 MaterializedView view) {
+        public class IMTCreatorResult {
+            private OptExpression optWithIMTs;
+            private List<CreateTableStmt> imtTables = new ArrayList<>();
+
+            public IMTCreatorResult(OptExpression optExpression, List<CreateTableStmt> stmts) {
+                this.optWithIMTs = optExpression;
+                this.imtTables = stmts;
+            }
+
+            public OptExpression getOptWithIMTs() {
+                return optWithIMTs;
+            }
+
+            public List<CreateTableStmt> getImtTables() {
+                return imtTables;
+            }
+        };
+
+        private List<IMTCreatorResult> result = new ArrayList<>();
+
+        public static List<IMTCreatorResult> createIMTForOperator(CreateMaterializedViewStatement stmt,
+                                                                  OptExpression optExpr,
+                                                                  MaterializedView view) {
             IMTCreatorVisitor visitor = new IMTCreatorVisitor();
             visitor.stmt = stmt;
             visitor.view = view;
@@ -167,7 +191,17 @@ class IMTCreator {
         }
 
         @Override
-        public Void visit(OptExpression optExpr, Void ctx) {
+        public Void visitPhysicalProject(OptExpression optExpression, Void ctx) {
+            return null;
+        }
+
+        @Override
+        public Void visitPhysicalFilter(OptExpression optExpression, Void ctx) {
+            return null;
+        }
+
+        @Override
+        public Void visitPhysicalStreamScan(OptExpression optExpression, Void ctx) {
             return null;
         }
 
@@ -191,9 +225,11 @@ class IMTCreator {
             Map<String, String> properties = view.getProperties();
             PhysicalStreamAggOperator streamAgg = (PhysicalStreamAggOperator) optExpr.getOp();
 
-            if (!property.getModify().isInsertOnly()) {
-                throw UnsupportedException.unsupportedException("Not support retractable aggregate");
-            }
+            // if (!property.getModify().isInsertOnly()) {
+            //    throw UnsupportedException.unsupportedException("Not support retractable aggregate");
+            // }
+
+            List<CreateTableStmt> imtTables = new ArrayList<>();
 
             // Duplicate/Primary Key
             KeyInference.KeyProperty bestKey = property.getKeySet().getBestKey();
@@ -220,22 +256,19 @@ class IMTCreator {
                 columnDef.setAllowNull(!isKey);
                 columnDefs.add(columnDef);
             }
-
+            List<String> keysColumnNames  = keyColumns.stream().map(Column::getName).collect(Collectors.toList());
             // Key type
             KeysType keyType = KeysType.PRIMARY_KEYS;
-            KeysDesc keyDesc =
-                    new KeysDesc(keyType, keyColumns.stream().map(Column::getName).collect(Collectors.toList()));
+            KeysDesc keyDesc = new KeysDesc(keyType, keysColumnNames);
 
             // Partition scheme
             // TODO(murphy) support partition the IMT, current we don't support it
-            PartitionDesc partitionDesc = new PartitionDesc();
+            PartitionDesc partitionDesc = null;
 
-            // Distribute Key
-            DistributionDesc distributionDesc = new DistributionDesc();
+            // Distribute Key: hash distribution
+            DistributionDesc distributionDesc = new HashDistributionDesc(CatalogUtils.calBucketNumAccordingToBackends(),
+                    keysColumnNames);
             Preconditions.checkNotNull(distributionDesc);
-            HashDistributionInfo distributionInfo = new HashDistributionInfo();
-            distributionInfo.setBucketNum(CatalogUtils.calBucketNumAccordingToBackends());
-            distributionInfo.setDistributionColumns(keyColumns);
 
             // TODO(murphy) refine it
             String mvName = stmt.getTableName().getTbl();
@@ -248,10 +281,20 @@ class IMTCreator {
             // Properties
             Map<String, String> extProperties = Maps.newTreeMap();
             String comment = "IMT for MV StreamAggOperator";
+            CreateTableStmt resultStmt = new CreateTableStmt(false, false, canonicalName, columnDefs,
+                    CreateTableAnalyzer.EngineType.OLAP.name().toLowerCase(), keyDesc,
+                    partitionDesc, distributionDesc, properties,
+                    extProperties, comment);
+            // TODO(lism): CreateTableStmt's columns should sync with columnDefs.
+            List<Column> columns = resultStmt.getColumns();
+            for (ColumnDef columnDef : columnDefs) {
+                Column col = columnDef.toColumn();
+                columns.add(col);
+            }
+            imtTables.add(resultStmt);
 
-            result.add(new CreateTableStmt(false, false, canonicalName, columnDefs,
-                    CreateTableAnalyzer.EngineType.OLAP.name(), keyDesc, partitionDesc, distributionDesc, properties,
-                    extProperties, comment));
+            result.add(new IMTCreatorResult(optExpr, imtTables));
+
             return null;
         }
     }

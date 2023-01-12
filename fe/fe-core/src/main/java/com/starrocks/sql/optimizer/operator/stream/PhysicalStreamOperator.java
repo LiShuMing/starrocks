@@ -15,6 +15,7 @@
 package com.starrocks.sql.optimizer.operator.stream;
 
 import com.google.common.base.Preconditions;
+import com.starrocks.common.DdlException;
 import com.starrocks.sql.optimizer.operator.OperatorType;
 import com.starrocks.sql.optimizer.operator.physical.PhysicalOperator;
 import com.starrocks.sql.optimizer.rule.mv.KeyInference;
@@ -46,4 +47,7 @@ public class PhysicalStreamOperator extends PhysicalOperator {
         return this.property.getModify();
     }
 
+    public void assignIMTInfos() throws DdlException {
+        return;
+    }
 }

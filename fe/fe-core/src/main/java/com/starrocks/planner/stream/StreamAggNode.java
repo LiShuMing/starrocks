@@ -38,9 +38,9 @@ import java.util.stream.Collectors;
 
 public class StreamAggNode extends PlanNode {
     private final AggregateInfo aggInfo;
-    private IMTInfo intermediateImt;
-    private IMTInfo resultImt;
 
+    private IMTInfo resultImt;
+    private IMTInfo intermediateImt;
     private IMTInfo detailImt;
 
     public StreamAggNode(PlanNodeId id, PlanNode input, AggregateInfo aggInfo) {
@@ -125,6 +125,9 @@ public class StreamAggNode extends PlanNode {
         }
         String groupingStr = groupingExprs.stream().map(Expr::toSql).collect(Collectors.joining(", "));
         msg.stream_agg_node.setSql_grouping_keys(groupingStr);
+
+        // IMT infos
+        Preconditions.checkState(resultImt != null);
         msg.stream_agg_node.setAgg_result_imt(resultImt.toThrift());
         if (intermediateImt != null) {
             msg.stream_agg_node.setAgg_intermediate_imt(intermediateImt.toThrift());

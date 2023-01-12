@@ -1027,6 +1027,10 @@ struct TStreamAggregationNode {
   // aggregate functions.
   4: required Types.TTupleId output_tuple_id
 
+  5: optional bool is_append_only
+  6: optional bool is_generate_retract 
+  7: optional i32 count_agg_idx 
+
   // IMT info
   10: optional Descriptors.TIMTDescriptor agg_result_imt
   11: optional Descriptors.TIMTDescriptor agg_intermediate_imt

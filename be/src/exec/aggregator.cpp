@@ -64,6 +64,10 @@ AggregatorParamsPtr convert_to_aggregator_params(const TPlanNode& tnode) {
                 tnode.stream_agg_node.__isset.sql_aggregate_functions ? tnode.stream_agg_node.sql_grouping_keys : "";
         params->grouping_exprs = tnode.stream_agg_node.grouping_exprs;
         params->aggregate_functions = tnode.stream_agg_node.aggregate_functions;
+        params->is_testing = false;
+        params->is_append_only = tnode.stream_agg_node.is_append_only;
+        params->is_generate_retract = tnode.stream_agg_node.is_generate_retract;
+        params->count_agg_idx = tnode.stream_agg_node.count_agg_idx;
         params->agg_result_imt =
                 tnode.stream_agg_node.__isset.agg_result_imt ? &tnode.stream_agg_node.agg_result_imt : nullptr;
         params->agg_intermediate_imt = tnode.stream_agg_node.__isset.agg_intermediate_imt

@@ -88,6 +88,7 @@ Status StreamAggregator::_prepare_state_tables(RuntimeState* state) {
             break;
         }
         default:
+            LOG(WARNING) << "unsupported state kind, agg function id=" << i;
             return Status::NotSupported("unsupported state kind");
         }
         result_idx++;

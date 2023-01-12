@@ -51,6 +51,7 @@ Status AggGroupState::prepare(RuntimeState* state) {
             detail_agg_states.emplace_back(agg_state.get());
             break;
         default:
+            LOG(WARNING) << "unsupported state kind, agg function id=" << i;
             return Status::NotSupported("unsupported state kind");
         }
     }
@@ -176,6 +177,7 @@ Status AggGroupState::process_chunk(size_t chunk_size, const Columns& group_by_c
             break;
         }
         default:
+            LOG(WARNING) << "unsupported state kind, agg function id=" << i;
             return Status::NotSupported("unsupported state kind");
         }
 

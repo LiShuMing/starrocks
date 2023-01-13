@@ -78,6 +78,11 @@ StatusOr<ChunkPtr> StreamScanOperator::pull_chunk(RuntimeState* state) {
         auto chunk = status_or.value();
         if (chunk && chunk->num_rows() > 0) {
             int32_t num = _chunk_num.fetch_add(1, std::memory_order_relaxed);
+            VLOG_ROW << "output new chunk:" << chunk->num_rows();
+            for (auto& col : chunk->columns()) {
+                VLOG_ROW << "col:" << col->debug_string();
+            }
+
             if (num >= 1) {
                 return _mark_mock_data_finished();
             } else {

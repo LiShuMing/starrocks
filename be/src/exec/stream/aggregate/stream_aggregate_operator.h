@@ -38,7 +38,7 @@ public:
     ~StreamAggregateOperator() override = default;
 
     bool has_output() const override;
-    bool need_input() const override { return !is_finished(); }
+    bool need_input() const override { return true; }
     bool is_finished() const override;
     Status set_finishing(RuntimeState* state) override;
     Status set_finished(RuntimeState* state) override;
@@ -55,13 +55,12 @@ public:
 
 private:
     StreamAggregatorPtr _aggregator = nullptr;
-    ChunkPtr _epoch_chunk = nullptr;
     // Whether prev operator has no output
     bool _is_input_finished = false;
     // Mark whether aggregator is already epoch finished.
     bool _is_epoch_finished = false;
     // Mark whether aggregator has output or not.
-    bool _has_output = true;
+    bool _has_output = false;
 };
 
 class StreamAggregateOperatorFactory final : public pipeline::SourceOperatorFactory {

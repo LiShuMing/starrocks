@@ -22,7 +22,7 @@
 namespace starrocks::stream {
 
 bool StreamAggregateOperator::has_output() const {
-    return _is_epoch_finished && _has_output;
+    return _has_output;
 }
 
 bool StreamAggregateOperator::is_finished() const {
@@ -45,6 +45,7 @@ bool StreamAggregateOperator::is_epoch_finished() const {
 
 Status StreamAggregateOperator::set_epoch_finishing(RuntimeState* state) {
     _is_epoch_finished = true;
+    _has_output = true;
     return Status::OK();
 }
 
@@ -59,7 +60,7 @@ Status StreamAggregateOperator::set_epoch_finished(RuntimeState* state) {
 
 Status StreamAggregateOperator::reset_epoch(RuntimeState* state) {
     _is_epoch_finished = false;
-    _has_output = true;
+    _has_output = false;
     return Status::OK();
 }
 
@@ -75,8 +76,8 @@ void StreamAggregateOperator::close(RuntimeState* state) {
 }
 
 Status StreamAggregateOperator::push_chunk(RuntimeState* state, const ChunkPtr& chunk) {
-    RETURN_IF_ERROR(_aggregator->process_chunk(dynamic_cast<StreamChunk*>(chunk.get())));
-    return Status::OK();
+    VLOG_ROW << "push_chunk:" << chunk->num_rows();
+    return _aggregator->process_chunk(dynamic_cast<StreamChunk*>(chunk.get()));
 }
 
 StatusOr<ChunkPtr> StreamAggregateOperator::pull_chunk(RuntimeState* state) {
@@ -89,6 +90,10 @@ StatusOr<ChunkPtr> StreamAggregateOperator::pull_chunk(RuntimeState* state) {
 
     // For having
     RETURN_IF_ERROR(eval_conjuncts_and_in_filters(_aggregator->conjunct_ctxs(), chunk.get()));
+    VLOG_ROW << "pull_chunk:" << chunk->num_rows();
+    for (auto& col : chunk->columns()) {
+        VLOG_ROW << "col:" << col->debug_string();
+    }
     _has_output = !_aggregator->is_ht_eos();
     return std::move(chunk);
 }

@@ -122,8 +122,12 @@ DatumTuple IMTStateTable::_convert_to_datum_tuple(const Columns& keys, size_t ro
 Status IMTStateTable::write(RuntimeState* state, StreamChunk* chunk) {
     DCHECK(chunk);
     DCHECK(_olap_table_sink);
-    // TODO: `ops` column in the StreamChunk should be considered later.
-    return _olap_table_sink->send_chunk(state, chunk);
+    if (false) {
+        // TODO: `ops` column in the StreamChunk should be considered later.
+        return _olap_table_sink->send_chunk(state, chunk);
+    } else {
+        return Status::OK();
+    }
 }
 
 Status IMTStateTable::commit(RuntimeState* state) {

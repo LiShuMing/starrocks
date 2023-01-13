@@ -312,9 +312,11 @@ Status AggGroupState::write(RuntimeState* state, StreamChunkPtr* result_chunk, C
                             std::vector<ChunkPtr>& detail_chunks) {
     // Update result table
     DCHECK(_result_state_table);
+    DCHECK(result_chunk);
     RETURN_IF_ERROR(_result_state_table->write(state, (*result_chunk).get()));
 
     // Update intermediate table
+    DCHECK_EQ(!_intermediate_state_table, !intermediate_chunk);
     if (_intermediate_state_table) {
         RETURN_IF_ERROR(_intermediate_state_table->write(state, (*intermediate_chunk).get()));
     }

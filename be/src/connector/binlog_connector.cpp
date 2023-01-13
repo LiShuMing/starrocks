@@ -54,6 +54,10 @@ Status BinlogDataSource::open(RuntimeState* state) {
 void BinlogDataSource::close(RuntimeState* state) {}
 
 Status BinlogDataSource::get_next(RuntimeState* state, ChunkPtr* chunk) {
+    int32_t num = _chunk_num.fetch_add(1, std::memory_order_relaxed);
+    if (num >= 1) {
+        return Status::EndOfFile(fmt::format("Has sent {} chunks", num));
+    }
     SCOPED_RAW_TIMER(&_cpu_time_ns);
     _init_chunk(chunk, state->chunk_size());
     // TODO replace with BinlogReader

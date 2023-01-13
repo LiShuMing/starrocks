@@ -142,16 +142,16 @@ public class PhysicalStreamAggOperator extends PhysicalStreamOperator {
         try {
             long dbId = GlobalStateMgr.getCurrentState().getDb(resultIMTName.getDb()).getId();
             LOG.info("Create result IMTInfo: {}", resultIMTName);
-            resultIMT = IMTInfo.fromTableName(dbId, outputTupleDesc, resultIMTName, true);
+            resultIMT = IMTInfo.fromTableName(dbId, outputTupleDesc, resultIMTName);
             streamAggNode.setResultImt(resultIMT);
             if (intermediateIMTName != null) {
                 LOG.info("Create intermediate IMTInfo: {}", intermediateIMT);
-                intermediateIMT = IMTInfo.fromTableName(dbId, outputTupleDesc, intermediateIMTName, true);
+                intermediateIMT = IMTInfo.fromTableName(dbId, outputTupleDesc, intermediateIMTName);
                 streamAggNode.setIntermediateImt(intermediateIMT);
             }
             if (detailIMTName != null) {
                 LOG.info("Create detail IMTInfo: {}", detailIMTName);
-                detailIMT = IMTInfo.fromTableName(dbId, outputTupleDesc, detailIMTName, true);
+                detailIMT = IMTInfo.fromTableName(dbId, outputTupleDesc, detailIMTName);
                 streamAggNode.setDetailImt(detailIMT);
             }
         } catch (UserException e) {

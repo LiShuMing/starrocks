@@ -142,7 +142,7 @@ class IMTCreator {
             try {
                 streamOperator.assignIMTInfos();
             } catch (DdlException e) {
-                // TODO(lism) cleanup created IMT, or make it atomic
+                // TODO(murphy) cleanup created IMT, or make it atomic
                 LOG.warn("Assign IMT info failed due to ", e);
                 throw e;
             }

@@ -121,10 +121,17 @@ Status AggGroupState::_prepare_imt_state_tables(RuntimeState* state,
     if (!detail_agg_states.empty() && !_params->agg_detail_imt) {
         return Status::InternalError("Create imt state table failed: detail imt should exist");
     }
+
+    // result state table
     _result_state_table = std::make_unique<IMTStateTable>(*_params->agg_result_imt);
+    RETURN_IF_ERROR(_result_state_table->prepare(state));
+
+    // intermediate state table
     if (_params->agg_intermediate_imt) {
         _intermediate_state_table = std::make_unique<IMTStateTable>(*_params->agg_intermediate_imt);
+        RETURN_IF_ERROR(_intermediate_state_table->prepare(state));
     }
+
     // TODO: Make one detail state table works.
     if (_params->agg_detail_imt) {
         return Status::InternalError("Detail state table is not supported yet.");

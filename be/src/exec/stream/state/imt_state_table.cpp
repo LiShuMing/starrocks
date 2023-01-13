@@ -28,10 +28,14 @@ Status IMTStateTable::prepare(RuntimeState* state) {
     // prepare read
     _table_reader = std::make_unique<TableReader>(_convert_to_reader_params());
     _schema = _table_reader->tablet_schema();
+
+    // Construct a default non_keys(values)'s field names array by default.
+    // TODO: construct non-key values from user's scope.
     auto field_names = _schema.field_names();
-    // TODO: Construct a default non_keys(values)'s field names array by default.
-    std::copy_backward(field_names.begin() + _schema.num_key_fields(), field_names.end(),
-                       _non_keys_field_names.begin());
+    DCHECK_LT(0, _schema.num_key_fields());
+    DCHECK_LT(_schema.num_key_fields(), _schema.num_fields());
+    _non_keys_field_names.resize(_schema.num_fields() - _schema.num_key_fields());
+    std::copy_backward(field_names.begin() + _schema.num_key_fields(), field_names.end(), _non_keys_field_names.end());
 
     // prepare write
     Status status;
@@ -61,23 +65,23 @@ stream_load::OlapTableSinkParams IMTStateTable::_convert_to_sink_params() {
             .load_id = _imt.load_id,
 
             .txn_id = _imt.txn_id,
-            .load_channel_timeout_s = 0,
-            .num_replicas = 1,
+            .load_channel_timeout_s = _imt.olap_table.load_channel_timeout_s,
+            .num_replicas = _imt.olap_table.num_replicas,
             .tuple_id = _imt.olap_table.schema.tuple_desc.id,
 
-            .keys_type = TKeysType::PRIMARY_KEYS,
+            .keys_type = _imt.olap_table.keys_type,
             .schema = _imt.olap_table.schema,
             .partition = _imt.olap_table.partition,
             .location = _imt.olap_table.location,
             .nodes_info = _imt.olap_table.nodes_info,
 
-            .write_quorum_type = TWriteQuorumType::MAJORITY,
-            .merge_condition = "",
-            .txn_trace_parent = "",
+            .write_quorum_type = _imt.olap_table.write_quorum_type,
+            .merge_condition = _imt.olap_table.merge_condition,
+            .txn_trace_parent = _imt.olap_table.txn_trace_parent,
 
             .is_lake_table = false,
             .need_gen_rollup = false,
-            .enable_replicated_storage = false,
+            .enable_replicated_storage = _imt.olap_table.enable_replicated_storage,
     };
 }
 

@@ -135,6 +135,9 @@ public class StreamAggNode extends PlanNode {
         if (detailImt != null) {
             msg.stream_agg_node.setAgg_detail_imt(detailImt.toThrift());
         }
+        // TODO: refactor this
+        msg.stream_agg_node.setIs_append_only(true);
+        msg.stream_agg_node.setIs_generate_retract(false);
 
         msg.stream_agg_node.setAgg_func_set_version(3);
     }

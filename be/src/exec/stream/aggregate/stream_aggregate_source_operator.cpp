@@ -15,41 +15,34 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include "exec/stream/aggregate/stream_aggregate_operator.h"
+#include "exec/stream/aggregate/stream_aggregate_source_operator.h"
 
 #include "exec/exec_node.h"
 
 namespace starrocks::stream {
 
-bool StreamAggregateOperator::has_output() const {
-    return _has_output;
+bool StreamAggregateSourceOperator::is_finished() const {
+    return _aggregator->is_sink_complete() && _aggregator->is_ht_eos();
 }
 
-bool StreamAggregateOperator::is_finished() const {
-    return _is_input_finished && !_has_output;
-}
-
-Status StreamAggregateOperator::set_finishing(RuntimeState* state) {
-    _is_input_finished = true;
-    _aggregator->sink_complete();
-    return Status::OK();
-}
-
-Status StreamAggregateOperator::set_finished(RuntimeState* state) {
+Status StreamAggregateSourceOperator::set_finished(RuntimeState* state) {
     return _aggregator->set_finished();
 }
 
-bool StreamAggregateOperator::is_epoch_finished() const {
-    return _is_epoch_finished && !_has_output;
+bool StreamAggregateSourceOperator::has_output() const {
+    return _is_epoch_finished && !_aggregator->is_ht_eos();
 }
 
-Status StreamAggregateOperator::set_epoch_finishing(RuntimeState* state) {
+bool StreamAggregateSourceOperator::is_epoch_finished() const {
+    return _is_epoch_finished && _aggregator->is_ht_eos();
+}
+
+Status StreamAggregateSourceOperator::set_epoch_finishing(RuntimeState* state) {
     _is_epoch_finished = true;
-    _has_output = true;
     return Status::OK();
 }
 
-Status StreamAggregateOperator::set_epoch_finished(RuntimeState* state) {
+Status StreamAggregateSourceOperator::set_epoch_finished(RuntimeState* state) {
     // TODO:  async flush state
     // ATTENTION:
     // 1. reset state to reduce memory usage.
@@ -58,29 +51,17 @@ Status StreamAggregateOperator::set_epoch_finished(RuntimeState* state) {
     return Status::OK();
 }
 
-Status StreamAggregateOperator::reset_epoch(RuntimeState* state) {
+Status StreamAggregateSourceOperator::reset_epoch(RuntimeState* state) {
     _is_epoch_finished = false;
-    _has_output = false;
     return Status::OK();
 }
 
-Status StreamAggregateOperator::prepare(RuntimeState* state) {
-    RETURN_IF_ERROR(Operator::prepare(state));
-    RETURN_IF_ERROR(_aggregator->prepare(state, state->obj_pool(), _unique_metrics.get(), _mem_tracker.get()));
-    return _aggregator->open(state);
-}
-
-void StreamAggregateOperator::close(RuntimeState* state) {
+void StreamAggregateSourceOperator::close(RuntimeState* state) {
     _aggregator->unref(state);
     Operator::close(state);
 }
 
-Status StreamAggregateOperator::push_chunk(RuntimeState* state, const ChunkPtr& chunk) {
-    VLOG_ROW << "push_chunk:" << chunk->num_rows();
-    return _aggregator->process_chunk(dynamic_cast<StreamChunk*>(chunk.get()));
-}
-
-StatusOr<ChunkPtr> StreamAggregateOperator::pull_chunk(RuntimeState* state) {
+StatusOr<ChunkPtr> StreamAggregateSourceOperator::pull_chunk(RuntimeState* state) {
     DCHECK(!_aggregator->is_none_group_by_exprs());
     RETURN_IF_CANCELLED(state);
 
@@ -94,7 +75,6 @@ StatusOr<ChunkPtr> StreamAggregateOperator::pull_chunk(RuntimeState* state) {
     for (auto& col : chunk->columns()) {
         VLOG_ROW << "col:" << col->debug_string();
     }
-    _has_output = !_aggregator->is_ht_eos();
     return std::move(chunk);
 }
 

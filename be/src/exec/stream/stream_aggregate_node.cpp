@@ -14,7 +14,13 @@
 
 #include "exec/stream/stream_aggregate_node.h"
 
+#include "exec/stream/aggregate/stream_aggregate_sink_operator.h"
+#include "exec/stream/aggregate/stream_aggregate_source_operator.h"
+
 namespace starrocks {
+
+using StreamAggregatorPtr = std::shared_ptr<stream::StreamAggregator>;
+using StreamAggregatorFactory = AggregatorFactoryBase<stream::StreamAggregator>;
 
 Status StreamAggregateNode::init(const TPlanNode& tnode, RuntimeState* state) {
     RETURN_IF_ERROR(ExecNode::init(tnode, state));
@@ -37,11 +43,17 @@ std::vector<std::shared_ptr<pipeline::OperatorFactory> > StreamAggregateNode::de
     size_t degree_of_parallelism =
             down_cast<pipeline::SourceOperatorFactory*>(operators_with_sink[0].get())->degree_of_parallelism();
 
+    auto aggregator_factory = std::make_shared<stream::StreamAggregatorFactory>(_tnode);
+    auto agg_sink_operator = std::make_shared<stream::StreamAggregateSinkOperatorFactory>(context->next_operator_id(),
+                                                                                          id(), aggregator_factory);
+    operators_with_sink.push_back(std::move(agg_sink_operator));
+    context->add_pipeline(operators_with_sink);
+
     // shared by sink operator and source operator
     OpFactories operators_with_source;
-    auto aggregator_factory = std::make_shared<stream::StreamAggregatorFactory>(_tnode);
-    auto source_operator = std::make_shared<stream::StreamAggregateOperatorFactory>(context->next_operator_id(), id(),
-                                                                                    aggregator_factory);
+    auto source_operator = std::make_shared<stream::StreamAggregateSourceOperatorFactory>(context->next_operator_id(),
+                                                                                          id(), aggregator_factory);
+
     // Aggregator must be used by a pair of sink and source operators,
     // so operators_with_source's degree of parallelism must be equal with operators_with_sink's
     source_operator->set_degree_of_parallelism(degree_of_parallelism);

@@ -123,15 +123,11 @@ DatumTuple IMTStateTable::_convert_to_datum_tuple(const Columns& keys, size_t ro
     return res;
 }
 
-Status IMTStateTable::write(RuntimeState* state, StreamChunk* chunk) {
+Status IMTStateTable::write(RuntimeState* state, const StreamChunkPtr& chunk) {
     DCHECK(chunk);
     DCHECK(_olap_table_sink);
-    if (false) {
-        // TODO: `ops` column in the StreamChunk should be considered later.
-        return _olap_table_sink->send_chunk(state, chunk);
-    } else {
-        return Status::OK();
-    }
+    auto new_chunk = StreamChunkConverter::to_chunk(chunk);
+    return _olap_table_sink->send_chunk(state, new_chunk.get());
 }
 
 Status IMTStateTable::commit(RuntimeState* state) {

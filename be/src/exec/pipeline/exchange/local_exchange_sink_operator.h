@@ -44,14 +44,17 @@ public:
 
     bool is_epoch_finished() const override { return _is_epoch_finished; }
     Status set_epoch_finishing(RuntimeState* state) override {
+        VLOG_ROW << "set_epoch_finishing";
         _is_epoch_finished = true;
         return Status::OK();
     }
     Status set_epoch_finished(RuntimeState* state) override {
+        VLOG_ROW << "set_epoch_finished";
         _exchanger->epoch_finish(state);
         return Status::OK();
     }
     Status reset_epoch(RuntimeState* state) override {
+        VLOG_ROW << "reset epoch";
         _is_epoch_finished = false;
         return Status::OK();
     }

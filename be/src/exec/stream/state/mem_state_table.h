@@ -76,7 +76,7 @@ public:
     ChunkIteratorPtrOr prefix_scan(const std::vector<std::string>& projection_columns, const Columns& keys,
                                    size_t row_idx) const override;
 
-    Status write(RuntimeState* state, StreamChunk* chunk) override;
+    Status write(RuntimeState* state, const StreamChunkPtr& chunk) override;
     Status commit(RuntimeState* state) override;
 
 private:
@@ -85,8 +85,8 @@ private:
     Status _append_null_to_chunk(ChunkPtr& result_chunk) const;
 
     VectorizedSchema _make_schema_from_slots(const std::vector<SlotDescriptor*>& slots) const;
-    static DatumKeyRow _make_datum_key_row(Chunk* chunk, size_t start, size_t end, int row_idx);
-    static DatumRow _make_datum_row(Chunk* chunk, size_t start, size_t end, int row_idx);
+    static DatumKeyRow _make_datum_key_row(const ChunkPtr& chunk, size_t start, size_t end, int row_idx);
+    static DatumRow _make_datum_row(const ChunkPtr& chunk, size_t start, size_t end, int row_idx);
     bool _equal_keys(const DatumKeyRow& m_k, const DatumKeyRow& keys) const;
 
 private:

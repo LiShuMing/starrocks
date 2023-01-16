@@ -90,7 +90,11 @@ class IMTCreator {
                 Collectors.toMap(ColumnRefOperator::getId, ColumnRefOperator::getName));
         Set<String> keyColumns = key.columns.getStream().mapToObj(columnNames::get).collect(Collectors.toSet());
         for (Column col : columns) {
-            col.setIsKey(keyColumns.contains(col.getName()));
+            if (keyColumns.contains(col.getName())) {
+                col.setIsKey(true);
+                // TODO: fix me later.
+                col.setIsAllowNull(false);
+            }
         }
         if (!property.getModify().isInsertOnly()) {
             stmt.setKeysType(KeysType.PRIMARY_KEYS);

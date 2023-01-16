@@ -50,7 +50,7 @@ public:
     ChunkIteratorPtrOr prefix_scan(const std::vector<std::string>& projection_columns, const Columns& keys,
                                    size_t row_idx) const override;
 
-    Status write(RuntimeState* state, StreamChunk* chunk) override;
+    Status write(RuntimeState* state, const StreamChunkPtr& chunk) override;
     Status commit(RuntimeState* state) override;
 
 private:

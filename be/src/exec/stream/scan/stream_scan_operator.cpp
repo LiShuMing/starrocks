@@ -69,6 +69,7 @@ StatusOr<ChunkPtr> StreamScanOperator::_mark_mock_data_finished() {
     } else {
         _is_finished = true;
     }
+    VLOG_ROW << "stream scan finished";
     return Status::EndOfFile(fmt::format(""));
 }
 
@@ -84,23 +85,25 @@ StatusOr<ChunkPtr> StreamScanOperator::pull_chunk(RuntimeState* state) {
             auto stream_chunk = StreamChunkConverter::make_stream_chunk(chunk, std::move(ops));
 
             int32_t num = _chunk_num.fetch_add(1, std::memory_order_relaxed);
-            VLOG_ROW << "output new chunk:" << chunk->num_rows();
+            VLOG_ROW << "output new chunk:" << chunk->num_rows() << ", num:" << num;
             for (auto& col : chunk->columns()) {
                 VLOG_ROW << "col:" << col->debug_string();
             }
 
-            if (num >= 1) {
+            if (num >= 2) {
                 return _mark_mock_data_finished();
             } else {
                 return stream_chunk;
             }
         }
     }
+    VLOG_ROW << "_run_time=" << _run_time;
 
     _run_time++;
-    if (_run_time > 100) {
+    if (_run_time > 10) {
         return _mark_mock_data_finished();
     }
+
     return status_or;
 }
 

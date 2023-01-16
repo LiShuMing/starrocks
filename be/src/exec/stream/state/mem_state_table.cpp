@@ -231,4 +231,8 @@ Status MemStateTable::write(RuntimeState* state, const StreamChunkPtr& chunk) {
     return Status::OK();
 }
 
+Status MemStateTable::reset_epoch(RuntimeState* state) {
+    return Status::OK();
+}
+
 } // namespace starrocks::stream

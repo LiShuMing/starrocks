@@ -43,7 +43,7 @@ public:
 
     bool is_epoch_finished() const override;
     Status set_epoch_finishing(RuntimeState* state) override;
-    // Status set_epoch_finished(RuntimeState* state) override;
+    Status set_epoch_finished(RuntimeState* state) override;
     Status reset_epoch(RuntimeState* state) override;
 
     StatusOr<ChunkPtr> pull_chunk(RuntimeState* state) override;

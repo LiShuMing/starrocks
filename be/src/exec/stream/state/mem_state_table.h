@@ -78,6 +78,7 @@ public:
 
     Status write(RuntimeState* state, const StreamChunkPtr& chunk) override;
     Status commit(RuntimeState* state) override;
+    Status reset_epoch(RuntimeState* state) override;
 
 private:
     DatumKeyRow _convert_columns_to_key(const Columns& cols, size_t idx) const;

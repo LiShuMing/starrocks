@@ -1728,6 +1728,11 @@ Status OlapTableSink::reset_epoch(RuntimeState* state) {
     pipeline::StreamEpochManager* stream_epoch_manager = state->query_ctx()->stream_epoch_manager();
     DCHECK(stream_epoch_manager);
     _txn_id = stream_epoch_manager->epoch_info().txn_id;
+
+    auto load_id = stream_epoch_manager->epoch_info().load_id;
+    _load_id.set_hi(load_id.hi);
+    _load_id.set_lo(load_id.lo);
+
     _channels.clear();
     _node_channels.clear();
     _failed_channels.clear();

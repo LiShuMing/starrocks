@@ -285,6 +285,10 @@ Status StreamAggregator::_output_result_changes_without_retract(size_t chunk_siz
     return Status::OK();
 }
 
+Status StreamAggregator::commit_epoch(RuntimeState* state) {
+    return _agg_group_state->commit_epoch(state);
+}
+
 void StreamAggregator::close(RuntimeState* state) {
     Aggregator::close(state);
 }

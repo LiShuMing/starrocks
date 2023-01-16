@@ -28,9 +28,7 @@ Status LocalExchangeSinkOperator::prepare(RuntimeState* state) {
 }
 
 bool LocalExchangeSinkOperator::need_input() const {
-    auto ret = !_is_finished && _exchanger->need_input();
-    VLOG_ROW << "_is_finished=" << _is_finished << ", need_input=" << _exchanger->need_input();
-    return ret;
+    return !_is_finished && _exchanger->need_input();
 }
 
 StatusOr<ChunkPtr> LocalExchangeSinkOperator::pull_chunk(RuntimeState* state) {

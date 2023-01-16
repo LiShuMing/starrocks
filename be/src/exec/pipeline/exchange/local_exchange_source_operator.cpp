@@ -65,11 +65,9 @@ bool LocalExchangeSourceOperator::is_finished() const {
 bool LocalExchangeSourceOperator::has_output() const {
     std::lock_guard<std::mutex> l(_chunk_lock);
 
-    auto ret = !_full_chunk_queue.empty() || _partition_rows_num >= _factory->runtime_state()->chunk_size() ||
-               (_is_finished && _partition_rows_num > 0) || _local_buffer_almost_full() ||
-               (_is_epoch_finished && _partition_rows_num > 0);
-    VLOG_ROW << "has_output=" << ret;
-    return ret;
+    return !_full_chunk_queue.empty() || _partition_rows_num >= _factory->runtime_state()->chunk_size() ||
+           (_is_finished && _partition_rows_num > 0) || _local_buffer_almost_full() ||
+           (_is_epoch_finished && _partition_rows_num > 0);
 }
 
 Status LocalExchangeSourceOperator::set_finished(RuntimeState* state) {
@@ -88,10 +86,7 @@ Status LocalExchangeSourceOperator::set_finished(RuntimeState* state) {
 
 bool LocalExchangeSourceOperator::is_epoch_finished() const {
     std::lock_guard<std::mutex> l(_chunk_lock);
-    auto ret = _is_epoch_finished && _full_chunk_queue.empty() && !_partition_rows_num;
-    VLOG_ROW << "ret=" << ret << ", _is_epoch_finished=" << _is_epoch_finished
-             << ", _full_chunk_queue=" << _full_chunk_queue.empty() << ", _partition_rows_num=" << _partition_rows_num;
-    return ret;
+    return _is_epoch_finished && _full_chunk_queue.empty() && !_partition_rows_num;
 }
 Status LocalExchangeSourceOperator::set_epoch_finishing(RuntimeState* state) {
     std::lock_guard<std::mutex> l(_chunk_lock);

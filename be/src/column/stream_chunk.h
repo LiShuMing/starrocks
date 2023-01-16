@@ -84,6 +84,8 @@ struct MVMaintenanceTaskInfo {
 struct EpochInfo {
     // transaction id
     int64_t txn_id;
+    // load_id
+    TUniqueId load_id;
     // epoch marker id
     int64_t epoch_id;
     // max binlog duration which this epoch will run

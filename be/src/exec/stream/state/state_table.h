@@ -69,6 +69,8 @@ public:
 
     // Commit the flushed state data to be used in the later transaction.
     virtual Status commit(RuntimeState* state) = 0;
+
+    virtual Status reset_epoch(RuntimeState* state) = 0;
 };
 
 } // namespace starrocks::stream

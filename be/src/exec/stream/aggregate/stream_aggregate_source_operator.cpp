@@ -47,10 +47,10 @@ Status StreamAggregateSourceOperator::set_epoch_finishing(RuntimeState* state) {
     return Status::OK();
 }
 
-// Status StreamAggregateSourceOperator::set_epoch_finished(RuntimeState* state) {
-//     RETURN_IF_ERROR(_stream_aggregator->reset_state(state));
-//     return Status::OK();
-// }
+Status StreamAggregateSourceOperator::set_epoch_finished(RuntimeState* state) {
+    // TODO: assync refresh.
+    return _stream_aggregator->commit_epoch(state);
+}
 
 Status StreamAggregateSourceOperator::reset_epoch(RuntimeState* state) {
     return Status::OK();

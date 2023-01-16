@@ -332,7 +332,6 @@ public class MVMaintenanceJob implements Writable {
 
         List<Future<PMVMaintenanceTaskResult>> results = new ArrayList<>();
         for (MVMaintenanceTask task : taskMap.values()) {
-            long taskId = task.getTaskId();
             TNetworkAddress address = task.getBeRpcAddr();
             // Build request
             TMVMaintenanceTasks request = new TMVMaintenanceTasks();

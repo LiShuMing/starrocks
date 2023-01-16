@@ -52,6 +52,7 @@ public:
 
     Status write(RuntimeState* state, const StreamChunkPtr& chunk) override;
     Status commit(RuntimeState* state) override;
+    Status reset_epoch(RuntimeState* state) override;
 
 private:
     TableReaderParams _convert_to_reader_params();

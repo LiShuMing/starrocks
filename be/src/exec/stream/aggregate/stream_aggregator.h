@@ -72,10 +72,11 @@ public:
     // Called when need to generate incremental outputs and Output agg_states for the next batch.
     Status output_changes(int32_t chunk_size, StreamChunkPtr* result_chunk);
 
-    // Used to check result/intermediate/detail result for testing.
     // Called when need to generate incremental outputs and Output agg_states for the next batch.
     Status output_changes(int32_t chunk_size, StreamChunkPtr* result_chunk, ChunkPtr* intermediate_chunk,
                           std::vector<ChunkPtr>& detail_chunks);
+
+    Status commit_epoch(RuntimeState* state);
 
     // Reset hashmap(like Cache's evict) when the transaction is over.
     Status reset_state(RuntimeState* state);

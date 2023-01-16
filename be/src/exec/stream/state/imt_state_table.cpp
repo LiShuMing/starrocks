@@ -46,6 +46,7 @@ Status IMTStateTable::prepare(RuntimeState* state) {
 }
 
 Status IMTStateTable::open(RuntimeState* state) {
+    VLOG_ROW << "IMTStateTable open";
     return _olap_table_sink->open(state);
 }
 
@@ -131,8 +132,19 @@ Status IMTStateTable::write(RuntimeState* state, const StreamChunkPtr& chunk) {
 }
 
 Status IMTStateTable::commit(RuntimeState* state) {
-    Status status;
-    return _olap_table_sink->close(state, status);
+    VLOG_ROW << "IMTStateTable commit";
+    return _olap_table_sink->close(state, Status::OK());
+}
+
+Status IMTStateTable::reset_epoch(RuntimeState* state) {
+    if (!_olap_table_sink->is_close_done()) {
+        RETURN_IF_ERROR(_olap_table_sink->close(state, Status::OK()));
+    }
+
+    RETURN_IF_ERROR(_olap_table_sink->reset_epoch(state));
+    RETURN_IF_ERROR(_olap_table_sink->prepare(state));
+    RETURN_IF_ERROR(_olap_table_sink->try_open(state));
+    return Status::OK();
 }
 
 } // namespace starrocks::stream

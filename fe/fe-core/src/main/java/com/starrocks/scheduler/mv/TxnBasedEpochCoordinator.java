@@ -18,6 +18,7 @@ import com.google.common.base.Preconditions;
 import com.starrocks.catalog.Database;
 import com.starrocks.catalog.MaterializedView;
 import com.starrocks.common.UserException;
+import com.starrocks.common.util.UUIDUtil;
 import com.starrocks.planner.OlapTableSink;
 import com.starrocks.proto.PMVMaintenanceTaskResult;
 import com.starrocks.rpc.BackendServiceClient;
@@ -96,6 +97,7 @@ class TxnBasedEpochCoordinator implements EpochCoordinator {
             long txnId = GlobalStateMgr.getCurrentGlobalTransactionMgr()
                     .beginTransaction(dbId, tableIdList, label, txnCoordinator, loadSource, JOB_TIMEOUT);
             epoch.setTxnId(txnId);
+            epoch.setLoadId(UUIDUtil.genTUniqueId());
 
             // Init OlapSink's txnId
             OlapTableSink olapTableSink = mvMaintenanceJob.getMVOlapTableSink();

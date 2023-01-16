@@ -50,6 +50,7 @@ public:
 
     Status write(RuntimeState* state, StreamChunkPtr* result_chunk, ChunkPtr* intermediate_chunk,
                  std::vector<ChunkPtr>& detail_chunk);
+    Status commit_epoch(RuntimeState* state);
 
 private:
     Status _prepare_mem_state_tables(RuntimeState* state, const std::vector<AggStateData*>& intermediate_agg_states,

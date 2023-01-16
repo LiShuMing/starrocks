@@ -337,4 +337,22 @@ Status AggGroupState::write(RuntimeState* state, StreamChunkPtr* result_chunk, C
     return Status::OK();
 }
 
+Status AggGroupState::commit_epoch(RuntimeState* state) {
+    // Update result table
+    DCHECK(_result_state_table);
+    RETURN_IF_ERROR(_result_state_table->commit(state));
+
+    // Update intermediate table
+    if (_intermediate_state_table) {
+        RETURN_IF_ERROR(_intermediate_state_table->commit(state));
+    }
+
+    // Update detail tables
+    for (auto i = 0; i < _detail_state_tables.size(); i++) {
+        auto& detail_state_table = _detail_state_tables[i];
+        RETURN_IF_ERROR(detail_state_table->commit(state));
+    }
+    return Status::OK();
+}
+
 } // namespace starrocks::stream

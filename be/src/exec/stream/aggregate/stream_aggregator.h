@@ -57,14 +57,10 @@ public:
         }
     }
 
-    Status open(RuntimeState* state) { return Aggregator::open(state); }
-
     Status prepare(RuntimeState* state, ObjectPool* pool, RuntimeProfile* runtime_profile,
-                   MemTracker* mem_tracker) override {
-        RETURN_IF_ERROR(Aggregator::prepare(state, pool, runtime_profile, mem_tracker));
-        RETURN_IF_ERROR(_prepare_state_tables(state));
-        return Status::OK();
-    }
+                   MemTracker* mem_tracker) override;
+
+    Status open(RuntimeState* state);
 
     // Process input's chunks util `Epoch` chunk is received.
     Status process_chunk(StreamChunk* chunk);
@@ -78,8 +74,7 @@ public:
 
     Status commit_epoch(RuntimeState* state);
 
-    // Reset hashmap(like Cache's evict) when the transaction is over.
-    Status reset_state(RuntimeState* state);
+    Status reset_epoch(RuntimeState* state);
 
     void close(RuntimeState* state) override;
 

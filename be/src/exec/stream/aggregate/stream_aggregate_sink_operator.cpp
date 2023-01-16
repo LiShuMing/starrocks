@@ -67,7 +67,7 @@ Status StreamAggregateSinkOperator::set_epoch_finished(RuntimeState* state) {
 }
 
 Status StreamAggregateSinkOperator::reset_epoch(RuntimeState* state) {
-    RETURN_IF_ERROR(_stream_aggregator->reset_state(state));
+    RETURN_IF_ERROR(_stream_aggregator->reset_epoch(state));
     return Status::OK();
 }
 

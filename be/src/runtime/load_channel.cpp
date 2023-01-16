@@ -100,6 +100,7 @@ void LoadChannel::open(brpc::Controller* cntl, const PTabletWriterOpenRequest& r
         }
         if (_tablets_channels.find(index_id) == _tablets_channels.end()) {
             TabletsChannelKey key(request.id(), index_id);
+            VLOG_ROW << "open new key:" << key.to_string();
             if (is_lake_tablet) {
                 auto tablet_mgr = ExecEnv::GetInstance()->lake_tablet_manager();
                 channel = new_lake_tablets_channel(this, tablet_mgr, key, _mem_tracker.get());

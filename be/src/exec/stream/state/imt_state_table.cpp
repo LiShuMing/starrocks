@@ -137,13 +137,15 @@ Status IMTStateTable::commit(RuntimeState* state) {
 }
 
 Status IMTStateTable::reset_epoch(RuntimeState* state) {
-    if (!_olap_table_sink->is_close_done()) {
-        RETURN_IF_ERROR(_olap_table_sink->close(state, Status::OK()));
-    }
+    VLOG_ROW << "IMTStateTable reset_epoch";
 
+    if (!_olap_table_sink->is_close_done()) {
+        // TODO: ignore error for now.
+        _olap_table_sink->close(state, Status::OK());
+    }
     RETURN_IF_ERROR(_olap_table_sink->reset_epoch(state));
     RETURN_IF_ERROR(_olap_table_sink->prepare(state));
-    RETURN_IF_ERROR(_olap_table_sink->try_open(state));
+    RETURN_IF_ERROR(_olap_table_sink->open(state));
     return Status::OK();
 }
 

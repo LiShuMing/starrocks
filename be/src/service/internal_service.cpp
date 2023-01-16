@@ -712,7 +712,16 @@ Status PInternalServiceImplBase<T>::_submit_mv_maintenance_task(brpc::Controller
             LOG(WARNING) << msg;
             return Status::InternalError(msg);
         }
-        RETURN_IF_ERROR(_mv_start_maintenance(t_request));
+
+        auto status = _mv_start_maintenance(t_request);
+        // Cancel existed query_ctx if status is not ok
+        if (!status.ok()) {
+            auto&& existing_query_ctx = _exec_env->query_context_mgr()->get(query_id);
+            if (existing_query_ctx) {
+                existing_query_ctx->cancel(status);
+            }
+            return status;
+        }
         break;
     }
     case MVTaskType::START_EPOCH: {

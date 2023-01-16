@@ -45,6 +45,13 @@ StreamAggregator::StreamAggregator(AggregatorParamsPtr&& params) : Aggregator(st
     _count_agg_idx = _params->count_agg_idx;
 }
 
+Status StreamAggregator::prepare(RuntimeState* state, ObjectPool* pool, RuntimeProfile* runtime_profile,
+                                 MemTracker* mem_tracker) {
+    RETURN_IF_ERROR(Aggregator::prepare(state, pool, runtime_profile, mem_tracker));
+    RETURN_IF_ERROR(_prepare_state_tables(state));
+    return Status::OK();
+}
+
 Status StreamAggregator::_prepare_state_tables(RuntimeState* state) {
     auto agg_size = _agg_fn_ctxs.size();
 
@@ -102,6 +109,11 @@ Status StreamAggregator::_prepare_state_tables(RuntimeState* state) {
     return Status::OK();
 }
 
+Status StreamAggregator::open(RuntimeState* state) {
+    RETURN_IF_ERROR(Aggregator::open(state));
+    return _agg_group_state->open(state);
+}
+
 Status StreamAggregator::process_chunk(StreamChunk* chunk) {
     size_t chunk_size = chunk->num_rows();
     RETURN_IF_ERROR(_evaluate_group_by_exprs(chunk));
@@ -140,8 +152,9 @@ Status StreamAggregator::output_changes(int32_t chunk_size, StreamChunkPtr* resu
     return Status::OK();
 }
 
-Status StreamAggregator::reset_state(RuntimeState* state) {
+Status StreamAggregator::reset_epoch(RuntimeState* state) {
     RETURN_IF_ERROR(_reset_state(state));
+    RETURN_IF_ERROR(_agg_group_state->reset_epoch(state));
     return Status::OK();
 }
 

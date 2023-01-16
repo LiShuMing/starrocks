@@ -139,6 +139,24 @@ Status AggGroupState::_prepare_imt_state_tables(RuntimeState* state,
     return Status::OK();
 }
 
+Status AggGroupState::open(RuntimeState* state) {
+    // Update result table
+    DCHECK(_result_state_table);
+    RETURN_IF_ERROR(_result_state_table->open(state));
+
+    // Update intermediate table
+    if (_intermediate_state_table) {
+        RETURN_IF_ERROR(_intermediate_state_table->open(state));
+    }
+
+    // Update detail tables
+    for (auto i = 0; i < _detail_state_tables.size(); i++) {
+        auto& detail_state_table = _detail_state_tables[i];
+        RETURN_IF_ERROR(detail_state_table->open(state));
+    }
+    return Status::OK();
+}
+
 Status AggGroupState::process_chunk(size_t chunk_size, const Columns& group_by_columns,
                                     const Buffer<uint8_t>& keys_not_in_map, const StreamRowOp* ops,
                                     const std::vector<std::vector<ColumnPtr>>& agg_columns,
@@ -351,6 +369,24 @@ Status AggGroupState::commit_epoch(RuntimeState* state) {
     for (auto i = 0; i < _detail_state_tables.size(); i++) {
         auto& detail_state_table = _detail_state_tables[i];
         RETURN_IF_ERROR(detail_state_table->commit(state));
+    }
+    return Status::OK();
+}
+
+Status AggGroupState::reset_epoch(RuntimeState* state) {
+    // Update result table
+    DCHECK(_result_state_table);
+    RETURN_IF_ERROR(_result_state_table->reset_epoch(state));
+
+    // Update intermediate table
+    if (_intermediate_state_table) {
+        RETURN_IF_ERROR(_intermediate_state_table->reset_epoch(state));
+    }
+
+    // Update detail tables
+    for (auto i = 0; i < _detail_state_tables.size(); i++) {
+        auto& detail_state_table = _detail_state_tables[i];
+        RETURN_IF_ERROR(detail_state_table->reset_epoch(state));
     }
     return Status::OK();
 }

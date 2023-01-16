@@ -34,6 +34,7 @@ MVMaintenanceTaskInfo MVMaintenanceTaskInfo::from_maintenance_task(const TMVMain
 EpochInfo EpochInfo::from_start_epoch_task(const TMVStartEpochTask& start_epoch) {
     EpochInfo res;
     res.epoch_id = start_epoch.epoch.epoch_id;
+    res.load_id = start_epoch.epoch.load_id;
     res.txn_id = start_epoch.epoch.txn_id;
     res.max_exec_millis = start_epoch.max_exec_millis;
     res.max_scan_rows = start_epoch.max_scan_rows;

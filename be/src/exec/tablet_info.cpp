@@ -91,6 +91,7 @@ Status OlapTableSchemaParam::init(const TOlapTableSchemaParam& tschema) {
     std::sort(_indexes.begin(), _indexes.end(), [](const OlapTableIndexSchema* lhs, const OlapTableIndexSchema* rhs) {
         return lhs->index_id < rhs->index_id;
     });
+    VLOG_ROW << "OlapTableSchemaParam schema:" << debug_string();
     return Status::OK();
 }
 

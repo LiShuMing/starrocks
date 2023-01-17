@@ -322,13 +322,15 @@ Status AggGroupState::output_changes(size_t chunk_size, const Columns& group_by_
 ChunkPtr AggGroupState::_build_intermediate_chunk(const Columns& group_by_columns,
                                                   const Columns& agg_intermediate_columns) const {
     ChunkPtr result_chunk = std::make_shared<Chunk>();
-
+    int64_t slot_id = 0;
     for (size_t i = 0; i < group_by_columns.size(); i++) {
-        result_chunk->append_column(group_by_columns[i], _intermediate_tuple_desc->slots()[i]->id());
+        // result_chunk->append_column(group_by_columns[i], _intermediate_tuple_desc->slots()[i]->id());
+        result_chunk->append_column(group_by_columns[i], slot_id++);
     }
     for (size_t i = 0; i < agg_intermediate_columns.size(); i++) {
-        size_t id = group_by_columns.size() + i;
-        result_chunk->append_column(agg_intermediate_columns[i], _intermediate_tuple_desc->slots()[id]->id());
+        // size_t id = group_by_columns.size() + i;
+        // result_chunk->append_column(agg_intermediate_columns[i], _intermediate_tuple_desc->slots()[id]->id());
+        result_chunk->append_column(agg_intermediate_columns[i], slot_id++);
     }
     return result_chunk;
 }
@@ -338,6 +340,17 @@ Status AggGroupState::write(RuntimeState* state, StreamChunkPtr* result_chunk, C
     // Update result table
     DCHECK(_result_state_table);
     DCHECK(result_chunk);
+    // Need mock slot id
+    auto new_result_chunk = std::make_shared<Chunk>();
+    int32_t slot_id = 0;
+    for (auto col : (*result_chunk)->columns()) {
+        VLOG_ROW << "new_result_chunk, slot_id:" << slot_id;
+        new_result_chunk->append_column(col, slot_id++);
+    }
+    if (StreamChunkConverter::has_ops_column(*result_chunk)) {
+        new_result_chunk->set_extra_data((*result_chunk)->get_extra_data());
+    }
+
     RETURN_IF_ERROR(_result_state_table->write(state, *result_chunk));
 
     // Update intermediate table

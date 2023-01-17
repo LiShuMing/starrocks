@@ -811,6 +811,7 @@ Status PInternalServiceImplBase<T>::_mv_start_epoch(const pipeline::QueryContext
     auto stream_epoch_manager = query_ctx->stream_epoch_manager();
     EpochInfo epoch_info = EpochInfo::from_start_epoch_task(start_epoch_task);
     pipeline::ScanRangeInfo scan_info = pipeline::ScanRangeInfo::from_start_epoch_start(start_epoch_task);
+    VLOG_ROW << "start epoch:" << epoch_info.debug_string();
 
     std::vector<pipeline::FragmentContext*> fragment_ctxs;
     for (auto& [fragment_instance_id, node_to_scan_ranges] : start_epoch_task.per_node_scan_ranges) {

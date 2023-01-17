@@ -83,6 +83,7 @@ stream_load::OlapTableSinkParams IMTStateTable::_convert_to_sink_params() {
             .is_lake_table = false,
             .need_gen_rollup = false,
             .enable_replicated_storage = _imt.olap_table.enable_replicated_storage,
+            .is_output_tuple_desc_same_with_input = true,
     };
 }
 

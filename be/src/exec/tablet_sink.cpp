@@ -868,6 +868,7 @@ Status OlapTableSink::init(const OlapTableSinkParams& params, RuntimeState* stat
     _location = _pool->add(new OlapTableLocationParam(params.location));
     _nodes_info = _pool->add(new StarRocksNodesInfo(params.nodes_info));
     _load_channel_timeout_s = params.load_channel_timeout_s;
+    _is_output_tuple_desc_same_with_input = params.is_output_tuple_desc_same_with_input;
 
     return Status::OK();
 }
@@ -911,7 +912,11 @@ Status OlapTableSink::prepare(RuntimeState* state) {
     RETURN_IF_ERROR(_vectorized_partition->prepare(state));
 
     // get table's tuple descriptor
-    _output_tuple_desc = state->desc_tbl().get_tuple_descriptor(_tuple_desc_id);
+    if (_is_output_tuple_desc_same_with_input) {
+        _output_tuple_desc = _schema->tuple_desc();
+    } else {
+        _output_tuple_desc = state->desc_tbl().get_tuple_descriptor(_tuple_desc_id);
+    }
     if (_output_tuple_desc == nullptr) {
         LOG(WARNING) << "unknown destination tuple descriptor, id=" << _tuple_desc_id;
         return Status::InternalError("unknown destination tuple descriptor");

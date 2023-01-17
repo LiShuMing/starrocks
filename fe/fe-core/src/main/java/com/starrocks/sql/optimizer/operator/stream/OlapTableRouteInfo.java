@@ -34,6 +34,7 @@ import com.starrocks.catalog.OlapTable;
 import com.starrocks.catalog.Partition;
 import com.starrocks.catalog.PartitionType;
 import com.starrocks.catalog.Replica;
+import com.starrocks.catalog.ScalarType;
 import com.starrocks.catalog.Tablet;
 import com.starrocks.common.DdlException;
 import com.starrocks.common.InternalErrorCode;
@@ -138,6 +139,23 @@ public class OlapTableRouteInfo {
         long version = table.getAllPartitions().stream().findFirst().get().getVisibleVersion();
         schemaParam.setVersion(version);
 
+        // TODO: make it configurable.
+        boolean isAddOpsColumn = true;
+        // IMT Table only support one index for now.
+        Preconditions.checkState(table.getIndexIdToMeta().size() == 1);
+        for (Map.Entry<Long, MaterializedIndexMeta> pair : table.getIndexIdToMeta().entrySet()) {
+            MaterializedIndexMeta indexMeta = pair.getValue();
+            List<String> columns = Lists.newArrayList();
+            columns.addAll(indexMeta.getSchema().stream().map(Column::getName).collect(Collectors.toList()));
+            // TODO: support __op column?
+            if (isAddOpsColumn && table.getKeysType() == KeysType.PRIMARY_KEYS) {
+                columns.add(Load.LOAD_OP_COLUMN);
+            }
+            TOlapTableIndexSchema indexSchema = new TOlapTableIndexSchema(pair.getKey(), columns,
+                    indexMeta.getSchemaHash());
+            schemaParam.addToIndexes(indexSchema);
+        }
+
         DescriptorTable descriptorTable = new DescriptorTable();
         TupleDescriptor olapTuple = descriptorTable.createTupleDescriptor();
         for (Column column : table.getFullSchema()) {
@@ -147,29 +165,17 @@ public class OlapTableRouteInfo {
             slotDescriptor.setColumn(column);
             slotDescriptor.setIsNullable(column.isAllowNull());
         }
+        if (isAddOpsColumn) {
+            SlotDescriptor slotDescriptor = descriptorTable.addSlotDescriptor(olapTuple);
+            Column opColumn = new Column(Load.LOAD_OP_COLUMN, ScalarType.TINYINT);
+            slotDescriptor.setIsMaterialized(true);
+            slotDescriptor.setType(opColumn.getType());
+            slotDescriptor.setColumn(opColumn);
+            slotDescriptor.setIsNullable(false);
+        }
         schemaParam.tuple_desc = olapTuple.toThrift();
         for (SlotDescriptor slotDesc : olapTuple.getSlots()) {
             schemaParam.addToSlot_descs(slotDesc.toThrift());
-        }
-
-        /*
-        schemaParam.tuple_desc = tupleDescriptor.toThrift();
-        for (SlotDescriptor slotDesc : tupleDescriptor.getSlots()) {
-            schemaParam.addToSlot_descs(slotDesc.toThrift());
-        }
-        */
-
-        for (Map.Entry<Long, MaterializedIndexMeta> pair : table.getIndexIdToMeta().entrySet()) {
-            MaterializedIndexMeta indexMeta = pair.getValue();
-            List<String> columns = Lists.newArrayList();
-            columns.addAll(indexMeta.getSchema().stream().map(Column::getName).collect(Collectors.toList()));
-            // TODO: support __op column?
-            if (table.getKeysType() == KeysType.PRIMARY_KEYS) {
-                columns.add(Load.LOAD_OP_COLUMN);
-            }
-            TOlapTableIndexSchema indexSchema = new TOlapTableIndexSchema(pair.getKey(), columns,
-                    indexMeta.getSchemaHash());
-            schemaParam.addToIndexes(indexSchema);
         }
         return schemaParam;
     }

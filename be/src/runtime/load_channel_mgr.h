@@ -84,19 +84,19 @@ public:
     void cancel(brpc::Controller* cntl, const PTabletWriterCancelRequest& request, PTabletWriterCancelResult* response,
                 google::protobuf::Closure* done);
 
-    std::shared_ptr<LoadChannel> remove_load_channel(const UniqueId& load_id);
+    std::shared_ptr<LoadChannel> remove_load_channel(const TabletsChannelKey& load_id);
 
 private:
     static void* load_channel_clean_bg_worker(void* arg);
 
     Status _start_bg_worker();
-    std::shared_ptr<LoadChannel> _find_load_channel(const UniqueId& load_id);
+    std::shared_ptr<LoadChannel> _find_load_channel(const TabletsChannelKey& load_id);
     void _start_load_channels_clean();
 
     // lock protect the load channel map
     bthread::Mutex _lock;
-    // load id -> load channel
-    std::unordered_map<UniqueId, std::shared_ptr<LoadChannel>> _load_channels;
+    // load id + index -> load channel
+    std::unordered_map<TabletsChannelKey, std::shared_ptr<LoadChannel>, TabletsChannelKeyHash> _load_channels;
 
     // check the total load mem consumption of this Backend
     MemTracker* _mem_tracker;

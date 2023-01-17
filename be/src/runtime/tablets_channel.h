@@ -64,12 +64,20 @@ struct TabletsChannelKey {
     int64_t index_id;
 
     TabletsChannelKey(const PUniqueId& pid, int64_t index_id_) : id(pid), index_id(index_id_) {}
+    TabletsChannelKey(const UniqueId& pid, int64_t index_id_) : id(pid.hi, pid.lo), index_id(index_id_) {}
 
     ~TabletsChannelKey() noexcept = default;
 
     bool operator==(const TabletsChannelKey& rhs) const noexcept { return index_id == rhs.index_id && id == rhs.id; }
 
     [[nodiscard]] std::string to_string() const;
+};
+
+struct TabletsChannelKeyHash {
+    size_t operator()(const TabletsChannelKey& key) const {
+        return (std::hash<int64_t>()(key.id.lo) + (std::hash<int64_t>()(key.id.hi) >> 4)) ^
+               (std::hash<int64_t>()(key.index_id));
+    }
 };
 
 inline std::ostream& operator<<(std::ostream& os, const TabletsChannelKey& key) {

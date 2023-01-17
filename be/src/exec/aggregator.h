@@ -235,6 +235,9 @@ public:
 
     void sink_complete() { _is_sink_complete.store(true, std::memory_order_release); }
 
+    void mark_epoch_finished() { _is_epoch_finished.store(true, std::memory_order_release); }
+    bool is_epoch_finished() { return _is_epoch_finished.load(std::memory_order_acquire); }
+
     bool is_chunk_buffer_empty();
     ChunkPtr poll_chunk_buffer();
     void offer_chunk_to_buffer(const ChunkPtr& chunk);
@@ -391,6 +394,9 @@ protected:
 
     AggStatistics* _agg_stat;
 
+    // STREAM MV
+    std::atomic<bool> _is_epoch_finished = false;
+
 public:
     void build_hash_map(size_t chunk_size, bool agg_group_by_with_limit = false);
     void build_hash_map_with_selection(size_t chunk_size);
@@ -484,6 +490,7 @@ public:
     Ptr get_or_create(size_t id) {
         auto it = _aggregators.find(id);
         if (it != _aggregators.end()) {
+            VLOG_ROW << "found in get_or_create";
             return it->second;
         }
         auto aggregator = std::make_shared<T>(convert_to_aggregator_params(_tnode));

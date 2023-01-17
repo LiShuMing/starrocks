@@ -100,6 +100,7 @@ void LoadChannel::open(brpc::Controller* cntl, const PTabletWriterOpenRequest& r
         }
         if (_tablets_channels.find(index_id) == _tablets_channels.end()) {
             TabletsChannelKey key(request.id(), index_id);
+            VLOG_ROW << "open new key:" << key.to_string();
             if (is_lake_tablet) {
                 auto tablet_mgr = ExecEnv::GetInstance()->lake_tablet_manager();
                 channel = new_lake_tablets_channel(this, tablet_mgr, key, _mem_tracker.get());
@@ -107,7 +108,10 @@ void LoadChannel::open(brpc::Controller* cntl, const PTabletWriterOpenRequest& r
                 channel = new_local_tablets_channel(this, key, _mem_tracker.get());
             }
             if (st = channel->open(request, _schema); st.ok()) {
+                VLOG_ROW << "open new key ok:" << key.to_string();
                 _tablets_channels.insert({index_id, std::move(channel)});
+            } else {
+                VLOG_ROW << "open new key failed:" << key.to_string();
             }
         }
     }
@@ -228,9 +232,10 @@ void LoadChannel::abort(int64_t index_id, const std::vector<int64_t>& tablet_ids
 void LoadChannel::remove_tablets_channel(int64_t index_id) {
     std::unique_lock l(_lock);
     _tablets_channels.erase(index_id);
+    TabletsChannelKey key(_load_id, index_id);
     if (_tablets_channels.empty()) {
         l.unlock();
-        _load_mgr->remove_load_channel(_load_id);
+        _load_mgr->remove_load_channel(key);
         // Do NOT touch |this| since here, it could have been deleted.
     }
 }

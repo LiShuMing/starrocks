@@ -169,6 +169,7 @@ Status TableReader::_build_value_schema(const std::vector<std::string>& value_co
         if (field == nullptr) {
             return Status::InternalError("can't find value column " + name);
         }
+        VLOG_ROW << "build field:" << field->to_string();
         schema->append(field);
     }
 

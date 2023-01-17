@@ -376,6 +376,7 @@ Status Aggregator::_reset_state(RuntimeState* state) {
     _is_ht_eos = false;
     _num_input_rows = 0;
     _is_sink_complete = false;
+    _is_epoch_finished = false;
     _it_hash.reset();
     _num_rows_processed = 0;
 

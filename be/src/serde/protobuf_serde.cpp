@@ -14,6 +14,8 @@
 
 #include "serde/protobuf_serde.h"
 
+#include <fmt/format.h>
+
 #include <utility>
 
 #include "column/chunk_extra_data.h"
@@ -320,12 +322,16 @@ StatusOr<ProtobufChunkMeta> build_protobuf_chunk_meta(const RowDescriptor& row_d
     size_t column_index = 0;
     chunk_meta.types.resize(chunk_pb.is_nulls().size());
     for (auto* tuple_desc : row_desc.tuple_descriptors()) {
+        VLOG_ROW << "start tuple_desc";
         const std::vector<SlotDescriptor*>& slots = tuple_desc->slots();
         for (const auto& kv : chunk_meta.slot_id_to_index) {
+            VLOG_ROW << "kv.first=" << kv.first << ", kv.second=" << kv.second;
             for (auto slot : slots) {
+                VLOG_ROW << "kv.first=" << kv.first << ", slot id=" << slot->id() << ", type=" << slot->type();
                 if (kv.first == slot->id()) {
                     chunk_meta.types[kv.second] = slot->type();
                     ++column_index;
+                    VLOG_ROW << "bingo";
                     break;
                 }
             }
@@ -333,7 +339,8 @@ StatusOr<ProtobufChunkMeta> build_protobuf_chunk_meta(const RowDescriptor& row_d
     }
 
     if (UNLIKELY(column_index != chunk_meta.is_nulls.size())) {
-        return Status::InternalError("build chunk _meta error");
+        return Status::InternalError(fmt::format("build chunk _meta error: column_index {} != expected_size {}",
+                                                 column_index, chunk_meta.is_nulls.size()));
     }
     return std::move(chunk_meta);
 }

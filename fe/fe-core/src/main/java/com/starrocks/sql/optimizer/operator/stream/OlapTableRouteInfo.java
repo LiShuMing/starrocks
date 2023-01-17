@@ -20,29 +20,27 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
-import com.google.common.collect.Range;
 import com.starrocks.analysis.DescriptorTable;
-import com.starrocks.analysis.Expr;
 import com.starrocks.analysis.SlotDescriptor;
 import com.starrocks.analysis.TupleDescriptor;
 import com.starrocks.catalog.Column;
 import com.starrocks.catalog.DistributionInfo;
-import com.starrocks.catalog.ExpressionRangePartitionInfo;
 import com.starrocks.catalog.HashDistributionInfo;
+import com.starrocks.catalog.KeysType;
 import com.starrocks.catalog.LocalTablet;
 import com.starrocks.catalog.MaterializedIndex;
 import com.starrocks.catalog.MaterializedIndexMeta;
 import com.starrocks.catalog.OlapTable;
 import com.starrocks.catalog.Partition;
-import com.starrocks.catalog.PartitionKey;
 import com.starrocks.catalog.PartitionType;
-import com.starrocks.catalog.RangePartitionInfo;
 import com.starrocks.catalog.Replica;
+import com.starrocks.catalog.ScalarType;
 import com.starrocks.catalog.Tablet;
 import com.starrocks.common.DdlException;
 import com.starrocks.common.InternalErrorCode;
 import com.starrocks.common.Status;
 import com.starrocks.common.UserException;
+import com.starrocks.load.Load;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.system.Backend;
 import com.starrocks.system.SystemInfoService;
@@ -69,7 +67,6 @@ public class OlapTableRouteInfo {
 
     private final int numReplicas;
     private final String tableName;
-
     private final TupleDescriptor tupleDescriptor;
 
     private final TOlapTableSchemaParam tableSchema;
@@ -110,11 +107,6 @@ public class OlapTableRouteInfo {
                                             TupleDescriptor outputTupleDesc) throws UserException {
         List<Long> partitionIds =
                 olapTable.getAllPartitions().stream().map(Partition::getId).collect(Collectors.toList());
-        return create(dbId, olapTable, partitionIds, outputTupleDesc);
-    }
-
-    public static OlapTableRouteInfo create(long dbId, OlapTable olapTable, List<Long> partitionIds,
-                                            TupleDescriptor outputTupleDesc) throws UserException {
         TOlapTableSchemaParam tableSchema = createTableSchema(dbId, olapTable, outputTupleDesc);
         TOlapTablePartitionParam partition = createPartitionParam(dbId, olapTable, partitionIds);
         TOlapTableLocationParam location = createLocation(olapTable, partitionIds);
@@ -125,8 +117,7 @@ public class OlapTableRouteInfo {
 
     public TOlapTableRouteInfo toThrift() {
         TOlapTableRouteInfo res = new TOlapTableRouteInfo();
-        // TODO: db id
-        // TODO: db name
+        res.setNum_replicas(numReplicas);
         res.setSchema(this.tableSchema);
         res.setPartition(this.partition);
         res.setLocation(this.location);
@@ -137,7 +128,8 @@ public class OlapTableRouteInfo {
         return res;
     }
 
-    private static TOlapTableSchemaParam createTableSchema(long dbId, OlapTable table, TupleDescriptor tupleDescriptor) {
+    private static TOlapTableSchemaParam createTableSchema(long dbId, OlapTable table,
+                                                           TupleDescriptor tupleDescriptor) {
         TOlapTableSchemaParam schemaParam = new TOlapTableSchemaParam();
         schemaParam.setDb_id(dbId);
         schemaParam.setTable_id(table.getId());
@@ -146,22 +138,43 @@ public class OlapTableRouteInfo {
         long version = table.getAllPartitions().stream().findFirst().get().getVisibleVersion();
         schemaParam.setVersion(version);
 
-        schemaParam.tuple_desc = tupleDescriptor.toThrift();
-        for (SlotDescriptor slotDesc : tupleDescriptor.getSlots()) {
-            schemaParam.addToSlot_descs(slotDesc.toThrift());
-        }
-
+        // TODO: make it configurable.
+        boolean isAddOpsColumn = true;
+        // IMT Table only support one index for now.
+        Preconditions.checkState(table.getIndexIdToMeta().size() == 1);
         for (Map.Entry<Long, MaterializedIndexMeta> pair : table.getIndexIdToMeta().entrySet()) {
             MaterializedIndexMeta indexMeta = pair.getValue();
             List<String> columns = Lists.newArrayList();
             columns.addAll(indexMeta.getSchema().stream().map(Column::getName).collect(Collectors.toList()));
             // TODO: support __op column?
-            // if (table.getKeysType() == KeysType.PRIMARY_KEYS) {
-            //    columns.add(Load.LOAD_OP_COLUMN);
-            //  }
+            if (isAddOpsColumn && table.getKeysType() == KeysType.PRIMARY_KEYS) {
+                columns.add(Load.LOAD_OP_COLUMN);
+            }
             TOlapTableIndexSchema indexSchema = new TOlapTableIndexSchema(pair.getKey(), columns,
                     indexMeta.getSchemaHash());
             schemaParam.addToIndexes(indexSchema);
+        }
+
+        DescriptorTable descriptorTable = new DescriptorTable();
+        TupleDescriptor olapTuple = descriptorTable.createTupleDescriptor();
+        for (Column column : table.getFullSchema()) {
+            SlotDescriptor slotDescriptor = descriptorTable.addSlotDescriptor(olapTuple);
+            slotDescriptor.setIsMaterialized(true);
+            slotDescriptor.setType(column.getType());
+            slotDescriptor.setColumn(column);
+            slotDescriptor.setIsNullable(column.isAllowNull());
+        }
+        if (isAddOpsColumn) {
+            SlotDescriptor slotDescriptor = descriptorTable.addSlotDescriptor(olapTuple);
+            Column opColumn = new Column(Load.LOAD_OP_COLUMN, ScalarType.TINYINT);
+            slotDescriptor.setIsMaterialized(true);
+            slotDescriptor.setType(opColumn.getType());
+            slotDescriptor.setColumn(opColumn);
+            slotDescriptor.setIsNullable(false);
+        }
+        schemaParam.tuple_desc = olapTuple.toThrift();
+        for (SlotDescriptor slotDesc : olapTuple.getSlots()) {
+            schemaParam.addToSlot_descs(slotDesc.toThrift());
         }
         return schemaParam;
     }
@@ -171,95 +184,40 @@ public class OlapTableRouteInfo {
         TOlapTablePartitionParam partitionParam = new TOlapTablePartitionParam();
         partitionParam.setDb_id(dbId);
         partitionParam.setTable_id(table.getId());
+
         // TODO: Optimize it later, how to get IMT's version.
         long version = table.getAllPartitions().stream().findFirst().get().getVisibleVersion();
         partitionParam.setVersion(version);
 
         PartitionType partType = table.getPartitionInfo().getType();
-        switch (partType) {
-            case RANGE: {
-                RangePartitionInfo rangePartitionInfo = (RangePartitionInfo) table.getPartitionInfo();
-                for (Column partCol : rangePartitionInfo.getPartitionColumns()) {
-                    partitionParam.addToPartition_columns(partCol.getName());
-                }
-
-                int partColNum = rangePartitionInfo.getPartitionColumns().size();
-                DistributionInfo selectedDistInfo = null;
-
-                for (Long partitionId : partitionIds) {
-                    Partition partition = table.getPartition(partitionId);
-                    TOlapTablePartition tPartition = new TOlapTablePartition();
-                    tPartition.setId(partition.getId());
-                    Range<PartitionKey> range = rangePartitionInfo.getRange(partition.getId());
-                    // set start keys
-                    if (range.hasLowerBound() && !range.lowerEndpoint().isMinValue()) {
-                        for (int i = 0; i < partColNum; i++) {
-                            tPartition.addToStart_keys(
-                                    range.lowerEndpoint().getKeys().get(i).treeToThrift().getNodes().get(0));
-                        }
-                    }
-                    // set end keys
-                    if (range.hasUpperBound() && !range.upperEndpoint().isMaxValue()) {
-                        for (int i = 0; i < partColNum; i++) {
-                            tPartition.addToEnd_keys(
-                                    range.upperEndpoint().getKeys().get(i).treeToThrift().getNodes().get(0));
-                        }
-                    }
-
-                    for (MaterializedIndex index : partition.getMaterializedIndices(MaterializedIndex.IndexExtState.ALL)) {
-                        tPartition.addToIndexes(new TOlapTableIndexTablets(index.getId(), Lists.newArrayList(
-                                index.getTablets().stream().map(Tablet::getId).collect(Collectors.toList()))));
-                        tPartition.setNum_buckets(index.getTablets().size());
-                    }
-                    partitionParam.addToPartitions(tPartition);
-
-                    DistributionInfo distInfo = partition.getDistributionInfo();
-                    if (selectedDistInfo == null) {
-                        partitionParam.setDistributed_columns(getDistColumns(distInfo, table));
-                        selectedDistInfo = distInfo;
-                    } else {
-                        if (selectedDistInfo.getType() != distInfo.getType()) {
-                            throw new UserException("different distribute types in two different partitions, type1="
-                                    + selectedDistInfo.getType() + ", type2=" + distInfo.getType());
-                        }
-                    }
-                }
-                if (rangePartitionInfo instanceof ExpressionRangePartitionInfo) {
-                    ExpressionRangePartitionInfo exprPartitionInfo = (ExpressionRangePartitionInfo) rangePartitionInfo;
-                    partitionParam.setPartition_exprs(Expr.treesToThrift(exprPartitionInfo.getPartitionExprs()));
-                }
-                break;
-            }
-            case UNPARTITIONED: {
-                // there is no partition columns for single partition
-                Preconditions.checkArgument(table.getPartitions().size() == 1,
-                        "Number of table partitions is not 1 for unpartitioned table, partitionNum="
-                                + table.getPartitions().size());
-                Partition partition = null;
-                if (partitionIds != null) {
-                    Preconditions.checkState(partitionIds.size() == 1,
-                            "invalid partitionIds size:{}", partitionIds.size());
-                    partition = table.getPartition(partitionIds.get(0));
-                } else {
-                    partition = table.getPartitions().iterator().next();
-                }
-
-                TOlapTablePartition tPartition = new TOlapTablePartition();
-                tPartition.setId(partition.getId());
-                // No lowerBound and upperBound for this range
-                for (MaterializedIndex index : partition.getMaterializedIndices(MaterializedIndex.IndexExtState.ALL)) {
-                    tPartition.addToIndexes(new TOlapTableIndexTablets(index.getId(), Lists.newArrayList(
-                            index.getTablets().stream().map(Tablet::getId).collect(Collectors.toList()))));
-                    tPartition.setNum_buckets(index.getTablets().size());
-                }
-                partitionParam.addToPartitions(tPartition);
-                partitionParam.setDistributed_columns(getDistColumns(partition.getDistributionInfo(), table));
-                break;
-            }
-            default: {
-                throw new UserException("unsupported partition for OlapTable, partition=" + partType);
-            }
+        if (partType != PartitionType.UNPARTITIONED) {
+            throw new UserException("[MV] Create IMT State table failed: only support un-partitioned " +
+                    "state table for now, input partition:" + partType);
         }
+
+        // there is no partition columns for single partition
+        Preconditions.checkArgument(table.getPartitions().size() == 1,
+                "Number of table partitions is not 1 for unpartitioned table, partitionNum="
+                        + table.getPartitions().size());
+        Partition partition = null;
+        if (partitionIds != null) {
+            Preconditions.checkState(partitionIds.size() == 1,
+                    "invalid partitionIds size:{}", partitionIds.size());
+            partition = table.getPartition(partitionIds.get(0));
+        } else {
+            partition = table.getPartitions().iterator().next();
+        }
+
+        TOlapTablePartition tPartition = new TOlapTablePartition();
+        tPartition.setId(partition.getId());
+        // No lowerBound and upperBound for this range
+        for (MaterializedIndex index : partition.getMaterializedIndices(MaterializedIndex.IndexExtState.ALL)) {
+            tPartition.addToIndexes(new TOlapTableIndexTablets(index.getId(), Lists.newArrayList(
+                    index.getTablets().stream().map(Tablet::getId).collect(Collectors.toList()))));
+            tPartition.setNum_buckets(index.getTablets().size());
+        }
+        partitionParam.addToPartitions(tPartition);
+        partitionParam.setDistributed_columns(getDistColumns(partition.getDistributionInfo(), table));
         return partitionParam;
     }
 
@@ -337,7 +295,7 @@ public class OlapTableRouteInfo {
             return table.getPartitionInfo().getReplicationNum(partition.getId());
         }
         Preconditions.checkState(false, "table has no partition: " + table.getName());
-        return 0;
+        return 1;
     }
 
     public String getTableName() {

@@ -39,8 +39,11 @@ Status AggStateData::allocate_intermediate_state(size_t chunk_size, const std::v
     for (size_t i = 0; i < chunk_size; i++) {
         // skip if keys are already existed in map(cache)
         if (keys_not_in_map[i]) {
+            VLOG_ROW << "i=" << i << ", j=" << j << ", found=" << found[i];
+
             _agg_function->create(_agg_fn_ctx, agg_group_state[i] + _agg_state_offset);
             if (found[i]) {
+                VLOG_ROW << "merge_column=" << column->get(j).get_int64();
                 _agg_function->merge(_agg_fn_ctx, column, agg_group_state[i] + _agg_state_offset, j++);
             }
         }

@@ -89,11 +89,15 @@ void LoadChannelMgr::open(brpc::Controller* cntl, const PTabletWriterOpenRequest
                           PTabletWriterOpenResult* response, google::protobuf::Closure* done) {
     ClosureGuard done_guard(done);
     UniqueId load_id(request.id());
+    int64_t index_id = request.index_id();
+    TabletsChannelKey key(load_id, index_id);
     std::shared_ptr<LoadChannel> channel;
     {
+        VLOG_ROW << "LoadChannelMgr open :" << key.to_string();
         std::lock_guard l(_lock);
-        auto it = _load_channels.find(load_id);
+        auto it = _load_channels.find(key);
         if (it != _load_channels.end()) {
+            VLOG_ROW << "find ok:" << key.to_string();
             channel = it->second;
         } else if (!_mem_tracker->limit_exceeded() || config::enable_new_load_on_memory_limit_exceeded) {
             int64_t mem_limit_in_req = request.has_load_mem_limit() ? request.load_mem_limit() : -1;
@@ -105,8 +109,10 @@ void LoadChannelMgr::open(brpc::Controller* cntl, const PTabletWriterOpenRequest
 
             channel.reset(new LoadChannel(this, load_id, request.txn_trace_parent(), job_timeout_s,
                                           std::move(job_mem_tracker)));
-            _load_channels.insert({load_id, channel});
+            VLOG_ROW << "open ok:" << key.to_string();
+            _load_channels.insert({key, channel});
         } else {
+            VLOG_ROW << "find failed:" << key.to_string();
             response->mutable_status()->set_status_code(TStatusCode::MEM_LIMIT_EXCEEDED);
             response->mutable_status()->add_error_msgs(
                     "memory limit exceeded, please reduce load frequency or increase config "
@@ -121,24 +127,29 @@ void LoadChannelMgr::open(brpc::Controller* cntl, const PTabletWriterOpenRequest
 void LoadChannelMgr::add_chunk(const PTabletWriterAddChunkRequest& request, PTabletWriterAddBatchResult* response) {
     VLOG(2) << "Current memory usage=" << _mem_tracker->consumption() << " limit=" << _mem_tracker->limit();
     UniqueId load_id(request.id());
-    auto channel = _find_load_channel(load_id);
+    int64_t index_id = request.index_id();
+    TabletsChannelKey key(load_id, index_id);
+    auto channel = _find_load_channel(key);
     if (channel != nullptr) {
         channel->add_chunk(request, response);
     } else {
         response->mutable_status()->set_status_code(TStatusCode::INTERNAL_ERROR);
-        response->mutable_status()->add_error_msgs("no associated load channel " + print_id(request.id()));
+        response->mutable_status()->add_error_msgs("add_chunk failed: no associated load channel " + key.to_string());
     }
 }
 
 void LoadChannelMgr::add_chunks(const PTabletWriterAddChunksRequest& request, PTabletWriterAddBatchResult* response) {
     VLOG(2) << "Current memory usage=" << _mem_tracker->consumption() << " limit=" << _mem_tracker->limit();
     UniqueId load_id(request.id());
-    auto channel = _find_load_channel(load_id);
+    auto& req = request.requests(0);
+    int64_t index_id = req.index_id();
+    TabletsChannelKey key(load_id, index_id);
+    auto channel = _find_load_channel(key);
     if (channel != nullptr) {
         channel->add_chunks(request, response);
     } else {
         response->mutable_status()->set_status_code(TStatusCode::INTERNAL_ERROR);
-        response->mutable_status()->add_error_msgs("no associated load channel " + print_id(request.id()));
+        response->mutable_status()->add_error_msgs("add_chunks failed: no associated load channel " + key.to_string());
     }
 }
 
@@ -146,13 +157,15 @@ void LoadChannelMgr::add_segment(brpc::Controller* cntl, const PTabletWriterAddS
                                  PTabletWriterAddSegmentResult* response, google::protobuf::Closure* done) {
     ClosureGuard closure_guard(done);
     UniqueId load_id(request->id());
-    auto channel = _find_load_channel(load_id);
+    int64_t index_id = request->index_id();
+    TabletsChannelKey key(load_id, index_id);
+    auto channel = _find_load_channel(key);
     if (channel != nullptr) {
         channel->add_segment(cntl, request, response, done);
         closure_guard.release();
     } else {
         response->mutable_status()->set_status_code(TStatusCode::INTERNAL_ERROR);
-        response->mutable_status()->add_error_msgs("no associated load channel " + print_id(request->id()));
+        response->mutable_status()->add_error_msgs("add_segment failed: no associated load channel " + key.to_string());
     }
 }
 
@@ -160,13 +173,15 @@ void LoadChannelMgr::cancel(brpc::Controller* cntl, const PTabletWriterCancelReq
                             PTabletWriterCancelResult* response, google::protobuf::Closure* done) {
     ClosureGuard done_guard(done);
     UniqueId load_id(request.id());
+    int64_t index_id = request.index_id();
+    TabletsChannelKey key(load_id, index_id);
     if (request.has_tablet_id()) {
-        auto channel = _find_load_channel(load_id);
+        auto channel = _find_load_channel(key);
         if (channel != nullptr) {
             channel->abort(request.index_id(), {request.tablet_id()});
         }
     } else if (request.tablet_ids_size() > 0) {
-        auto channel = _find_load_channel(load_id);
+        auto channel = _find_load_channel(key);
         if (channel != nullptr) {
             std::vector<int64_t> tablet_ids;
             for (auto& tablet_id : request.tablet_ids()) {
@@ -175,7 +190,7 @@ void LoadChannelMgr::cancel(brpc::Controller* cntl, const PTabletWriterCancelReq
             channel->abort(request.index_id(), tablet_ids);
         }
     } else {
-        if (auto channel = remove_load_channel(load_id); channel != nullptr) {
+        if (auto channel = remove_load_channel(key); channel != nullptr) {
             channel->cancel();
             channel->abort();
         }
@@ -239,16 +254,19 @@ void LoadChannelMgr::_start_load_channels_clean() {
               << " current=" << _mem_tracker->consumption() << " peak=" << _mem_tracker->peak_consumption();
 }
 
-std::shared_ptr<LoadChannel> LoadChannelMgr::_find_load_channel(const UniqueId& load_id) {
+std::shared_ptr<LoadChannel> LoadChannelMgr::_find_load_channel(const TabletsChannelKey& load_id) {
     std::lock_guard l(_lock);
     auto it = _load_channels.find(load_id);
-    return (it != _load_channels.end()) ? it->second : nullptr;
+    auto ret = (it != _load_channels.end()) ? it->second : nullptr;
+    VLOG_ROW << "find key:" << load_id.to_string() << ", ret:" << (!!ret);
+    return ret;
 }
 
-std::shared_ptr<LoadChannel> LoadChannelMgr::remove_load_channel(const UniqueId& load_id) {
+std::shared_ptr<LoadChannel> LoadChannelMgr::remove_load_channel(const TabletsChannelKey& load_id) {
     std::lock_guard l(_lock);
     if (auto it = _load_channels.find(load_id); it != _load_channels.end()) {
         auto ret = it->second;
+        VLOG_ROW << "remove load key:" << load_id.to_string();
         _load_channels.erase(it);
         return ret;
     }

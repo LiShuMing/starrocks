@@ -16,6 +16,7 @@
 package com.starrocks.scheduler.mv;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.starrocks.analysis.ColumnDef;
 import com.starrocks.analysis.KeysDesc;
@@ -41,6 +42,7 @@ import com.starrocks.sql.optimizer.OptExpressionVisitor;
 import com.starrocks.sql.optimizer.base.ColumnRefFactory;
 import com.starrocks.sql.optimizer.base.ColumnRefSet;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
+import com.starrocks.sql.optimizer.operator.stream.IMTInfo;
 import com.starrocks.sql.optimizer.operator.stream.PhysicalStreamAggOperator;
 import com.starrocks.sql.optimizer.operator.stream.PhysicalStreamOperator;
 import com.starrocks.sql.optimizer.rule.mv.KeyInference;
@@ -90,7 +92,13 @@ class IMTCreator {
                 Collectors.toMap(ColumnRefOperator::getId, ColumnRefOperator::getName));
         Set<String> keyColumns = key.columns.getStream().mapToObj(columnNames::get).collect(Collectors.toSet());
         for (Column col : columns) {
-            col.setIsKey(keyColumns.contains(col.getName()));
+            if (keyColumns.contains(col.getName())) {
+                col.setIsKey(true);
+                // TODO: fix me later.
+                col.setIsAllowNull(false);
+            }
+            // TODO: fix me later.
+            col.setIsAllowNull(false);
         }
         if (!property.getModify().isInsertOnly()) {
             stmt.setKeysType(KeysType.PRIMARY_KEYS);
@@ -114,7 +122,7 @@ class IMTCreator {
                 distributionInfo, mvRefreshScheme);
     }
 
-    public static void createIMT(CreateMaterializedViewStatement stmt, MaterializedView view) throws DdlException {
+    public static List<IMTInfo> createIMT(CreateMaterializedViewStatement stmt, MaterializedView view) throws DdlException {
         ExecPlan maintenancePlan = stmt.getMaintenancePlan();
         OptExpression optExpr = maintenancePlan.getPhysicalPlan();
         List<IMTCreatorVisitor.IMTCreatorResult> createTables = IMTCreatorVisitor.createIMTForOperator(stmt, optExpr, view);
@@ -135,18 +143,20 @@ class IMTCreator {
         }
 
         // Assign imt infos to each operator
+        List<IMTInfo> imtInfos = Lists.newArrayList();
         for (IMTCreatorVisitor.IMTCreatorResult creatorResult : createTables) {
             OptExpression optExpression = creatorResult.getOptWithIMTs();
             Preconditions.checkState(optExpression.getOp() instanceof PhysicalStreamOperator);
             PhysicalStreamOperator streamOperator = (PhysicalStreamOperator) optExpression.getOp();
             try {
-                streamOperator.assignIMTInfos();
+                imtInfos.addAll(streamOperator.assignIMTInfos());
             } catch (DdlException e) {
-                // TODO(lism) cleanup created IMT, or make it atomic
+                // TODO(murphy) cleanup created IMT, or make it atomic
                 LOG.warn("Assign IMT info failed due to ", e);
                 throw e;
             }
         }
+        return imtInfos;
     }
 
     static class IMTCreatorVisitor extends OptExpressionVisitor<Void, Void> {
@@ -245,6 +255,7 @@ class IMTCreator {
                 Column newColumn = new Column(refOp.getName(), refOp.getType());
                 boolean isKey = bestKey.columns.contains(refOp);
                 newColumn.setIsKey(isKey);
+                // TODO: fix me later
                 newColumn.setIsAllowNull(!isKey);
                 if (isKey) {
                     keyColumns.add(newColumn);
@@ -253,7 +264,8 @@ class IMTCreator {
                 TypeDef typeDef = TypeDef.create(refOp.getType().getPrimitiveType());
                 ColumnDef columnDef = new ColumnDef(refOp.getName(), typeDef);
                 columnDef.setIsKey(isKey);
-                columnDef.setAllowNull(!isKey);
+                columnDef.setAllowNull(false);
+                // columnDef.setAllowNull(!isKey);
                 columnDefs.add(columnDef);
             }
             List<String> keysColumnNames  = keyColumns.stream().map(Column::getName).collect(Collectors.toList());

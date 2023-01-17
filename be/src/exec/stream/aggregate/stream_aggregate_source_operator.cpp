@@ -22,60 +22,64 @@
 namespace starrocks::stream {
 
 bool StreamAggregateSourceOperator::is_finished() const {
-    return _aggregator->is_sink_complete() && _aggregator->is_ht_eos();
+    return _stream_aggregator->is_sink_complete() && _stream_aggregator->is_ht_eos();
 }
 
 Status StreamAggregateSourceOperator::set_finished(RuntimeState* state) {
-    return _aggregator->set_finished();
+    return _stream_aggregator->set_finished();
 }
 
 bool StreamAggregateSourceOperator::has_output() const {
-    return _is_epoch_finished && !_aggregator->is_ht_eos();
+    auto ret = _stream_aggregator->is_epoch_finished() && !_stream_aggregator->is_ht_eos();
+    VLOG_ROW << "has_output:" << ret << ", is_epoch_finished=" << _stream_aggregator->is_epoch_finished()
+             << ", is_ht_eos=" << !_stream_aggregator->is_ht_eos();
+    return ret;
 }
 
 bool StreamAggregateSourceOperator::is_epoch_finished() const {
-    return _is_epoch_finished && _aggregator->is_ht_eos();
+    auto ret = _stream_aggregator->is_epoch_finished() && _stream_aggregator->is_ht_eos();
+    VLOG_ROW << "is_epoch_finished:" << ret << ", is_epoch_finished=" << _stream_aggregator->is_epoch_finished()
+             << ", is_ht_eos=" << !_stream_aggregator->is_ht_eos();
+    return ret;
 }
 
 Status StreamAggregateSourceOperator::set_epoch_finishing(RuntimeState* state) {
-    _is_epoch_finished = true;
     return Status::OK();
 }
 
 Status StreamAggregateSourceOperator::set_epoch_finished(RuntimeState* state) {
-    // TODO:  async flush state
-    // ATTENTION:
-    // 1. reset state to reduce memory usage.
-    // 2. reset state will change `_aggregator->is_ht_eos()`
-    RETURN_IF_ERROR(_aggregator->reset_state(state));
-    return Status::OK();
+    // TODO: assync refresh.
+    return _stream_aggregator->commit_epoch(state);
 }
 
 Status StreamAggregateSourceOperator::reset_epoch(RuntimeState* state) {
-    _is_epoch_finished = false;
     return Status::OK();
 }
 
 void StreamAggregateSourceOperator::close(RuntimeState* state) {
-    _aggregator->unref(state);
+    _stream_aggregator->unref(state);
     Operator::close(state);
 }
 
 StatusOr<ChunkPtr> StreamAggregateSourceOperator::pull_chunk(RuntimeState* state) {
-    DCHECK(!_aggregator->is_none_group_by_exprs());
+    DCHECK(!_stream_aggregator->is_none_group_by_exprs());
     RETURN_IF_CANCELLED(state);
 
-    StreamChunkPtr chunk = std::make_shared<StreamChunk>();
+    StreamChunkPtr stream_chunk = std::make_shared<StreamChunk>();
     const auto chunk_size = state->chunk_size();
-    RETURN_IF_ERROR(_aggregator->output_changes(chunk_size, &chunk));
+    RETURN_IF_ERROR(_stream_aggregator->output_changes(chunk_size, &stream_chunk));
 
-    // For having
-    RETURN_IF_ERROR(eval_conjuncts_and_in_filters(_aggregator->conjunct_ctxs(), chunk.get()));
-    VLOG_ROW << "pull_chunk:" << chunk->num_rows();
-    for (auto& col : chunk->columns()) {
+    {
+        // TODO(lism): support filter ops cols
+        RETURN_IF_ERROR(eval_conjuncts_and_in_filters(_stream_aggregator->conjunct_ctxs(), stream_chunk.get()));
+    }
+
+    VLOG_ROW << "pull_chunk:" << stream_chunk->num_rows();
+    for (auto& col : stream_chunk->columns()) {
         VLOG_ROW << "col:" << col->debug_string();
     }
-    return std::move(chunk);
+
+    return std::move(stream_chunk);
 }
 
 } // namespace starrocks::stream

@@ -15,6 +15,7 @@
 package com.starrocks.sql.optimizer.operator.stream;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.starrocks.analysis.TableName;
 import com.starrocks.analysis.TupleDescriptor;
 import com.starrocks.common.DdlException;
@@ -137,26 +138,32 @@ public class PhysicalStreamAggOperator extends PhysicalStreamOperator {
     }
 
     @Override
-    public void assignIMTInfos() throws DdlException  {
+    public List<IMTInfo> assignIMTInfos() throws DdlException  {
         Preconditions.checkState(resultIMTName != null);
+        List<IMTInfo> imtInfos = Lists.newArrayList();
         try {
             long dbId = GlobalStateMgr.getCurrentState().getDb(resultIMTName.getDb()).getId();
             LOG.info("Create result IMTInfo: {}", resultIMTName);
-            resultIMT = IMTInfo.fromTableName(dbId, outputTupleDesc, resultIMTName, true);
+            resultIMT = IMTInfo.fromTableName(dbId, outputTupleDesc, resultIMTName);
             streamAggNode.setResultImt(resultIMT);
+            imtInfos.add(resultIMT);
+
             if (intermediateIMTName != null) {
                 LOG.info("Create intermediate IMTInfo: {}", intermediateIMT);
-                intermediateIMT = IMTInfo.fromTableName(dbId, outputTupleDesc, intermediateIMTName, true);
+                intermediateIMT = IMTInfo.fromTableName(dbId, outputTupleDesc, intermediateIMTName);
                 streamAggNode.setIntermediateImt(intermediateIMT);
+                imtInfos.add(intermediateIMT);
             }
             if (detailIMTName != null) {
                 LOG.info("Create detail IMTInfo: {}", detailIMTName);
-                detailIMT = IMTInfo.fromTableName(dbId, outputTupleDesc, detailIMTName, true);
+                detailIMT = IMTInfo.fromTableName(dbId, outputTupleDesc, detailIMTName);
                 streamAggNode.setDetailImt(detailIMT);
+                imtInfos.add(detailIMT);
             }
         } catch (UserException e) {
             throw new DdlException("Failed to deduce IMT Info, " + e.getMessage(), e);
         }
+        return imtInfos;
     }
 
     @Override

@@ -2899,9 +2899,6 @@ public class PlanFragmentBuilder {
             // Set imt infos
             node.setOutputTupleDesc(outputTupleDesc);
             node.setStreamAggNode(aggNode);
-            // aggNode.setResultImt(node.getResultIMT());
-            // aggNode.setIntermediateImt(node.getIntermediateIMT());
-            // aggNode.setDetailImt(node.getDetailIMT());
 
             aggNode.setHasNullableGenerateChild();
             aggNode.computeStatistics(optExpr.getStatistics());

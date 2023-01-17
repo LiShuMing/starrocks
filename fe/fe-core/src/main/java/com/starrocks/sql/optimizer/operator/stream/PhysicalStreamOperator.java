@@ -15,12 +15,15 @@
 package com.starrocks.sql.optimizer.operator.stream;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.starrocks.common.DdlException;
 import com.starrocks.sql.optimizer.operator.OperatorType;
 import com.starrocks.sql.optimizer.operator.physical.PhysicalOperator;
 import com.starrocks.sql.optimizer.rule.mv.KeyInference;
 import com.starrocks.sql.optimizer.rule.mv.MVOperatorProperty;
 import com.starrocks.sql.optimizer.rule.mv.ModifyInference;
+
+import java.util.List;
 
 public class PhysicalStreamOperator extends PhysicalOperator {
 
@@ -47,7 +50,7 @@ public class PhysicalStreamOperator extends PhysicalOperator {
         return this.property.getModify();
     }
 
-    public void assignIMTInfos() throws DdlException {
-        return;
+    public List<IMTInfo>  assignIMTInfos() throws DdlException {
+        return Lists.newArrayList();
     }
 }

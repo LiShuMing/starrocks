@@ -23,8 +23,8 @@ namespace starrocks::stream {
 
 Status StreamAggregateSinkOperator::prepare(RuntimeState* state) {
     RETURN_IF_ERROR(Operator::prepare(state));
-    RETURN_IF_ERROR(_aggregator->prepare(state, state->obj_pool(), _unique_metrics.get(), _mem_tracker.get()));
-    return _aggregator->open(state);
+    RETURN_IF_ERROR(_stream_aggregator->prepare(state, state->obj_pool(), _unique_metrics.get(), _mem_tracker.get()));
+    return _stream_aggregator->open(state);
 }
 
 bool StreamAggregateSinkOperator::is_finished() const {
@@ -33,25 +33,41 @@ bool StreamAggregateSinkOperator::is_finished() const {
 
 Status StreamAggregateSinkOperator::set_finishing(RuntimeState* state) {
     _is_input_finished = true;
-    _aggregator->sink_complete();
+    _stream_aggregator->sink_complete();
     return Status::OK();
 }
 
 Status StreamAggregateSinkOperator::set_finished(RuntimeState* state) {
-    return _aggregator->set_finished();
+    return _stream_aggregator->set_finished();
 }
 
 bool StreamAggregateSinkOperator::is_epoch_finished() const {
-    return _is_epoch_finished;
+    auto ret = _stream_aggregator->is_epoch_finished();
+    VLOG_ROW << "aggregator is epoch finished:" << ret;
+    return ret;
 }
 
 Status StreamAggregateSinkOperator::set_epoch_finishing(RuntimeState* state) {
-    _is_epoch_finished = true;
+    VLOG_ROW << "mark aggregator epoch finished.";
+
+    // If hash set is empty, we don't need to return value
+    if (_stream_aggregator->hash_map_variant().size() == 0) {
+        _stream_aggregator->set_ht_eos();
+    }
+    _stream_aggregator->hash_map_variant().visit([&](auto& hash_map_with_key) {
+        _stream_aggregator->it_hash() = _stream_aggregator->_state_allocator.begin();
+    });
+
+    _stream_aggregator->mark_epoch_finished();
+    return Status::OK();
+}
+
+Status StreamAggregateSinkOperator::set_epoch_finished(RuntimeState* state) {
     return Status::OK();
 }
 
 Status StreamAggregateSinkOperator::reset_epoch(RuntimeState* state) {
-    _is_epoch_finished = false;
+    RETURN_IF_ERROR(_stream_aggregator->reset_epoch(state));
     return Status::OK();
 }
 
@@ -61,11 +77,14 @@ StatusOr<ChunkPtr> StreamAggregateSinkOperator::pull_chunk(RuntimeState* state) 
 
 Status StreamAggregateSinkOperator::push_chunk(RuntimeState* state, const ChunkPtr& chunk) {
     VLOG_ROW << "push_chunk:" << chunk->num_rows();
-    return _aggregator->process_chunk(dynamic_cast<StreamChunk*>(chunk.get()));
+    for (auto& col : chunk->columns()) {
+        VLOG_ROW << "col:" << col->debug_string();
+    }
+    return _stream_aggregator->process_chunk(dynamic_cast<StreamChunk*>(chunk.get()));
 }
 
 void StreamAggregateSinkOperator::close(RuntimeState* state) {
-    _aggregator->unref(state);
+    _stream_aggregator->unref(state);
     Operator::close(state);
 }
 

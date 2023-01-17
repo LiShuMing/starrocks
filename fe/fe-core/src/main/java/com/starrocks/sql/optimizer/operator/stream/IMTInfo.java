@@ -33,36 +33,21 @@ public class IMTInfo {
     private TIMTType type;
     private OlapTableRouteInfo olapTable;
 
-    // If this IMT needs to be maintained by operator
-    private boolean needMaintain;
     private TUniqueId loadId;
     private long txnId;
 
-    public static IMTInfo fromOlapTable(long dbId, TupleDescriptor outputTupleDesc,
-                                        OlapTable table, boolean needMaintain) throws UserException {
-        IMTInfo res = new IMTInfo();
-        res.type = TIMTType.OLAP_TABLE;
-        res.needMaintain = needMaintain;
-        res.olapTable = OlapTableRouteInfo.create(dbId, table, outputTupleDesc);
-        return res;
-    }
     public static IMTInfo fromTableName(long dbId, TupleDescriptor outputTupleDesc,
-                                        TableName tableName, boolean needMaintain) throws UserException {
+                                        TableName tableName) throws UserException {
         Preconditions.checkState(tableName != null);
         OlapTable resultTable = (OlapTable) MetaUtils.getTable(tableName);
-        return IMTInfo.fromOlapTable(dbId, outputTupleDesc, resultTable, needMaintain);
+        IMTInfo res = new IMTInfo();
+        res.type = TIMTType.OLAP_TABLE;
+        res.olapTable = OlapTableRouteInfo.create(dbId, resultTable, outputTupleDesc);
+        return res;
     }
 
     public String getName() {
         return this.olapTable.getTableName();
-    }
-
-    public boolean isNeedMaintain() {
-        return needMaintain;
-    }
-
-    public void setNeedMaintain(boolean needMaintain) {
-        this.needMaintain = needMaintain;
     }
 
     public void setLoadInfo(TUniqueId loadId, long txnId) {
@@ -78,11 +63,8 @@ public class IMTInfo {
         TIMTDescriptor desc = new TIMTDescriptor();
         desc.setImt_type(this.type);
         desc.setOlap_table(this.olapTable.toThrift());
-        desc.setNeed_maintain(this.needMaintain);
-        if (this.needMaintain) {
-            desc.setLoad_id(this.loadId);
-            desc.setTxn_id(this.txnId);
-        }
+        // desc.setLoad_id(this.loadId);
+        // desc.setTxn_id(this.txnId);
         return desc;
     }
 
@@ -93,6 +75,6 @@ public class IMTInfo {
 
     @Override
     public String toString() {
-        return String.format("%s/%s", type.toString(), olapTable.getTableName());
+        return String.format("IMT type=%s, table_name=%s", type.toString(), olapTable.getTableName());
     }
 }

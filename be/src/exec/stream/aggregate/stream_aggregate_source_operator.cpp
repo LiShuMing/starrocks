@@ -49,6 +49,7 @@ Status StreamAggregateSourceOperator::set_epoch_finishing(RuntimeState* state) {
 
 Status StreamAggregateSourceOperator::set_epoch_finished(RuntimeState* state) {
     // TODO: assync refresh.
+    // TODO: only commit when the last operator finished.
     RETURN_IF_ERROR(_stream_aggregator->commit_epoch(state));
     return _stream_aggregator->reset_state(state);
 }

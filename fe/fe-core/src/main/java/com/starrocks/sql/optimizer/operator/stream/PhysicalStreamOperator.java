@@ -50,7 +50,7 @@ public class PhysicalStreamOperator extends PhysicalOperator {
         return this.property.getModify();
     }
 
-    public List<IMTInfo>  assignIMTInfos() throws DdlException {
+    public List<IMTStateTable>  assignIMTInfos() throws DdlException {
         return Lists.newArrayList();
     }
 }

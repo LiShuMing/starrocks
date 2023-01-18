@@ -2896,8 +2896,7 @@ public class PlanFragmentBuilder {
 
             aggNode.setIntermediateTuple();
 
-            // Set imt infos
-            node.setOutputTupleDesc(outputTupleDesc);
+            // To be used for setting IMTStateTables later.
             node.setStreamAggNode(aggNode);
 
             aggNode.setHasNullableGenerateChild();

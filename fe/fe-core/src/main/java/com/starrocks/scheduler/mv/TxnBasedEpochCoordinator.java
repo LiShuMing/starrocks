@@ -23,7 +23,7 @@ import com.starrocks.planner.OlapTableSink;
 import com.starrocks.proto.PMVMaintenanceTaskResult;
 import com.starrocks.rpc.BackendServiceClient;
 import com.starrocks.server.GlobalStateMgr;
-import com.starrocks.sql.optimizer.operator.stream.IMTInfo;
+import com.starrocks.sql.optimizer.operator.stream.IMTStateTable;
 import com.starrocks.thrift.MVTaskType;
 import com.starrocks.thrift.TMVMaintenanceTasks;
 import com.starrocks.thrift.TMVStartEpochTask;
@@ -91,11 +91,11 @@ class TxnBasedEpochCoordinator implements EpochCoordinator {
         MaterializedView view = mvMaintenanceJob.getView();
         long dbId = view.getDbId();
 
-        List<IMTInfo> imtInfos = mvMaintenanceJob.getImtInfos();
+        List<IMTStateTable> imtStateTables = mvMaintenanceJob.getImtInfos();
 
         // TableIds: imt table ids + view's id
         List<Long> tableIdList =
-                imtInfos.stream().map(info -> info.toOlapTable().getId()).collect(Collectors.toList());
+                imtStateTables.stream().map(info -> info.getOlapTable().getId()).collect(Collectors.toList());
         tableIdList.add(view.getId());
 
         long currentTs = System.currentTimeMillis();

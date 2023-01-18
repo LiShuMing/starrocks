@@ -22,7 +22,7 @@ import com.starrocks.common.FeConstants;
 import com.starrocks.planner.FragmentNormalizer;
 import com.starrocks.planner.PlanNode;
 import com.starrocks.planner.PlanNodeId;
-import com.starrocks.sql.optimizer.operator.stream.IMTInfo;
+import com.starrocks.sql.optimizer.operator.stream.IMTStateTable;
 import com.starrocks.thrift.TExplainLevel;
 import com.starrocks.thrift.TExpr;
 import com.starrocks.thrift.TNormalPlanNode;
@@ -39,9 +39,9 @@ import java.util.stream.Collectors;
 public class StreamAggNode extends PlanNode {
     private final AggregateInfo aggInfo;
 
-    private IMTInfo resultImt;
-    private IMTInfo intermediateImt;
-    private IMTInfo detailImt;
+    private IMTStateTable resultImt;
+    private IMTStateTable intermediateImt;
+    private IMTStateTable detailImt;
 
     public StreamAggNode(PlanNodeId id, PlanNode input, AggregateInfo aggInfo) {
         super(id, aggInfo.getOutputTupleId().asList(), "StreamAgg");
@@ -49,15 +49,15 @@ public class StreamAggNode extends PlanNode {
         this.children.add(input);
     }
 
-    public void setIntermediateImt(IMTInfo intermediateImt) {
+    public void setIntermediateImt(IMTStateTable intermediateImt) {
         this.intermediateImt = intermediateImt;
     }
 
-    public void setResultImt(IMTInfo resultImt) {
+    public void setResultImt(IMTStateTable resultImt) {
         this.resultImt = resultImt;
     }
 
-    public void setDetailImt(IMTInfo detailImt) {
+    public void setDetailImt(IMTStateTable detailImt) {
         this.detailImt = detailImt;
     }
 

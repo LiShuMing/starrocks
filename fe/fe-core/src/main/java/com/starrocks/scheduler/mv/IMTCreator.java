@@ -25,6 +25,7 @@ import com.starrocks.analysis.TypeDef;
 import com.starrocks.catalog.CatalogUtils;
 import com.starrocks.catalog.Column;
 import com.starrocks.catalog.DistributionInfo;
+import com.starrocks.catalog.FunctionSet;
 import com.starrocks.catalog.KeysType;
 import com.starrocks.catalog.MaterializedView;
 import com.starrocks.catalog.PartitionInfo;
@@ -41,13 +42,15 @@ import com.starrocks.sql.optimizer.OptExpression;
 import com.starrocks.sql.optimizer.OptExpressionVisitor;
 import com.starrocks.sql.optimizer.base.ColumnRefFactory;
 import com.starrocks.sql.optimizer.base.ColumnRefSet;
+import com.starrocks.sql.optimizer.operator.scalar.CallOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
-import com.starrocks.sql.optimizer.operator.stream.IMTInfo;
+import com.starrocks.sql.optimizer.operator.stream.IMTStateTable;
 import com.starrocks.sql.optimizer.operator.stream.PhysicalStreamAggOperator;
 import com.starrocks.sql.optimizer.operator.stream.PhysicalStreamOperator;
 import com.starrocks.sql.optimizer.rule.mv.KeyInference;
 import com.starrocks.sql.optimizer.rule.mv.MVOperatorProperty;
 import com.starrocks.sql.plan.ExecPlan;
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -120,7 +123,7 @@ class IMTCreator {
                 distributionInfo, mvRefreshScheme);
     }
 
-    public static List<IMTInfo> createIMT(CreateMaterializedViewStatement stmt, MaterializedView view) throws DdlException {
+    public static List<IMTStateTable> createIMT(CreateMaterializedViewStatement stmt, MaterializedView view) throws DdlException {
         ExecPlan maintenancePlan = stmt.getMaintenancePlan();
         OptExpression optExpr = maintenancePlan.getPhysicalPlan();
         List<IMTCreatorVisitor.IMTCreatorResult> createTables = IMTCreatorVisitor.createIMTForOperator(stmt, optExpr, view);
@@ -141,20 +144,20 @@ class IMTCreator {
         }
 
         // Assign imt infos to each operator
-        List<IMTInfo> imtInfos = Lists.newArrayList();
+        List<IMTStateTable> imtStateTables = Lists.newArrayList();
         for (IMTCreatorVisitor.IMTCreatorResult creatorResult : createTables) {
             OptExpression optExpression = creatorResult.getOptWithIMTs();
             Preconditions.checkState(optExpression.getOp() instanceof PhysicalStreamOperator);
             PhysicalStreamOperator streamOperator = (PhysicalStreamOperator) optExpression.getOp();
             try {
-                imtInfos.addAll(streamOperator.assignIMTInfos());
+                imtStateTables.addAll(streamOperator.assignIMTInfos());
             } catch (DdlException e) {
                 // TODO(murphy) cleanup created IMT, or make it atomic
                 LOG.warn("Assign IMT info failed due to ", e);
                 throw e;
             }
         }
-        return imtInfos;
+        return imtStateTables;
     }
 
     static class IMTCreatorVisitor extends OptExpressionVisitor<Void, Void> {
@@ -220,20 +223,56 @@ class IMTCreator {
         }
 
         /**
-         * StreamAgg needs two IMT
-         * 1. State Table: store the state of all aggregation functions for non-retractable ModifyOp
-         * 2. Detail Table: for retractable ModifyOp
+         * StreamAgg needs IMTStateTables as below:
+         * 1. ResultStateTable, keeps the result of StreamAgg node which can be used to
+         *      generate RetractMessage and intermediate state for some kinds of AggFuncs, eg min/max/sum/count;
+         * 2. IntermediateStateTable, keeps the intermediate state of generate AggFuncs,
+         *      such as avg/approx_count_distinct/retract_min;
+         * 3. DetailStateTable, keeps the detail data of each detail-kind AggFuncs, such as min/max.
          * <p>
-         * TODO(murphy) create detail table
          */
         @Override
         public Void visitPhysicalStreamAgg(OptExpression optExpr, Void ctx) {
+            PhysicalStreamAggOperator streamAgg = (PhysicalStreamAggOperator) optExpr.getOp();
+
+            // Check supported functions in Stream MV
+            Map<ColumnRefOperator, CallOperator> aggregations = streamAgg.getAggregations();
+            for (Map.Entry<ColumnRefOperator, CallOperator> aggregation : aggregations.entrySet()) {
+                CallOperator operator = aggregation.getValue();
+                switch (operator.getFnName()) {
+                    // Aggregate Functions which Intermediate state can be set into ResultStateTable
+                    case FunctionSet.COUNT:
+                    case FunctionSet.SUM:
+                        break;
+                    case FunctionSet.RETRACT_MAX:
+                    case FunctionSet.RETRACT_MIN:
+                        break;
+                    // TODO: intermediate/detail functions to be supported later.
+                    default:
+                        throw new NotImplementedException("StreamAgg still not support agg function:" + operator.getFnName());
+                }
+            }
+
+            // TODO: Check whether it's retractable or not and pass it into be
+
+            // Stream Aggregate result IMTStateTable
+            List<CreateTableStmt> imtStateTables = new ArrayList<>();
+            CreateTableStmt resultStmt = createAggResultTableStmt(stmt, view, optExpr);
+            streamAgg.setResultIMTName(resultStmt.getDbTbl());
+            imtStateTables.add(resultStmt);
+            result.add(new IMTCreatorResult(optExpr, imtStateTables));
+
+            // TODO: support intermediate/detail IMTStateTable
+
+            return null;
+        }
+
+        private CreateTableStmt createAggResultTableStmt(CreateMaterializedViewStatement stmt,
+                                                         MaterializedView view,
+                                                         OptExpression optExpr) {
             MVOperatorProperty property = optExpr.getMvOperatorProperty();
             ColumnRefFactory columnRefFactory = stmt.getColumnRefFactory();
             Map<String, String> properties = view.getProperties();
-            PhysicalStreamAggOperator streamAgg = (PhysicalStreamAggOperator) optExpr.getOp();
-
-            List<CreateTableStmt> imtTables = new ArrayList<>();
 
             // Duplicate/Primary Key
             KeyInference.KeyProperty bestKey = property.getKeySet().getBestKey();
@@ -258,7 +297,10 @@ class IMTCreator {
                 TypeDef typeDef = TypeDef.create(refOp.getType().getPrimitiveType());
                 ColumnDef columnDef = new ColumnDef(refOp.getName(), typeDef);
                 columnDef.setIsKey(isKey);
-                columnDef.setAllowNull(!isKey);
+                // TODO: fix me later, Keys should be nullable
+                if (isKey) {
+                    columnDef.setAllowNull(false);
+                }
                 columnDefs.add(columnDef);
             }
             List<String> keysColumnNames  = keyColumns.stream().map(Column::getName).collect(Collectors.toList());
@@ -278,10 +320,8 @@ class IMTCreator {
             // TODO(murphy) refine it
             String mvName = stmt.getTableName().getTbl();
             long seq = GlobalStateMgr.getCurrentState().getNextId();
-            String tableName = "imt_agg_" + mvName + seq;
+            String tableName = "imt_agg_result_" + mvName + seq;
             TableName canonicalName = new TableName(stmt.getTableName().getDb(), tableName);
-
-            streamAgg.setResultIMTName(canonicalName);
 
             // Properties
             Map<String, String> extProperties = Maps.newTreeMap();
@@ -296,11 +336,7 @@ class IMTCreator {
                 Column col = columnDef.toColumn();
                 columns.add(col);
             }
-            imtTables.add(resultStmt);
-
-            result.add(new IMTCreatorResult(optExpr, imtTables));
-
-            return null;
+            return resultStmt;
         }
     }
 }

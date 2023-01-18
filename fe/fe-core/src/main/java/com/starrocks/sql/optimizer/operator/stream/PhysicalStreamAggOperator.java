@@ -16,8 +16,9 @@ package com.starrocks.sql.optimizer.operator.stream;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.starrocks.analysis.TableName;
-import com.starrocks.analysis.TupleDescriptor;
+import com.starrocks.catalog.FunctionSet;
 import com.starrocks.common.DdlException;
 import com.starrocks.common.UserException;
 import com.starrocks.planner.BinlogScanNode;
@@ -49,17 +50,15 @@ public class PhysicalStreamAggOperator extends PhysicalStreamOperator {
     private final Map<ColumnRefOperator, CallOperator> aggregations;
 
     // IMT information
-    TupleDescriptor outputTupleDesc;
-
     private TableName resultIMTName;
     private TableName intermediateIMTName;
     private TableName detailIMTName;
 
-    private IMTInfo resultIMT;
+    private IMTStateTable resultIMT;
 
-    private IMTInfo intermediateIMT;
+    private IMTStateTable intermediateIMT;
 
-    private IMTInfo detailIMT;
+    private IMTStateTable detailIMT;
 
     private StreamAggNode streamAggNode;
 
@@ -67,7 +66,24 @@ public class PhysicalStreamAggOperator extends PhysicalStreamOperator {
                                      Map<ColumnRefOperator, CallOperator> aggregations, ScalarOperator predicate,
                                      Projection projection) {
         super(OperatorType.PHYSICAL_STREAM_AGG);
+
+        // Change function name in Stream MV situation.
+        Map<ColumnRefOperator, CallOperator> streamAggregations = Maps.newHashMap();
+        for (Map.Entry<ColumnRefOperator, CallOperator> aggregation : aggregations.entrySet()) {
+            CallOperator newAggregation;
+            String fnName = aggregation.getValue().getFnName();
+
+            CallOperator oldAggregation = aggregation.getValue();
+            newAggregation = aggregation.getValue();
+            if (fnName.equalsIgnoreCase(FunctionSet.MAX)) {
+                newAggregation.resetFnName(FunctionSet.RETRACT_MAX);
+            } else if (fnName.equalsIgnoreCase(FunctionSet.MIN)) {
+                newAggregation.resetFnName(FunctionSet.RETRACT_MIN);
+            }
+            streamAggregations.put(aggregation.getKey(), newAggregation);
+        }
         this.aggregations = aggregations;
+
         this.groupBys = groupBys;
     }
 
@@ -99,24 +115,20 @@ public class PhysicalStreamAggOperator extends PhysicalStreamOperator {
         return detailIMTName;
     }
 
-    public IMTInfo getResultIMT() {
+    public IMTStateTable getResultIMT() {
         return resultIMT;
     }
 
-    public IMTInfo getIntermediateIMT() {
+    public IMTStateTable getIntermediateIMT() {
         return intermediateIMT;
     }
 
-    public IMTInfo getDetailIMT() {
+    public IMTStateTable getDetailIMT() {
         return detailIMT;
     }
 
     public void setStreamAggNode(StreamAggNode streamAggNode) {
         this.streamAggNode = streamAggNode;
-    }
-
-    public void setOutputTupleDesc(TupleDescriptor outputTupleDesc) {
-        this.outputTupleDesc = outputTupleDesc;
     }
 
     @Override
@@ -138,32 +150,32 @@ public class PhysicalStreamAggOperator extends PhysicalStreamOperator {
     }
 
     @Override
-    public List<IMTInfo> assignIMTInfos() throws DdlException  {
+    public List<IMTStateTable> assignIMTInfos() throws DdlException  {
         Preconditions.checkState(resultIMTName != null);
-        List<IMTInfo> imtInfos = Lists.newArrayList();
+        List<IMTStateTable> imtStateTables = Lists.newArrayList();
         try {
             long dbId = GlobalStateMgr.getCurrentState().getDb(resultIMTName.getDb()).getId();
             LOG.info("Create result IMTInfo: {}", resultIMTName);
-            resultIMT = IMTInfo.fromTableName(dbId, outputTupleDesc, resultIMTName);
+            resultIMT = IMTStateTable.fromTableName(dbId, resultIMTName);
             streamAggNode.setResultImt(resultIMT);
-            imtInfos.add(resultIMT);
+            imtStateTables.add(resultIMT);
 
             if (intermediateIMTName != null) {
                 LOG.info("Create intermediate IMTInfo: {}", intermediateIMT);
-                intermediateIMT = IMTInfo.fromTableName(dbId, outputTupleDesc, intermediateIMTName);
+                intermediateIMT = IMTStateTable.fromTableName(dbId, intermediateIMTName);
                 streamAggNode.setIntermediateImt(intermediateIMT);
-                imtInfos.add(intermediateIMT);
+                imtStateTables.add(intermediateIMT);
             }
             if (detailIMTName != null) {
                 LOG.info("Create detail IMTInfo: {}", detailIMTName);
-                detailIMT = IMTInfo.fromTableName(dbId, outputTupleDesc, detailIMTName);
+                detailIMT = IMTStateTable.fromTableName(dbId, detailIMTName);
                 streamAggNode.setDetailImt(detailIMT);
-                imtInfos.add(detailIMT);
+                imtStateTables.add(detailIMT);
             }
         } catch (UserException e) {
             throw new DdlException("Failed to deduce IMT Info, " + e.getMessage(), e);
         }
-        return imtInfos;
+        return imtStateTables;
     }
 
     @Override

@@ -37,7 +37,7 @@ import com.starrocks.qe.QeProcessorImpl;
 import com.starrocks.rpc.BackendServiceClient;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.common.UnsupportedException;
-import com.starrocks.sql.optimizer.operator.stream.IMTInfo;
+import com.starrocks.sql.optimizer.operator.stream.IMTStateTable;
 import com.starrocks.sql.plan.ExecPlan;
 import com.starrocks.statistic.StatisticUtils;
 import com.starrocks.thrift.MVTaskType;
@@ -95,7 +95,7 @@ public class MVMaintenanceJob implements Writable {
     private final transient ExecPlan plan;
 
     // TODO: serialize imt info table ids, transactions need them.
-    List<IMTInfo> imtInfos;
+    List<IMTStateTable> imtStateTables;
 
     // Runtime ephemeral state
     // At most one thread could execute this job, this flag indicates is someone scheduling this job
@@ -138,19 +138,19 @@ public class MVMaintenanceJob implements Writable {
         this.inSchedule.set(false);
     }
 
-    public List<IMTInfo> getImtInfos() {
-        return imtInfos;
+    public List<IMTStateTable> getImtInfos() {
+        return imtStateTables;
     }
 
-    public void setImtInfos(List<IMTInfo> imtInfos) {
-        this.imtInfos = imtInfos;
+    public void setImtInfos(List<IMTStateTable> imtStateTables) {
+        this.imtStateTables = imtStateTables;
     }
 
     Map<Integer, Long> getIMTVersions() {
         // imt table id -> newest version mapping
         Map<Integer, Long> imtVersions = Maps.newHashMap();
-        for (IMTInfo imtInfo : imtInfos) {
-            OlapTable imtTable = imtInfo.toOlapTable();
+        for (IMTStateTable imtStateTable : imtStateTables) {
+            OlapTable imtTable = imtStateTable.getOlapTable();
             long newestVersion = imtTable.getAllPartitions().stream().findFirst().get().getVisibleVersion();
             imtVersions.put(Integer.valueOf((int) imtTable.getId()), newestVersion);
         }

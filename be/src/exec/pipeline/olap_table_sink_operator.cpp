@@ -100,15 +100,10 @@ Status OlapTableSinkOperator::reset_epoch(RuntimeState* state) {
     if (!_sink->is_close_done()) {
         RETURN_IF_ERROR(_sink->close(state, Status::OK()));
     }
-
     _is_epoch_finished = false;
-
     RETURN_IF_ERROR(_sink->reset_epoch(state));
-
     RETURN_IF_ERROR(_sink->prepare(state));
-
     RETURN_IF_ERROR(_sink->try_open(state));
-
     return Status::OK();
 }
 

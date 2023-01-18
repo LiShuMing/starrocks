@@ -94,11 +94,9 @@ class IMTCreator {
         for (Column col : columns) {
             if (keyColumns.contains(col.getName())) {
                 col.setIsKey(true);
-                // TODO: fix me later.
+                // TODO: fix me later, Key should be nullable?
                 col.setIsAllowNull(false);
             }
-            // TODO: fix me later.
-            col.setIsAllowNull(false);
         }
         if (!property.getModify().isInsertOnly()) {
             stmt.setKeysType(KeysType.PRIMARY_KEYS);
@@ -235,10 +233,6 @@ class IMTCreator {
             Map<String, String> properties = view.getProperties();
             PhysicalStreamAggOperator streamAgg = (PhysicalStreamAggOperator) optExpr.getOp();
 
-            // if (!property.getModify().isInsertOnly()) {
-            //    throw UnsupportedException.unsupportedException("Not support retractable aggregate");
-            // }
-
             List<CreateTableStmt> imtTables = new ArrayList<>();
 
             // Duplicate/Primary Key
@@ -252,20 +246,19 @@ class IMTCreator {
             for (int columnId : columnRefSet.getColumnIds()) {
                 ColumnRefOperator refOp = columnRefFactory.getColumnRef(columnId);
 
-                Column newColumn = new Column(refOp.getName(), refOp.getType());
                 boolean isKey = bestKey.columns.contains(refOp);
-                newColumn.setIsKey(isKey);
-                // TODO: fix me later
-                newColumn.setIsAllowNull(!isKey);
                 if (isKey) {
+                    Column newColumn = new Column(refOp.getName(), refOp.getType());
+                    newColumn.setIsKey(true);
+                    // TODO: fix me later, need support Key is nullable.
+                    newColumn.setIsAllowNull(false);
                     keyColumns.add(newColumn);
                 }
 
                 TypeDef typeDef = TypeDef.create(refOp.getType().getPrimitiveType());
                 ColumnDef columnDef = new ColumnDef(refOp.getName(), typeDef);
                 columnDef.setIsKey(isKey);
-                columnDef.setAllowNull(false);
-                // columnDef.setAllowNull(!isKey);
+                columnDef.setAllowNull(!isKey);
                 columnDefs.add(columnDef);
             }
             List<String> keysColumnNames  = keyColumns.stream().map(Column::getName).collect(Collectors.toList());

@@ -72,10 +72,16 @@ public:
     Status output_changes(int32_t chunk_size, StreamChunkPtr* result_chunk, ChunkPtr* intermediate_chunk,
                           std::vector<ChunkPtr>& detail_chunks);
 
+    // Reset the aggregator's state to avoid hashmap too large.
+    Status reset_state(RuntimeState* state);
+
+    // When the epoch is finished, commit the state table.
     Status commit_epoch(RuntimeState* state);
 
+    // When the epoch starts, reset stream aggreator's state in the new epoch.
     Status reset_epoch(RuntimeState* state);
 
+    // Close the stream aggregator when the mv is set finished.
     void close(RuntimeState* state) override;
 
 private:

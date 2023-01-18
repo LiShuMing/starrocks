@@ -152,10 +152,12 @@ Status StreamAggregator::output_changes(int32_t chunk_size, StreamChunkPtr* resu
     return Status::OK();
 }
 
+Status StreamAggregator::reset_state(RuntimeState* state) {
+    return _reset_state(state);
+}
+
 Status StreamAggregator::reset_epoch(RuntimeState* state) {
-    RETURN_IF_ERROR(_reset_state(state));
-    RETURN_IF_ERROR(_agg_group_state->reset_epoch(state));
-    return Status::OK();
+    return _agg_group_state->reset_epoch(state);
 }
 
 template <typename HashMapWithKey>

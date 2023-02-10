@@ -71,6 +71,8 @@ public class MvRewriteOptimizationTest {
         GlobalStateMgr.getCurrentState().getTabletChecker().setInterval(1000);
         cluster = PseudoCluster.getInstance();
         connectContext = UtFrameUtils.createDefaultCtx();
+        connectContext.getSessionVariable().setOptimizerExecuteTimeout(30000000);
+
         ConnectorPlanTestBase.mockHiveCatalog(connectContext);
         starRocksAssert = new StarRocksAssert(connectContext);
         starRocksAssert.withDatabase("test").useDatabase("test");
@@ -1682,45 +1684,6 @@ public class MvRewriteOptimizationTest {
         PlanTestBase.assertNotContains(plan9, "partial_mv_5");
         dropMv("test", "partial_mv_5");
 
-        // test partition prune
-        createAndRefreshMv("test", "partial_mv_6", "create materialized view partial_mv_6" +
-                " partition by c3" +
-                " distributed by hash(c1) as" +
-                " select c1, c3, c2 from test_base_part where c3 < 2000;");
-
-        String query10 = "select c1, c3, c2 from test_base_part";
-        String plan10 = getFragmentPlan(query10);
-        PlanTestBase.assertContains(plan10, "partial_mv_6", "UNION", "c3 > 1999");
-
-        String query12 = "select c1, c3, c2 from test_base_part where c3 < 2000";
-        String plan12 = getFragmentPlan(query12);
-        PlanTestBase.assertContains(plan12, "partial_mv_6");
-
-        String query13 = "select c1, c3, c2 from test_base_part where c3 < 1000";
-        String plan13 = getFragmentPlan(query13);
-        PlanTestBase.assertContains(plan13, "partial_mv_6", "c3 <= 999");
-
-        dropMv("test", "partial_mv_6");
-
-        // test bucket prune
-        createAndRefreshMv("test", "partial_mv_7", "create materialized view partial_mv_7" +
-                " partition by c3" +
-                " distributed by hash(c1) as" +
-                " select c1, c3, c2 from test_base_part where c3 < 2000 and c1 = 1;");
-        String query11 = "select c1, c3, c2 from test_base_part";
-        String plan11 = getFragmentPlan(query11);
-        PlanTestBase.assertContains(plan11, "partial_mv_7", "UNION", "c3 > 1999");
-        dropMv("test", "partial_mv_7");
-
-        createAndRefreshMv("test", "partial_mv_8", "create materialized view partial_mv_8" +
-                " partition by c3" +
-                " distributed by hash(c1) as" +
-                " select c1, c3, c2 from test_base_part where c3 < 1000;");
-        String query14 = "select c1, c3, c2 from test_base_part where c3 < 1000";
-        String plan14 = getFragmentPlan(query14);
-        PlanTestBase.assertContains(plan14, "partial_mv_8");
-        dropMv("test", "partial_mv_8");
-
         createAndRefreshMv("test", "partial_mv_9", "CREATE MATERIALIZED VIEW partial_mv_9" +
                 " PARTITION BY k1 DISTRIBUTED BY HASH(k1) BUCKETS 10\n" +
                 "REFRESH MANUAL AS SELECT k1, v1 as k2, v2 as k3 from t1;");
@@ -1807,6 +1770,55 @@ public class MvRewriteOptimizationTest {
         PlanTestBase.assertContains(plan17, "ttl_mv_3", "k1 = '2020-02-11'");
         dropMv("test", "ttl_mv_3");
         starRocksAssert.dropTable("ttl_base_table_2");
+    }
+
+    @Test
+    public void testPartitionPrune() throws Exception {
+        starRocksAssert.getCtx().getSessionVariable().setEnableMaterializedViewUnionRewrite(true);
+        // test partition prune
+        createAndRefreshMv("test", "partial_mv_6", "create materialized view partial_mv_6" +
+                " partition by c3" +
+                " distributed by hash(c1) as" +
+                " select c1, c3, c2 from test_base_part where c3 < 2000;");
+
+        String query10 = "select c1, c3, c2 from test_base_part";
+        String plan10 = getFragmentPlan(query10);
+        System.out.println(plan10);
+        PlanTestBase.assertContains(plan10, "partial_mv_6", "UNION", "c3 > 1999");
+
+        String query12 = "select c1, c3, c2 from test_base_part where c3 < 2000";
+        String plan12 = getFragmentPlan(query12);
+        System.out.println(plan12);
+        PlanTestBase.assertContains(plan12, "partial_mv_6");
+
+        String query13 = "select c1, c3, c2 from test_base_part where c3 < 1000";
+        String plan13 = getFragmentPlan(query13);
+        System.out.println(plan13);
+        PlanTestBase.assertContains(plan13, "partial_mv_6", "c3 <= 999");
+
+        dropMv("test", "partial_mv_6");
+    }
+
+    @Test
+    public void testBucketPrune() throws Exception {
+        // test bucket prune
+        createAndRefreshMv("test", "partial_mv_7", "create materialized view partial_mv_7" +
+                " partition by c3" +
+                " distributed by hash(c1) as" +
+                " select c1, c3, c2 from test_base_part where c3 < 2000 and c1 = 1;");
+        String query11 = "select c1, c3, c2 from test_base_part";
+        String plan11 = getFragmentPlan(query11);
+        PlanTestBase.assertContains(plan11, "partial_mv_7", "UNION", "c3 > 1999");
+        dropMv("test", "partial_mv_7");
+
+        createAndRefreshMv("test", "partial_mv_8", "create materialized view partial_mv_8" +
+                " partition by c3" +
+                " distributed by hash(c1) as" +
+                " select c1, c3, c2 from test_base_part where c3 < 1000;");
+        String query14 = "select c1, c3, c2 from test_base_part where c3 < 1000";
+        String plan14 = getFragmentPlan(query14);
+        PlanTestBase.assertContains(plan14, "partial_mv_8");
+        dropMv("test", "partial_mv_8");
     }
 
     public String getFragmentPlan(String sql) throws Exception {

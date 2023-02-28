@@ -16,6 +16,9 @@
 package com.starrocks.sql.optimizer;
 
 import com.google.common.collect.ImmutableList;
+import com.starrocks.catalog.MaterializedView;
+import com.starrocks.catalog.OlapTable;
+import com.starrocks.catalog.Table;
 import com.starrocks.sql.optimizer.base.HashDistributionDesc;
 import com.starrocks.sql.optimizer.base.HashDistributionSpec;
 import com.starrocks.sql.optimizer.base.Ordering;
@@ -231,6 +234,11 @@ public class LogicalPlanPrinter {
         public OperatorStr visitPhysicalOlapScan(OptExpression optExpression, Integer step) {
             PhysicalOlapScanOperator scan = (PhysicalOlapScanOperator) optExpression.getOp();
             StringBuilder sb = new StringBuilder("SCAN (");
+            Table scanTable = scan.getTable();
+            if (scanTable instanceof MaterializedView) {
+                String mvTableName = scan.getTable().getName();
+                sb.append("mv[").append(mvTableName).append("] ");
+            }
             sb.append("columns").append(scan.getColRefToColumnMetaMap().keySet());
             sb.append(" predicate[").append(scan.getPredicate()).append("]");
             sb.append(")");

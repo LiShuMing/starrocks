@@ -53,5 +53,5 @@ TOP-N (order by [[34: substring ASC NULLS FIRST]])
                                                 SCAN (columns[39: c_acctbal, 40: substring_phone, 41: c_count, 42: c_sum] predicate[39: c_acctbal > 0.0 AND 40: substring_phone IN (21, 28, 24, 32, 35, 34, 37)])
                         EXCHANGE SHUFFLE[24]
                             SCAN (columns[24: O_CUSTKEY] predicate[null])
-end]
+[end]
 

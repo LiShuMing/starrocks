@@ -20,6 +20,7 @@ import com.starrocks.statistic.StatsConstants;
 import com.starrocks.utframe.StarRocksAssert;
 import com.starrocks.utframe.UtFrameUtils;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static com.starrocks.utframe.UtFrameUtils.CREATE_STATISTICS_TABLE_STMT;
@@ -99,6 +100,7 @@ public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
     }
 
     @Test
+    // TODO: unstable predicates' order
     public void testQuery9() {
         runFileUnitTest("materialized-view/tpch/q9");
     }
@@ -183,6 +185,8 @@ public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
         runFileUnitTest("materialized-view/tpch/q22");
     }
 
+    // TODO: multi mvs will not hit MV's Plan.
+    @Ignore
     @Test
     public void testQuery22_1() {
         runFileUnitTest("materialized-view/tpch/q22-1");

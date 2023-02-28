@@ -8,9 +8,9 @@ where
   and substring(c_phone , 1  ,2)  in
       ('21', '28', '24', '32', '35', '34', '37');
 [result]
-AGGREGATE ([GLOBAL] aggregate [{10: sum=sum(10: sum), 11: count=count(11: count)}] group by [[]] having [null]
+AGGREGATE ([GLOBAL] aggregate [{19: sum=sum(19: sum), 20: count=sum(20: count)}] group by [[]] having [null]
     EXCHANGE GATHER
-        AGGREGATE ([LOCAL] aggregate [{10: sum=sum(6: C_ACCTBAL), 11: count=count(6: C_ACCTBAL)}] group by [[]] having [null]
-            SCAN (columns[5: C_PHONE, 6: C_ACCTBAL] predicate[6: C_ACCTBAL > 0.0 AND substring(5: C_PHONE, 1, 2) IN (21, 28, 24, 32, 35, 34, 37)])
+        AGGREGATE ([LOCAL] aggregate [{19: sum=sum(18: c_sum), 20: count=sum(17: c_count)}] group by [[]] having [null]
+            SCAN (columns[15: c_acctbal, 16: substring_phone, 17: c_count, 18: c_sum] predicate[15: c_acctbal > 0.0 AND 16: substring_phone IN (21, 28, 24, 32, 35, 34, 37)])
 [end]
 

@@ -76,26 +76,6 @@ as select
      and c_region.r_regionkey=c_nation.n_regionkey
 ;
 
--- customer_order_mv (used to match query22)
--- query22 needs avg & rollup -> sum/count
-create materialized view customer_mv
-distributed by hash(c_custkey) buckets 20
-refresh manual
-properties (
-    "replication_num" = "1"
-)
-as select
-              c_custkey,
-              c_phone,
-              c_acctbal,
-              -- TODO: can be deduced from c_phone
-              substring(c_phone , 1  ,2) as substring_phone,
-              count(c_acctbal) as c_count,
-              sum(c_acctbal) as c_sum
-   from
-              customer
-   group by c_custkey, c_phone, c_acctbal, substring(c_phone , 1  ,2);
-
 -- customer_order_mv (used to match query13)
 create materialized view customer_order_mv
 distributed by hash(c_custkey) buckets 20
@@ -112,6 +92,26 @@ as select
                   left outer join
               orders
               on orders.o_custkey=customer.c_custkey;
+
+-- customer_order_mv (used to match query22)
+-- query22 needs avg & rollup -> sum/count
+create materialized view customer_mv
+distributed by hash(c_custkey) buckets 20
+refresh manual
+properties (
+    "replication_num" = "1"
+)
+as select
+              c_custkey,
+              c_phone,
+              c_acctbal,
+              -- TODO: can be deduced from c_phone
+              substring(c_phone, 1  ,2) as substring_phone,
+              count(c_acctbal) as c_count,
+              sum(c_acctbal) as c_sum
+   from
+              customer
+   group by c_custkey, c_phone, c_acctbal, substring(c_phone, 1  ,2);
 
 -- query15/query18/q20
 create materialized view lineitem_agg_mv

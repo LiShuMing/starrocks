@@ -35,5 +35,9 @@ where
             and l_shipinstruct = 'DELIVER IN PERSON'
     ) ;
 [result]
+AGGREGATE ([GLOBAL] aggregate [{29: sum=sum(29: sum)}] group by [[]] having [null]
+    EXCHANGE GATHER
+        AGGREGATE ([LOCAL] aggregate [{29: sum=sum(28: expr)}] group by [[]] having [null]
+            SCAN (columns[83: l_shipinstruct, 84: l_shipmode, 89: l_quantity, 93: l_saleprice, 116: p_brand, 118: p_size, 119: p_container] predicate[89: l_quantity >= 5.0 AND 89: l_quantity <= 35.0 AND 83: l_shipinstruct = DELIVER IN PERSON AND 118: p_size <= 15 AND 118: p_size >= 1 AND 116: p_brand = Brand#45 AND 119: p_container IN (SM CASE, SM BOX, SM PACK, SM PKG) AND 89: l_quantity >= 5.0 AND 89: l_quantity <= 15.0 AND 118: p_size <= 5 OR 116: p_brand = Brand#11 AND 119: p_container IN (MED BAG, MED BOX, MED PKG, MED PACK) AND 89: l_quantity >= 15.0 AND 89: l_quantity <= 25.0 AND 118: p_size <= 10 OR 116: p_brand = Brand#21 AND 119: p_container IN (LG CASE, LG BOX, LG PACK, LG PKG) AND 89: l_quantity >= 25.0 AND 89: l_quantity <= 35.0 AND 118: p_size <= 15 AND 84: l_shipmode IN (AIR, AIR REG) AND 116: p_brand IN (Brand#45, Brand#11, Brand#21) AND 119: p_container IN (SM CASE, SM BOX, SM PACK, SM PKG, MED BAG, MED BOX, MED PKG, MED PACK, LG CASE, LG BOX, LG PACK, LG PKG)])
 [end]
 

@@ -57,7 +57,6 @@ import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperatorVisitor;
 import com.starrocks.sql.optimizer.rewrite.BaseScalarOperatorShuttle;
 import com.starrocks.sql.optimizer.rewrite.ReplaceColumnRefRewriter;
-import org.apache.commons.collections4.iterators.PermutationIterator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -165,6 +164,12 @@ public class MaterializedViewRewriter {
                 return Lists.newArrayList();
             }
         } else if (matchMode == MatchMode.VIEW_DELTA) {
+            // View Delta only supports inner/left outer join for now.
+            List<JoinOperator> queryJoinOperators = MvUtils.getAllJoinOperators(queryExpression);
+            if (queryJoinOperators.stream().anyMatch(join -> !join.isInnerJoin() && !join.isLeftOuterJoin())) {
+                return Lists.newArrayList();
+            }
+
             ScalarOperator viewEqualPredicate = mvPredicateSplit.getEqualPredicates();
             EquivalenceClasses viewEquivalenceClasses = createEquivalenceClasses(viewEqualPredicate);
             if (!compensateViewDelta(viewEquivalenceClasses, queryExpression, mvExpression,
@@ -994,7 +999,8 @@ public class MaterializedViewRewriter {
             ColumnRefFactory queryRefFactory, List<Table> queryTables, OptExpression queryExpression,
             ColumnRefFactory mvRefFactory, List<Table> mvTables, OptExpression mvExpression,
             MatchMode matchMode, Map<Table, Set<Integer>> compensationRelations) {
-        Map<Table, Set<Integer>> queryTableToRelationId = getTableToRelationid(queryExpression, queryRefFactory, queryTables);
+        Map<Table, Set<Integer>> queryTableToRelationId =
+                getTableToRelationid(queryExpression, queryRefFactory, queryTables);
         if (matchMode == MatchMode.VIEW_DELTA) {
             for (Map.Entry<Table, Set<Integer>> entry : compensationRelations.entrySet()) {
                 if (queryTableToRelationId.containsKey(entry.getKey())) {
@@ -1004,7 +1010,8 @@ public class MaterializedViewRewriter {
                 }
             }
         }
-        Map<Table, Set<Integer>> mvTableToRelationId = getTableToRelationid(mvExpression, mvRefFactory, mvTables);
+        Map<Table, Set<Integer>> mvTableToRelationId =
+                getTableToRelationid(mvExpression, mvRefFactory, mvTables);
         // `queryTableToRelationId` may not equal to `mvTableToRelationId` when mv/query's columns are not
         // satisfied for the query.
         if (!queryTableToRelationId.keySet().equals(mvTableToRelationId.keySet())) {
@@ -1013,31 +1020,85 @@ public class MaterializedViewRewriter {
         List<BiMap<Integer, Integer>> result = ImmutableList.of(HashBiMap.create());
         for (Map.Entry<Table, Set<Integer>> queryEntry : queryTableToRelationId.entrySet()) {
             Preconditions.checkState(!queryEntry.getValue().isEmpty());
-            if (queryEntry.getValue().size() == 1) {
-                Integer src = queryEntry.getValue().iterator().next();
-                Integer target = mvTableToRelationId.get(queryEntry.getKey()).iterator().next();
-                for (BiMap<Integer, Integer> m : result) {
-                    m.put(src, target);
+            Set<Integer> queryTableIds = queryEntry.getValue();
+            Set<Integer> mvTableIds = mvTableToRelationId.get(queryEntry.getKey());
+            if (queryTableIds.size() == 1) {
+                Integer queryTableId = queryTableIds.iterator().next();
+                if (mvTableIds.size() == 1) {
+                    Integer mvTableId = mvTableIds.iterator().next();
+                    for (BiMap<Integer, Integer> m : result) {
+                        m.put(queryTableId, mvTableId);
+                    }
+                } else {
+                    // query's table id is one and mv's tables are greater than one:
+                    // Query table ids: a
+                    // MV    table ids: a1, a2
+                    // output:
+                    //  a -> a1
+                    //  a -> a2
+                    ImmutableList.Builder<BiMap<Integer, Integer>> newResult = ImmutableList.builder();
+                    List<Integer> mvTableList = new ArrayList<>(mvTableIds);
+                    Iterator<Integer> mvTableIdsIter = mvTableIds.iterator();
+                    while (mvTableIdsIter.hasNext()) {
+                        Integer mvTableId = mvTableIdsIter.next();
+                        for (BiMap<Integer, Integer> m : result) {
+                            final BiMap<Integer, Integer> newQueryToMvMap = HashBiMap.create(m);
+                            newQueryToMvMap.put(queryTableId, mvTableId);
+                            newResult.add(newQueryToMvMap);
+                        }
+                    }
+                    result = newResult.build();
                 }
             } else {
+                // query's table ids are greater than one and mv's tables are greater than one:
+                // Query table ids: a1, a2
+                // MV    table ids: A1, A2
+                // output:
+                //  a1 -> A1, a2 -> A1 (x)
+                //  a1 -> A2, a2 -> A2 (x) : cannot contain same values.
+                //  a1 -> A1, a2 -> A2
+                //  a1 -> A2, a2 -> A1
+                List<Integer> queryList = new ArrayList<>(queryTableIds);
+                List<Integer> mvList = new ArrayList<>(mvTableIds);
+                List<List<Integer>> mvTableIdPermutations = getPermutationsOfTableIds(mvList, queryList.size());
                 ImmutableList.Builder<BiMap<Integer, Integer>> newResult = ImmutableList.builder();
-                PermutationIterator<Integer> permutationIterator =
-                        new PermutationIterator<>(mvTableToRelationId.get(queryEntry.getKey()));
-                List<Integer> queryList = new ArrayList<>(queryEntry.getValue());
-                while (permutationIterator.hasNext()) {
-                    List<Integer> permutation = permutationIterator.next();
+                for (List<Integer> mvPermutation : mvTableIdPermutations) {
+                    Preconditions.checkState(mvPermutation.size() == queryList.size());
                     for (BiMap<Integer, Integer> m : result) {
-                        final BiMap<Integer, Integer> newM = HashBiMap.create(m);
+                        final BiMap<Integer, Integer> newQueryToMvMap = HashBiMap.create(m);
                         for (int i = 0; i < queryList.size(); i++) {
-                            newM.put(queryList.get(i), permutation.get(i));
+                            newQueryToMvMap.put(queryList.get(i), mvPermutation.get(i));
                         }
-                        newResult.add(newM);
+                        newResult.add(newQueryToMvMap);
                     }
                 }
                 result = newResult.build();
             }
         }
         return result;
+    }
+
+    public static List<List<Integer>> getPermutationsOfTableIds(List<Integer> tableIds, int n) {
+        List<Integer> t = new ArrayList<>();
+        List<List<Integer>> ret = new ArrayList<>();
+        getPermutationsOfTableIds(tableIds, n, t, ret);
+        return ret;
+    }
+
+    private static void getPermutationsOfTableIds(List<Integer> tableIds, int targetSize,
+                                                  List<Integer> tmpResult, List<List<Integer>> ret) {
+        if (tmpResult.size() == targetSize) {
+            ret.add(new ArrayList<>(tmpResult));
+            return;
+        }
+        for (int i = 0; i < tableIds.size(); i++) {
+            if (tmpResult.contains(tableIds.get(i))) {
+                continue;
+            }
+            tmpResult.add(tableIds.get(i));
+            getPermutationsOfTableIds(tableIds, targetSize, tmpResult, ret);
+            tmpResult.remove(tmpResult.size() - 1);
+        }
     }
 
     private Map<Table, Set<Integer>> getTableToRelationid(
@@ -1171,15 +1232,18 @@ public class MaterializedViewRewriter {
                                                          ScalarOperator targetPr,
                                                          ColumnRewriter columnRewriter,
                                                          boolean isQueryAgainstView) {
-        ScalarOperator compensationPr;
         if (srcPr == null && targetPr == null) {
-            compensationPr = ConstantOperator.createBoolean(true);
+            return ConstantOperator.TRUE;
+        }
+
+        ScalarOperator compensationPr;
+        if (targetPr == null) {
+            compensationPr = srcPr;
         } else if (srcPr == null) {
             return null;
         } else {
-            ScalarOperator canonizedSrcPr = MvUtils.canonizePredicateForRewrite(srcPr.clone());
+            ScalarOperator canonizedSrcPr = srcPr == null ? null : MvUtils.canonizePredicateForRewrite(srcPr.clone());
             ScalarOperator canonizedTargetPr = targetPr == null ? null : MvUtils.canonizePredicateForRewrite(targetPr.clone());
-
             // swap column by query EC
             ScalarOperator swappedSrcPr;
             ScalarOperator swappedTargetPr;
@@ -1194,6 +1258,7 @@ public class MaterializedViewRewriter {
                 // for query
                 swappedTargetPr = columnRewriter.rewriteByViewEc(canonizedTargetPr);
             }
+
             compensationPr = getCompensationRangePredicate(swappedSrcPr, swappedTargetPr);
         }
         return MvUtils.canonizePredicate(compensationPr);
@@ -1234,7 +1299,7 @@ public class MaterializedViewRewriter {
         ScalarOperator compensation = ConstantOperator.createBoolean(true);
         for (int i = 0; i < sourceEquivalenceClassesList.size(); i++) {
             if (!mapping.containsKey(i)) {
-                // it means that the targeEc do not have the corresponding mapping ec
+                // it means that the targetEc do not have the corresponding mapping ec
                 // we should all equality predicates between each column in ec into compensation
                 Iterator<ColumnRefOperator> it = sourceEquivalenceClassesList.get(i).iterator();
                 ScalarOperator first = it.next();

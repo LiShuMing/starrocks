@@ -117,13 +117,13 @@ public class ColumnRewriter {
             if (enableRelationRewrite && srcToDstRelationIdMapping != null) {
                 Integer srcRelationId = srcRefFactory.getRelationId(columnRef.getId());
                 if (srcRelationId < 0) {
-                    LOG.warn("invalid columnRef: {}", columnRef);
+                    LOG.debug("invalid columnRef: {}", columnRef);
                     return null;
                 }
                 Integer targetRelationId = srcToDstRelationIdMapping.get(srcRelationId);
                 List<ColumnRefOperator> relationColumns = dstRelationIdToColumns.get(targetRelationId);
                 if (relationColumns == null) {
-                    LOG.warn("no columns for relation id:{}", targetRelationId);
+                    LOG.debug("no columns for relation id:{}", targetRelationId);
                     return null;
                 }
                 boolean found = false;
@@ -135,7 +135,7 @@ public class ColumnRewriter {
                     }
                 }
                 if (!found) {
-                    LOG.warn("can not find column ref id:{} name:{} in target relation:{}",
+                    LOG.debug("can not find column ref id:{} name:{} in target relation:{}",
                             columnRef.getId(), columnRef.getName(), targetRelationId);
                 }
             }

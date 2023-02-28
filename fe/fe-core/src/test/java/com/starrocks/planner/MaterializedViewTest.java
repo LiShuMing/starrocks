@@ -17,15 +17,18 @@ package com.starrocks.planner;
 import com.google.common.collect.ImmutableList;
 import com.starrocks.common.Config;
 import com.starrocks.common.FeConstants;
+import com.starrocks.sql.optimizer.rule.transformation.materialization.MaterializedViewRewriter;
 import com.starrocks.utframe.StarRocksAssert;
 import com.starrocks.utframe.UtFrameUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.List;
 
 public class MaterializedViewTest extends MaterializedViewTestBase {
@@ -1645,5 +1648,32 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
                 + "inner join dependents using (empid)\n"
                 + "where emps.empid = 1";
         testRewriteOK(mv, query);
+    }
+
+    @Test
+    public void testGetPermutationOfTableIds() {
+        List<List<Integer>> mvPermutations = MaterializedViewRewriter.getPermutationsOfTableIds(Arrays.asList(1), 2);
+        Assert.assertTrue(mvPermutations.isEmpty());
+
+        mvPermutations = MaterializedViewRewriter.getPermutationsOfTableIds(Arrays.asList(1, 2, 3), 1);
+        Assert.assertTrue(mvPermutations.get(0).equals(Arrays.asList(1)));
+        Assert.assertTrue(mvPermutations.get(1).equals(Arrays.asList(2)));
+        Assert.assertTrue(mvPermutations.get(2).equals(Arrays.asList(3)));
+
+        mvPermutations = MaterializedViewRewriter.getPermutationsOfTableIds(Arrays.asList(1, 2, 3), 2);
+        Assert.assertTrue(mvPermutations.get(0).equals(Arrays.asList(1, 2)));
+        Assert.assertTrue(mvPermutations.get(1).equals(Arrays.asList(1, 3)));
+        Assert.assertTrue(mvPermutations.get(2).equals(Arrays.asList(2, 1)));
+        Assert.assertTrue(mvPermutations.get(3).equals(Arrays.asList(2, 3)));
+        Assert.assertTrue(mvPermutations.get(4).equals(Arrays.asList(3, 1)));
+        Assert.assertTrue(mvPermutations.get(5).equals(Arrays.asList(3, 2)));
+
+        mvPermutations = MaterializedViewRewriter.getPermutationsOfTableIds(Arrays.asList(1, 2, 3), 3);
+        Assert.assertTrue(mvPermutations.get(0).equals(Arrays.asList(1, 2, 3)));
+        Assert.assertTrue(mvPermutations.get(1).equals(Arrays.asList(1, 3, 2)));
+        Assert.assertTrue(mvPermutations.get(2).equals(Arrays.asList(2, 1, 3)));
+        Assert.assertTrue(mvPermutations.get(3).equals(Arrays.asList(2, 3, 1)));
+        Assert.assertTrue(mvPermutations.get(4).equals(Arrays.asList(3, 1, 2)));
+        Assert.assertTrue(mvPermutations.get(5).equals(Arrays.asList(3, 2, 1)));
     }
 }

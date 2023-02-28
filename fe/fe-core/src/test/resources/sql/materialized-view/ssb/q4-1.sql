@@ -32,3 +32,4 @@ TOP-N (order by [[5: d_year ASC NULLS FIRST, 22: c_nation ASC NULLS FIRST]])
                 AGGREGATE ([LOCAL] aggregate [{60: sum=sum(59: expr)}] group by [[5: d_year, 22: c_nation]] having [null]
                     SCAN (columns[73: LO_REVENUE, 74: LO_SUPPLYCOST, 81: C_NATION, 82: C_REGION, 89: S_REGION, 92: P_MFGR, 102: d_year] predicate[82: C_REGION = AMERICA AND 89: S_REGION = AMERICA AND 92: P_MFGR IN (MFGR#1, MFGR#2)])
 [end]
+

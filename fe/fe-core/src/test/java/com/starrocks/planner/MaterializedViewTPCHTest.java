@@ -17,166 +17,155 @@ package com.starrocks.planner;
 import com.google.common.collect.Lists;
 import com.starrocks.sql.plan.PlanTestBase;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
+import static com.starrocks.utframe.UtFrameUtils.CREATE_STATISTICS_TABLE_STMT;
+
 public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
-    private static final String MATERIALIZED_DB_NAME = "test";
+    private static final String MATERIALIZED_DB_NAME = "test_tpch_mv";
 
     @BeforeClass
     public static void setUp() throws Exception {
         PlanTestBase.beforeClass();
         MaterializedViewTestBase.setUp();
         starRocksAssert.useDatabase(MATERIALIZED_DB_NAME);
-        // create tpch relative mv
-        createMaterializedViews("sql/materialized-view/tpch/", Lists.newArrayList("customer_order_mv",
-                "customer_mv", "lineitem_mv", "v_partsupp_mv"));
+
+        executeSqlFile("sql/materialized-view/tpch/ddl_tpch.sql");
+        executeSqlFile("sql/materialized-view/tpch/ddl_tpch_mv.sql");
     }
 
-    @Ignore
     @Test
     public void testQuery1() {
         runFileUnitTest("materialized-view/tpch/q1");
     }
 
+    @Test
+    public void testQuery1_1() {
+        runFileUnitTest("materialized-view/tpch/q1-1");
+    }
 
-    @Ignore
     @Test
     public void testQuery2() {
         runFileUnitTest("materialized-view/tpch/q2");
     }
 
-
-    @Ignore
     @Test
     public void testQuery3() {
         runFileUnitTest("materialized-view/tpch/q3");
     }
 
-
-    @Ignore
     @Test
     public void testQuery4() {
         runFileUnitTest("materialized-view/tpch/q4");
     }
 
-
-    @Ignore
     @Test
     public void testQuery5() {
         runFileUnitTest("materialized-view/tpch/q5");
     }
 
-
-    @Ignore
     @Test
     public void testQuery6() {
         runFileUnitTest("materialized-view/tpch/q6");
     }
 
-
-    @Ignore
     @Test
     public void testQuery7() {
         runFileUnitTest("materialized-view/tpch/q7");
     }
 
-
-    @Ignore
     @Test
     public void testQuery8() {
         runFileUnitTest("materialized-view/tpch/q8");
     }
 
-
-    @Ignore
     @Test
     public void testQuery9() {
         runFileUnitTest("materialized-view/tpch/q9");
     }
 
-
-    @Ignore
     @Test
     public void testQuery10() {
         runFileUnitTest("materialized-view/tpch/q10");
     }
 
-
-    @Ignore
     @Test
     public void testQuery11() {
         runFileUnitTest("materialized-view/tpch/q11");
     }
 
-
-    @Ignore
     @Test
     public void testQuery12() {
         runFileUnitTest("materialized-view/tpch/q12");
     }
-
 
     @Test
     public void testQuery13() {
         runFileUnitTest("materialized-view/tpch/q13");
     }
 
-
-    @Ignore
     @Test
     public void testQuery14() {
         runFileUnitTest("materialized-view/tpch/q14");
     }
 
-
-    @Ignore
     @Test
     public void testQuery15() {
         runFileUnitTest("materialized-view/tpch/q15");
     }
 
+    @Test
+    public void testQuery15_1() {
+        runFileUnitTest("materialized-view/tpch/q15-1");
+    }
 
-    @Ignore
     @Test
     public void testQuery16() {
         runFileUnitTest("materialized-view/tpch/q16");
     }
 
-    @Ignore
+    @Test
+    public void testQuery16_1() {
+        runFileUnitTest("materialized-view/tpch/q16-1");
+    }
+
     @Test
     public void testQuery17() {
         runFileUnitTest("materialized-view/tpch/q17");
     }
 
-    @Ignore
     @Test
     public void testQuery18() {
         runFileUnitTest("materialized-view/tpch/q18");
     }
 
-    @Ignore
     @Test
     public void testQuery19() {
         runFileUnitTest("materialized-view/tpch/q19");
     }
 
-    @Ignore
     @Test
     public void testQuery20() {
         runFileUnitTest("materialized-view/tpch/q20");
     }
 
+    @Test
+    public void testQuery20_1() {
+        runFileUnitTest("materialized-view/tpch/q20-1");
+    }
 
-    @Ignore
     @Test
     public void testQuery21() {
         runFileUnitTest("materialized-view/tpch/q21");
     }
 
-    @Ignore
     @Test
     public void testQuery22() {
         runFileUnitTest("materialized-view/tpch/q22");
+    }
+
+    @Test
+    public void testQuery22_1() {
+        runFileUnitTest("materialized-view/tpch/q22-1");
     }
 }

@@ -37,3 +37,4 @@ TOP-N (order by [[5: d_year ASC NULLS FIRST, 30: s_nation ASC NULLS FIRST, 36: p
                 AGGREGATE ([LOCAL] aggregate [{60: sum=sum(59: expr)}] group by [[5: d_year, 30: s_nation, 36: p_category]] having [null]
                     SCAN (columns[73: LO_REVENUE, 74: LO_SUPPLYCOST, 82: C_REGION, 88: S_NATION, 89: S_REGION, 92: P_MFGR, 93: P_CATEGORY, 102: d_year] predicate[82: C_REGION = AMERICA AND 89: S_REGION = AMERICA AND 102: d_year IN (1997, 1998) AND 92: P_MFGR IN (MFGR#1, MFGR#2)])
 [end]
+

@@ -34,5 +34,6 @@ TOP-N (order by [[5: d_year ASC NULLS FIRST, 29: s_city ASC NULLS FIRST, 37: p_b
         AGGREGATE ([GLOBAL] aggregate [{60: sum=sum(60: sum)}] group by [[5: d_year, 29: s_city, 37: p_brand]] having [null]
             EXCHANGE SHUFFLE[5, 29, 37]
                 AGGREGATE ([LOCAL] aggregate [{60: sum=sum(59: expr)}] group by [[5: d_year, 29: s_city, 37: p_brand]] having [null]
-                    SCAN (columns[73: LO_REVENUE, 74: LO_SUPPLYCOST, 82: C_REGION, 87: S_CITY, 88: S_NATION, 93: P_CATEGORY, 94: P_BRAND, 102: d_year] predicate[93: P_CATEGORY = MFGR#14 AND 82: C_REGION = AMERICA AND 88: S_NATION = UNITED STATES AND 102: d_year IN (1997, 1998)])
+                    SCAN (columns[73: LO_REVENUE, 74: LO_SUPPLYCOST, 82: C_REGION, 87: S_CITY, 88: S_NATION, 93: P_CATEGORY, 94: P_BRAND, 102: d_year] predicate[82: C_REGION = AMERICA AND 88: S_NATION = UNITED STATES AND 93: P_CATEGORY = MFGR#14 AND 102: d_year IN (1997, 1998)])
 [end]
+

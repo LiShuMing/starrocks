@@ -14,6 +14,8 @@
 
 package com.starrocks.planner;
 
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.starrocks.common.Config;
 import com.starrocks.common.FeConstants;
 import com.starrocks.statistic.StatsConstants;
@@ -22,6 +24,14 @@ import com.starrocks.utframe.UtFrameUtils;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static com.starrocks.utframe.UtFrameUtils.CREATE_STATISTICS_TABLE_STMT;
 
@@ -191,4 +201,53 @@ public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
     public void testQuery22_1() {
         runFileUnitTest("materialized-view/tpch/q22-1");
     }
+
+    @Test
+    public void analyzeTPCHMVs() throws Exception {
+        Map<String, Set<String>> mvTableColumnsMap = Maps.newHashMap();
+        Map<String, Set<String>> mvTableQueryIds = Maps.newHashMap();
+        Pattern mvPattern = Pattern.compile("mv\\[(.*)] columns\\[(.*)] ");
+        for (int i = 1; i < 23; i++) {
+            String content = getFileContent("sql/materialized-view/tpch/q" + i + ".sql");
+            String[] lines = content.split("\n");
+            for (String line: lines) {
+                if (line.contains("mv[")) {
+                    Matcher matcher = mvPattern.matcher(line);
+                    if (!matcher.find()) {
+                        throw new Exception("bad explain format!!!");
+                    }
+                    // TODO: how to match multi mvs.
+                    String mvTableName = matcher.group(1);
+                    List<String> mvTableColumns = splitMVTableColumns(matcher.group(2));
+
+                    mvTableColumnsMap.putIfAbsent(mvTableName, Sets.newTreeSet());
+                    mvTableColumnsMap.get(mvTableName).addAll(mvTableColumns);
+                    mvTableQueryIds.putIfAbsent(mvTableName, Sets.newTreeSet());
+                    mvTableQueryIds.get(mvTableName).add(Integer.toString(i));
+                }
+            }
+        }
+
+        System.out.println("Analyze TPCH MVs Result");
+        for (Map.Entry<String, Set<String>> entry : mvTableColumnsMap.entrySet()) {
+            String mvTableName = entry.getKey();
+            Set<String> mvTableColumns = entry.getValue();
+            System.out.println("TableName:" + mvTableName);
+            System.out.println("Columns:" + String.join(",", mvTableColumns));
+            System.out.println("Queries:" + String.join(",", mvTableQueryIds.get(mvTableName)));
+            System.out.println();
+        }
+    }
+
+    private List<String> splitMVTableColumns(String line) {
+        String[] s1 = line.split(",");
+        List<String> ret = new ArrayList<>();
+        for (String s: s1) {
+           String[] s2 = s.split(":");
+           ret.add(s2[1].trim());
+        }
+        return ret;
+    }
+
+
 }

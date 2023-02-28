@@ -37,6 +37,6 @@ TOP-N (order by [[53: N_NAME ASC NULLS FIRST, 57: year DESC NULLS LAST]])
         AGGREGATE ([GLOBAL] aggregate [{59: sum=sum(59: sum)}] group by [[53: N_NAME, 57: year]] having [null]
             EXCHANGE SHUFFLE[53, 57]
                 AGGREGATE ([LOCAL] aggregate [{59: sum=sum(58: expr)}] group by [[53: N_NAME, 57: year]] having [null]
-                    SCAN (columns[141: l_saleprice, 143: l_supplycost, 153: o_orderyear, 162: p_name, 185: n_name1] predicate[162: p_name LIKE %peru%])
+                    SCAN (mv[lineitem_mv] columns[141: l_saleprice, 143: l_supplycost, 153: o_orderyear, 162: p_name, 185: n_name1] predicate[162: p_name LIKE %peru%])
 [end]
 

@@ -47,10 +47,10 @@ TOP-N (order by [[34: substring ASC NULLS FIRST]])
                             SCAN (columns[1: C_CUSTKEY, 5: C_PHONE, 6: C_ACCTBAL] predicate[substring(5: C_PHONE, 1, 2) IN (21, 28, 24, 32, 35, 34, 37)])
                             EXCHANGE BROADCAST
                                 ASSERT LE 1
-                                    AGGREGATE ([GLOBAL] aggregate [{43: sum=sum(43: sum), 44: count=sum(44: count)}] group by [[]] having [null]
+                                    AGGREGATE ([GLOBAL] aggregate [{19: sum=sum(19: sum), 20: count=count(20: count)}] group by [[]] having [null]
                                         EXCHANGE GATHER
-                                            AGGREGATE ([LOCAL] aggregate [{43: sum=sum(42: c_sum), 44: count=sum(41: c_count)}] group by [[]] having [null]
-                                                SCAN (columns[39: c_acctbal, 40: substring_phone, 41: c_count, 42: c_sum] predicate[39: c_acctbal > 0.0 AND 40: substring_phone IN (21, 28, 24, 32, 35, 34, 37)])
+                                            AGGREGATE ([LOCAL] aggregate [{19: sum=sum(15: C_ACCTBAL), 20: count=count(15: C_ACCTBAL)}] group by [[]] having [null]
+                                                SCAN (columns[14: C_PHONE, 15: C_ACCTBAL] predicate[15: C_ACCTBAL > 0.0 AND substring(14: C_PHONE, 1, 2) IN (21, 28, 24, 32, 35, 34, 37)])
                         EXCHANGE SHUFFLE[24]
                             SCAN (columns[24: O_CUSTKEY] predicate[null])
 [end]

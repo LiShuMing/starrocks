@@ -26,6 +26,6 @@ TOP-N (order by [[9: L_RETURNFLAG ASC NULLS FIRST, 10: L_LINESTATUS ASC NULLS FI
         AGGREGATE ([GLOBAL] aggregate [{120: sum=sum(120: sum), 121: sum=sum(121: sum), 122: sum=sum(122: sum), 123: sum=sum(123: sum), 124: count=sum(124: count), 125: sum=sum(125: sum)}] group by [[32: l_returnflag, 33: l_linestatus]] having [null]
             EXCHANGE SHUFFLE[32, 33]
                 AGGREGATE ([LOCAL] aggregate [{120: sum=sum(35: sum_qty), 121: sum=sum(36: sum_base_price), 122: sum=sum(38: sum_disc_price), 123: sum=sum(39: sum_charge), 124: count=sum(43: count_order), 125: sum=sum(37: sum_discount)}] group by [[32: l_returnflag, 33: l_linestatus]] having [null]
-                    SCAN (columns[31: l_shipdate, 32: l_returnflag, 33: l_linestatus, 35: sum_qty, 36: sum_base_price, 37: sum_discount, 38: sum_disc_price, 39: sum_charge, 43: count_order] predicate[31: l_shipdate <= 1998-12-01])
+                    SCAN (mv[lineitem_agg_mv] columns[31: l_shipdate, 32: l_returnflag, 33: l_linestatus, 35: sum_qty, 36: sum_base_price, 37: sum_discount, 38: sum_disc_price, 39: sum_charge, 43: count_order] predicate[31: l_shipdate <= 1998-12-01])
 [end]
 

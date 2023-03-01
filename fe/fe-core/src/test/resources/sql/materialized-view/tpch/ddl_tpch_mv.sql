@@ -6,12 +6,12 @@ properties (
     "replication_num" = "1"
 )
 as select
-              ps_partkey, ps_availqty, ps_comment, ps_suppkey, ps_supplycost,
-              ps_supplycost * ps_availqty as ps_partvalue,
-              s_name, s_address, s_nationkey, s_phone, s_acctbal, s_comment, s_suppkey,
-              p_partkey, p_name, p_mfgr, p_brand, p_type, p_size, p_container, p_retailprice, p_comment,
-              n_nationkey, n_name, n_regionkey, n_comment,
-              r_regionkey, r_name, r_comment
+              n_name,
+              p_mfgr,p_size,p_type,
+              ps_partkey, ps_suppkey,ps_supplycost,
+              r_name,
+              s_acctbal,s_address,s_comment,s_name,s_nationkey,s_phone,
+              ps_supplycost * ps_availqty as ps_partvalue
    from
               partsupp
                   inner join supplier
@@ -32,26 +32,21 @@ properties (
     "replication_num" = "1"
 )
 as select
-              l_orderkey, l_partkey, l_linenumber, l_tax, l_returnflag, l_linestatus, l_shipdate, l_commitdate, l_receiptdate,
-              l_shipinstruct, l_shipmode, l_comment, l_suppkey, l_discount,
-              l_extendedprice, l_quantity,
+              c_address, c_acctbal,c_comment,c_mktsegment,c_name,c_nationkey,c_phone,
+              l_commitdate,l_extendedprice,l_orderkey,l_partkey,l_quantity,l_receiptdate,l_returnflag,l_shipdate,l_shipinstruct,l_shipmode,l_suppkey,
+              o_custkey,o_orderdate,o_orderpriority,o_orderstatus,o_shippriority,o_totalprice,
+              p_brand,p_container,p_name,p_size,p_type,
+              s_name,s_nationkey,
               extract(year from l_shipdate) as l_shipyear,
-              case when l_commitdate < l_receiptdate then 1 else 0 end as l_receiptdelayed,
-              case when l_shipdate < l_commitdate then 0 else 1 end as l_shipdelayed,
               l_extendedprice * (1 - l_discount) as l_saleprice,
-              l_extendedprice * (1 - l_discount) * l_tax as l_taxprice,
               ps_supplycost * l_quantity as l_supplycost,
-              o_orderkey, o_custkey, o_orderstatus, o_orderdate, o_orderpriority, o_clerk, o_shippriority, o_comment, o_totalprice,
               extract(year from o_orderdate) as o_orderyear,
-              s_name, s_address, s_nationkey, s_phone, s_acctbal, s_comment, s_suppkey,
-              p_partkey, p_name, p_mfgr, p_brand, p_type, p_size, p_container, p_retailprice, p_comment,
-              ps_partkey, ps_availqty, ps_comment, ps_suppkey, ps_supplycost,
-              ps_supplycost * ps_availqty as ps_partvalue,
-              c_custkey, c_name, c_address, c_nationkey, c_phone, c_mktsegment, c_comment, c_acctbal,
-              s_nation.n_nationkey as n_nationkey1, s_nation.n_name as n_name1, s_nation.n_regionkey as n_regionkey1, s_nation.n_comment as n_comment1,
-              c_nation.n_name as n_name2, c_nation.n_regionkey as n_regionkey2, c_nation.n_comment as n_comment2, c_nation.n_nationkey as n_nationkey2,
-              s_region.r_regionkey as r_regionkey1, s_region.r_name as r_name1, s_region.r_comment as r_comment1,
-              c_region.r_regionkey as r_regionkey2, c_region.r_name as r_name2, c_region.r_comment as r_comment2
+              s_nation.n_name as n_name1,
+              s_nation.n_regionkey as n_regionkey1,
+              c_nation.n_name as n_name2,
+              c_nation.n_regionkey as n_regionkey2,
+              s_region.r_name as r_name1,
+              c_region.r_name as r_name2
    from
               lineitem
                   inner join partsupp
@@ -76,26 +71,6 @@ as select
      and c_region.r_regionkey=c_nation.n_regionkey
 ;
 
--- customer_order_mv (used to match query22)
--- query22 needs avg & rollup -> sum/count
-create materialized view customer_mv
-distributed by hash(c_custkey) buckets 20
-refresh manual
-properties (
-    "replication_num" = "1"
-)
-as select
-              c_custkey,
-              c_phone,
-              c_acctbal,
-              -- TODO: can be deduced from c_phone
-              substring(c_phone , 1  ,2) as substring_phone,
-              count(c_acctbal) as c_count,
-              sum(c_acctbal) as c_sum
-   from
-              customer
-   group by c_custkey, c_phone, c_acctbal, substring(c_phone , 1  ,2);
-
 -- customer_order_mv (used to match query13)
 create materialized view customer_order_mv
 distributed by hash(c_custkey) buckets 20
@@ -104,9 +79,7 @@ properties (
     "replication_num" = "1"
 )
 as select
-              c_custkey, c_name, c_address, c_nationkey, c_phone, c_mktsegment, c_comment, c_acctbal,
-              o_custkey, o_orderstatus, o_totalprice, o_orderdate, o_orderpriority, o_clerk, o_shippriority, o_comment, o_orderkey,
-              extract(year from o_orderdate) as o_orderyear
+              c_custkey,o_comment,o_orderkey
    from
               customer
                   left outer join
@@ -128,13 +101,13 @@ as select
               l_linestatus,
               l_partkey,
               sum(l_quantity) as sum_qty,
+              count(l_quantity) as count_qty,
               sum(l_extendedprice) as sum_base_price,
+              count(l_extendedprice) as count_base_price,
               sum(l_discount) as sum_discount,
+              count(l_discount) as count_discount,
               sum(l_extendedprice * (1 - l_discount)) as sum_disc_price,
               sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) as sum_charge,
-              avg(l_quantity) as avg_qty,
-              avg(l_extendedprice) as avg_price,
-              avg(l_discount) as avg_disc,
               count(*) as count_order
    from
               lineitem
@@ -142,3 +115,22 @@ as select
        l_orderkey, l_suppkey, l_shipdate, l_partkey,
        l_returnflag, l_linestatus
 ;
+
+-- customer_order_mv (used to match query22)
+-- query22 needs avg & rollup -> sum/count
+create materialized view customer_mv
+distributed by hash(c_custkey) buckets 20
+refresh manual
+properties (
+    "replication_num" = "1"
+)
+as select
+              c_custkey,
+              c_phone,
+              c_acctbal,
+              substring(c_phone, 1  ,2) as substring_phone,
+              count(c_acctbal) as c_count,
+              sum(c_acctbal) as c_sum
+   from
+              customer
+   group by c_custkey, c_phone, c_acctbal, substring(c_phone, 1  ,2);

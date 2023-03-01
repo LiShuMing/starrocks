@@ -37,6 +37,7 @@ import com.starrocks.sql.optimizer.base.DistributionSpec;
 import com.starrocks.sql.optimizer.base.HashDistributionDesc;
 import com.starrocks.sql.optimizer.operator.Operator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalOlapScanOperator;
+import com.starrocks.sql.optimizer.operator.scalar.BinaryPredicateOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ConstantOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
@@ -203,6 +204,13 @@ public class MvRewritePreprocessor {
                 .collect(Collectors.toSet());
         // Case1: keeps original predicates which belong to MV table(which are not pruned after mv's partition pruning)
         for (ScalarOperator conj : conjuncts) {
+            // ignore binary predicates which cannot be used for pruning.
+            if (conj instanceof BinaryPredicateOperator) {
+                BinaryPredicateOperator conjOp = (BinaryPredicateOperator) conj;
+                if (conjOp.getChild(0).isColumnRef() && conjOp.getChild(1).isColumnRef()) {
+                    continue;
+                }
+            }
             final List<Integer> conjColumnRefOperators =
                     Utils.extractColumnRef(conj).stream().map(ref -> ref.getId()).collect(Collectors.toList());
             if (mvPruneColumnIdSet.containsAll(conjColumnRefOperators)) {

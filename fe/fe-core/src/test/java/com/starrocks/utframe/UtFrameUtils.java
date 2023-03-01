@@ -423,7 +423,8 @@ public class UtFrameUtils {
             testView(connectContext, originStmt, statementBase);
 
             validatePlanConnectedness(execPlan);
-            return new Pair<>(LogicalPlanPrinter.print(execPlan.getPhysicalPlan()), execPlan);
+            boolean isPrintDetailInfosForTestPlans = oldSessionVariable.isPrintDetailInfosForTestPlans();
+            return new Pair<>(LogicalPlanPrinter.print(execPlan.getPhysicalPlan(), isPrintDetailInfosForTestPlans), execPlan);
         } finally {
             // before returning we have to restore session variable.
             connectContext.setSessionVariable(oldSessionVariable);

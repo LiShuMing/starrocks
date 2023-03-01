@@ -370,6 +370,9 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
     // that, non-order-by output columns are permuted according to the ordinal column.
     public static final String FULL_SORT_LATE_MATERIALIZATION = "full_sort_late_materialization";
 
+    // Used for testing to decide whether to print detail infos.
+    public static final String PRINT_DETAIL_INFOS_FOR_TEST_PLANS = "print_detail_infos_for_test_plans";
+
     public static final List<String> DEPRECATED_VARIABLES = ImmutableList.<String>builder()
             .add(CODEGEN_LEVEL)
             .add(MAX_EXECUTION_TIME)
@@ -929,6 +932,10 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
 
     @VariableMgr.VarAttr(name = FULL_SORT_LATE_MATERIALIZATION)
     private boolean fullSortLateMaterialization = false;
+
+    // the value is set for testing,
+    @VarAttr(name = PRINT_DETAIL_INFOS_FOR_TEST_PLANS, flag = VariableMgr.INVISIBLE)
+    private boolean printDetailInfosForTestPlans = false;
 
     public void setFullSortMaxBufferedRows(long v) {
         fullSortMaxBufferedRows = v;
@@ -1785,6 +1792,14 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
 
     public void setDefaultTableCompression(String compression) {
         this.defaultTableCompressionAlgorithm = compression;
+    }
+
+    public boolean isPrintDetailInfosForTestPlans() {
+        return printDetailInfosForTestPlans;
+    }
+
+    public void setPrintDetailInfosForTestPlans(boolean printDetailInfosForTestPlans) {
+        this.printDetailInfosForTestPlans = printDetailInfosForTestPlans;
     }
 
     // Serialize to thrift object

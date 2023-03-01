@@ -33,12 +33,12 @@ TOP-N (order by [[21: sum DESC NULLS LAST]])
             AGGREGATE ([GLOBAL] aggregate [{21: sum=sum(21: sum)}] group by [[1: PS_PARTKEY]] having [null]
                 EXCHANGE SHUFFLE[1]
                     AGGREGATE ([LOCAL] aggregate [{21: sum=sum(20: expr)}] group by [[1: PS_PARTKEY]] having [null]
-                        SCAN (columns[45: ps_partkey, 50: ps_partvalue, 68: n_name] predicate[68: n_name = PERU])
+                        SCAN (mv[partsupp_mv] columns[86: n_name, 90: ps_partkey, 100: ps_partvalue] predicate[86: n_name = PERU])
             EXCHANGE BROADCAST
                 ASSERT LE 1
                     AGGREGATE ([GLOBAL] aggregate [{42: sum=sum(42: sum)}] group by [[]] having [null]
                         EXCHANGE GATHER
                             AGGREGATE ([LOCAL] aggregate [{42: sum=sum(41: expr)}] group by [[]] having [null]
-                                SCAN (columns[50: ps_partvalue, 68: n_name] predicate[68: n_name = PERU])
+                                SCAN (mv[partsupp_mv] columns[86: n_name, 100: ps_partvalue] predicate[86: n_name = PERU])
 [end]
 

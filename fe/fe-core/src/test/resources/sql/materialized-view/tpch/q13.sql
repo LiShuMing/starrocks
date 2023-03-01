@@ -28,6 +28,6 @@ TOP-N (order by [[21: count DESC NULLS LAST, 20: count DESC NULLS LAST]])
                     AGGREGATE ([GLOBAL] aggregate [{20: count=count(20: count)}] group by [[1: C_CUSTKEY]] having [null]
                         EXCHANGE SHUFFLE[1]
                             AGGREGATE ([LOCAL] aggregate [{20: count=count(10: O_ORDERKEY)}] group by [[1: C_CUSTKEY]] having [null]
-                                SCAN (columns[22: c_custkey, 37: o_comment, 38: o_orderkey] predicate[NOT 37: o_comment LIKE %unusual%deposits%])
+                                SCAN (mv[customer_order_mv] columns[22: c_custkey, 23: o_comment, 24: o_orderkey] predicate[NOT 23: o_comment LIKE %unusual%deposits%])
 [end]
 

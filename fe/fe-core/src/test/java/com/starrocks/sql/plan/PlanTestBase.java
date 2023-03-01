@@ -1578,18 +1578,23 @@ public class PlanTestBase {
         return createTableSqlList;
     }
 
-    protected static void executeSqlFile(String fileName) throws Exception {
+    public static String getFileContent(String fileName) throws Exception {
         ClassLoader loader = MaterializedViewTPCHTest.class.getClassLoader();
         System.out.println("file name:" + fileName);
-        String sql = "";
+        String content = "";
         try {
-            sql = CharStreams.toString(
+            content = CharStreams.toString(
                     new InputStreamReader(
                             Objects.requireNonNull(loader.getResourceAsStream(fileName)),
                             Charsets.UTF_8));
         } catch (Throwable e) {
             throw e;
         }
+        return content;
+    }
+
+    protected static void executeSqlFile(String fileName) throws Exception {
+        String sql = getFileContent(fileName);
         List<StatementBase> statements = SqlParser.parse(sql, connectContext.getSessionVariable().getSqlMode());
         for (StatementBase stmt : statements) {
             StmtExecutor stmtExecutor = new StmtExecutor(connectContext, stmt);

@@ -14,6 +14,7 @@ PROPERTIES (
     "storage_format" = "DEFAULT"
 );
 
+
 CREATE TABLE part  ( P_PARTKEY     INTEGER NOT NULL,
                      P_NAME        VARCHAR(55) NOT NULL,
                      P_MFGR        CHAR(25) NOT NULL,
@@ -27,7 +28,7 @@ CREATE TABLE part  ( P_PARTKEY     INTEGER NOT NULL,
     ENGINE=OLAP
 DUPLICATE KEY(`P_PARTKEY`)
 COMMENT "OLAP"
-DISTRIBUTED BY HASH(`P_PARTKEY`) BUCKETS 10
+DISTRIBUTED BY HASH(`P_PARTKEY`) BUCKETS 24
 PROPERTIES (
     "replication_num" = "1",
     "in_memory" = "false",
@@ -66,7 +67,7 @@ CREATE TABLE customer ( C_CUSTKEY     INTEGER NOT NULL,
     ENGINE=OLAP
 DUPLICATE KEY(`c_custkey`)
 COMMENT "OLAP"
-DISTRIBUTED BY HASH(`c_custkey`) BUCKETS 10
+DISTRIBUTED BY HASH(`c_custkey`) BUCKETS 24
 PROPERTIES (
     "replication_num" = "1",
     "in_memory" = "false",
@@ -88,7 +89,7 @@ CREATE TABLE orders  ( O_ORDERKEY       INTEGER NOT NULL,
     ENGINE=OLAP
 DUPLICATE KEY(`o_orderkey`)
 COMMENT "OLAP"
-DISTRIBUTED BY HASH(`o_orderkey`) BUCKETS 10
+DISTRIBUTED BY HASH(`o_orderkey`) BUCKETS 96
 PROPERTIES (
     "replication_num" = "1",
     "in_memory" = "false",
@@ -108,7 +109,7 @@ CREATE TABLE supplier ( S_SUPPKEY     INTEGER NOT NULL,
     ENGINE=OLAP
 DUPLICATE KEY(`s_suppkey`)
 COMMENT "OLAP"
-DISTRIBUTED BY HASH(`s_suppkey`) BUCKETS 1
+DISTRIBUTED BY HASH(`s_suppkey`) BUCKETS 12
 PROPERTIES (
     "replication_num" = "1",
     "in_memory" = "false",
@@ -126,7 +127,7 @@ CREATE TABLE partsupp ( PS_PARTKEY     INTEGER NOT NULL,
     ENGINE=OLAP
 DUPLICATE KEY(`ps_partkey`)
 COMMENT "OLAP"
-DISTRIBUTED BY HASH(`ps_partkey`) BUCKETS 10
+DISTRIBUTED BY HASH(`ps_partkey`) BUCKETS 24
 PROPERTIES (
     "replication_num" = "1",
     "unique_constraints" = "PS_PARTKEY,PS_SUPPKEY",
@@ -155,7 +156,7 @@ CREATE TABLE lineitem ( L_ORDERKEY    INTEGER NOT NULL,
     ENGINE=OLAP
 DUPLICATE KEY(`L_ORDERKEY`)
 COMMENT "OLAP"
-DISTRIBUTED BY HASH(`L_ORDERKEY`) BUCKETS 20
+DISTRIBUTED BY HASH(`L_ORDERKEY`) BUCKETS 96
 PROPERTIES (
     "replication_num" = "1",
     "in_memory" = "false",

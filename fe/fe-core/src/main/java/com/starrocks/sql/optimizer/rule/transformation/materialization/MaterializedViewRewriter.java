@@ -1242,8 +1242,8 @@ public class MaterializedViewRewriter {
         } else if (srcPr == null) {
             return null;
         } else {
-            ScalarOperator canonizedSrcPr = srcPr == null ? null : MvUtils.canonizePredicateForRewrite(srcPr.clone());
-            ScalarOperator canonizedTargetPr = targetPr == null ? null : MvUtils.canonizePredicateForRewrite(targetPr.clone());
+            ScalarOperator canonizedSrcPr = MvUtils.canonizePredicateForRewrite(srcPr.clone());
+            ScalarOperator canonizedTargetPr = MvUtils.canonizePredicateForRewrite(targetPr.clone());
             // swap column by query EC
             ScalarOperator swappedSrcPr;
             ScalarOperator swappedTargetPr;

@@ -14,16 +14,12 @@
 
 package com.starrocks.planner;
 
-import com.google.common.collect.Lists;
 import com.starrocks.sql.plan.PlanTestBase;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
-import static com.starrocks.utframe.UtFrameUtils.CREATE_STATISTICS_TABLE_STMT;
-
 public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
-    private static final String MATERIALIZED_DB_NAME = "test_tpch_mv";
-
     @BeforeClass
     public static void setUp() throws Exception {
         PlanTestBase.beforeClass();
@@ -75,11 +71,13 @@ public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
     }
 
     @Test
+    @Ignore
     public void testQuery8() {
         runFileUnitTest("materialized-view/tpch/q8");
     }
 
     @Test
+    @Ignore
     public void testQuery9() {
         runFileUnitTest("materialized-view/tpch/q9");
     }

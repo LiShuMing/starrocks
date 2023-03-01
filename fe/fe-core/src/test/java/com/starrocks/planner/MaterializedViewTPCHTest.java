@@ -26,7 +26,6 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -206,6 +205,7 @@ public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
     public void analyzeTPCHMVs() throws Exception {
         Map<String, Set<String>> mvTableColumnsMap = Maps.newHashMap();
         Map<String, Set<String>> mvTableQueryIds = Maps.newHashMap();
+        // Pattern mvPattern = Pattern.compile("mv\\[(.*)] columns\\[(.*)] predicate\\[(.*)]");
         Pattern mvPattern = Pattern.compile("mv\\[(.*)] columns\\[(.*)] ");
         for (int i = 1; i < 23; i++) {
             String content = getFileContent("sql/materialized-view/tpch/q" + i + ".sql");
@@ -213,17 +213,16 @@ public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
             for (String line: lines) {
                 if (line.contains("mv[")) {
                     Matcher matcher = mvPattern.matcher(line);
-                    if (!matcher.find()) {
-                        throw new Exception("bad explain format!!!");
-                    }
-                    // TODO: how to match multi mvs.
-                    String mvTableName = matcher.group(1);
-                    List<String> mvTableColumns = splitMVTableColumns(matcher.group(2));
+                    if (matcher.find()) {
+                        System.out.println(line);
+                        String mvTableName = matcher.group(1);
+                        List<String> mvTableColumns = splitMVTableColumns(matcher.group(2));
 
-                    mvTableColumnsMap.putIfAbsent(mvTableName, Sets.newTreeSet());
-                    mvTableColumnsMap.get(mvTableName).addAll(mvTableColumns);
-                    mvTableQueryIds.putIfAbsent(mvTableName, Sets.newTreeSet());
-                    mvTableQueryIds.get(mvTableName).add(Integer.toString(i));
+                        mvTableColumnsMap.putIfAbsent(mvTableName, Sets.newTreeSet());
+                        mvTableColumnsMap.get(mvTableName).addAll(mvTableColumns);
+                        mvTableQueryIds.putIfAbsent(mvTableName, Sets.newTreeSet());
+                        mvTableQueryIds.get(mvTableName).add(Integer.toString(i));
+                    }
                 }
             }
         }
@@ -243,11 +242,9 @@ public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
         String[] s1 = line.split(",");
         List<String> ret = new ArrayList<>();
         for (String s: s1) {
-           String[] s2 = s.split(":");
-           ret.add(s2[1].trim());
+            String[] s2 = s.split(":");
+            ret.add(s2[1].trim());
         }
         return ret;
     }
-
-
 }

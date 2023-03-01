@@ -43,19 +43,19 @@ TOP-N (order by [[1: S_SUPPKEY ASC NULLS FIRST]])
             SCAN (columns[1: S_SUPPKEY, 2: S_NAME, 3: S_ADDRESS, 5: S_PHONE] predicate[null])
             EXCHANGE SHUFFLE[11]
                 INNER JOIN (join-predicate [27: sum = 47: max] post-join-predicate [null])
-                    AGGREGATE ([GLOBAL] aggregate [{181: sum=sum(181: sum)}] group by [[79: l_suppkey]] having [181: sum IS NOT NULL]
-                        EXCHANGE SHUFFLE[79]
-                            AGGREGATE ([LOCAL] aggregate [{181: sum=sum(87: sum_disc_price)}] group by [[79: l_suppkey]] having [null]
-                                SCAN (mv[lineitem_agg_mv] columns[79: l_suppkey, 80: l_shipdate, 87: sum_disc_price] predicate[80: l_shipdate >= 1995-07-01 AND 80: l_shipdate < 1995-10-01 AND 87: sum_disc_price IS NOT NULL])
+                    AGGREGATE ([GLOBAL] aggregate [{144: sum=sum(144: sum)}] group by [[65: l_suppkey]] having [144: sum IS NOT NULL]
+                        EXCHANGE SHUFFLE[65]
+                            AGGREGATE ([LOCAL] aggregate [{144: sum=sum(76: sum_disc_price)}] group by [[65: l_suppkey]] having [null]
+                                SCAN (mv[lineitem_agg_mv] columns[65: l_suppkey, 66: l_shipdate, 76: sum_disc_price] predicate[66: l_shipdate >= 1995-07-01 AND 66: l_shipdate < 1995-10-01 AND 76: sum_disc_price IS NOT NULL])
                     EXCHANGE BROADCAST
                         PREDICATE 47: max IS NOT NULL
                             ASSERT LE 1
                                 AGGREGATE ([GLOBAL] aggregate [{47: max=max(47: max)}] group by [[]] having [null]
                                     EXCHANGE GATHER
                                         AGGREGATE ([LOCAL] aggregate [{47: max=max(46: sum)}] group by [[]] having [null]
-                                            AGGREGATE ([GLOBAL] aggregate [{170: sum=sum(170: sum)}] group by [[79: l_suppkey]] having [null]
-                                                EXCHANGE SHUFFLE[79]
-                                                    AGGREGATE ([LOCAL] aggregate [{170: sum=sum(87: sum_disc_price)}] group by [[79: l_suppkey]] having [null]
-                                                        SCAN (mv[lineitem_agg_mv] columns[79: l_suppkey, 80: l_shipdate, 87: sum_disc_price] predicate[80: l_shipdate >= 1995-07-01 AND 80: l_shipdate < 1995-10-01])
+                                            AGGREGATE ([GLOBAL] aggregate [{133: sum=sum(133: sum)}] group by [[65: l_suppkey]] having [null]
+                                                EXCHANGE SHUFFLE[65]
+                                                    AGGREGATE ([LOCAL] aggregate [{133: sum=sum(76: sum_disc_price)}] group by [[65: l_suppkey]] having [null]
+                                                        SCAN (mv[lineitem_agg_mv] columns[65: l_suppkey, 66: l_shipdate, 76: sum_disc_price] predicate[66: l_shipdate >= 1995-07-01 AND 66: l_shipdate < 1995-10-01])
 [end]
 

@@ -1578,7 +1578,7 @@ public class PlanTestBase {
         return createTableSqlList;
     }
 
-    protected static String getFileContent(String fileName) throws Exception {
+    public static String getFileContent(String fileName) throws Exception {
         ClassLoader loader = MaterializedViewTPCHTest.class.getClassLoader();
         System.out.println("file name:" + fileName);
         String content = "";

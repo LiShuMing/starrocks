@@ -15,7 +15,7 @@ where
 [result]
 AGGREGATE ([GLOBAL] aggregate [{30: sum=sum(30: sum), 31: sum=sum(31: sum)}] group by [[]] having [null]
     EXCHANGE GATHER
-        AGGREGATE ([LOCAL] aggregate [{30: sum=sum(if(120: p_type LIKE PROMO%, 96: l_saleprice, 0.0)), 31: sum=sum(29: expr)}] group by [[]] having [null]
-            SCAN (mv[lineitem_mv] columns[83: l_shipdate, 96: l_saleprice, 120: p_type] predicate[83: l_shipdate >= 1997-02-01 AND 83: l_shipdate < 1997-03-01])
+        AGGREGATE ([LOCAL] aggregate [{30: sum=sum(if(91: p_type LIKE PROMO%, 97: l_saleprice, 0.0)), 31: sum=sum(29: expr)}] group by [[]] having [null]
+            SCAN (mv[lineitem_mv] columns[77: l_shipdate, 91: p_type, 97: l_saleprice] predicate[77: l_shipdate >= 1997-02-01 AND 77: l_shipdate < 1997-03-01])
 [end]
 

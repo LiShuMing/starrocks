@@ -31,13 +31,6 @@ public class MaterializedViewSSBTest extends MaterializedViewTestBase {
 
         starRocksAssert.useDatabase(MATERIALIZED_DB_NAME);
 
-        new MockUp<MaterializedView>() {
-            @Mock
-            Set<String> getPartitionNamesToRefreshForMv() {
-                return Sets.newHashSet();
-            }
-        };
-
         // create SSB tables
         // put lineorder last because it depends on other tables for foreign key constraints
         createTables("sql/ssb/", Lists.newArrayList("customer", "dates", "supplier", "part", "lineorder"));

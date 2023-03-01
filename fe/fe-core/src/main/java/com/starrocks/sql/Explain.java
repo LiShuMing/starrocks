@@ -15,6 +15,7 @@
 
 package com.starrocks.sql;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.starrocks.analysis.AnalyticWindow;
 import com.starrocks.catalog.FunctionSet;
@@ -805,32 +806,31 @@ public class Explain {
 
         @Override
         public String visitCompoundPredicate(CompoundPredicateOperator predicate, Void context) {
-            if (CompoundPredicateOperator.CompoundType.NOT.equals(predicate.getCompoundType())) {
+            if (predicate.isNot()) {
                 return "NOT " + print(predicate.getChild(0));
-            } else if (CompoundPredicateOperator.CompoundType.AND.equals(predicate.getCompoundType())) {
+            } else if (predicate.isAnd()) {
 
                 String leftPredicate;
-                if (predicate.getChild(0) instanceof CompoundPredicateOperator
-                        && ((CompoundPredicateOperator) predicate.getChild(0)).getCompoundType().equals(
-                        CompoundPredicateOperator.CompoundType.OR)) {
-                    leftPredicate = "(" + print(predicate.getChild(0)) + ")";
+                if (predicate.getChild(0) instanceof CompoundPredicateOperator) {
+                    leftPredicate =
+                            visitCompoundPredicate((CompoundPredicateOperator) predicate.getChild(0), context);
                 } else {
                     leftPredicate = print(predicate.getChild(0));
                 }
 
                 String rightPredicate;
-                if (predicate.getChild(1) instanceof CompoundPredicateOperator
-                        && ((CompoundPredicateOperator) predicate.getChild(1)).getCompoundType().equals(
-                        CompoundPredicateOperator.CompoundType.OR)) {
-                    rightPredicate = "(" + print(predicate.getChild(1)) + ")";
+                if (predicate.getChild(1) instanceof CompoundPredicateOperator) {
+                    rightPredicate =
+                            visitCompoundPredicate((CompoundPredicateOperator) predicate.getChild(1), context);
                 } else {
                     rightPredicate = print(predicate.getChild(1));
                 }
 
                 return leftPredicate + " " + predicate.getCompoundType().toString() + " " + rightPredicate;
             } else {
-                return print(predicate.getChild(0)) + " " + predicate.getCompoundType().toString() + " " +
-                        print(predicate.getChild(1));
+                Preconditions.checkState(predicate.isOr());
+                return "(" + print(predicate.getChild(0)) + " " + predicate.getCompoundType().toString() + " " +
+                        print(predicate.getChild(1)) + ")";
             }
         }
 

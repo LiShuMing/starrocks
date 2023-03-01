@@ -37,7 +37,7 @@ TOP-N (order by [[23: count DESC NULLS LAST, 9: p_brand ASC NULLS FIRST, 10: p_t
                 EXCHANGE SHUFFLE[9, 10, 11]
                     AGGREGATE ([LOCAL] aggregate [{}] group by [[2: ps_suppkey, 9: p_brand, 10: p_type, 11: p_size]] having [null]
                         NULL AWARE LEFT ANTI JOIN (join-predicate [2: ps_suppkey = 15: s_suppkey] post-join-predicate [null])
-                            SCAN (mv[partsupp_mv] columns[26: p_size, 27: p_type, 29: ps_suppkey, 36: s_nationkey] predicate[cast(36: s_nationkey as varchar(1048576)) != Brand#43 AND NOT 27: p_type LIKE PROMO BURNISHED% AND 26: p_size IN (31, 43, 9, 6, 18, 11, 25, 1)])
+                            SCAN (mv[partsupp_mv] columns[30: p_size, 31: p_type, 33: ps_suppkey, 40: s_nationkey] predicate[cast(40: s_nationkey as varchar(1048576)) != Brand#43 AND NOT 31: p_type LIKE PROMO BURNISHED% AND 30: p_size IN (31, 43, 9, 6, 18, 11, 25, 1)])
                             EXCHANGE BROADCAST
                                 SCAN (table[supplier] columns[21: s_comment, 15: s_suppkey] predicate[21: s_comment LIKE %Customer%Complaints%])
 [end]

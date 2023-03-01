@@ -948,9 +948,6 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
     private boolean fullSortLateMaterialization = false;
 
     // the value is set for testing,
-    @VarAttr(name = PRINT_DETAIL_INFOS_FOR_TEST_PLANS, flag = VariableMgr.INVISIBLE)
-    private boolean printDetailInfosForTestPlans = false;
-
     public void setFullSortMaxBufferedRows(long v) {
         fullSortMaxBufferedRows = v;
     }
@@ -1822,14 +1819,6 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
 
     public void setDefaultTableCompression(String compression) {
         this.defaultTableCompressionAlgorithm = compression;
-    }
-
-    public boolean isPrintDetailInfosForTestPlans() {
-        return printDetailInfosForTestPlans;
-    }
-
-    public void setPrintDetailInfosForTestPlans(boolean printDetailInfosForTestPlans) {
-        this.printDetailInfosForTestPlans = printDetailInfosForTestPlans;
     }
 
     // Serialize to thrift object

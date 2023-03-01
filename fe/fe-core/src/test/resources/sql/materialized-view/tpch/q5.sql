@@ -29,6 +29,6 @@ TOP-N (order by [[49: sum DESC NULLS LAST]])
         AGGREGATE ([GLOBAL] aggregate [{49: sum=sum(49: sum)}] group by [[42: n_name]] having [null]
             EXCHANGE SHUFFLE[42]
                 AGGREGATE ([LOCAL] aggregate [{49: sum=sum(48: expr)}] group by [[42: n_name]] having [null]
-                    SCAN (mv[lineitem_mv] columns[103: c_nationkey, 118: o_orderdate, 126: p_size, 129: s_nationkey, 131: l_saleprice, 134: n_name1, 137: n_regionkey2, 138: r_name1] predicate[129: s_nationkey = 103: c_nationkey AND 103: c_nationkey = 129: s_nationkey AND 126: p_size = 137: n_regionkey2 AND 137: n_regionkey2 = 126: p_size AND 138: r_name1 = AFRICA AND 118: o_orderdate >= 1995-01-01 AND 118: o_orderdate < 1996-01-01])
+                    SCAN (mv[lineitem_mv] columns[126: o_orderdate, 139: l_saleprice, 143: n_name1, 147: r_name1] predicate[147: r_name1 = AFRICA AND 126: o_orderdate >= 1995-01-01 AND 126: o_orderdate < 1996-01-01])
 [end]
 

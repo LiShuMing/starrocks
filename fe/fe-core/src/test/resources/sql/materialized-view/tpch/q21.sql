@@ -41,16 +41,9 @@ order by
 [result]
 TOP-N (order by [[71: count DESC NULLS LAST, 2: s_name ASC NULLS FIRST]])
     TOP-N (order by [[71: count DESC NULLS LAST, 2: s_name ASC NULLS FIRST]])
-        AGGREGATE ([GLOBAL] aggregate [{71: count=count(71: count)}] group by [[2: s_name]] having [null]
-            EXCHANGE SHUFFLE[2]
-                AGGREGATE ([LOCAL] aggregate [{71: count=count()}] group by [[2: s_name]] having [null]
-                    LEFT ANTI JOIN (join-predicate [9: l_orderkey = 55: l_orderkey AND 58: l_suppkey != 12: l_suppkey] post-join-predicate [null])
-                        LEFT SEMI JOIN (join-predicate [9: l_orderkey = 38: l_orderkey AND 41: l_suppkey != 12: l_suppkey] post-join-predicate [null])
-                            EXCHANGE SHUFFLE[9]
-                                SCAN (mv[lineitem_mv] columns[121: l_commitdate, 124: l_orderkey, 127: l_receiptdate, 132: l_suppkey, 136: o_orderstatus, 144: s_name, 150: n_name1] predicate[136: o_orderstatus = F AND 150: n_name1 = CANADA AND 127: l_receiptdate > 121: l_commitdate])
-                            EXCHANGE SHUFFLE[38]
-                                SCAN (table[lineitem] columns[38: l_orderkey, 41: l_suppkey] predicate[null])
-                        EXCHANGE SHUFFLE[55]
-                            SCAN (table[lineitem] columns[65: l_commitdate, 66: l_receiptdate, 55: l_orderkey, 58: l_suppkey] predicate[66: l_receiptdate > 65: l_commitdate])
+        AGGREGATE ([GLOBAL] aggregate [{344: count=sum(344: count)}] group by [[106: s_name]] having [null]
+            EXCHANGE SHUFFLE[106]
+                AGGREGATE ([LOCAL] aggregate [{344: count=sum(109: cnt_star)}] group by [[106: s_name]] having [null]
+                    SCAN (mv[query21_mv] columns[106: s_name, 107: o_orderstatus, 108: n_name, 109: cnt_star] predicate[107: o_orderstatus = F AND 108: n_name = CANADA])
 [end]
 

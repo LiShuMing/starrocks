@@ -423,12 +423,19 @@ public class UtFrameUtils {
             testView(connectContext, originStmt, statementBase);
 
             validatePlanConnectedness(execPlan);
-            boolean isPrintDetailInfosForTestPlans = oldSessionVariable.isPrintDetailInfosForTestPlans();
-            return new Pair<>(LogicalPlanPrinter.print(execPlan.getPhysicalPlan(), isPrintDetailInfosForTestPlans), execPlan);
+            return new Pair<>(printPhysicalPlan(execPlan.getPhysicalPlan()), execPlan);
         } finally {
             // before returning we have to restore session variable.
             connectContext.setSessionVariable(oldSessionVariable);
         }
+    }
+
+    public static String printPhysicalPlan(OptExpression execPlan) {
+        return LogicalPlanPrinter.print(execPlan, isPrintPlanTableNames());
+    }
+
+    public static boolean isPrintPlanTableNames() {
+        return false;
     }
 
     private static void testView(ConnectContext connectContext, String originStmt, StatementBase statementBase)

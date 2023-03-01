@@ -14,16 +14,20 @@
 
 package com.starrocks.planner;
 
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.starrocks.catalog.MaterializedView;
 import com.starrocks.sql.plan.PlanTestBase;
-import mockit.Mock;
-import mockit.MockUp;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
     @BeforeClass
@@ -31,17 +35,12 @@ public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
         PlanTestBase.beforeClass();
         MaterializedViewTestBase.setUp();
         starRocksAssert.useDatabase(MATERIALIZED_DB_NAME);
-        new MockUp<MaterializedView>() {
-            @Mock
-            Set<String> getPartitionNamesToRefreshForMv() {
-                return Sets.newHashSet();
-            }
-        };
 
         executeSqlFile("sql/materialized-view/tpch/ddl_tpch.sql");
         executeSqlFile("sql/materialized-view/tpch/ddl_tpch_mv1.sql");
         executeSqlFile("sql/materialized-view/tpch/ddl_tpch_mv2.sql");
         executeSqlFile("sql/materialized-view/tpch/ddl_tpch_mv3.sql");
+        executeSqlFile("sql/materialized-view/tpch/ddl_tpch_mv4.sql");
     }
 
     @Test
@@ -86,6 +85,11 @@ public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
 
     @Test
     @Ignore
+    public void testQuery7_1() {
+        runFileUnitTest("materialized-view/tpch/q7-1");
+    }
+    
+    @Test
     public void testQuery8() {
         runFileUnitTest("materialized-view/tpch/q8");
     }
@@ -117,6 +121,11 @@ public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
     }
 
     @Test
+    public void testQuery13_1() {
+        runFileUnitTest("materialized-view/tpch/q13-1");
+    }
+
+    @Test
     public void testQuery14() {
         runFileUnitTest("materialized-view/tpch/q14");
     }
@@ -129,6 +138,11 @@ public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
     @Test
     public void testQuery15_1() {
         runFileUnitTest("materialized-view/tpch/q15-1");
+    }
+
+    @Test
+    public void testQuery15_2() {
+        runFileUnitTest("materialized-view/tpch/q15-2");
     }
 
     @Test
@@ -179,5 +193,83 @@ public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
     @Test
     public void testQuery22_1() {
         runFileUnitTest("materialized-view/tpch/q22-1");
+    }
+
+    /**
+     * >>>>>>>>> Analyze TPCH MVs Result <<<<<<<<<
+     *
+     * TableName:partsupp_mv
+     * Columns:n_name,p_mfgr,p_size,p_type,ps_partkey,ps_partvalue,ps_suppkey,ps_supplycost,r_name,s_acctbal,s_address,
+     *         s_comment,s_name,s_nationkey,s_phone
+     * Queries:11,16,2
+     *
+     * TableName:lineitem_mv
+     * Columns:c_acctbal,c_address,c_comment,c_mktsegment,c_name,c_nationkey,c_phone,l_commitdate,l_extendedprice,
+     *          l_orderkey,l_partkey,l_quantity,l_receiptdate,l_returnflag,l_saleprice,l_shipdate,l_shipinstruct,
+     *          l_shipmode,l_shipyear,l_suppkey,l_supplycost,n_name1,n_name2,n_regionkey1,n_regionkey2,o_custkey,
+     *          o_orderdate,o_orderpriority,o_orderstatus,o_orderyear,o_shippriority,o_totalprice,p_brand,p_container,
+     *          p_name,p_size,p_type,r_name1,r_name2,s_name,s_nationkey
+     * Queries:10,12,14,17,18,19,21,3,5,7,8,9
+     *
+     * TableName:lineitem_agg_mv
+     * Columns:l_orderkey,l_partkey,l_shipdate,l_suppkey,sum_disc_price,sum_qty
+     * Queries:15,18,20
+     *
+     * TableName:customer_order_mv
+     * Columns:c_custkey,o_comment,o_orderkey
+     * Queries:13
+     *
+     * >>>>>>>>> Analyze TPCH MVs Result <<<<<<<<<
+     */
+    @Test
+    public void analyzeTPCHMVs() throws Exception {
+        Map<String, Set<String>> mvTableColumnsMap = Maps.newHashMap();
+        Map<String, Set<String>> mvTableQueryIds = Maps.newHashMap();
+        // Pattern mvPattern = Pattern.compile("mv\\[(.*)] columns\\[(.*)] predicate\\[(.*)]");
+        Pattern mvPattern = Pattern.compile("mv\\[(.*)] columns\\[(.*)] ");
+        for (int i = 1; i < 23; i++) {
+            String content = getFileContent("sql/materialized-view/tpch/q" + i + ".sql");
+            String[] lines = content.split("\n");
+            for (String line: lines) {
+                if (line.contains("mv[")) {
+                    Matcher matcher = mvPattern.matcher(line);
+                    if (matcher.find()) {
+                        String mvTableName = matcher.group(1);
+                        List<String> mvTableColumns = splitMVTableColumns(matcher.group(2));
+
+                        mvTableColumnsMap.putIfAbsent(mvTableName, Sets.newTreeSet());
+                        mvTableColumnsMap.get(mvTableName).addAll(mvTableColumns);
+                        mvTableQueryIds.putIfAbsent(mvTableName, Sets.newTreeSet());
+                        mvTableQueryIds.get(mvTableName).add(Integer.toString(i));
+                    }
+                }
+            }
+        }
+
+        System.out.println(">>>>>>>>> Analyze TPCH MVs Result <<<<<<<<<");
+        System.out.println();
+        int totolQueriesUsedMV = 0;
+        for (Map.Entry<String, Set<String>> entry : mvTableColumnsMap.entrySet()) {
+            String mvTableName = entry.getKey();
+            Set<String> mvTableColumns = entry.getValue();
+            System.out.println("TableName:" + mvTableName);
+            System.out.println("Columns:" + String.join(",", mvTableColumns));
+            System.out.println("Queries:" + String.join(",", mvTableQueryIds.get(mvTableName)));
+            System.out.println();
+            totolQueriesUsedMV += mvTableQueryIds.get(mvTableName).size();
+        }
+        System.out.println(">>>>>>>>> Analyze TPCH MVs Result <<<<<<<<<");
+        Assert.assertTrue(mvTableColumnsMap.size() >= 4);
+        Assert.assertTrue(totolQueriesUsedMV >= 19);
+    }
+
+    private List<String> splitMVTableColumns(String line) {
+        String[] s1 = line.split(",");
+        List<String> ret = new ArrayList<>();
+        for (String s: s1) {
+            String[] s2 = s.split(":");
+            ret.add(s2[1].trim());
+        }
+        return ret;
     }
 }

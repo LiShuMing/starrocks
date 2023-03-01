@@ -44,6 +44,6 @@ TOP-N (order by [[42: n_name ASC NULLS FIRST, 46: n_name ASC NULLS FIRST, 49: ye
         AGGREGATE ([GLOBAL] aggregate [{51: sum=sum(51: sum)}] group by [[42: n_name, 46: n_name, 49: year]] having [null]
             EXCHANGE SHUFFLE[42, 46, 49]
                 AGGREGATE ([LOCAL] aggregate [{51: sum=sum(50: expr)}] group by [[42: n_name, 46: n_name, 49: year]] having [null]
-                    SCAN (mv[lineitem_mv] columns[115: l_shipdate, 132: l_shipyear, 133: l_saleprice, 136: n_name1, 138: n_name2] predicate[115: l_shipdate <= 1996-12-31 AND 136: n_name1 = CANADA AND 138: n_name2 = IRAN OR 136: n_name1 = IRAN AND 138: n_name2 = CANADA AND 136: n_name1 IN (CANADA, IRAN) AND 138: n_name2 IN (IRAN, CANADA)])
+                    SCAN (mv[lineitem_mv] columns[123: l_shipdate, 140: l_shipyear, 141: l_saleprice, 145: n_name1, 147: n_name2] predicate[123: l_shipdate <= 1996-12-31 AND 123: l_shipdate >= 1995-01-01 AND 123: l_shipdate < 1997-01-01 AND 145: n_name1 = CANADA AND 147: n_name2 = IRAN OR 145: n_name1 = IRAN AND 147: n_name2 = CANADA AND 145: n_name1 IN (CANADA, IRAN) AND 147: n_name2 IN (IRAN, CANADA)])
 [end]
 

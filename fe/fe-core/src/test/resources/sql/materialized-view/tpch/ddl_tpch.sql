@@ -1,47 +1,47 @@
--- ref: https://github.com/dragansah/tpch-dbgen/blob/master/tpch-alter.sql
-CREATE TABLE region ( R_REGIONKEY  INTEGER NOT NULL,
-                      R_NAME       CHAR(25) NOT NULL,
-                      R_COMMENT    VARCHAR(152),
-                      PAD char(1) NOT NULL)
-    ENGINE=OLAP
+DROP TABLE IF EXISTS region;
+CREATE TABLE region (
+                        r_regionkey  INT NOT NULL,
+                        r_name       VARCHAR(25) NOT NULL,
+                        r_comment    VARCHAR(152)
+) ENGINE=OLAP
 DUPLICATE KEY(`r_regionkey`)
 COMMENT "OLAP"
 DISTRIBUTED BY HASH(`r_regionkey`) BUCKETS 1
 PROPERTIES (
     "replication_num" = "1",
     "in_memory" = "false",
-    "unique_constraints" = "R_REGIONKEY",
+    "unique_constraints" = "r_regionkey",
     "storage_format" = "DEFAULT"
 );
 
-
-CREATE TABLE part  ( P_PARTKEY     INTEGER NOT NULL,
-                     P_NAME        VARCHAR(55) NOT NULL,
-                     P_MFGR        CHAR(25) NOT NULL,
-                     P_BRAND       CHAR(10) NOT NULL,
-                     P_TYPE        VARCHAR(25) NOT NULL,
-                     P_SIZE        INTEGER NOT NULL,
-                     P_CONTAINER   CHAR(10) NOT NULL,
-                     P_RETAILPRICE DOUBLE NOT NULL,
-                     P_COMMENT     VARCHAR(23) NOT NULL,
-                     PAD CHAR(1) NOT NULL)
-    ENGINE=OLAP
-DUPLICATE KEY(`P_PARTKEY`)
+DROP TABLE IF EXISTS part;
+CREATE TABLE part (
+                      p_partkey     INT NOT NULL,
+                      p_name        VARCHAR(55) NOT NULL,
+                      p_mfgr        VARCHAR(25) NOT NULL,
+                      p_brand       VARCHAR(10) NOT NULL,
+                      p_type        VARCHAR(25) NOT NULL,
+                      p_size        INT NOT NULL,
+                      p_container   VARCHAR(10) NOT NULL,
+                      p_retailprice DECIMAL(15, 2) NOT NULL,
+                      p_comment     VARCHAR(23) NOT NULL
+) ENGINE=OLAP
+DUPLICATE KEY(`p_partkey`)
 COMMENT "OLAP"
-DISTRIBUTED BY HASH(`P_PARTKEY`) BUCKETS 24
+DISTRIBUTED BY HASH(`p_partkey`) BUCKETS 24
 PROPERTIES (
     "replication_num" = "1",
     "in_memory" = "false",
-    "unique_constraints" = "P_PARTKEY",
-    "storage_format" = "default"
+    "unique_constraints" = "p_partkey",
+    "storage_format" = "DEFAULT"
 );
 
+DROP TABLE IF EXISTS nation;
 CREATE TABLE `nation` (
-                          `N_NATIONKEY` int(11) NOT NULL COMMENT "",
-                          `N_NAME` char(25) NOT NULL COMMENT "",
-                          `N_REGIONKEY` int(11) NOT NULL COMMENT "",
-                          `N_COMMENT` varchar(152) NULL COMMENT "",
-                          `PAD` char(1) NOT NULL COMMENT ""
+                          n_nationkey INT(11) NOT NULL,
+                          n_name      VARCHAR(25) NOT NULL,
+                          n_regionkey INT(11) NOT NULL,
+                          n_comment   VARCHAR(152) NULL
 ) ENGINE=OLAP
 DUPLICATE KEY(`N_NATIONKEY`)
 COMMENT "OLAP"
@@ -49,118 +49,141 @@ DISTRIBUTED BY HASH(`N_NATIONKEY`) BUCKETS 1
 PROPERTIES (
     "replication_num" = "1",
     "in_memory" = "false",
-    "unique_constraints" = "N_NATIONKEY",
-    "foreign_key_constraints" = "(N_REGIONKEY) REFERENCES region(R_REGIONKEY)",
+    "unique_constraints" = "n_nationkey",
+    "foreign_key_constraints" = "(n_regionkey) references region(r_regionkey)",
     "storage_format" = "DEFAULT"
 );
 
-
-CREATE TABLE customer ( C_CUSTKEY     INTEGER NOT NULL,
-                        C_NAME        VARCHAR(25) NOT NULL,
-                        C_ADDRESS     VARCHAR(40) NOT NULL,
-                        C_NATIONKEY   INTEGER NOT NULL,
-                        C_PHONE       CHAR(15) NOT NULL,
-                        C_ACCTBAL     double   NOT NULL,
-                        C_MKTSEGMENT  CHAR(10) NOT NULL,
-                        C_COMMENT     VARCHAR(117) NOT NULL,
-                        PAD char(1) NOT NULL)
-    ENGINE=OLAP
+DROP TABLE IF EXISTS customer;
+CREATE TABLE customer (
+                          c_custkey     INT NOT NULL,
+                          c_name        VARCHAR(25) NOT NULL,
+                          c_address     VARCHAR(40) NOT NULL,
+                          c_nationkey   INT NOT NULL,
+                          c_phone       VARCHAR(15) NOT NULL,
+                          c_acctbal     DECIMAL(15, 2) NOT NULL,
+                          c_mktsegment  VARCHAR(10) NOT NULL,
+                          c_comment     VARCHAR(117) NOT NULL
+) ENGINE=OLAP
 DUPLICATE KEY(`c_custkey`)
 COMMENT "OLAP"
 DISTRIBUTED BY HASH(`c_custkey`) BUCKETS 24
 PROPERTIES (
     "replication_num" = "1",
     "in_memory" = "false",
-    "unique_constraints" = "C_CUSTKEY",
-    "foreign_key_constraints" = "(C_NATIONKEY) REFERENCES nation(N_NATIONKEY)",
+    "unique_constraints" = "c_custkey",
+    "foreign_key_constraints" = "(c_nationkey) references nation(n_nationkey)",
     "storage_format" = "DEFAULT"
 );
 
-CREATE TABLE orders  ( O_ORDERKEY       INTEGER NOT NULL,
-                       O_CUSTKEY        INTEGER NOT NULL,
-                       O_ORDERSTATUS    CHAR(1) NOT NULL,
-                       O_TOTALPRICE     double NOT NULL,
-                       O_ORDERDATE      DATE NOT NULL,
-                       O_ORDERPRIORITY  CHAR(15) NOT NULL,
-                       O_CLERK          CHAR(15) NOT NULL,
-                       O_SHIPPRIORITY   INTEGER NOT NULL,
-                       O_COMMENT        VARCHAR(79) NOT NULL,
-                       PAD char(1) NOT NULL)
-    ENGINE=OLAP
-DUPLICATE KEY(`o_orderkey`)
+
+DROP TABLE IF EXISTS orders;
+CREATE TABLE orders (
+                        o_orderkey       BIGINT NOT NULL,
+                        o_orderdate      DATE NOT NULL,
+                        o_custkey        INT NOT NULL,
+                        o_orderstatus    VARCHAR(1) NOT NULL,
+                        o_totalprice     DECIMAL(15, 2) NOT NULL,
+                        o_orderpriority  VARCHAR(15) NOT NULL,
+                        o_clerk          VARCHAR(15) NOT NULL,
+                        o_shippriority   INT NOT NULL,
+                        o_comment        VARCHAR(79) NOT NULL
+) ENGINE=OLAP
+DUPLICATE KEY(`o_orderkey`, `o_orderdate`)
 COMMENT "OLAP"
+PARTITION BY RANGE(`o_orderdate`)
+(
+   START ("1992-01-01") END ("1999-01-01") EVERY (INTERVAL 1 year)
+)
 DISTRIBUTED BY HASH(`o_orderkey`) BUCKETS 96
 PROPERTIES (
     "replication_num" = "1",
     "in_memory" = "false",
-    "unique_constraints" = "O_ORDERKEY",
-    "foreign_key_constraints" = "(O_CUSTKEY) REFERENCES customer(C_CUSTKEY)",
+    "unique_constraints" = "o_orderkey",
+    "foreign_key_constraints" = "(o_custkey) references customer(c_custkey)",
     "storage_format" = "DEFAULT"
 );
 
-CREATE TABLE supplier ( S_SUPPKEY     INTEGER NOT NULL,
-                        S_NAME        CHAR(25) NOT NULL,
-                        S_ADDRESS     VARCHAR(40) NOT NULL,
-                        S_NATIONKEY   INTEGER NOT NULL,
-                        S_PHONE       CHAR(15) NOT NULL,
-                        S_ACCTBAL     double NOT NULL,
-                        S_COMMENT     VARCHAR(101) NOT NULL,
-                        PAD char(1) NOT NULL)
-    ENGINE=OLAP
+DROP TABLE IF EXISTS supplier;
+CREATE TABLE supplier (
+                          s_suppkey     INT NOT NULL,
+                          s_name        VARCHAR(25) NOT NULL,
+                          s_address     VARCHAR(40) NOT NULL,
+                          s_nationkey   INT NOT NULL,
+                          s_phone       VARCHAR(15) NOT NULL,
+                          s_acctbal     DECIMAL(15, 2) NOT NULL,
+                          s_comment     VARCHAR(101) NOT NULL
+) ENGINE=OLAP
 DUPLICATE KEY(`s_suppkey`)
 COMMENT "OLAP"
 DISTRIBUTED BY HASH(`s_suppkey`) BUCKETS 12
 PROPERTIES (
     "replication_num" = "1",
     "in_memory" = "false",
-    "unique_constraints" = "S_SUPPKEY",
-    "foreign_key_constraints" = "(S_NATIONKEY) REFERENCES nation(N_NATIONKEY)",
+    "unique_constraints" = "s_suppkey",
+    "foreign_key_constraints" = "(s_nationkey) references nation(n_nationkey)",
     "storage_format" = "DEFAULT"
 );
 
-CREATE TABLE partsupp ( PS_PARTKEY     INTEGER NOT NULL,
-                        PS_SUPPKEY     INTEGER NOT NULL,
-                        PS_AVAILQTY    INTEGER NOT NULL,
-                        PS_SUPPLYCOST  double  NOT NULL,
-                        PS_COMMENT     VARCHAR(199) NOT NULL,
-                        PAD char(1) NOT NULL)
-    ENGINE=OLAP
-DUPLICATE KEY(`ps_partkey`)
+DROP TABLE IF EXISTS partsupp;
+CREATE TABLE partsupp (
+                          ps_partkey     INT NOT NULL,
+                          ps_suppkey     INT NOT NULL,
+                          ps_availqty    INT NOT NULL,
+                          ps_supplycost  DECIMAL(15, 2) NOT NULL,
+                          ps_comment     VARCHAR(199) NOT NULL
+) ENGINE=OLAP
+DUPLICATE KEY(`ps_partkey`, `ps_suppkey`)
 COMMENT "OLAP"
 DISTRIBUTED BY HASH(`ps_partkey`) BUCKETS 24
 PROPERTIES (
     "replication_num" = "1",
-    "unique_constraints" = "PS_PARTKEY,PS_SUPPKEY",
-    "foreign_key_constraints" = "(PS_PARTKEY) REFERENCES part(P_PARTKEY);(PS_SUPPKEY) REFERENCES supplier(S_SUPPKEY)",
+    "unique_constraints" = "ps_partkey,ps_suppkey",
+    "foreign_key_constraints" = "(ps_partkey) references part(p_partkey);(ps_suppkey) references supplier(s_suppkey)",
     "in_memory" = "false",
     "storage_format" = "DEFAULT"
 );
 
-CREATE TABLE lineitem ( L_ORDERKEY    INTEGER NOT NULL,
-                        L_PARTKEY     INTEGER NOT NULL,
-                        L_SUPPKEY     INTEGER NOT NULL,
-                        L_LINENUMBER  INTEGER NOT NULL,
-                        L_QUANTITY    DOUBLE NOT NULL,
-                        L_EXTENDEDPRICE  DOUBLE NOT NULL,
-                        L_DISCOUNT    DOUBLE NOT NULL,
-                        L_TAX         DOUBLE NOT NULL,
-                        L_RETURNFLAG  CHAR(1) NOT NULL,
-                        L_LINESTATUS  CHAR(1) NOT NULL,
-                        L_SHIPDATE    DATE NOT NULL,
-                        L_COMMITDATE  DATE NOT NULL,
-                        L_RECEIPTDATE DATE NOT NULL,
-                        L_SHIPINSTRUCT CHAR(25) NOT NULL,
-                        L_SHIPMODE     CHAR(10) NOT NULL,
-                        L_COMMENT      VARCHAR(44) NOT NULL,
-                        PAD CHAR(1) NOT NULL)
-    ENGINE=OLAP
-DUPLICATE KEY(`L_ORDERKEY`)
+
+DROP TABLE IF EXISTS lineitem;
+CREATE TABLE lineitem (
+                          l_shipdate    DATE NOT NULL,
+                          l_orderkey    BIGINT NOT NULL,
+                          l_linenumber  INT not null,
+                          l_partkey     INT NOT NULL,
+                          l_suppkey     INT not null,
+                          l_quantity    DECIMAL(15, 2) NOT NULL,
+                          l_extendedprice  DECIMAL(15, 2) NOT NULL,
+                          l_discount    DECIMAL(15, 2) NOT NULL,
+                          l_tax         DECIMAL(15, 2) NOT NULL,
+                          l_returnflag  VARCHAR(1) NOT NULL,
+                          l_linestatus  VARCHAR(1) NOT NULL,
+                          l_commitdate  DATE NOT NULL,
+                          l_receiptdate DATE NOT NULL,
+                          l_shipinstruct VARCHAR(25) NOT NULL,
+                          l_shipmode     VARCHAR(10) NOT NULL,
+                          l_comment      VARCHAR(44) NOT NULL
+) ENGINE=OLAP
+DUPLICATE KEY(`l_shipdate`, `l_orderkey`, `l_linenumber`)
 COMMENT "OLAP"
-DISTRIBUTED BY HASH(`L_ORDERKEY`) BUCKETS 96
+PARTITION BY RANGE(`l_shipdate`)
+(
+   START ("1992-01-01") END ("1999-01-01") EVERY (INTERVAL 1 year)
+)
+DISTRIBUTED BY HASH(`l_orderkey`) BUCKETS 96
 PROPERTIES (
     "replication_num" = "1",
     "in_memory" = "false",
-    "unique_constraints" = "L_ORDERKEY;L_PARTKEY;L_SUPPKEY",
-    "foreign_key_constraints" = "(L_ORDERKEY) REFERENCES orders(O_ORDERKEY);(L_PARTKEY,L_SUPPKEY) REFERENCES partsupp(PS_PARTKEY, PS_SUPPKEY)",
+    "unique_constraints" = "l_orderkey;l_partkey;l_suppkey",
+    "foreign_key_constraints" = "(l_orderkey) references orders(o_orderkey);(l_partkey,l_suppkey) references partsupp(ps_partkey, ps_suppkey)",
     "storage_format" = "default"
 );
+
+-- insert into customer select * from tpch_100g_performance.customer;
+-- insert into nation select * from tpch_100g_performance.nation;
+-- insert into part select * from tpch_100g_performance.part;
+-- insert into supplier select * from tpch_100g_performance.supplier;
+-- insert into region select * from tpch_100g_performance.region;
+-- insert into orders select * from tpch_100g_performance.orders;
+-- insert into lineitem select * from tpch_100g_performance.lineitem;
+-- insert into partsupp select * from tpch_100g_performance.partsupp;

@@ -1,6 +1,6 @@
 -- partsupp_mv
 create materialized view partsupp_mv
-distributed by hash(ps_partkey) buckets 20
+distributed by hash(ps_partkey, ps_suppkey) buckets 24
 refresh manual
 properties (
     "replication_num" = "1"
@@ -26,14 +26,16 @@ as select
 
 -- lineitem_mv
 create materialized view lineitem_mv
-distributed by hash(o_orderdate, l_orderkey) buckets 20
+distributed by hash(l_shipdate, l_orderkey, l_linenumber) buckets 96
+partition by l_shipdate
 refresh manual
 properties (
-    "replication_num" = "1"
+    "replication_num" = "1",
+    "partition_refresh_number" = "1"
 )
-as select
+as select  /*+ SET_VAR(query_timeout = 7200) */
               c_address, c_acctbal,c_comment,c_mktsegment,c_name,c_nationkey,c_phone,
-              l_commitdate,l_extendedprice,l_orderkey,l_partkey,l_quantity,l_receiptdate,l_returnflag,l_shipdate,l_shipinstruct,l_shipmode,l_suppkey,
+              l_commitdate,l_linenumber,l_extendedprice,l_orderkey,l_partkey,l_quantity,l_receiptdate,l_returnflag,l_shipdate,l_shipinstruct,l_shipmode,l_suppkey,
               o_custkey,o_orderdate,o_orderpriority,o_orderstatus,o_shippriority,o_totalprice,
               p_brand,p_container,p_name,p_size,p_type,
               s_name,s_nationkey,
@@ -73,7 +75,7 @@ as select
 
 -- customer_order_mv (used to match query13)
 create materialized view customer_order_mv
-distributed by hash(c_custkey) buckets 20
+distributed by hash(c_custkey) buckets 24
 refresh manual
 properties (
     "replication_num" = "1"
@@ -86,14 +88,15 @@ as select
               orders
               on orders.o_custkey=customer.c_custkey;
 
--- query15/query18/q20
 create materialized view lineitem_agg_mv
-distributed by hash(l_orderkey) buckets 20
+distributed by hash(l_orderkey) buckets 96
+partition by l_shipdate
 refresh manual
 properties (
-    "replication_num" = "1"
+    "replication_num" = "1",
+    "partition_refresh_number" = "1"
 )
-as select
+as select  /*+ SET_VAR(query_timeout = 7200) */
               l_orderkey,
               l_suppkey,
               l_shipdate,
@@ -108,6 +111,9 @@ as select
               count(l_discount) as count_discount,
               sum(l_extendedprice * (1 - l_discount)) as sum_disc_price,
               sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) as sum_charge,
+--               avg(l_quantity) as avg_qty,
+--               avg(l_extendedprice) as avg_price,
+--               avg(l_discount) as avg_disc,
               count(*) as count_order
    from
               lineitem
@@ -116,10 +122,72 @@ as select
        l_returnflag, l_linestatus
 ;
 
+-- -- query15/query18/q20
+-- create materialized view lineitem_agg_mv1
+-- distributed by hash(l_orderkey, l_suppkey, l_shipdate, l_partkey) buckets 96
+-- partition by l_shipdate
+-- refresh manual
+-- properties (
+--     "replication_num" = "1"
+-- )
+-- as select
+--                    l_orderkey,
+--                    l_suppkey,
+--                    l_shipdate,
+--                    l_partkey,
+--                    sum(l_quantity) as sum_qty,
+--                    count(l_quantity) as count_qty,
+--                    sum(l_extendedprice) as sum_baske_price,
+--                    count(l_extendedprice) as count_base_price,
+--                    sum(l_discount) as sum_discount,
+--                    count(l_discount) as count_discount,
+--                    sum(l_extendedprice * (1 - l_discount)) as sum_disc_price,
+--                    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) as sum_charge,
+-- --               avg(l_quantity) as avg_qty,
+-- --               avg(l_extendedprice) as avg_price,
+-- --               avg(l_discount) as avg_disc,
+--                    count(*) as count_order
+--    from
+--                    lineitem
+--    group by
+--        l_orderkey, l_suppkey, l_shipdate, l_partkey
+-- ;
+
+-- query1
+create materialized view lineitem_agg_mv2
+distributed by hash(l_shipdate, l_returnflag, l_linestatus) buckets 24
+refresh manual
+properties (
+    "replication_num" = "1"
+)
+as select
+                   l_shipdate,
+                   l_returnflag,
+                   l_linestatus,
+                   sum(l_quantity) as sum_qty,
+                   count(l_quantity) as count_qty,
+                   sum(l_extendedprice) as sum_baske_price,
+                   count(l_extendedprice) as count_base_price,
+                   sum(l_discount) as sum_discount,
+                   count(l_discount) as count_discount,
+                   sum(l_extendedprice * (1 - l_discount)) as sum_disc_price,
+                   sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) as sum_charge,
+--               avg(l_quantity) as avg_qty,
+--               avg(l_extendedprice) as avg_price,
+--               avg(l_discount) as avg_disc,
+                   count(*) as count_order
+   from
+                   lineitem
+   group by
+       l_shipdate,
+       l_returnflag,
+       l_linestatus
+;
+
 -- customer_order_mv (used to match query22)
 -- query22 needs avg & rollup -> sum/count
 create materialized view customer_mv
-distributed by hash(c_custkey) buckets 20
+distributed by hash(c_custkey) buckets 24
 refresh manual
 properties (
     "replication_num" = "1"
@@ -128,9 +196,16 @@ as select
               c_custkey,
               c_phone,
               c_acctbal,
+              -- TODO: can be deduced from c_phone
               substring(c_phone, 1  ,2) as substring_phone,
               count(c_acctbal) as c_count,
               sum(c_acctbal) as c_sum
    from
               customer
    group by c_custkey, c_phone, c_acctbal, substring(c_phone, 1  ,2);
+
+-- analyze full table partsupp_mv;
+-- analyze full table lineitem_mv;
+-- analyze full table customer_order_mv;
+-- analyze full table lineitem_agg_mv;
+-- analyze full table customer_mv;

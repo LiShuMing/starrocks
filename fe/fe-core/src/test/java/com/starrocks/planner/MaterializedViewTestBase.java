@@ -193,21 +193,21 @@ public class MaterializedViewTestBase extends PlanTestBase {
         return fixture.rewrite().nonMatch();
     }
 
-    protected Table getTable(String dbName, String mvName) {
+    protected static Table getTable(String dbName, String mvName) {
         Database db = GlobalStateMgr.getCurrentState().getDb(dbName);
         Table table = db.getTable(mvName);
         Assert.assertNotNull(table);
         return table;
     }
 
-    protected MaterializedView getMv(String dbName, String mvName) {
+    protected static MaterializedView getMv(String dbName, String mvName) {
         Table table = getTable(dbName, mvName);
         Assert.assertTrue(table instanceof MaterializedView);
         MaterializedView mv = (MaterializedView) table;
         return mv;
     }
 
-    protected void refreshMaterializedView(String dbName, String mvName) throws Exception {
+    protected static void refreshMaterializedView(String dbName, String mvName) throws Exception {
         MaterializedView mv = getMv(dbName, mvName);
         TaskManager taskManager = GlobalStateMgr.getCurrentState().getTaskManager();
         final String mvTaskName = TaskBuilder.getMvTaskName(mv.getId());
@@ -219,7 +219,7 @@ public class MaterializedViewTestBase extends PlanTestBase {
         taskManager.executeTaskSync(mvTaskName);
     }
 
-    protected void createAndRefreshMV(String db, String sql) throws Exception {
+    protected static void createAndRefreshMV(String db, String sql) throws Exception {
         Pattern createMvPattern = Pattern.compile("^create materialized view (\\w+) .*");
         Matcher matcher = createMvPattern.matcher(sql.toLowerCase(Locale.ROOT));
         if (!matcher.find()) {

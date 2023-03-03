@@ -28,11 +28,26 @@ public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
 
         executeSqlFile("sql/materialized-view/tpch/ddl_tpch.sql");
         executeSqlFile("sql/materialized-view/tpch/ddl_tpch_mv.sql");
+
+        //-- refresh materialized view  partsupp_mv;
+        //-- refresh materialized view  lineitem_mv;
+        //-- refresh materialized view  customer_order_mv;
+        //-- refresh materialized view  lineitem_agg_mv;
+        //-- refresh materialized view  lineitem_agg_mv2;
+        //-- refresh materialized view  customer_mv;
+        refreshMaterializedView(MATERIALIZED_DB_NAME, "lineitem_mv");
+        refreshMaterializedView(MATERIALIZED_DB_NAME, "partsupp_mv");
+        refreshMaterializedView(MATERIALIZED_DB_NAME, "customer_order_mv");
+        refreshMaterializedView(MATERIALIZED_DB_NAME, "lineitem_agg_mv");
+        refreshMaterializedView(MATERIALIZED_DB_NAME, "lineitem_agg_mv2");
+        refreshMaterializedView(MATERIALIZED_DB_NAME, "customer_mv");
     }
 
     @Test
     public void testQuery1() {
+        connectContext.getSessionVariable().seMaterializedViewCandidatesMVs("lineitem_agg_mv2");
         runFileUnitTest("materialized-view/tpch/q1");
+        connectContext.getSessionVariable().seMaterializedViewCandidatesMVs("");
     }
 
     @Test

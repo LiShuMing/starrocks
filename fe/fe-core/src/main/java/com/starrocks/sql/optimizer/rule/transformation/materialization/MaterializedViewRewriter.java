@@ -37,6 +37,7 @@ import com.starrocks.common.Pair;
 import com.starrocks.sql.optimizer.ExpressionContext;
 import com.starrocks.sql.optimizer.MaterializationContext;
 import com.starrocks.sql.optimizer.OptExpression;
+import com.starrocks.sql.optimizer.OptimizerContext;
 import com.starrocks.sql.optimizer.Utils;
 import com.starrocks.sql.optimizer.base.ColumnRefFactory;
 import com.starrocks.sql.optimizer.base.ColumnRefSet;
@@ -121,7 +122,8 @@ public class MaterializedViewRewriter {
         return true;
     }
 
-    public List<OptExpression> rewrite(ReplaceColumnRefRewriter queryColumnRefRewriter,
+    public List<OptExpression> rewrite(OptimizerContext context,
+                                       ReplaceColumnRefRewriter queryColumnRefRewriter,
                                        PredicateSplit queryPredicateSplit) {
         final OptExpression queryExpression = materializationContext.getQueryExpression();
         final OptExpression mvExpression = materializationContext.getMvExpression();
@@ -164,6 +166,9 @@ public class MaterializedViewRewriter {
                 return Lists.newArrayList();
             }
         } else if (matchMode == MatchMode.VIEW_DELTA) {
+            if (!context.getSessionVariable().isEnableMaterializedViewViewDeltaRewrite()) {
+                return Lists.newArrayList();
+            }
             // View Delta only supports inner/left outer join for now.
             List<JoinOperator> queryJoinOperators = MvUtils.getAllJoinOperators(queryExpression);
             if (queryJoinOperators.stream().anyMatch(join -> !join.isInnerJoin() && !join.isLeftOuterJoin())) {

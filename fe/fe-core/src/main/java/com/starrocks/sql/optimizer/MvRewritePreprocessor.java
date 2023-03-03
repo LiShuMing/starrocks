@@ -21,6 +21,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.starrocks.catalog.Column;
+import com.starrocks.catalog.Database;
 import com.starrocks.catalog.DistributionInfo;
 import com.starrocks.catalog.HashDistributionInfo;
 import com.starrocks.catalog.MaterializedIndex;
@@ -30,6 +31,8 @@ import com.starrocks.catalog.PartitionInfo;
 import com.starrocks.catalog.SinglePartitionInfo;
 import com.starrocks.catalog.Table;
 import com.starrocks.qe.ConnectContext;
+import com.starrocks.qe.SessionVariable;
+import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.ast.PartitionNames;
 import com.starrocks.sql.optimizer.base.ColumnRefFactory;
 import com.starrocks.sql.optimizer.base.ColumnRefSet;
@@ -42,6 +45,8 @@ import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ConstantOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,6 +55,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class MvRewritePreprocessor {
+    protected static final Logger LOG = LogManager.getLogger(MvRewritePreprocessor.class);
+
     private final ConnectContext connectContext;
     private final ColumnRefFactory queryColumnRefFactory;
     private final OptimizerContext context;
@@ -66,11 +73,8 @@ public class MvRewritePreprocessor {
     }
 
     public void prepareMvCandidatesForPlan() {
-        List<Table> tables = MvUtils.getAllTables(logicOperatorTree);
-
         // get all related materialized views, include nested mvs
-        Set<MaterializedView> relatedMvs =
-                MvUtils.getRelatedMvs(connectContext.getSessionVariable().getNestedMvRewriteMaxLevel(), tables);
+        Set<MaterializedView> relatedMvs = getQueryRelatedMVs();
 
         for (MaterializedView mv : relatedMvs) {
             if (!mv.isActive()) {
@@ -125,6 +129,34 @@ public class MvRewritePreprocessor {
             }
             materializationContext.setOutputMapping(outputMapping);
             context.addCandidateMvs(materializationContext);
+        }
+    }
+
+    Set<MaterializedView> getQueryRelatedMVs() {
+        SessionVariable sessionVariable = context.getSessionVariable();
+        if (sessionVariable.getMaterializedViewCandidatesMVs().isEmpty()) {
+            List<Table> tables = MvUtils.getAllTables(logicOperatorTree);
+            // get all related materialized views, include nested mvs
+            return MvUtils.getRelatedMvs(connectContext.getSessionVariable().getNestedMvRewriteMaxLevel(), tables);
+        } else {
+            Set<MaterializedView> candidateMVSets = Sets.newHashSet();
+            try {
+                String strCandidateMVs = sessionVariable.getMaterializedViewCandidatesMVs();
+                String[] candidateMVs = strCandidateMVs.split(",");
+                String currentDBName = connectContext.getDatabase();
+                Database currentDB = GlobalStateMgr.getCurrentState().getDb(currentDBName);
+                for (String candidateMV : candidateMVs) {
+                    Table table = currentDB.getTable(candidateMV);
+                    if (!(table instanceof MaterializedView)) {
+                        LOG.warn(String.format("Candidate mv %s is not a materialized view", table.getName()));
+                        continue;
+                    }
+                    candidateMVSets.add((MaterializedView) table);
+                }
+            } catch (Exception e) {
+                LOG.warn("Parse user-defined candidate mvs failed:", e.getCause());
+            }
+            return candidateMVSets;
         }
     }
 

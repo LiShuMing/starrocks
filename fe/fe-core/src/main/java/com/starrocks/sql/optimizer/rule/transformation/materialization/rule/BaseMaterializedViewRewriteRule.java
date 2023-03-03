@@ -71,7 +71,7 @@ public abstract class BaseMaterializedViewRewriteRule extends TransformationRule
             mvContext.setQueryExpression(queryExpression);
             mvContext.setOptimizerContext(context);
             MaterializedViewRewriter mvRewriter = getMaterializedViewRewrite(mvContext);
-            List<OptExpression> candidates = mvRewriter.rewrite(queryColumnRefRewriter,
+            List<OptExpression> candidates = mvRewriter.rewrite(context, queryColumnRefRewriter,
                     queryPredicateSplit);
             candidates = postRewriteMV(context, candidates);
             if (!candidates.isEmpty()) {

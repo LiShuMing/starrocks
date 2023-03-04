@@ -13,6 +13,6 @@ where
   and p_type not like 'PROMO BURNISHED%'
   and p_size in (31, 43, 9, 6, 18, 11, 25, 1)
 [result]
-SCAN (mv[partsupp_mv] columns[60: p_size, 61: p_type, 63: ps_suppkey, 70: s_nationkey] predicate[cast(70: s_nationkey as varchar(1048576)) != Brand#43 AND NOT 61: p_type LIKE PROMO BURNISHED% AND 60: p_size IN (31, 43, 9, 6, 18, 11, 25, 1)])
+SCAN (mv[partsupp_mv] columns[17: p_size, 18: p_type, 20: ps_suppkey, 27: s_nationkey] predicate[cast(27: s_nationkey as varchar(1048576)) != Brand#43 AND NOT 18: p_type LIKE PROMO BURNISHED% AND 17: p_size IN (31, 43, 9, 6, 18, 11, 25, 1)])
 [end]
 

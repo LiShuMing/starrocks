@@ -71,11 +71,11 @@ public abstract class BaseMaterializedViewRewriteRule extends TransformationRule
             mvContext.setQueryExpression(queryExpression);
             mvContext.setOptimizerContext(context);
             MaterializedViewRewriter mvRewriter = getMaterializedViewRewrite(mvContext);
-            List<OptExpression> candidates = mvRewriter.rewrite(context, queryColumnRefRewriter,
+            OptExpression candidate = mvRewriter.rewrite(context, queryColumnRefRewriter,
                     queryPredicateSplit);
-            candidates = postRewriteMV(context, candidates);
-            if (!candidates.isEmpty()) {
-                results.addAll(candidates);
+            candidate = postRewriteMV(context, candidate);
+            if (candidate != null) {
+                results.add(candidate);
             }
         }
 
@@ -88,17 +88,13 @@ public abstract class BaseMaterializedViewRewriteRule extends TransformationRule
      * 2. partition prune
      * 3. bucket prune
      */
-    private List<OptExpression> postRewriteMV(OptimizerContext context, List<OptExpression> candidates) {
-        if (candidates == null || candidates.isEmpty()) {
-            return Lists.newArrayList();
+    private OptExpression postRewriteMV(OptimizerContext context, OptExpression candidate) {
+        if (candidate == null) {
+            return null;
         }
-        List<OptExpression> result = Lists.newArrayList();
-        for (OptExpression candidate : candidates) {
-            candidate = new MVColumnPruner().pruneColumns(candidate);
-            candidate = new MVPartitionPruner().prunePartition(context, candidate);
-            result.add(candidate);
-        }
-        return result;
+        candidate = new MVColumnPruner().pruneColumns(candidate);
+        candidate = new MVPartitionPruner().prunePartition(context, candidate);
+        return candidate;
     }
 
     public MaterializedViewRewriter getMaterializedViewRewrite(MaterializationContext mvContext) {

@@ -10,7 +10,7 @@ where
 [result]
 AGGREGATE ([GLOBAL] aggregate [{63: sum=sum(63: sum), 64: count=sum(64: count)}] group by [[]] having [null]
     EXCHANGE GATHER
-        AGGREGATE ([LOCAL] aggregate [{63: sum=sum(62: c_sum), 64: count=sum(61: c_count)}] group by [[]] having [null]
-            SCAN (mv[customer_mv] columns[59: c_acctbal, 60: substring_phone, 61: c_count, 62: c_sum] predicate[59: c_acctbal > 0.0 AND 60: substring_phone IN (21, 28, 24, 32, 35, 34, 37)])
+        AGGREGATE ([LOCAL] aggregate [{63: sum=sum(17: c_sum), 64: count=sum(16: c_count)}] group by [[]] having [null]
+            SCAN (mv[customer_mv] columns[14: c_acctbal, 15: substring_phone, 16: c_count, 17: c_sum] predicate[14: c_acctbal > 0.00 AND 15: substring_phone IN (21, 28, 24, 32, 35, 34, 37)])
 [end]
 

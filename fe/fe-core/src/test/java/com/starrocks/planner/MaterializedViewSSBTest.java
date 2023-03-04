@@ -15,8 +15,14 @@
 package com.starrocks.planner;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import com.starrocks.catalog.MaterializedView;
+import mockit.Mock;
+import mockit.MockUp;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import java.util.Set;
 
 public class MaterializedViewSSBTest extends MaterializedViewTestBase {
     @BeforeClass
@@ -25,13 +31,19 @@ public class MaterializedViewSSBTest extends MaterializedViewTestBase {
 
         starRocksAssert.useDatabase(MATERIALIZED_DB_NAME);
 
+        new MockUp<MaterializedView>() {
+            @Mock
+            Set<String> getPartitionNamesToRefreshForMv() {
+                return Sets.newHashSet();
+            }
+        };
+
         // create SSB tables
         // put lineorder last because it depends on other tables for foreign key constraints
         createTables("sql/ssb/", Lists.newArrayList("customer", "dates", "supplier", "part", "lineorder"));
 
         // create lineorder_flat_mv
         createMaterializedViews("sql/materialized-view/ssb/", Lists.newArrayList("lineorder_flat_mv"));
-        connectContext.getSessionVariable().setOptimizerExecuteTimeout(300000000);
     }
 
     @Test

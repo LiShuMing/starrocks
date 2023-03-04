@@ -86,7 +86,8 @@ public class MvRewritePreprocessor {
                 if (!partitionNamesToRefresh.isEmpty()) {
                     continue;
                 }
-            } else if (partitionNamesToRefresh.containsAll(mv.getPartitionNames())) {
+            } else if (!mv.getPartitionNames().isEmpty() &&
+                    partitionNamesToRefresh.containsAll(mv.getPartitionNames())) {
                 // if the mv is partitioned, and all partitions need refresh,
                 // then it can not be an candidate
                 continue;

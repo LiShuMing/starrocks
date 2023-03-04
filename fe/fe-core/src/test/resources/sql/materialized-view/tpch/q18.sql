@@ -32,14 +32,16 @@ order by
     o_totalprice desc,
     o_orderdate limit 100;
 [result]
-TOP-N (order by [[13: O_TOTALPRICE DESC NULLS LAST, 14: O_ORDERDATE ASC NULLS FIRST]])
-    TOP-N (order by [[13: O_TOTALPRICE DESC NULLS LAST, 14: O_ORDERDATE ASC NULLS FIRST]])
-        AGGREGATE ([GLOBAL] aggregate [{56: sum=sum(24: L_QUANTITY)}] group by [[2: C_NAME, 1: C_CUSTKEY, 10: O_ORDERKEY, 14: O_ORDERDATE, 13: O_TOTALPRICE]] having [null]
-            LEFT SEMI JOIN (join-predicate [10: O_ORDERKEY = 37: L_ORDERKEY] post-join-predicate [null])
-                EXCHANGE SHUFFLE[10]
-                    SCAN (mv[lineitem_mv] columns[79: c_name, 84: l_orderkey, 86: l_quantity, 93: o_custkey, 94: o_orderdate, 98: o_totalprice] predicate[null])
-                EXCHANGE SHUFFLE[37]
-                    AGGREGATE ([GLOBAL] aggregate [{122: sum=sum(63: sum_qty)}] group by [[57: l_orderkey]] having [122: sum > 315.0]
-                        SCAN (mv[lineitem_agg_mv] columns[57: l_orderkey, 63: sum_qty] predicate[63: sum_qty > 315.0])
+TOP-N (order by [[13: o_totalprice DESC NULLS LAST, 10: o_orderdate ASC NULLS FIRST]])
+    TOP-N (order by [[13: o_totalprice DESC NULLS LAST, 10: o_orderdate ASC NULLS FIRST]])
+        AGGREGATE ([GLOBAL] aggregate [{52: sum=sum(23: l_quantity)}] group by [[2: c_name, 1: c_custkey, 9: o_orderkey, 10: o_orderdate, 13: o_totalprice]] having [null]
+            LEFT SEMI JOIN (join-predicate [9: o_orderkey = 35: l_orderkey] post-join-predicate [null])
+                EXCHANGE SHUFFLE[9]
+                    SCAN (mv[lineitem_mv] columns[90: c_name, 96: l_orderkey, 98: l_quantity, 105: o_custkey, 106: o_orderdate, 110: o_totalprice] predicate[null])
+                EXCHANGE SHUFFLE[35]
+                    AGGREGATE ([GLOBAL] aggregate [{131: sum=sum(131: sum)}] group by [[53: l_orderkey]] having [131: sum > 315]
+                        EXCHANGE SHUFFLE[53]
+                            AGGREGATE ([LOCAL] aggregate [{131: sum=sum(59: sum_qty)}] group by [[53: l_orderkey]] having [null]
+                                SCAN (mv[lineitem_agg_mv] columns[53: l_orderkey, 59: sum_qty] predicate[59: sum_qty > 315])
 [end]
 

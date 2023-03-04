@@ -22,11 +22,11 @@ order by
     revenue desc,
     o_orderdate limit 10;
 [result]
-TOP-N (order by [[38: sum DESC NULLS LAST, 14: O_ORDERDATE ASC NULLS FIRST]])
-    TOP-N (order by [[38: sum DESC NULLS LAST, 14: O_ORDERDATE ASC NULLS FIRST]])
-        AGGREGATE ([GLOBAL] aggregate [{38: sum=sum(38: sum)}] group by [[20: L_ORDERKEY, 14: O_ORDERDATE, 17: O_SHIPPRIORITY]] having [null]
-            EXCHANGE SHUFFLE[20, 14, 17]
-                AGGREGATE ([LOCAL] aggregate [{38: sum=sum(37: expr)}] group by [[20: L_ORDERKEY, 14: O_ORDERDATE, 17: O_SHIPPRIORITY]] having [null]
-                    SCAN (mv[lineitem_mv] columns[60: c_mktsegment, 66: l_orderkey, 71: l_shipdate, 76: o_orderdate, 79: o_shippriority, 89: l_saleprice] predicate[60: c_mktsegment = HOUSEHOLD AND 76: o_orderdate < 1995-03-11 AND 71: l_shipdate > 1995-03-11])
+TOP-N (order by [[35: sum DESC NULLS LAST, 10: o_orderdate ASC NULLS FIRST]])
+    TOP-N (order by [[35: sum DESC NULLS LAST, 10: o_orderdate ASC NULLS FIRST]])
+        AGGREGATE ([GLOBAL] aggregate [{35: sum=sum(35: sum)}] group by [[19: l_orderkey, 10: o_orderdate, 16: o_shippriority]] having [null]
+            EXCHANGE SHUFFLE[19, 10, 16]
+                AGGREGATE ([LOCAL] aggregate [{35: sum=sum(34: expr)}] group by [[19: l_orderkey, 10: o_orderdate, 16: o_shippriority]] having [null]
+                    SCAN (mv[lineitem_mv] columns[72: c_mktsegment, 79: l_orderkey, 84: l_shipdate, 89: o_orderdate, 92: o_shippriority, 102: l_saleprice] predicate[72: c_mktsegment = HOUSEHOLD AND 89: o_orderdate < 1995-03-11 AND 84: l_shipdate > 1995-03-11 AND 89: o_orderdate >= 1992-01-01 AND 89: o_orderdate < 1996-01-01])
 [end]
 

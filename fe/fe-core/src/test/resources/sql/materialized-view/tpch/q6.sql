@@ -9,9 +9,9 @@ where
   and l_discount between 0.02 and 0.04
   and l_quantity < 24 ;
 [result]
-AGGREGATE ([GLOBAL] aggregate [{19: sum=sum(19: sum)}] group by [[]] having [null]
+AGGREGATE ([GLOBAL] aggregate [{18: sum=sum(18: sum)}] group by [[]] having [null]
     EXCHANGE GATHER
-        AGGREGATE ([LOCAL] aggregate [{19: sum=sum(multiply(6: L_EXTENDEDPRICE, 7: L_DISCOUNT))}] group by [[]] having [null]
-            SCAN (table[lineitem] columns[5: L_QUANTITY, 6: L_EXTENDEDPRICE, 7: L_DISCOUNT, 11: L_SHIPDATE] predicate[11: L_SHIPDATE >= 1995-01-01 AND 11: L_SHIPDATE < 1996-01-01 AND 7: L_DISCOUNT >= 0.02 AND 7: L_DISCOUNT <= 0.04 AND 5: L_QUANTITY < 24.0])
+        AGGREGATE ([LOCAL] aggregate [{18: sum=sum(multiply(cast(7: l_extendedprice as decimal128(15, 2)), cast(8: l_discount as decimal128(15, 2))))}] group by [[]] having [null]
+            SCAN (table[lineitem] columns[1: l_shipdate, 6: l_quantity, 7: l_extendedprice, 8: l_discount] predicate[8: l_discount >= 0.02 AND 8: l_discount <= 0.04 AND 6: l_quantity < 24])
 [end]
 

@@ -18,13 +18,13 @@ where
             l_partkey = p_partkey
 ) ;
 [result]
-AGGREGATE ([GLOBAL] aggregate [{48: sum=sum(48: sum)}] group by [[]] having [null]
+AGGREGATE ([GLOBAL] aggregate [{46: sum=sum(46: sum)}] group by [[]] having [null]
     EXCHANGE GATHER
-        AGGREGATE ([LOCAL] aggregate [{48: sum=sum(6: L_EXTENDEDPRICE)}] group by [[]] having [null]
-            PREDICATE 5: L_QUANTITY < multiply(0.2, 121: avg)
-                ANALYTIC ({121: avg=avg(5: L_QUANTITY)} [18: P_PARTKEY] [] )
-                    TOP-N (order by [[18: P_PARTKEY ASC NULLS FIRST]])
-                        EXCHANGE SHUFFLE[18]
-                            SCAN (mv[lineitem_mv] columns[73: l_extendedprice, 75: l_partkey, 76: l_quantity, 89: p_brand, 90: p_container] predicate[89: p_brand = Brand#35 AND 90: p_container = JUMBO CASE])
+        AGGREGATE ([LOCAL] aggregate [{46: sum=sum(7: l_extendedprice)}] group by [[]] having [null]
+            PREDICATE cast(6: l_quantity as decimal128(38, 9)) < divide(multiply(0.2, 132: sum), cast(133: count as decimal128(38, 0)))
+                ANALYTIC ({132: sum=sum(6: l_quantity), 133: count=count(6: l_quantity)} [17: p_partkey] [] )
+                    TOP-N (order by [[17: p_partkey ASC NULLS FIRST]])
+                        EXCHANGE SHUFFLE[17]
+                            SCAN (mv[lineitem_mv] columns[99: l_extendedprice, 101: l_partkey, 102: l_quantity, 115: p_brand, 116: p_container] predicate[115: p_brand = Brand#35 AND 116: p_container = JUMBO CASE])
 [end]
 

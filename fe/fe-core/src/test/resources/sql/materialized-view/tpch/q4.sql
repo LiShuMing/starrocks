@@ -21,14 +21,14 @@ group by
 order by
     o_orderpriority ;
 [result]
-TOP-N (order by [[6: O_ORDERPRIORITY ASC NULLS FIRST]])
-    TOP-N (order by [[6: O_ORDERPRIORITY ASC NULLS FIRST]])
-        AGGREGATE ([GLOBAL] aggregate [{29: count=count(29: count)}] group by [[6: O_ORDERPRIORITY]] having [null]
+TOP-N (order by [[6: o_orderpriority ASC NULLS FIRST]])
+    TOP-N (order by [[6: o_orderpriority ASC NULLS FIRST]])
+        AGGREGATE ([GLOBAL] aggregate [{27: count=count(27: count)}] group by [[6: o_orderpriority]] having [null]
             EXCHANGE SHUFFLE[6]
-                AGGREGATE ([LOCAL] aggregate [{29: count=count()}] group by [[6: O_ORDERPRIORITY]] having [null]
-                    LEFT SEMI JOIN (join-predicate [1: O_ORDERKEY = 11: L_ORDERKEY] post-join-predicate [null])
-                        SCAN (table[orders] columns[1: O_ORDERKEY, 5: O_ORDERDATE, 6: O_ORDERPRIORITY] predicate[5: O_ORDERDATE >= 1994-09-01 AND 5: O_ORDERDATE < 1994-12-01])
+                AGGREGATE ([LOCAL] aggregate [{27: count=count()}] group by [[6: o_orderpriority]] having [null]
+                    LEFT SEMI JOIN (join-predicate [1: o_orderkey = 11: l_orderkey] post-join-predicate [null])
+                        SCAN (table[orders] columns[1: o_orderkey, 2: o_orderdate, 6: o_orderpriority] predicate[2: o_orderdate >= 1994-09-01 AND 2: o_orderdate < 1994-12-01])
                         EXCHANGE SHUFFLE[11]
-                            SCAN (table[lineitem] columns[22: L_COMMITDATE, 23: L_RECEIPTDATE, 11: L_ORDERKEY] predicate[23: L_RECEIPTDATE > 22: L_COMMITDATE])
+                            SCAN (table[lineitem] columns[21: l_commitdate, 22: l_receiptdate, 11: l_orderkey] predicate[22: l_receiptdate > 21: l_commitdate])
 [end]
 

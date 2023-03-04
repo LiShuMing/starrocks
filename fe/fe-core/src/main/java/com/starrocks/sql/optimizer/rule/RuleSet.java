@@ -435,4 +435,8 @@ public class RuleSet {
         this.implementRules.add(NestLoopJoinImplementationRule.getInstance());
     }
 
+    public void addSingleTableMvRewriteRule() {
+        transformRules.addAll(getRewriteRulesByType(RuleSetType.SINGLE_TABLE_MV_REWRITE));
+    }
+
 }

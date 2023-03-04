@@ -37,21 +37,21 @@ group by
 order by
     cntrycode ;
 [result]
-TOP-N (order by [[34: substring ASC NULLS FIRST]])
-    TOP-N (order by [[34: substring ASC NULLS FIRST]])
-        AGGREGATE ([GLOBAL] aggregate [{35: count=count(35: count), 36: sum=sum(36: sum)}] group by [[34: substring]] having [null]
-            EXCHANGE SHUFFLE[34]
-                AGGREGATE ([LOCAL] aggregate [{35: count=count(), 36: sum=sum(6: C_ACCTBAL)}] group by [[34: substring]] having [null]
-                    LEFT ANTI JOIN (join-predicate [1: C_CUSTKEY = 24: O_CUSTKEY] post-join-predicate [null])
-                        INNER JOIN (join-predicate [6: C_ACCTBAL > 21: expr] post-join-predicate [null])
-                            SCAN (table[customer] columns[1: C_CUSTKEY, 5: C_PHONE, 6: C_ACCTBAL] predicate[substring(5: C_PHONE, 1, 2) IN (21, 28, 24, 32, 35, 34, 37)])
+TOP-N (order by [[31: substring ASC NULLS FIRST]])
+    TOP-N (order by [[31: substring ASC NULLS FIRST]])
+        AGGREGATE ([GLOBAL] aggregate [{33: sum=sum(33: sum), 32: count=count(32: count)}] group by [[31: substring]] having [null]
+            EXCHANGE SHUFFLE[31]
+                AGGREGATE ([LOCAL] aggregate [{33: sum=sum(6: c_acctbal), 32: count=count()}] group by [[31: substring]] having [null]
+                    LEFT ANTI JOIN (join-predicate [1: c_custkey = 23: o_custkey] post-join-predicate [null])
+                        INNER JOIN (join-predicate [cast(6: c_acctbal as decimal128(38, 8)) > 19: expr] post-join-predicate [null])
+                            SCAN (table[customer] columns[1: c_custkey, 5: c_phone, 6: c_acctbal] predicate[substring(5: c_phone, 1, 2) IN (21, 28, 24, 32, 35, 34, 37)])
                             EXCHANGE BROADCAST
                                 ASSERT LE 1
-                                    AGGREGATE ([GLOBAL] aggregate [{88: sum=sum(88: sum), 89: count=sum(89: count)}] group by [[]] having [null]
+                                    AGGREGATE ([GLOBAL] aggregate [{86: sum=sum(86: sum), 87: count=sum(87: count)}] group by [[]] having [null]
                                         EXCHANGE GATHER
-                                            AGGREGATE ([LOCAL] aggregate [{88: sum=sum(86: c_sum), 89: count=sum(85: c_count)}] group by [[]] having [null]
-                                                SCAN (mv[customer_mv] columns[83: c_acctbal, 84: substring_phone, 85: c_count, 86: c_sum] predicate[83: c_acctbal > 0.0 AND 84: substring_phone IN (21, 28, 24, 32, 35, 34, 37)])
-                        EXCHANGE SHUFFLE[24]
-                            SCAN (table[orders] columns[24: O_CUSTKEY] predicate[null])
+                                            AGGREGATE ([LOCAL] aggregate [{86: sum=sum(39: c_sum), 87: count=sum(38: c_count)}] group by [[]] having [null]
+                                                SCAN (mv[customer_mv] columns[36: c_acctbal, 37: substring_phone, 38: c_count, 39: c_sum] predicate[36: c_acctbal > 0.00 AND 37: substring_phone IN (21, 28, 24, 32, 35, 34, 37)])
+                        EXCHANGE SHUFFLE[23]
+                            SCAN (table[orders] columns[23: o_custkey] predicate[null])
 [end]
 

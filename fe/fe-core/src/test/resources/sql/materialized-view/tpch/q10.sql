@@ -31,11 +31,11 @@ group by
 order by
     revenue desc limit 20;
 [result]
-TOP-N (order by [[43: sum DESC NULLS LAST]])
-    TOP-N (order by [[43: sum DESC NULLS LAST]])
-        AGGREGATE ([GLOBAL] aggregate [{43: sum=sum(43: sum)}] group by [[1: C_CUSTKEY, 2: C_NAME, 6: C_ACCTBAL, 5: C_PHONE, 38: N_NAME, 3: C_ADDRESS, 8: C_COMMENT]] having [null]
-            EXCHANGE SHUFFLE[1, 2, 6, 5, 38, 3, 8]
-                AGGREGATE ([LOCAL] aggregate [{43: sum=sum(42: expr)}] group by [[1: C_CUSTKEY, 2: C_NAME, 6: C_ACCTBAL, 5: C_PHONE, 38: N_NAME, 3: C_ADDRESS, 8: C_COMMENT]] having [null]
-                    SCAN (mv[lineitem_mv] columns[62: c_address, 63: c_acctbal, 64: c_comment, 66: c_name, 67: c_nationkey, 68: c_phone, 75: l_returnflag, 80: o_custkey, 81: o_orderdate, 92: s_nationkey, 94: l_saleprice, 97: n_name1] predicate[92: s_nationkey = 67: c_nationkey AND 67: c_nationkey = 92: s_nationkey AND 81: o_orderdate >= 1994-05-01 AND 81: o_orderdate < 1994-08-01 AND 75: l_returnflag = R])
+TOP-N (order by [[39: sum DESC NULLS LAST]])
+    TOP-N (order by [[39: sum DESC NULLS LAST]])
+        AGGREGATE ([GLOBAL] aggregate [{39: sum=sum(39: sum)}] group by [[1: c_custkey, 2: c_name, 6: c_acctbal, 5: c_phone, 35: n_name, 3: c_address, 8: c_comment]] having [null]
+            EXCHANGE SHUFFLE[1, 2, 6, 5, 35, 3, 8]
+                AGGREGATE ([LOCAL] aggregate [{39: sum=sum(38: expr)}] group by [[1: c_custkey, 2: c_name, 6: c_acctbal, 5: c_phone, 35: n_name, 3: c_address, 8: c_comment]] having [null]
+                    SCAN (mv[lineitem_mv] columns[104: c_address, 105: c_acctbal, 106: c_comment, 108: c_name, 109: c_nationkey, 110: c_phone, 118: l_returnflag, 123: o_custkey, 124: o_orderdate, 135: s_nationkey, 137: l_saleprice, 141: n_name1] predicate[109: c_nationkey = 135: s_nationkey AND 135: s_nationkey = 109: c_nationkey AND 124: o_orderdate >= 1994-05-01 AND 124: o_orderdate < 1994-08-01 AND 118: l_returnflag = R AND 124: o_orderdate >= 1994-01-01 AND 124: o_orderdate < 1995-01-01])
 [end]
 

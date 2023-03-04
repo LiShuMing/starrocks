@@ -13,12 +13,12 @@ from
          group by
              l_suppkey) b;
 [result]
-AGGREGATE ([GLOBAL] aggregate [{20: max=max(20: max)}] group by [[]] having [null]
+AGGREGATE ([GLOBAL] aggregate [{19: max=max(19: max)}] group by [[]] having [null]
     EXCHANGE GATHER
-        AGGREGATE ([LOCAL] aggregate [{20: max=max(19: sum)}] group by [[]] having [null]
-            AGGREGATE ([GLOBAL] aggregate [{78: sum=sum(78: sum)}] group by [[22: l_suppkey]] having [null]
-                EXCHANGE SHUFFLE[22]
-                    AGGREGATE ([LOCAL] aggregate [{78: sum=sum(33: sum_disc_price)}] group by [[22: l_suppkey]] having [null]
-                        SCAN (mv[lineitem_agg_mv] columns[22: l_suppkey, 23: l_shipdate, 33: sum_disc_price] predicate[23: l_shipdate >= 1995-07-01 AND 23: l_shipdate < 1995-10-01])
+        AGGREGATE ([LOCAL] aggregate [{19: max=max(18: sum)}] group by [[]] having [null]
+            AGGREGATE ([GLOBAL] aggregate [{91: sum=sum(91: sum)}] group by [[21: l_suppkey]] having [null]
+                EXCHANGE SHUFFLE[21]
+                    AGGREGATE ([LOCAL] aggregate [{91: sum=sum(32: sum_disc_price)}] group by [[21: l_suppkey]] having [null]
+                        SCAN (mv[lineitem_agg_mv] columns[21: l_suppkey, 22: l_shipdate, 32: sum_disc_price] predicate[22: l_shipdate >= 1995-07-01 AND 22: l_shipdate < 1995-10-01])
 [end]
 

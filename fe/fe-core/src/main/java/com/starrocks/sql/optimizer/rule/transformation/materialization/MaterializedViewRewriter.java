@@ -122,9 +122,9 @@ public class MaterializedViewRewriter {
         return true;
     }
 
-    public List<OptExpression> rewrite(OptimizerContext context,
-                                       ReplaceColumnRefRewriter queryColumnRefRewriter,
-                                       PredicateSplit queryPredicateSplit) {
+    public OptExpression rewrite(OptimizerContext context,
+                                 ReplaceColumnRefRewriter queryColumnRefRewriter,
+                                 PredicateSplit queryPredicateSplit) {
         final OptExpression queryExpression = materializationContext.getQueryExpression();
         final OptExpression mvExpression = materializationContext.getMvExpression();
         final List<Table> queryTables = MvUtils.getAllTables(queryExpression);
@@ -132,7 +132,7 @@ public class MaterializedViewRewriter {
 
         // Check whether mv can be applicable for the query.
         if (!isMVApplicable(mvExpression, queryTables, mvTables)) {
-            return Lists.newArrayList();
+            return null;
         }
 
         final ColumnRefFactory mvColumnRefFactory = materializationContext.getMvColumnRefFactory();
@@ -147,7 +147,7 @@ public class MaterializedViewRewriter {
         final ScalarOperator mvPartitionPredicate =
                 MvUtils.compensatePartitionPredicate(mvExpression, mvColumnRefFactory);
         if (mvPartitionPredicate == null) {
-            return Lists.newArrayList();
+            return null;
         }
         ScalarOperator mvPredicate = MvUtils.rewriteOptExprCompoundPredicate(mvExpression, mvColumnRefRewriter);
         if (!ConstantOperator.TRUE.equals(mvPartitionPredicate)) {
@@ -163,26 +163,26 @@ public class MaterializedViewRewriter {
         Map<Table, Set<Integer>> compensationRelations = Maps.newHashMap();
         if (matchMode == MatchMode.COMPLETE) {
             if (!isJoinMatch(queryExpression, mvExpression, queryTables, mvTables)) {
-                return Lists.newArrayList();
+                return null;
             }
         } else if (matchMode == MatchMode.VIEW_DELTA) {
             if (!context.getSessionVariable().isEnableMaterializedViewViewDeltaRewrite()) {
-                return Lists.newArrayList();
+                return null;
             }
             // View Delta only supports inner/left outer join for now.
             List<JoinOperator> queryJoinOperators = MvUtils.getAllJoinOperators(queryExpression);
             if (queryJoinOperators.stream().anyMatch(join -> !join.isInnerJoin() && !join.isLeftOuterJoin())) {
-                return Lists.newArrayList();
+                return null;
             }
 
             ScalarOperator viewEqualPredicate = mvPredicateSplit.getEqualPredicates();
             EquivalenceClasses viewEquivalenceClasses = createEquivalenceClasses(viewEqualPredicate);
             if (!compensateViewDelta(viewEquivalenceClasses, queryExpression, mvExpression,
                     materializationContext.getQueryRefFactory(), compensationJoinColumns, compensationRelations)) {
-                return Lists.newArrayList();
+                return null;
             }
         } else {
-            return Lists.newArrayList();
+            return null;
         }
 
         Map<Integer, List<ColumnRefOperator>> queryRelationIdToColumns =
@@ -199,7 +199,7 @@ public class MaterializedViewRewriter {
                 queryTables, queryExpression, materializationContext.getMvColumnRefFactory(),
                 mvTables, mvExpression, matchMode, compensationRelations);
         if (relationIdMappings.isEmpty()) {
-            return Lists.newArrayList();
+            return null;
         }
         // used to judge whether query scalar ops can be rewritten
         final List<ColumnRefOperator> scanMvOutputColumns =
@@ -215,7 +215,6 @@ public class MaterializedViewRewriter {
                 materializationContext.getMvColumnRefFactory(), mvColumnRefRewriter,
                 materializationContext.getOutputMapping(), queryColumnSet);
 
-        List<OptExpression> results = Lists.newArrayList();
         for (BiMap<Integer, Integer> relationIdMapping : relationIdMappings) {
             rewriteContext.setQueryToMvRelationIdMapping(relationIdMapping);
             // for view delta, should add compensation join columns to query ec
@@ -232,13 +231,12 @@ public class MaterializedViewRewriter {
             }
 
             OptExpression rewrittenExpression = tryRewriteForRelationMapping(rewriteContext);
-            if (rewrittenExpression == null) {
-                continue;
+            if (rewrittenExpression != null) {
+                return rewrittenExpression;
             }
-            results.add(rewrittenExpression);
         }
 
-        return results;
+        return null;
     }
 
     // check whether query can be rewritten by view even though the view has additional tables.
@@ -1314,16 +1312,16 @@ public class MaterializedViewRewriter {
                 }
             } else {
                 // remove columns exists in target and add remain equality predicate in source into compensation
-                for (int j : mapping.get(i)) {
-                    Set<ScalarOperator> difference = Sets.newHashSet(sourceEquivalenceClassesList.get(i));
-                    difference.removeAll(targetEquivalenceClassesList.get(j));
-                    Iterator<ColumnRefOperator> it = targetEquivalenceClassesList.get(j).iterator();
-                    ScalarOperator targetFirst = it.next();
-                    for (ScalarOperator remain : difference) {
-                        ScalarOperator equalPredicate = BinaryPredicateOperator.eq(remain, targetFirst);
-                        compensation = Utils.compoundAnd(compensation, equalPredicate);
-                    }
-                }
+                // for (int j : mapping.get(i)) {
+                //     Set<ScalarOperator> difference = Sets.newHashSet(sourceEquivalenceClassesList.get(i));
+                //    difference.removeAll(targetEquivalenceClassesList.get(j));
+                //    Iterator<ColumnRefOperator> it = targetEquivalenceClassesList.get(j).iterator();
+                //    ScalarOperator targetFirst = it.next();
+                //    for (ScalarOperator remain : difference) {
+                //        ScalarOperator equalPredicate = BinaryPredicateOperator.eq(remain, targetFirst);
+                //        compensation = Utils.compoundAnd(compensation, equalPredicate);
+                //    }
+                // }
             }
         }
         compensation = MvUtils.canonizePredicate(compensation);

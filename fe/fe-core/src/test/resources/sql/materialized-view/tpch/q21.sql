@@ -39,18 +39,18 @@ order by
     numwait desc,
     s_name limit 100;
 [result]
-TOP-N (order by [[77: count DESC NULLS LAST, 2: S_NAME ASC NULLS FIRST]])
-    TOP-N (order by [[77: count DESC NULLS LAST, 2: S_NAME ASC NULLS FIRST]])
-        AGGREGATE ([GLOBAL] aggregate [{77: count=count(77: count)}] group by [[2: S_NAME]] having [null]
+TOP-N (order by [[71: count DESC NULLS LAST, 2: s_name ASC NULLS FIRST]])
+    TOP-N (order by [[71: count DESC NULLS LAST, 2: s_name ASC NULLS FIRST]])
+        AGGREGATE ([GLOBAL] aggregate [{71: count=count(71: count)}] group by [[2: s_name]] having [null]
             EXCHANGE SHUFFLE[2]
-                AGGREGATE ([LOCAL] aggregate [{77: count=count()}] group by [[2: S_NAME]] having [null]
-                    LEFT ANTI JOIN (join-predicate [9: L_ORDERKEY = 59: L_ORDERKEY AND 61: L_SUPPKEY != 11: L_SUPPKEY] post-join-predicate [null])
-                        LEFT SEMI JOIN (join-predicate [9: L_ORDERKEY = 41: L_ORDERKEY AND 43: L_SUPPKEY != 11: L_SUPPKEY] post-join-predicate [null])
+                AGGREGATE ([LOCAL] aggregate [{71: count=count()}] group by [[2: s_name]] having [null]
+                    LEFT ANTI JOIN (join-predicate [9: l_orderkey = 55: l_orderkey AND 58: l_suppkey != 12: l_suppkey] post-join-predicate [null])
+                        LEFT SEMI JOIN (join-predicate [9: l_orderkey = 38: l_orderkey AND 41: l_suppkey != 12: l_suppkey] post-join-predicate [null])
                             EXCHANGE SHUFFLE[9]
-                                SCAN (mv[lineitem_mv] columns[103: l_commitdate, 105: l_orderkey, 108: l_receiptdate, 113: l_suppkey, 117: o_orderstatus, 125: s_name, 131: n_name1] predicate[117: o_orderstatus = F AND 131: n_name1 = CANADA AND 108: l_receiptdate > 103: l_commitdate])
-                            EXCHANGE SHUFFLE[41]
-                                SCAN (table[lineitem] columns[41: L_ORDERKEY, 43: L_SUPPKEY] predicate[null])
-                        EXCHANGE SHUFFLE[59]
-                            SCAN (table[lineitem] columns[70: L_COMMITDATE, 71: L_RECEIPTDATE, 59: L_ORDERKEY, 61: L_SUPPKEY] predicate[71: L_RECEIPTDATE > 70: L_COMMITDATE])
+                                SCAN (mv[lineitem_mv] columns[121: l_commitdate, 124: l_orderkey, 127: l_receiptdate, 132: l_suppkey, 136: o_orderstatus, 144: s_name, 150: n_name1] predicate[136: o_orderstatus = F AND 150: n_name1 = CANADA AND 127: l_receiptdate > 121: l_commitdate])
+                            EXCHANGE SHUFFLE[38]
+                                SCAN (table[lineitem] columns[38: l_orderkey, 41: l_suppkey] predicate[null])
+                        EXCHANGE SHUFFLE[55]
+                            SCAN (table[lineitem] columns[65: l_commitdate, 66: l_receiptdate, 55: l_orderkey, 58: l_suppkey] predicate[66: l_receiptdate > 65: l_commitdate])
 [end]
 

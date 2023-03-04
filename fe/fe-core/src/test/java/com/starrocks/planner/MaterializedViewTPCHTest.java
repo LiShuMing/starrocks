@@ -14,10 +14,16 @@
 
 package com.starrocks.planner;
 
+import com.google.common.collect.Sets;
+import com.starrocks.catalog.MaterializedView;
 import com.starrocks.sql.plan.PlanTestBase;
+import mockit.Mock;
+import mockit.MockUp;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
+
+import java.util.Set;
 
 public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
     @BeforeClass
@@ -25,29 +31,22 @@ public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
         PlanTestBase.beforeClass();
         MaterializedViewTestBase.setUp();
         starRocksAssert.useDatabase(MATERIALIZED_DB_NAME);
+        new MockUp<MaterializedView>() {
+            @Mock
+            Set<String> getPartitionNamesToRefreshForMv() {
+                return Sets.newHashSet();
+            }
+        };
 
         executeSqlFile("sql/materialized-view/tpch/ddl_tpch.sql");
-        executeSqlFile("sql/materialized-view/tpch/ddl_tpch_mv.sql");
-
-        //-- refresh materialized view  partsupp_mv;
-        //-- refresh materialized view  lineitem_mv;
-        //-- refresh materialized view  customer_order_mv;
-        //-- refresh materialized view  lineitem_agg_mv;
-        //-- refresh materialized view  lineitem_agg_mv2;
-        //-- refresh materialized view  customer_mv;
-        refreshMaterializedView(MATERIALIZED_DB_NAME, "lineitem_mv");
-        refreshMaterializedView(MATERIALIZED_DB_NAME, "partsupp_mv");
-        refreshMaterializedView(MATERIALIZED_DB_NAME, "customer_order_mv");
-        refreshMaterializedView(MATERIALIZED_DB_NAME, "lineitem_agg_mv");
-        refreshMaterializedView(MATERIALIZED_DB_NAME, "lineitem_agg_mv2");
-        refreshMaterializedView(MATERIALIZED_DB_NAME, "customer_mv");
+        executeSqlFile("sql/materialized-view/tpch/ddl_tpch_mv1.sql");
+        executeSqlFile("sql/materialized-view/tpch/ddl_tpch_mv2.sql");
+        executeSqlFile("sql/materialized-view/tpch/ddl_tpch_mv3.sql");
     }
 
     @Test
     public void testQuery1() {
-        connectContext.getSessionVariable().seMaterializedViewCandidatesMVs("lineitem_agg_mv2");
         runFileUnitTest("materialized-view/tpch/q1");
-        connectContext.getSessionVariable().seMaterializedViewCandidatesMVs("");
     }
 
     @Test

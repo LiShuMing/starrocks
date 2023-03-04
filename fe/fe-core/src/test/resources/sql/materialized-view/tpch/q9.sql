@@ -32,11 +32,11 @@ order by
     nation,
     o_year desc ;
 [result]
-TOP-N (order by [[53: N_NAME ASC NULLS FIRST, 57: year DESC NULLS LAST]])
-    TOP-N (order by [[53: N_NAME ASC NULLS FIRST, 57: year DESC NULLS LAST]])
-        AGGREGATE ([GLOBAL] aggregate [{59: sum=sum(59: sum)}] group by [[53: N_NAME, 57: year]] having [null]
-            EXCHANGE SHUFFLE[53, 57]
-                AGGREGATE ([LOCAL] aggregate [{59: sum=sum(58: expr)}] group by [[53: N_NAME, 57: year]] having [null]
-                    SCAN (mv[lineitem_mv] columns[83: c_nationkey, 104: p_name, 108: s_nationkey, 110: l_saleprice, 111: l_supplycost, 112: o_orderyear, 113: n_name1] predicate[83: c_nationkey = 108: s_nationkey AND 104: p_name LIKE %peru%])
+TOP-N (order by [[48: n_name ASC NULLS FIRST, 51: year DESC NULLS LAST]])
+    TOP-N (order by [[48: n_name ASC NULLS FIRST, 51: year DESC NULLS LAST]])
+        AGGREGATE ([GLOBAL] aggregate [{53: sum=sum(53: sum)}] group by [[48: n_name, 51: year]] having [null]
+            EXCHANGE SHUFFLE[48, 51]
+                AGGREGATE ([LOCAL] aggregate [{53: sum=sum(52: expr)}] group by [[48: n_name, 51: year]] having [null]
+                    SCAN (mv[lineitem_mv] columns[135: p_name, 141: l_saleprice, 142: l_supplycost, 143: o_orderyear, 144: n_name1] predicate[135: p_name LIKE %peru%])
 [end]
 

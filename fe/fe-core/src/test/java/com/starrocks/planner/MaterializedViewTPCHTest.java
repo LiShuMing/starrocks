@@ -40,7 +40,6 @@ public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
         executeSqlFile("sql/materialized-view/tpch/ddl_tpch_mv1.sql");
         executeSqlFile("sql/materialized-view/tpch/ddl_tpch_mv2.sql");
         executeSqlFile("sql/materialized-view/tpch/ddl_tpch_mv3.sql");
-        executeSqlFile("sql/materialized-view/tpch/ddl_tpch_mv4.sql");
     }
 
     @Test
@@ -84,7 +83,6 @@ public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
     }
 
     @Test
-    @Ignore
     public void testQuery7_1() {
         runFileUnitTest("materialized-view/tpch/q7-1");
     }
@@ -95,7 +93,6 @@ public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
     }
 
     @Test
-    @Ignore
     public void testQuery9() {
         runFileUnitTest("materialized-view/tpch/q9");
     }
@@ -118,11 +115,6 @@ public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
     @Test
     public void testQuery13() {
         runFileUnitTest("materialized-view/tpch/q13");
-    }
-
-    @Test
-    public void testQuery13_1() {
-        runFileUnitTest("materialized-view/tpch/q13-1");
     }
 
     @Test

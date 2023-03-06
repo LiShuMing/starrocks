@@ -22,6 +22,6 @@ select
                 or (n1.n_name = 'IRAN' and n2.n_name = 'CANADA')
             );
 [result]
-SCAN (mv[lineitem_mv] columns[127: l_shipyear, 128: l_saleprice, 131: n_name1, 133: n_name2] predicate[131: n_name1 = CANADA AND 133: n_name2 = IRAN OR 131: n_name1 = IRAN AND 133: n_name2 = CANADA AND 131: n_name1 IN (CANADA, IRAN) AND 133: n_name2 IN (IRAN, CANADA)])
+SCAN (mv[lineitem_mv] columns[131: l_shipyear, 132: l_saleprice, 136: n_name1, 138: n_name2] predicate[136: n_name1 = CANADA AND 138: n_name2 = IRAN OR 136: n_name1 = IRAN AND 138: n_name2 = CANADA AND 136: n_name1 IN (CANADA, IRAN) AND 138: n_name2 IN (IRAN, CANADA)])
 [end]
 

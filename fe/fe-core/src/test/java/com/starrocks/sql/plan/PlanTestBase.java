@@ -1408,7 +1408,7 @@ public class PlanTestBase {
     }
 
     public void runFileUnitTest(String filename) {
-        runFileUnitTest(filename, true);
+        runFileUnitTest(filename, false);
     }
 
     public static String format(String result) {

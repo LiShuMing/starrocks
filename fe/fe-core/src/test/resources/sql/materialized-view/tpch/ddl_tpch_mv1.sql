@@ -73,19 +73,3 @@ as select  /*+ SET_VAR(query_timeout = 7200) */
      and s_region.r_regionkey=s_nation.n_regionkey
      and c_region.r_regionkey=c_nation.n_regionkey
 ;
-
-
--- customer_order_mv (used to match query13)
--- create materialized view customer_order_mv
--- distributed by hash(c_custkey) buckets 24
--- refresh manual
--- properties (
---     "replication_num" = "1"
--- )
--- as select
---               c_custkey,o_comment,o_orderkey
---    from
---               customer
---                   left outer join
---               orders
---               on orders.o_custkey=customer.c_custkey;

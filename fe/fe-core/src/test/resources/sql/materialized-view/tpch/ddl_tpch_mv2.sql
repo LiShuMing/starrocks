@@ -1,4 +1,5 @@
 -- query1
+-- query9?
 create materialized view lineitem_agg_mv1
 distributed by hash(l_orderkey,
                l_shipdate,
@@ -33,26 +34,8 @@ as select  /*+ SET_VAR(query_timeout = 7200) */
        l_linestatus
 ;
 
--- -- query15
--- create materialized view lineitem_agg_mv2
--- distributed by hash(l_suppkey, l_shipdate) buckets 24
--- refresh manual
--- properties (
---     "replication_num" = "1"
--- )
--- as select
---               l_shipdate,
---               l_suppkey,
---               sum(l_extendedprice * (1 - l_discount)) as sum_disc_price
---    from
---               lineitem
---    group by
---        l_suppkey,
---        l_shipdate
--- ;
-
 -- query 15,20
-create materialized view lineitem_agg_mv3
+create materialized view lineitem_agg_mv2
 distributed by hash(l_suppkey, l_shipdate, l_partkey) buckets 96
 partition by l_shipdate
 refresh manual
@@ -76,9 +59,27 @@ as select  /*+ SET_VAR(query_timeout = 7200) */
        l_suppkey, l_shipdate, l_partkey
 ;
 
+create materialized view lineitem_agg_mv3
+distributed by hash(l_shipdate, l_discount, l_quantity) buckets 24
+partition by l_shipdate
+refresh manual
+properties (
+    "replication_num" = "1",
+    "partition_refresh_number" = "1"
+)
+as select  /*+ SET_VAR(query_timeout = 7200) */
+              l_shipdate, l_discount, l_quantity,
+              sum(l_extendedprice * l_discount) as revenue
+   from
+              lineitem
+   group by
+       l_shipdate, l_discount, l_quantity
+;
+
+
 -- customer_order_mv (used to match query22)
 -- query22 needs avg & rollup -> sum/count
-create materialized view customer_mv1
+create materialized view customer_agg_mv1
 distributed by hash(c_custkey) buckets 24
 refresh manual
 properties (
@@ -94,3 +95,29 @@ as select
    from
               customer
    group by c_custkey, c_phone, c_acctbal, substring(c_phone, 1  ,2);
+
+-- query13
+create materialized view customer_order_mv_agg_mv1
+distributed by hash( c_custkey,
+       o_comment) buckets 24
+refresh manual
+properties (
+    "replication_num" = "1"
+)
+as select
+              c_custkey,
+              o_comment,
+              count(o_orderkey) as c_count,
+              count(1) as c_count_star
+   from
+              (select
+                   c_custkey,o_comment,o_orderkey
+               from
+                   customer
+                       left outer join
+                   orders
+                   on orders.o_custkey=customer.c_custkey) a
+   group by
+       c_custkey,
+       o_comment
+;

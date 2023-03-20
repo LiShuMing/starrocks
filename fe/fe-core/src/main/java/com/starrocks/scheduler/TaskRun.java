@@ -22,6 +22,7 @@ import com.starrocks.load.loadv2.InsertLoadJob;
 import com.starrocks.qe.ConnectContext;
 import com.starrocks.qe.QueryState;
 import com.starrocks.qe.StmtExecutor;
+import com.starrocks.scheduler.persist.MVTaskRunStatus;
 import com.starrocks.scheduler.persist.TaskRunStatus;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.ast.SystemVariable;
@@ -186,7 +187,12 @@ public class TaskRun implements Comparable<TaskRun> {
     }
 
     public TaskRunStatus initStatus(String queryId, Long createTime) {
-        TaskRunStatus status = new TaskRunStatus();
+        TaskRunStatus status;
+        if (task.getSource() == Constants.TaskSource.MV) {
+            status = new MVTaskRunStatus();
+        } else {
+            status = new TaskRunStatus();
+        }
         status.setQueryId(queryId);
         status.setTaskId(task.getId());
         status.setTaskName(task.getName());

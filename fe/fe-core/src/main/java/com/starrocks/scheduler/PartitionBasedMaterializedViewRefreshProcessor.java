@@ -58,6 +58,8 @@ import com.starrocks.planner.ScanNode;
 import com.starrocks.qe.ConnectContext;
 import com.starrocks.qe.QeProcessorImpl;
 import com.starrocks.qe.StmtExecutor;
+import com.starrocks.scheduler.persist.MVTaskRunExtraMessage;
+import com.starrocks.scheduler.persist.MVTaskRunStatus;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.StatementPlanner;
 import com.starrocks.sql.analyzer.Analyzer;
@@ -176,9 +178,10 @@ public class PartitionBasedMaterializedViewRefreshProcessor extends BaseTaskRunP
                 Map<String, Set<String>> sourceTablePartitions = getSourceTablePartitions(partitionsToRefresh);
                 LOG.debug("materialized view:{} source partitions :{}",
                         materializedView.getName(), sourceTablePartitions);
-                if (this.mvContext.status != null) {
-                    this.mvContext.status.setMvPartitionsToRefresh(partitionsToRefresh);
-                    this.mvContext.status.setBasePartitionsToRefreshMap(sourceTablePartitions);
+                if (this.getMVTaskRunExtraMessage() != null) {
+                    MVTaskRunExtraMessage extraMessage = getMVTaskRunExtraMessage();
+                    extraMessage.setMvPartitionsToRefresh(partitionsToRefresh);
+                    extraMessage.setBasePartitionsToRefreshMap(sourceTablePartitions);
                 }
 
                 // create ExecPlan
@@ -199,6 +202,15 @@ public class PartitionBasedMaterializedViewRefreshProcessor extends BaseTaskRunP
         if (mvContext.hasNextBatchPartition()) {
             generateNextTaskRun();
         }
+    }
+
+    public MVTaskRunExtraMessage getMVTaskRunExtraMessage() {
+        if (this.mvContext.status == null) {
+            return null;
+        }
+        Preconditions.checkState(this.mvContext.status instanceof MVTaskRunStatus);
+        MVTaskRunStatus mvTaskRunStatus = (MVTaskRunStatus) this.mvContext.status;
+        return mvTaskRunStatus.getMvTaskRunExtraMessage();
     }
 
     @VisibleForTesting
@@ -573,10 +585,11 @@ public class PartitionBasedMaterializedViewRefreshProcessor extends BaseTaskRunP
         }
 
         // update stats
-        if (this.mvContext.status != null) {
-            this.mvContext.status.setForceRefresh(force);
-            this.mvContext.status.setPartitionStart(start);
-            this.mvContext.status.setPartitionEnd(end);
+        if (this.getMVTaskRunExtraMessage() != null) {
+            MVTaskRunExtraMessage extraMessage = this.getMVTaskRunExtraMessage();
+            extraMessage.setForceRefresh(force);
+            extraMessage.setPartitionStart(start);
+            extraMessage.setPartitionEnd(end);
         }
 
         return needRefreshMvPartitionNames;

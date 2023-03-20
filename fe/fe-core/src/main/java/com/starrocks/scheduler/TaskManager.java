@@ -31,6 +31,7 @@ import com.starrocks.persist.gson.GsonUtils;
 import com.starrocks.qe.ConnectContext;
 import com.starrocks.qe.ShowResultSet;
 import com.starrocks.qe.ShowResultSetMetaData;
+import com.starrocks.scheduler.persist.MVTaskRunStatus;
 import com.starrocks.scheduler.persist.TaskRunStatus;
 import com.starrocks.scheduler.persist.TaskRunStatusChange;
 import com.starrocks.scheduler.persist.TaskSchedule;
@@ -499,23 +500,23 @@ public class TaskManager {
      *      PendingTaskRunMap > RunningTaskRunMap > TaskRunHistory
      * TODO: Maybe only return needed MVs rather than all MVs.
      */
-    public Map<String, TaskRunStatus> showMVLastRefreshTaskRunStatus(String dbName) {
-        Map<String, TaskRunStatus> mvNameRunStatusMap = Maps.newHashMap();
+    public Map<String, MVTaskRunStatus> showMVLastRefreshTaskRunStatus(String dbName) {
+        Map<String, MVTaskRunStatus> mvNameRunStatusMap = Maps.newHashMap();
         if (dbName == null) {
             for (Queue<TaskRun> pTaskRunQueue : taskRunManager.getPendingTaskRunMap().values()) {
                 pTaskRunQueue.stream()
                         .filter(task -> task.getTask().getSource() == Constants.TaskSource.MV)
                         .map(TaskRun::getStatus)
                         .filter(task -> task != null)
-                        .forEach(task -> mvNameRunStatusMap.putIfAbsent(task.getTaskName(), task));
+                        .forEach(task -> mvNameRunStatusMap.putIfAbsent(task.getTaskName(), (MVTaskRunStatus) task));
             }
             taskRunManager.getRunningTaskRunMap().values().stream()
                     .filter(task -> task.getTask().getSource() == Constants.TaskSource.MV)
                     .map(TaskRun::getStatus)
                     .filter(task -> task != null)
-                    .forEach(task -> mvNameRunStatusMap.putIfAbsent(task.getTaskName(), task));
+                    .forEach(task -> mvNameRunStatusMap.putIfAbsent(task.getTaskName(), (MVTaskRunStatus) task));
             taskRunManager.getTaskRunHistory().getAllHistory().stream()
-                    .forEach(task -> mvNameRunStatusMap.putIfAbsent(task.getTaskName(), task));
+                    .forEach(task -> mvNameRunStatusMap.putIfAbsent(task.getTaskName(), (MVTaskRunStatus) task));
         } else {
             for (Queue<TaskRun> pTaskRunQueue : taskRunManager.getPendingTaskRunMap().values()) {
                 pTaskRunQueue.stream()
@@ -523,16 +524,16 @@ public class TaskManager {
                         .map(TaskRun::getStatus)
                         .filter(task -> task != null)
                         .filter(u -> u != null && u.getDbName().equals(dbName))
-                        .forEach(task -> mvNameRunStatusMap.putIfAbsent(task.getTaskName(), task));
+                        .forEach(task -> mvNameRunStatusMap.putIfAbsent(task.getTaskName(), (MVTaskRunStatus) task));
             }
             taskRunManager.getRunningTaskRunMap().values().stream()
                     .filter(task -> task.getTask().getSource() == Constants.TaskSource.MV)
                     .map(TaskRun::getStatus)
                     .filter(u -> u != null && u.getDbName().equals(dbName))
-                    .forEach(task -> mvNameRunStatusMap.putIfAbsent(task.getTaskName(), task));
+                    .forEach(task -> mvNameRunStatusMap.putIfAbsent(task.getTaskName(), (MVTaskRunStatus) task));
             taskRunManager.getTaskRunHistory().getAllHistory().stream()
                     .filter(u -> u.getDbName().equals(dbName))
-                    .forEach(task -> mvNameRunStatusMap.putIfAbsent(task.getTaskName(), task));
+                    .forEach(task -> mvNameRunStatusMap.putIfAbsent(task.getTaskName(), (MVTaskRunStatus) task));
         }
         return mvNameRunStatusMap;
     }

@@ -121,7 +121,8 @@ import com.starrocks.privilege.PrivilegeType;
 import com.starrocks.privilege.TablePEntryObject;
 import com.starrocks.scheduler.TaskBuilder;
 import com.starrocks.scheduler.TaskManager;
-import com.starrocks.scheduler.persist.TaskRunStatus;
+import com.starrocks.scheduler.persist.MVTaskRunExtraMessage;
+import com.starrocks.scheduler.persist.MVTaskRunStatus;
 import com.starrocks.server.CatalogMgr;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.server.MetadataMgr;
@@ -497,7 +498,7 @@ public class ShowExecutor {
         //  2. Table's type is OLAP, this is the old MV type which the MV table is associated with the base
         //     table and only supports single table in MV definition.
         // TODO: Unify the two cases into one.
-        Map<String, TaskRunStatus> mvNameTaskMap;
+        Map<String, MVTaskRunStatus> mvNameTaskMap;
         if (materializedViews.isEmpty()) {
             mvNameTaskMap = Maps.newHashMap();
         } else {
@@ -507,7 +508,7 @@ public class ShowExecutor {
         }
         for (MaterializedView mvTable : materializedViews) {
             long mvId = mvTable.getId();
-            TaskRunStatus taskStatus = mvNameTaskMap.get(TaskBuilder.getMvTaskName(mvId));
+            MVTaskRunStatus taskStatus = mvNameTaskMap.get(TaskBuilder.getMvTaskName(mvId));
             ArrayList<String> resultRow = new ArrayList<>();
             resultRow.add(String.valueOf(mvId));
             resultRow.add(dbName);
@@ -587,7 +588,7 @@ public class ShowExecutor {
         return rowSets;
     }
 
-    private static void setTaskRunStatus(List<String> resultRow, TaskRunStatus taskStatus) {
+    private static void setTaskRunStatus(List<String> resultRow, MVTaskRunStatus taskStatus) {
         if (taskStatus != null) {
             // task_id
             resultRow.add(String.valueOf(taskStatus.getTaskId()));
@@ -603,16 +604,17 @@ public class ShowExecutor {
             // last_refresh_state
             resultRow.add(String.valueOf(taskStatus.getState()));
 
+            MVTaskRunExtraMessage extraMessage = taskStatus.getMvTaskRunExtraMessage();
             // force refresh
-            resultRow.add(taskStatus.isForceRefresh() ? "true" : "false");
+            resultRow.add(extraMessage.isForceRefresh() ? "true" : "false");
             // last_refresh partition start
-            resultRow.add(taskStatus.getPartitionStart());
+            resultRow.add(extraMessage.getPartitionStart());
             // last_refresh partition end
-            resultRow.add(taskStatus.getPartitionEnd());
+            resultRow.add(extraMessage.getPartitionEnd());
             // last_refresh base table refresh map
-            resultRow.add(taskStatus.getBasePartitionsToRefreshMapString());
+            resultRow.add(extraMessage.getBasePartitionsToRefreshMapString());
             // last_refresh mv partitions
-            resultRow.add(taskStatus.getMvPartitionsToRefreshString());
+            resultRow.add(extraMessage.getMvPartitionsToRefreshString());
 
             // last_refresh_code
             resultRow.add(String.valueOf(taskStatus.getErrorCode()));

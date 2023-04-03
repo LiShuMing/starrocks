@@ -312,6 +312,10 @@ vectorized_functions = [
      'StringFunctions::parse_url_prepare', 'StringFunctions::parse_url_close'],
     [30420, 'strcmp', 'INT', ['VARCHAR', 'VARCHAR'], 'StringFunctions::strcmp'],
 
+    # Binary Functions
+    [30600, 'to_binary', 'VARBINARY', ['VARCHAR', 'VARCHAR'], 'BinaryFunctions::to_binary',
+     'BinaryFunctions::to_binary_prepare', 'BinaryFunctions::to_binary_close'],
+
     # 50xxx: timestamp functions
     [50008, 'year', 'SMALLINT', ['DATE'], 'TimeFunctions::yearV3'],
     [50009, 'year', 'SMALLINT', ['DATETIME'], 'TimeFunctions::yearV2'],

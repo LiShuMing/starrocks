@@ -489,6 +489,9 @@ void a2b_hex(const char* from, char* to, int num);
 void a2b_hex(const char* from, string* to, int num);
 string a2b_hex(const string& a);
 
+bool a2b_hex_checked(const char* a, unsigned char* b, int num);
+bool a2b_hex_checked(const char* a, char* b, int num);
+
 // ----------------------------------------------------------------------
 // a2b_bin()
 //  Description: Ascii-to-Binary binary conversion.  This converts

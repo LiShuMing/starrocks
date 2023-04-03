@@ -1659,6 +1659,22 @@ static void a2b_hex_t(const char* a, T b, int num) {
     }
 }
 
+template <typename T>
+static bool a2b_hex_t_checked(const char* a, T b, int num) {
+    for (int i = 0; i < num; i++) {
+        char l = ascii_tolower(a[i * 2]);
+        char r = ascii_tolower(a[i * 2 + 1]);
+        if (l < '0' || l > 'f') {
+            return false;
+        }
+        if (r < '0' || r > 'f') {
+            return false;
+        }
+        b[i] = (hex_value[l & 0xFF] << 4) + (hex_value[r & 0xFF]);
+    }
+    return true;
+}
+
 string a2b_bin(const string& a, bool byte_order_msb) {
     string result;
     const char* data = a.c_str();
@@ -1709,6 +1725,14 @@ void a2b_hex(const char* a, unsigned char* b, int num) {
 
 void a2b_hex(const char* a, char* b, int num) {
     a2b_hex_t<char*>(a, b, num);
+}
+
+bool a2b_hex_checked(const char* a, unsigned char* b, int num) {
+    return a2b_hex_t_checked<unsigned char*>(a, b, num);
+}
+
+bool a2b_hex_checked(const char* a, char* b, int num) {
+    return a2b_hex_t_checked<char*>(a, b, num);
 }
 
 string b2a_hex(const char* b, int len) {

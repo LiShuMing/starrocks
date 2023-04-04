@@ -922,4 +922,7 @@ vectorized_functions = [
 
     # struct functions
     [170500, 'row', 'ANY_STRUCT', ['ANY_ELEMENT', "..."], 'StructFunctions::row'],
+
+    # dummy functions
+    [200000, 'dummy_func1', 'VARCHAR', [''], 'StringFunctions::func1'],
 ]

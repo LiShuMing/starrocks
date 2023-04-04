@@ -423,6 +423,10 @@ public:
      */
     DEFINE_VECTORIZED_FN(strcmp);
 
+    static StatusOr<ColumnPtr> func1(FunctionContext* ctx, const Columns& columns) {
+        return ColumnHelper::create_const_column<TYPE_VARCHAR>("hello_world", 1);
+    }
+
     static inline char _DUMMY_STRING_FOR_EMPTY_PATTERN = 'A';
 
 private:

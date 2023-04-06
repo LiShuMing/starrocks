@@ -20,18 +20,11 @@
 #include "column/column_viewer.h"
 #include "column/nullable_column.h"
 #include "exprs/base64.h"
+#include "exprs/encryption_functions.h"
+#include "exprs/string_functions.h"
 #include "gutil/strings/escaping.h"
 
 namespace starrocks {
-
-struct ToBinaryState {
-    enum class ToBinaryType {
-        HEX = 0,
-        ENCODE64 = 1,
-        UTF8 = 2,
-    };
-    ToBinaryType to_binary_type;
-};
 
 namespace {
 template <bool is_throw_exception>
@@ -125,17 +118,17 @@ static StatusOr<ColumnPtr> _from_base64(const ColumnPtr& src_column) {
 
 // to_binary
 StatusOr<ColumnPtr> BinaryFunctions::to_binary(FunctionContext* context, const Columns& columns) {
-    auto state = reinterpret_cast<ToBinaryState*>(context->get_function_state(FunctionContext::THREAD_LOCAL));
+    auto state = reinterpret_cast<BinaryFormatState*>(context->get_function_state(FunctionContext::THREAD_LOCAL));
     auto& src_column = columns[0];
     const int size = src_column->size();
     ColumnBuilder<TYPE_VARBINARY> result(size);
     auto to_binary_type = state->to_binary_type;
     switch (to_binary_type) {
-    case ToBinaryState::ToBinaryType::UTF8: {
+    case BinaryFormatType::UTF8: {
         return src_column;
         break;
     }
-    case ToBinaryState::ToBinaryType::ENCODE64:
+    case BinaryFormatType::ENCODE64:
         return _from_base64<true>(src_column);
     default:
         return _from_hex<true>(src_column);
@@ -148,7 +141,7 @@ Status BinaryFunctions::to_binary_prepare(FunctionContext* context, FunctionCont
     if (scope != FunctionContext::THREAD_LOCAL) {
         return Status::OK();
     }
-    auto* state = new ToBinaryState();
+    auto* state = new BinaryFormatState();
     context->set_function_state(scope, state);
 
     if (!context->is_notnull_constant_column(1)) {
@@ -158,20 +151,62 @@ Status BinaryFunctions::to_binary_prepare(FunctionContext* context, FunctionCont
     auto column = context->get_constant_column(1);
     auto to_binary_type = ColumnHelper::get_const_value<TYPE_VARCHAR>(column);
     std::string to_binary_type_str = to_binary_type.to_string();
-    if (to_binary_type_str == "encode64") {
-        state->to_binary_type = ToBinaryState::ToBinaryType::ENCODE64;
-    } else if (to_binary_type_str == "utf8") {
-        state->to_binary_type = ToBinaryState::ToBinaryType::UTF8;
-    } else {
-        state->to_binary_type = ToBinaryState::ToBinaryType::HEX;
-    }
+    state->to_binary_type = BinaryFormatState::to_binary_format(to_binary_type_str);
 
     return Status::OK();
 }
 
 Status BinaryFunctions::to_binary_close(FunctionContext* context, FunctionContext::FunctionStateScope scope) {
     if (scope == FunctionContext::THREAD_LOCAL) {
-        auto* state = reinterpret_cast<ToBinaryState*>(context->get_function_state(FunctionContext::THREAD_LOCAL));
+        auto* state = reinterpret_cast<BinaryFormatState*>(context->get_function_state(FunctionContext::THREAD_LOCAL));
+        delete state;
+    }
+    return Status::OK();
+}
+
+// to_binary
+StatusOr<ColumnPtr> BinaryFunctions::from_binary(FunctionContext* context, const Columns& columns) {
+    auto state = reinterpret_cast<BinaryFormatState*>(context->get_function_state(FunctionContext::THREAD_LOCAL));
+    auto& src_column = columns[0];
+    const int size = src_column->size();
+    ColumnBuilder<TYPE_VARBINARY> result(size);
+    auto to_binary_type = state->to_binary_type;
+    switch (to_binary_type) {
+    case BinaryFormatType::UTF8: {
+        return src_column;
+        break;
+    }
+    case BinaryFormatType::ENCODE64:
+        return EncryptionFunctions::to_base64(context, columns);
+    default:
+        return StringFunctions::hex_string(context, columns);
+    }
+    return Status::OK();
+}
+
+// to_binary_prepare
+Status BinaryFunctions::from_binary_prepare(FunctionContext* context, FunctionContext::FunctionStateScope scope) {
+    if (scope != FunctionContext::THREAD_LOCAL) {
+        return Status::OK();
+    }
+    auto* state = new BinaryFormatState();
+    context->set_function_state(scope, state);
+
+    if (!context->is_notnull_constant_column(1)) {
+        return Status::OK();
+    }
+
+    auto column = context->get_constant_column(1);
+    auto to_binary_type = ColumnHelper::get_const_value<TYPE_VARCHAR>(column);
+    std::string to_binary_type_str = to_binary_type.to_string();
+    state->to_binary_type = BinaryFormatState::to_binary_format(to_binary_type_str);
+
+    return Status::OK();
+}
+
+Status BinaryFunctions::from_binary_close(FunctionContext* context, FunctionContext::FunctionStateScope scope) {
+    if (scope == FunctionContext::THREAD_LOCAL) {
+        auto* state = reinterpret_cast<BinaryFormatState*>(context->get_function_state(FunctionContext::THREAD_LOCAL));
         delete state;
     }
     return Status::OK();

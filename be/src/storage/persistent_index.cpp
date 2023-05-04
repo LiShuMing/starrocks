@@ -2171,9 +2171,9 @@ Status ImmutableIndex::_check_not_exist_in_shard(size_t shard_idx, size_t n, con
 
 static void split_keys_info_by_shard(const KeysInfo& keys_info, std::vector<KeysInfo>& keys_info_by_shards) {
     uint32_t shard_bits = log2(keys_info_by_shards.size());
-    for (size_t i = 0; i < keys_info.key_infos.size(); i++) {
-        auto& key_idx = keys_info.key_infos[i].first;
-        auto& hash = keys_info.key_infos[i].second;
+    for (const auto& key_info : keys_info.key_infos) {
+        auto& key_idx = key_info.first;
+        auto& hash = key_info.second;
         size_t shard = IndexHash(hash).shard(shard_bits);
         keys_info_by_shards[shard].key_infos.emplace_back(key_idx, hash);
     }
@@ -3298,8 +3298,8 @@ Status merge_shard_kvs_fixed_len_with_delete(std::vector<KVRef>& l0_kvs, std::ve
     phmap::flat_hash_set<KVRef, KVRefHash, KVRefEq<KeySize>> kvs_set;
     kvs_set.reserve(estimated_size);
     DCHECK(!l1_kvs.empty());
-    for (size_t i = 0; i < l1_kvs.size(); i++) {
-        for (const auto& kv : l1_kvs[i]) {
+    for (auto& l1_kv : l1_kvs) {
+        for (const auto& kv : l1_kv) {
             auto [it, inserted] = kvs_set.emplace(kv);
             if (!inserted) {
                 DCHECK(it->hash == kv.hash) << "upsert kv in set, hash should be the same";
@@ -3330,8 +3330,8 @@ Status merge_shard_kvs_var_len_with_delete(std::vector<KVRef>& l0_kvs, std::vect
     phmap::flat_hash_set<KVRef, KVRefHash, KVRefEq<0>> kvs_set;
     kvs_set.reserve(estimate_size);
     DCHECK(!l1_kvs.empty());
-    for (size_t i = 0; i < l1_kvs.size(); i++) {
-        for (const auto& kv : l1_kvs[i]) {
+    for (auto& l1_kv : l1_kvs) {
+        for (const auto& kv : l1_kv) {
             auto [it, inserted] = kvs_set.emplace(kv);
             if (!inserted) {
                 DCHECK(it->hash == kv.hash) << "upsert kv in set, hash should be the same";

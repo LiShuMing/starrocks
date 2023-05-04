@@ -48,7 +48,7 @@ LakeServiceImpl::LakeServiceImpl(ExecEnv* env) : _env(env) {
 #endif
 }
 
-LakeServiceImpl::~LakeServiceImpl() {}
+LakeServiceImpl::~LakeServiceImpl() = default;
 
 void LakeServiceImpl::publish_version(::google::protobuf::RpcController* controller,
                                       const ::starrocks::lake::PublishVersionRequest* request,

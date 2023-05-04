@@ -81,7 +81,7 @@ void IcebergMetaHelper::build_column_name_2_pos_in_meta(
         const std::vector<SlotDescriptor*>& slots) const {
     // Key is field name, value is unique iceberg field id.
     std::unordered_map<std::string, int32_t> column_name_2_field_id{};
-    for (auto each : _t_iceberg_schema->fields) {
+    for (const auto& each : _t_iceberg_schema->fields) {
         const std::string& format_field_name = _case_sensitive ? each.name : boost::algorithm::to_lower_copy(each.name);
         column_name_2_field_id.emplace(format_field_name, each.field_id);
     }

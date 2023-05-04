@@ -150,7 +150,7 @@ Status ExprContext::get_udf_error() {
 std::string ExprContext::get_error_msg() const {
     for (auto fn_ctx : _fn_contexts) {
         if (fn_ctx->has_error()) {
-            return std::string(fn_ctx->error_msg());
+            return {fn_ctx->error_msg()};
         }
     }
     return "";

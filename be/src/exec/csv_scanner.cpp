@@ -173,8 +173,7 @@ Status CSVScanner::open() {
 void CSVScanner::_materialize_src_chunk_adaptive_nullable_column(ChunkPtr& chunk) {
     chunk->materialized_nullable();
     for (int i = 0; i < chunk->num_columns(); i++) {
-        AdaptiveNullableColumn* adaptive_column =
-                down_cast<AdaptiveNullableColumn*>(chunk->get_column_by_index(i).get());
+        auto* adaptive_column = down_cast<AdaptiveNullableColumn*>(chunk->get_column_by_index(i).get());
         chunk->update_column_by_index(NullableColumn::create(adaptive_column->materialized_raw_data_column(),
                                                              adaptive_column->materialized_raw_null_column()),
                                       i);

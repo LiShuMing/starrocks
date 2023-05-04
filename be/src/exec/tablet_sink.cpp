@@ -75,9 +75,7 @@ static const uint8_t VALID_SEL_OK = 0x1;
 // make sure the least bit is 1.
 static const uint8_t VALID_SEL_OK_AND_NULL = 0x3;
 
-namespace starrocks {
-
-namespace stream_load {
+namespace starrocks::stream_load {
 
 NodeChannel::NodeChannel(OlapTableSink* parent, int64_t node_id, bool is_incremental)
         : _parent(parent), _node_id(node_id), _is_incremental(is_incremental) {
@@ -1247,7 +1245,7 @@ Status OlapTableSink::_automatic_create_partition() {
         RETURN_IF_ERROR(_incremental_open_node_channel(result.partitions));
     }
 
-    return Status(result.status);
+    return {result.status};
 }
 
 Status OlapTableSink::_incremental_open_node_channel(const std::vector<TOlapTablePartition>& partitions) {
@@ -2159,5 +2157,4 @@ Status OlapTableSink::reset_epoch(RuntimeState* state) {
     return Status::OK();
 }
 
-} // namespace stream_load
-} // namespace starrocks
+} // namespace starrocks: stream_load

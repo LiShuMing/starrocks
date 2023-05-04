@@ -126,8 +126,7 @@ Status AggGroupState::open(RuntimeState* state) {
     }
 
     // Update detail tables
-    for (auto i = 0; i < _detail_state_tables.size(); i++) {
-        auto& detail_state_table = _detail_state_tables[i];
+    for (const auto& detail_state_table : _detail_state_tables) {
         RETURN_IF_ERROR(detail_state_table->open(state));
     }
     return Status::OK();
@@ -316,7 +315,7 @@ Status AggGroupState::write(RuntimeState* state, StreamChunkPtr* result_chunk, C
     // Need mock slot id
     auto new_result_chunk = std::make_shared<Chunk>();
     int32_t slot_id = 0;
-    for (auto col : (*result_chunk)->columns()) {
+    for (const auto& col : (*result_chunk)->columns()) {
         new_result_chunk->append_column(col, slot_id++);
     }
     if (StreamChunkConverter::has_ops_column(*result_chunk)) {

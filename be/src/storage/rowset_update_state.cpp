@@ -430,11 +430,11 @@ Status RowsetUpdateState::_prepare_auto_increment_partial_update_states(Tablet* 
 
     if (new_rows > 0) {
         uint32_t last = idxes.size() - new_rows;
-        for (int i = 0; i < idxes.size(); ++i) {
-            if (idxes[i] != 0) {
-                --idxes[i];
+        for (uint32_t& idx: idxes) {
+            if (idx != 0) {
+                --idx;
             } else {
-                idxes[i] = last;
+                idx = last;
                 ++last;
             }
         }
@@ -634,9 +634,9 @@ Status RowsetUpdateState::apply(Tablet* tablet, Rowset* rowset, uint32_t rowset_
     RETURN_IF_ERROR(rowset->reload_segment(segment_id));
 
     if (!txn_meta.partial_update_column_ids().empty()) {
-        for (size_t col_idx = 0; col_idx < _partial_update_states[segment_id].write_columns.size(); col_idx++) {
-            if (_partial_update_states[segment_id].write_columns[col_idx] != nullptr) {
-                _memory_usage -= _partial_update_states[segment_id].write_columns[col_idx]->memory_usage();
+        for (auto & write_column : _partial_update_states[segment_id].write_columns) {
+            if (write_column != nullptr) {
+                _memory_usage -= write_column->memory_usage();
             }
         }
         _partial_update_states[segment_id].release();

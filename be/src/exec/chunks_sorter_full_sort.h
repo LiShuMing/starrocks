@@ -14,13 +14,29 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
+#include <memory>
+#include <string>
+#include <unordered_set>
+#include <vector>
+
 #include "column/vectorized_fwd.h"
 #include "exec/chunks_sorter.h"
 #include "exec/sorting/merge.h"
-#include "gtest/gtest_prod.h"
+#include "common/global_types.h"
+#include "common/object_pool.h"
+#include "common/status.h"
+#include "exec/exec_node.h"
+#include "exec/sorting/sort_permute.h"
+#include "gen_cpp/Metrics_types.h"
+#include "util/runtime_profile.h"
 
 namespace starrocks {
 class ExprContext;
+class MemTracker;
+class RuntimeState;
+
 struct ChunksSorterFullSortProfiler {
     ChunksSorterFullSortProfiler(RuntimeProfile* runtime_profile, MemTracker* parent_mem_tracker)
             : profile(runtime_profile) {

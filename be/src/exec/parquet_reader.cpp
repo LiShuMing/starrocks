@@ -14,15 +14,30 @@
 
 #include "exec/parquet_reader.h"
 
-#include <arrow/array.h>
 #include <arrow/status.h>
 #include <gutil/strings/substitute.h>
-
+#include <arrow/buffer.h>
+#include <arrow/type_fwd.h>
+#include <glog/logging.h>
+#include <parquet/arrow/reader.h>
+#include <parquet/exception.h>
+#include <parquet/file_reader.h>
+#include <parquet/metadata.h>
+#include <parquet/schema.h>
 #include <utility>
+#include <algorithm>
+#include <ostream>
 
-#include "common/logging.h"
 #include "fmt/format.h"
 #include "runtime/descriptors.h"
+#include "common/statusor.h"
+#include "fs/fs.h"
+#include "gen_cpp/StatusCode_types.h"
+#include "util/slice.h"
+
+namespace arrow {
+class Schema;
+}  // namespace arrow
 
 namespace starrocks {
 // ====================================================================================================================

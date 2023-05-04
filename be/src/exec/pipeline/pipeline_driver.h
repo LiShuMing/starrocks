@@ -15,27 +15,52 @@
 #pragma once
 
 #include <gutil/bits.h>
-
+#include <ext/alloc_traits.h>
+#include <fmt/format.h>
+#include <glog/logging.h>
+#include <stddef.h>
 #include <atomic>
+#include <algorithm>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <new>
+#include <string>
+#include <vector>
 
 #include "common/statusor.h"
-#include "exec/pipeline/fragment_context.h"
 #include "exec/pipeline/operator.h"
 #include "exec/pipeline/operator_with_dependency.h"
 #include "exec/pipeline/pipeline_fwd.h"
-#include "exec/pipeline/query_context.h"
-#include "exec/pipeline/runtime_filter_types.h"
-#include "exec/pipeline/scan/morsel.h"
 #include "exec/pipeline/scan/scan_operator.h"
 #include "exec/pipeline/source_operator.h"
 #include "exec/workgroup/work_group_fwd.h"
 #include "fmt/printf.h"
 #include "util/phmap/phmap.h"
+#include "common/status.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/stream_epoch_manager.h"
+#include "exec/query_cache/multilane_operator.h"
+#include "gutil/casts.h"
+#include "gutil/strings/substitute.h"
+#include "util/runtime_profile.h"
+#include "util/stopwatch.hpp"
+
+namespace starrocks::pipeline {
+class MorselQueue;
+class Pipeline;
+class QueryContext;
+class RuntimeFilterHolder;
+}  // namespace starrocks::pipeline
+namespace starrocks::workgroup {
+class WorkGroup;
+}  // namespace starrocks::workgroup
 
 namespace starrocks {
+class RuntimeFilterProbeDescriptor;
+class RuntimeState;
 
 namespace query_cache {
-class MultilaneOperator;
 using MultilaneOperatorRawPtr = MultilaneOperator*;
 using MultilaneOperators = std::vector<MultilaneOperatorRawPtr>;
 } // namespace query_cache
@@ -43,6 +68,7 @@ using MultilaneOperators = std::vector<MultilaneOperatorRawPtr>;
 namespace pipeline {
 
 class PipelineDriver;
+
 using DriverPtr = std::shared_ptr<PipelineDriver>;
 using Drivers = std::vector<DriverPtr>;
 using IterateImmutableDriverFunc = std::function<void(DriverConstRawPtr)>;

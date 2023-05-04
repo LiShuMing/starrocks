@@ -14,11 +14,27 @@
 
 #pragma once
 
-#include "column/chunk.h"
-#include "exec/pipeline/pipeline_builder.h"
-#include "exec/stream/aggregate/stream_aggregate_operator.h"
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
+#include "common/status.h"
+#include "exec/aggregator.h"
+#include "exec/exec_node.h"
+#include "exec/stream/aggregate/stream_aggregator.h"
+
+namespace starrocks::pipeline {
+class OperatorFactory;
+class PipelineBuilderContext;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
+class DescriptorTbl;
+class ExprContext;
+class ObjectPool;
+class RuntimeState;
+class TPlanNode;
+
 using StreamAggregatorPtr = std::shared_ptr<stream::StreamAggregator>;
 using StreamAggregatorFactory = AggregatorFactoryBase<stream::StreamAggregator>;
 using StreamAggregatorFactoryPtr = std::shared_ptr<StreamAggregatorFactory>;

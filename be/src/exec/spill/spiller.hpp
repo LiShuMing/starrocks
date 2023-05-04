@@ -14,17 +14,39 @@
 
 #pragma once
 
+#include <glog/logging.h>
+#include <stdint.h>
 #include <mutex>
 #include <utility>
+#include <atomic>
+#include <memory>
+#include <ostream>
+#include <queue>
+#include <string>
+#include <type_traits>
+#include <unordered_map>
+#include <vector>
 
 #include "column/chunk.h"
 #include "column/vectorized_fwd.h"
-#include "common/logging.h"
 #include "common/status.h"
 #include "exec/spill/common.h"
 #include "exec/spill/serde.h"
 #include "exec/spill/spiller.h"
 #include "util/defer_op.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "exec/spill/block_manager.h"
+#include "exec/spill/input_stream.h"
+#include "exec/spill/mem_table.h"
+#include "exec/spill/options.h"
+#include "exec/spill/spill_components.h"
+#include "gen_cpp/Types_types.h"
+#include "gutil/casts.h"
+#include "runtime/mem_tracker.h"
+#include "runtime/runtime_state.h"
+#include "util/runtime_profile.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks::spill {
 template <class TaskExecutor, class MemGuard>

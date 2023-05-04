@@ -14,10 +14,17 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <memory>
+#include <utility>
+#include <variant>
+
 #include "exec/partition/partition_hash_map.h"
-#include "runtime/runtime_state.h"
+#include "column/column_hash.h"
+#include "types/logical_type.h"
 
 namespace starrocks {
+class RuntimeState;
 
 // Hash maps for phase1
 template <PhmapSeed seed>

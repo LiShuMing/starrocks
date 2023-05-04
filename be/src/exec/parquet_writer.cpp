@@ -16,12 +16,28 @@
 #include "exec/parquet_writer.h"
 
 #include <fmt/format.h>
+#include <glog/logging.h>
+#include <parquet/metadata.h>
+#include <parquet/properties.h>
+#include <parquet/statistics.h>
+#include <parquet/type_fwd.h>
+#include <algorithm>
+#include <cstdint>
+#include <map>
+#include <unordered_map>
+#include <utility>
 
 #include "runtime/exec_env.h"
-#include "util/priority_thread_pool.hpp"
 #include "util/uid_util.h"
+#include "common/statusor.h"
+#include "fs/fs.h"
+#include "gen_cpp/DataSinks_types.h"
+#include "runtime/runtime_state.h"
 
 namespace starrocks {
+class Chunk;
+class ExprContext;
+class RuntimeProfile;
 
 RollingAsyncParquetWriter::RollingAsyncParquetWriter(const TableInfo& tableInfo, const PartitionInfo& partitionInfo,
                                                      const std::vector<ExprContext*>& output_expr_ctxs,

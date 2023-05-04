@@ -19,13 +19,20 @@
 #include <mutex>
 #include <queue>
 #include <unordered_map>
+#include <cstdint>
+#include <string>
+#include <vector>
 
 #include "exec/spill/block_manager.h"
-#include "exec/spill/dir_manager.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "gen_cpp/Types_types.h"
 
 namespace starrocks::spill {
 
 class LogBlockContainer;
+class Dir;
+
 using LogBlockContainerPtr = std::shared_ptr<LogBlockContainer>;
 
 // LogBlockManager is an implementations of BlockManager that attempts to reduce the number of spill files,

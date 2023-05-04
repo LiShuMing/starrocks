@@ -14,10 +14,25 @@
 
 #include "exec/pipeline/scan/olap_schema_chunk_source.h"
 
-#include <boost/algorithm/string.hpp>
+#include <glog/logging.h>
+#include <stddef.h>
+#include <boost/algorithm/string/predicate.hpp>
+#include <ostream>
+#include <string>
+#include <utility>
 
 #include "exec/schema_scanner.h"
 #include "exec/workgroup/work_group.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "column/column_helper.h"
+#include "exec/exec_node.h"
+#include "exprs/function_context.h"
+#include "gutil/int128.h"
+#include "runtime/descriptors.h"
+#include "runtime/runtime_state.h"
+#include "runtime/types.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks::pipeline {
 

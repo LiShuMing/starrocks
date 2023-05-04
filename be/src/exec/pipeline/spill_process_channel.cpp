@@ -14,7 +14,8 @@
 
 #include "exec/pipeline/spill_process_channel.h"
 
-#include "exec/spill/spiller.h"
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
 
 namespace starrocks {
 

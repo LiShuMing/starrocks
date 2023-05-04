@@ -14,10 +14,22 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <utility>
+#include <memory>
+#include <string>
 
 #include "exec/pipeline/exchange/local_exchange.h"
 #include "exec/pipeline/operator.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 class LocalExchangeSinkOperator final : public Operator {

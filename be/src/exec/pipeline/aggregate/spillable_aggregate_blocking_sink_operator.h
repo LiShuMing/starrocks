@@ -13,13 +13,28 @@
 // limitations under the License.
 
 #pragma once
+#include <stdint.h>
+#include <memory>
+#include <string>
+#include <utility>
+
 #include "aggregate_blocking_sink_operator.h"
 #include "column/vectorized_fwd.h"
 #include "common/object_pool.h"
 #include "exec/aggregator.h"
 #include "exec/pipeline/operator.h"
 #include "exec/sorted_streaming_aggregator.h"
-#include "runtime/runtime_state.h"
+#include "common/status.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/spill_process_channel.h"
+#include "exec/sort_exec_exprs.h"
+#include "exec/sorting/sorting.h"
+#include "exec/spill/options.h"
+#include "exec/spill/spiller_factory.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 class SpillableAggregateBlockingSinkOperator : public AggregateBlockingSinkOperator {

@@ -14,18 +14,27 @@
 
 #pragma once
 
+#include <fmt/format.h>
+#include <stddef.h>
 #include <memory>
 #include <utility>
+#include <atomic>
+#include <cstdint>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 #include "column/vectorized_fwd.h"
 #include "exec/pipeline/exchange/local_exchange_memory_manager.h"
 #include "exec/pipeline/exchange/local_exchange_source_operator.h"
 #include "exec/pipeline/exchange/shuffler.h"
-#include "exprs/expr_context.h"
+#include "common/status.h"
+#include "exec/exec_node.h"
+#include "gen_cpp/Partitions_types.h"
+#include "runtime/runtime_state.h"
 
 namespace starrocks {
 class ExprContext;
-class RuntimeState;
 
 namespace pipeline {
 // Inspire from com.facebook.presto.operator.exchange.LocalExchanger

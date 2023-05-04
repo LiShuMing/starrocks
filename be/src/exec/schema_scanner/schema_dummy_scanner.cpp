@@ -14,9 +14,8 @@
 
 #include "exec/schema_scanner/schema_dummy_scanner.h"
 
-#include "runtime/string_value.h"
-
 namespace starrocks {
+class RuntimeState;
 
 SchemaScanner::ColumnDesc SchemaDummyScanner::_s_dummy_columns[] = {};
 

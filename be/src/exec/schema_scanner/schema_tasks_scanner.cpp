@@ -14,9 +14,22 @@
 
 #include "exec/schema_scanner/schema_tasks_scanner.h"
 
+#include <stdint.h>
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "exec/schema_scanner/schema_helper.h"
 #include "runtime/runtime_state.h"
 #include "runtime/string_value.h"
+#include "column/chunk.h"
+#include "column/nullable_column.h"
+#include "exprs/function_context.h"
+#include "gutil/casts.h"
+#include "runtime/datetime_value.h"
+#include "types/logical_type.h"
+#include "util/phmap/phmap.h"
+#include "util/slice.h"
 
 namespace starrocks {
 

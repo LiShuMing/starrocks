@@ -14,7 +14,18 @@
 
 #include "exec/query_cache/conjugate_operator.h"
 
+#include <string.h>
 #include <utility>
+#include <algorithm>
+#include <cctype>
+#include <string>
+
+#include "exec/exec_node.h"
+#include "gutil/strings/substitute.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::query_cache {
 

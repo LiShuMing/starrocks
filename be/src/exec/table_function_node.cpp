@@ -14,14 +14,41 @@
 
 #include "exec/table_function_node.h"
 
+#include <ext/alloc_traits.h>
+#include <fmt/format.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <algorithm>
+#include <string>
+
 #include "column/chunk.h"
 #include "exec/pipeline/limit_operator.h"
-#include "exec/pipeline/operator.h"
 #include "exec/pipeline/pipeline_builder.h"
 #include "exec/pipeline/table_function_operator.h"
 #include "runtime/runtime_state.h"
+#include "column/column.h"
+#include "column/datum.h"
+#include "column/nullable_column.h"
+#include "exec/pipeline/pipeline_fwd.h"
+#include "exec/pipeline/runtime_filter_types.h"
+#include "exprs/table_function/table_function.h"
+#include "exprs/table_function/table_function_factory.h"
+#include "gen_cpp/Exprs_types.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "gen_cpp/Types_types.h"
+#include "gutil/casts.h"
+#include "runtime/types.h"
+#include "types/logical_type.h"
+#include "util/stopwatch.hpp"
+
+namespace starrocks::pipeline {
+class OperatorFactory;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
+class DescriptorTbl;
+class ObjectPool;
+
 TableFunctionNode::TableFunctionNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& desc)
         : ExecNode(pool, tnode, desc), _tnode(tnode) {}
 

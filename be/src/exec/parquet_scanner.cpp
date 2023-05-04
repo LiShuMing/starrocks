@@ -14,17 +14,41 @@
 
 #include "exec/parquet_scanner.h"
 
+#include <arrow/array/array_base.h>
+#include <arrow/record_batch.h>
+#include <arrow/type.h>
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <stdint.h>
+#include <algorithm>
+#include <sstream>
+#include <string>
+#include <utility>
+
 #include "column/chunk.h"
 #include "column/column_helper.h"
 #include "column/vectorized_fwd.h"
 #include "exprs/cast_expr.h"
 #include "exprs/column_ref.h"
-#include "fs/fs_broker.h"
-#include "runtime/exec_env.h"
 #include "runtime/runtime_state.h"
-#include "runtime/stream_load/load_stream_mgr.h"
-#include "runtime/stream_load/stream_load_pipe.h"
-#include "simd/simd.h"
+#include "column/column.h"
+#include "column/nullable_column.h"
+#include "common/logging.h"
+#include "exec/arrow_type_traits.h"
+#include "exec/parquet_reader.h"
+#include "exprs/expr.h"
+#include "fs/fs.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "gen_cpp/types.pb.h"
+#include "gutil/casts.h"
+#include "gutil/strings/substitute.h"
+#include "runtime/descriptors.h"
+#include "runtime/types.h"
+#include "storage/olap_common.h"
+#include "types/logical_type.h"
+#include "util/decimal_types.h"
+#include "util/runtime_profile.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
 

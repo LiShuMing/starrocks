@@ -14,10 +14,13 @@
 
 #include "exec/pipeline/scan/olap_schema_scan_context.h"
 
-#include <boost/algorithm/string.hpp>
-
 #include "exec/schema_scanner.h"
 #include "exprs/expr.h"
+#include "gen_cpp/Types_types.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

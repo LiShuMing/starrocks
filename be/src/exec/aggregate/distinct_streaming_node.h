@@ -15,11 +15,23 @@
 #pragma once
 
 #include "exec/aggregate/aggregate_base_node.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "exec/pipeline/operator.h"
+
+namespace starrocks::pipeline {
+class PipelineBuilderContext;
+}  // namespace starrocks::pipeline
 
 // Distinct means this node handle distinct or group by no aggregate function query.
 // Streaming means this node will handle input in get_next phase, and maybe directly
 // ouput child chunk.
 namespace starrocks {
+class DescriptorTbl;
+class ObjectPool;
+class RuntimeState;
+class TPlanNode;
+
 class DistinctStreamingNode final : public AggregateBaseNode {
 public:
     DistinctStreamingNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& descs)

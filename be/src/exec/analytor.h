@@ -14,19 +14,37 @@
 
 #pragma once
 
+#include <stddef.h>
 #include <queue>
+#include <atomic>
+#include <cstdint>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "exec/pipeline/context_with_dependency.h"
-#include "exprs/agg/aggregate_factory.h"
-#include "exprs/expr.h"
 #include "gen_cpp/Types_types.h"
-#include "runtime/descriptors.h"
 #include "runtime/types.h"
 #include "util/runtime_profile.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "exprs/agg/aggregate.h"
+#include "exprs/function_context.h"
+#include "runtime/mem_pool.h"
 
 namespace starrocks {
 
 class ManagedFunctionStates;
+class Column;
+class ExprContext;
+class ObjectPool;
+class RowDescriptor;
+class RuntimeState;
+class TPlanNode;
+class TupleDescriptor;
+
 using ManagedFunctionStatesPtr = std::unique_ptr<ManagedFunctionStates>;
 
 struct FunctionTypes {
@@ -73,6 +91,7 @@ public:
 };
 
 class Analytor;
+
 using AnalytorPtr = std::shared_ptr<Analytor>;
 using Analytors = std::vector<AnalytorPtr>;
 
@@ -320,6 +339,7 @@ private:
 };
 
 class AnalytorFactory;
+
 using AnalytorFactoryPtr = std::shared_ptr<AnalytorFactory>;
 class AnalytorFactory {
 public:

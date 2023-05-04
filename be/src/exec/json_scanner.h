@@ -14,23 +14,41 @@
 
 #pragma once
 
+#include <simdjson/generic/ondemand/parser.h>
+#include <stdint.h>
 #include <string_view>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
-#include "column/nullable_column.h"
-#include "common/compiler_util.h"
 #include "exec/file_scanner.h"
 #include "exprs/json_functions.h"
-#include "fs/fs.h"
-#include "runtime/stream_load/load_stream_mgr.h"
-#include "simdjson.h"
-#include "util/raw_container.h"
-#include "util/slice.h"
+#include "column/vectorized_fwd.h"
+#include "common/object_pool.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "runtime/types.h"
+#include "util/byte_buffer.h"
+
+namespace simdjson::fallback::ondemand {
+class object;
+class value;
+}  // namespace simdjson::fallback::ondemand
 
 namespace starrocks {
 
-struct SimpleJsonPath;
 class JsonReader;
 class JsonParser;
+class Chunk;
+class Column;
+class Expr;
+class RuntimeProfile;
+class RuntimeState;
+class SequentialFile;
+class SlotDescriptor;
+class TBrokerScanRange;
+
 class JsonScanner : public FileScanner {
 public:
     JsonScanner(RuntimeState* state, RuntimeProfile* profile, const TBrokerScanRange& scan_range,

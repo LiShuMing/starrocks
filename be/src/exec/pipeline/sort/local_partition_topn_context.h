@@ -14,14 +14,26 @@
 
 #pragma once
 
-#include <queue>
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 #include "exec/chunks_sorter.h"
 #include "exec/partition/chunks_partitioner.h"
-#include "runtime/runtime_state.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "gen_cpp/PlanNodes_types.h"
 
 namespace starrocks {
 class RuntimeFilterBuildDescriptor;
+class ExprContext;
+class RuntimeState;
+class TExpr;
+struct OrderByType;
 }
 
 namespace starrocks::pipeline {

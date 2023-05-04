@@ -14,13 +14,31 @@
 
 #include "exec/olap_meta_scan_node.h"
 
+#include <glog/logging.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string>
+#include <utility>
+
 #include "exec/pipeline/noop_sink_operator.h"
 #include "exec/pipeline/pipeline_builder.h"
 #include "exec/pipeline/scan/meta_scan_context.h"
 #include "exec/pipeline/scan/meta_scan_operator.h"
 #include "exec/pipeline/scan/olap_meta_scan_prepare_operator.h"
+#include "common/config.h"
+#include "common/object_pool.h"
+#include "exec/meta_scanner.h"
+#include "exec/olap_meta_scanner.h"
+#include "exec/pipeline/operator.h"
+#include "exec/pipeline/scan/chunk_buffer_limiter.h"
+#include "exec/pipeline/scan/morsel.h"
+#include "exec/pipeline/scan/scan_operator.h"
+#include "runtime/mem_tracker.h"
+#include "runtime/runtime_state.h"
 
 namespace starrocks {
+class DescriptorTbl;
+class TPlanNode;
 
 OlapMetaScanNode::OlapMetaScanNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& descs)
         : MetaScanNode(pool, tnode, descs) {

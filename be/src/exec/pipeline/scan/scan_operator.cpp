@@ -15,18 +15,38 @@
 #include "exec/pipeline/scan/scan_operator.h"
 
 #include <util/time.h>
+#include <ext/alloc_traits.h>
+#include <fmt/format.h>
+#include <fmt/printf.h>
+#include <glog/logging.h>
+#include <algorithm>
+#include <cstdint>
+#include <ostream>
+#include <string>
 
 #include "column/chunk.h"
 #include "exec/olap_scan_node.h"
 #include "exec/pipeline/limit_operator.h"
 #include "exec/pipeline/pipeline_builder.h"
-#include "exec/pipeline/scan/connector_scan_operator.h"
 #include "exec/workgroup/scan_executor.h"
-#include "exec/workgroup/work_group.h"
 #include "runtime/current_thread.h"
 #include "runtime/exec_env.h"
 #include "util/debug/query_trace.h"
 #include "util/runtime_profile.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/query_context.h"
+#include "exec/query_cache/owner_info.h"
+#include "exec/scan_node.h"
+#include "exec/workgroup/scan_task_queue.h"
+#include "exprs/runtime_filter_bank.h"
+#include "gen_cpp/Metrics_types.h"
+#include "gen_cpp/RuntimeProfile_types.h"
+#include "gutil/casts.h"
+#include "gutil/strings/substitute.h"
+#include "runtime/runtime_state.h"
+#include "util/debug/query_trace_impl.h"
+#include "util/defer_op.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks::pipeline {
 

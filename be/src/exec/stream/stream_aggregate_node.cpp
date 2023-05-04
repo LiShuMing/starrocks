@@ -14,7 +14,26 @@
 
 #include "exec/stream/stream_aggregate_node.h"
 
+#include <ext/alloc_traits.h>
+#include <fmt/format.h>
+#include <stddef.h>
+#include <utility>
+
+#include "exec/pipeline/pipeline_builder.h"
+#include "exec/pipeline/source_operator.h"
+#include "exec/stream/aggregate/stream_aggregate_operator.h"
+#include "exprs/expr.h"
+#include "exprs/expr_context.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "gutil/casts.h"
+#include "runtime/types.h"
+
+namespace starrocks::pipeline {
+class OperatorFactory;
+}  // namespace starrocks::pipeline
+
 namespace starrocks {
+class RuntimeState;
 
 Status StreamAggregateNode::init(const TPlanNode& tnode, RuntimeState* state) {
     RETURN_IF_ERROR(ExecNode::init(tnode, state));

@@ -14,12 +14,12 @@
 
 #pragma once
 
-#include <glog/logging.h>
-
 #include <memory>
 #include <unordered_map>
+#include <cstdint>
 
 #include "gutil/macros.h"
+
 namespace starrocks::query_cache {
 
 // TicketChecker is used to count down EOS chunk of the SplitMorsels generated from the same
@@ -33,6 +33,7 @@ namespace starrocks::query_cache {
 // can emit from ScanOperator to its successor MultilaneOperator.
 
 class TicketChecker;
+
 using TicketCheckerRawPtr = TicketChecker*;
 using TicketCheckerPtr = std::shared_ptr<TicketChecker>;
 using TicketIdType = int64_t;

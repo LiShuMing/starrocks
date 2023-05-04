@@ -14,20 +14,35 @@
 
 #pragma once
 
-#include "exec/pipeline/pipeline_builder.h"
+#include <stddef.h>
+#include <stdint.h>
+#include <memory>
+#include <vector>
+
 #include "exec/pipeline/scan/scan_operator.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "exec/pipeline/operator.h"
+#include "exec/pipeline/scan/chunk_source.h"
+#include "exec/pipeline/scan/morsel.h"
+#include "gen_cpp/Partitions_types.h"
 
 namespace starrocks {
 
 class ScanNode;
 class Rowset;
+class ExprContext;
+class RuntimeState;
+
 using RowsetSharedPtr = std::shared_ptr<Rowset>;
 
 namespace pipeline {
 
 class OlapScanContext;
+
 using OlapScanContextPtr = std::shared_ptr<OlapScanContext>;
 class OlapScanContextFactory;
+
 using OlapScanContextFactoryPtr = std::shared_ptr<OlapScanContextFactory>;
 
 class OlapScanOperatorFactory final : public ScanOperatorFactory {

@@ -14,17 +14,22 @@
 
 #include "exec/schema_scanner/schema_be_compactions_scanner.h"
 
+#include <memory>
+#include <optional>
+#include <utility>
+
 #include "agent/master_info.h"
 #include "exec/schema_scanner/schema_helper.h"
 #include "gutil/strings/substitute.h"
-#include "runtime/string_value.h"
 #include "storage/compaction_manager.h"
 #include "storage/storage_engine.h"
 #include "types/logical_type.h"
-#include "util/metrics.h"
-#include "util/starrocks_metrics.h"
+#include "column/chunk.h"
+#include "exprs/function_context.h"
+#include "util/phmap/phmap.h"
 
 namespace starrocks {
+class RuntimeState;
 
 SchemaScanner::ColumnDesc SchemaBeCompactionsScanner::_s_columns[] = {
         {"BE_ID", TYPE_BIGINT, sizeof(int64_t), false},

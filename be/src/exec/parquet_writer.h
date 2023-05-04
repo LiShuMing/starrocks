@@ -15,28 +15,32 @@
 
 #pragma once
 
-#include <arrow/api.h>
-#include <arrow/buffer.h>
-#include <arrow/io/api.h>
-#include <arrow/io/file.h>
-#include <arrow/io/interfaces.h>
-#include <parquet/api/reader.h>
-#include <parquet/api/writer.h>
-#include <parquet/arrow/reader.h>
-#include <parquet/arrow/writer.h>
-#include <parquet/exception.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <memory>
+#include <ostream>
+#include <string>
+#include <vector>
 
-#include "common/logging.h"
-#include "exec/pipeline/fragment_context.h"
 #include "formats/parquet/file_writer.h"
-#include "fs/fs.h"
 #include "gen_cpp/Types_types.h"
-#include "runtime/runtime_state.h"
+#include "common/status.h"
+#include "exec/exec_node.h"
+#include "gutil/strings/substitute.h"
+
+namespace parquet {
+class WriterProperties;
+}  // namespace parquet
+namespace parquet::schema {
+class GroupNode;
+}  // namespace parquet::schema
 
 namespace starrocks {
-
-struct TableInfo;
-struct PartitionInfo;
+class Chunk;
+class ExprContext;
+class FileSystem;
+class RuntimeProfile;
+class RuntimeState;
 
 struct TableInfo {
     std::string _table_location;

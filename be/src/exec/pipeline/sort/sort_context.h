@@ -14,24 +14,40 @@
 
 #pragma once
 
-#include <algorithm>
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <cstdint>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
-#include "column/chunk.h"
 #include "column/column_helper.h"
 #include "column/vectorized_fwd.h"
-#include "exec/chunks_sorter.h"
 #include "exec/pipeline/context_with_dependency.h"
-#include "exec/pipeline/runtime_filter_types.h"
 #include "exec/sorting/merge.h"
 #include "exec/sorting/sorting.h"
-#include "exprs/runtime_filter_bank.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "runtime/chunk_cursor.h"
+
+namespace starrocks {
+class ChunksSorter;
+class ExprContext;
+class RuntimeFilterBuildDescriptor;
+class RuntimeState;
+class TExpr;
+struct OrderByType;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 
 class SortContext;
+class RuntimeFilterHub;
+struct RuntimeFilterCollector;
+
 using SortContextPtr = std::shared_ptr<SortContext>;
 
 class SortContext final : public ContextWithDependency {

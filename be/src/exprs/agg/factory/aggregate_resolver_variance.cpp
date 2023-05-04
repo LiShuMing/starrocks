@@ -12,11 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "exprs/agg/aggregate_factory.h"
+#include <vector>
+#include <string>
+#include <vector>
+
 #include "exprs/agg/factory/aggregate_factory.hpp"
 #include "exprs/agg/factory/aggregate_resolver.hpp"
 #include "exprs/agg/variance.h"
 #include "types/logical_type.h"
+#include "column/type_traits.h"
+#include "types/logical_type_infra.h"
+#include "column/type_traits.h"
+#include "types/logical_type_infra.h"
 
 namespace starrocks {
 

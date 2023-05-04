@@ -34,30 +34,31 @@
 
 #pragma once
 
-#include <column/type_traits.h>
-
-#include <boost/lexical_cast.hpp>
-#include <boost/variant.hpp>
+#include <glog/logging.h>
+#include <stddef.h>
 #include <cstdint>
-#include <map>
 #include <sstream>
 #include <string>
-#include <utility>
+#include <memory>
+#include <set>
+#include <variant>
+#include <vector>
 
 #include "exec/olap_utils.h"
-#include "exec/scan_node.h"
-#include "gen_cpp/PlanNodes_types.h"
-#include "gutil/stl_util.h"
-#include "gutil/strings/substitute.h"
 #include "runtime/datetime_value.h"
-#include "runtime/descriptors.h"
-#include "runtime/string_value.hpp"
 #include "storage/tuple.h"
-#include "types/date_value.hpp"
 #include "types/timestamp_value.h"
 #include "util/slice.h"
+#include "common/status.h"
+#include "exec/exec_node.h"
+#include "gutil/int128.h"
+#include "runtime/decimalv2_value.h"
+#include "runtime/string_value.h"
+#include "types/date_value.h"
+#include "types/logical_type.h"
 
 namespace starrocks {
+class TCondition;
 
 // There are two types of value range: Fixed Value Range and Range Value Range
 // I know "Range Value Range" sounds bad, but it's hard to turn over the de facto.

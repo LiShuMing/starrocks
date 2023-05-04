@@ -14,11 +14,32 @@
 
 #pragma once
 
+#include <glog/logging.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <map>
+#include <memory>
+#include <optional>
+#include <ostream>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "column/datum.h"
-#include "column/field.h"
 #include "column/schema.h"
 #include "exec/stream/state/state_table.h"
 #include "storage/chunk_iterator.h"
+#include "column/stream_chunk.h"
+#include "column/vectorized_fwd.h"
+#include "common/logging.h"
+#include "common/status.h"
+#include "gutil/strings/substitute.h"
+#include "runtime/descriptors.h"
+
+namespace starrocks {
+class Chunk;
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::stream {
 

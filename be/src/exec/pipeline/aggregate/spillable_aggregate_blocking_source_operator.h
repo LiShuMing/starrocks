@@ -14,12 +14,23 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <utility>
+#include <memory>
 
 #include "exec/aggregator.h"
 #include "exec/pipeline/aggregate/aggregate_blocking_source_operator.h"
 #include "exec/sorted_streaming_aggregator.h"
 #include "storage/chunk_helper.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/pipeline/operator.h"
+#include "exec/pipeline/source_operator.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 class SpillableAggregateBlockingSourceOperator final : public AggregateBlockingSourceOperator {

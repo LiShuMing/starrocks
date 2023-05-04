@@ -34,24 +34,26 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
 #include <functional>
-#include <mutex>
 #include <sstream>
 #include <vector>
+#include <list>
+#include <map>
+#include <memory>
+#include <set>
+#include <string>
 
 #include "column/vectorized_fwd.h"
 #include "common/global_types.h"
 #include "common/status.h"
-#include "exec/pipeline/pipeline_fwd.h"
 #include "exprs/runtime_filter_bank.h"
 #include "gen_cpp/PlanNodes_types.h"
 #include "runtime/descriptors.h"
-#include "runtime/mem_pool.h"
-#include "runtime/query_statistics.h"
-#include "service/backend_options.h"
-#include "util/blocking_queue.hpp"
 #include "util/runtime_profile.h"
-#include "util/uid_util.h" // for print_id
+#include "common/statusor.h"
+#include "gen_cpp/Types_types.h"
 
 namespace starrocks {
 
@@ -59,9 +61,9 @@ class Expr;
 class ExprContext;
 class ObjectPool;
 class RuntimeState;
-class SlotRef;
-class TPlan;
-class DataSink;
+class Chunk;
+class MemTracker;
+class QueryStatistics;
 
 namespace pipeline {
 class OperatorFactory;

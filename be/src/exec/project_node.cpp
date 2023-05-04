@@ -14,16 +14,16 @@
 
 #include "exec/project_node.h"
 
+#include <ext/alloc_traits.h>
+#include <stdint.h>
 #include <cstring>
 #include <memory>
-#include <set>
 #include <vector>
+#include <map>
+#include <utility>
 
-#include "column/binary_column.h"
 #include "column/chunk.h"
-#include "column/column.h"
 #include "column/column_helper.h"
-#include "column/nullable_column.h"
 #include "column/vectorized_fwd.h"
 #include "common/global_types.h"
 #include "common/status.h"
@@ -37,9 +37,18 @@
 #include "gutil/casts.h"
 #include "runtime/current_thread.h"
 #include "runtime/runtime_state.h"
-#include "types/logical_type.h"
+#include "common/statusor.h"
+#include "exec/pipeline/operator.h"
+#include "exec/pipeline/pipeline_fwd.h"
+#include "exec/pipeline/runtime_filter_types.h"
+#include "exprs/runtime_filter_bank.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "runtime/descriptors.h"
+#include "runtime/global_dict/types_fwd_decl.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
+class ObjectPool;
 
 ProjectNode::ProjectNode(starrocks::ObjectPool* pool, const starrocks::TPlanNode& node,
                          const starrocks::DescriptorTbl& desc)

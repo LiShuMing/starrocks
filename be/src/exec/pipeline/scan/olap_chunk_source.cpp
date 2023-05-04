@@ -14,22 +14,47 @@
 
 #include "exec/pipeline/scan/olap_chunk_source.h"
 
+#include <glog/logging.h>
+#include <stdlib.h>
+#include <algorithm>
+#include <cstdint>
+#include <new>
+#include <ostream>
+#include <utility>
+
 #include "exec/olap_scan_node.h"
 #include "exec/olap_scan_prepare.h"
 #include "exec/pipeline/scan/olap_scan_context.h"
-#include "exec/pipeline/scan/scan_operator.h"
 #include "exec/workgroup/work_group.h"
-#include "gutil/map_util.h"
 #include "runtime/current_thread.h"
 #include "runtime/descriptors.h"
-#include "runtime/exec_env.h"
 #include "storage/chunk_helper.h"
 #include "storage/column_predicate_rewriter.h"
-#include "storage/olap_runtime_range_pruner.hpp"
 #include "storage/predicate_parser.h"
 #include "storage/projection_iterator.h"
-#include "storage/storage_engine.h"
-#include "types/logical_type.h"
+#include "column/chunk.h"
+#include "column/schema.h"
+#include "common/config.h"
+#include "common/statusor.h"
+#include "exec/pipeline/scan/balanced_chunk_buffer.h"
+#include "gen_cpp/InternalService_types.h"
+#include "gen_cpp/Metrics_types.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "gen_cpp/RuntimeProfile_types.h"
+#include "gutil/casts.h"
+#include "runtime/global_dict/types_fwd_decl.h"
+#include "runtime/runtime_state.h"
+#include "storage/chunk_iterator.h"
+#include "storage/olap_common.h"
+#include "storage/olap_runtime_range_pruner.h"
+#include "storage/tablet.h"
+#include "storage/tablet_reader.h"
+#include "storage/tablet_schema.h"
+#include "storage/tuple.h"
+#include "util/metrics.h"
+#include "util/phmap/phmap.h"
+#include "util/starrocks_metrics.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks::pipeline {
 

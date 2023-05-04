@@ -36,7 +36,15 @@
 
 #include <fmt/format.h>
 
+#include "exprs/expr.h"
+#include "exprs/expr_context.h"
+#include "gen_cpp/PlanNodes_types.h"
+
 namespace starrocks {
+class ObjectPool;
+class RowDescriptor;
+class RuntimeState;
+class TExpr;
 
 Status SortExecExprs::init(const TSortInfo& sort_info, ObjectPool* pool, RuntimeState* state) {
     return init(sort_info.ordering_exprs,

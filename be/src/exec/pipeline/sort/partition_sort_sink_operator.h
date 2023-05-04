@@ -14,27 +14,35 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <memory>
 #include <utility>
+#include <string>
+#include <type_traits>
+#include <vector>
 
 #include "column/vectorized_fwd.h"
 #include "common/statusor.h"
-#include "exec/chunks_sorter.h"
 #include "exec/pipeline/operator.h"
-#include "exec/pipeline/runtime_filter_types.h"
 #include "exec/pipeline/sort/sort_context.h"
 #include "exec/pipeline/spill_process_channel.h"
-#include "exec/sort_exec_exprs.h"
-#include "exec/spill/executor.h"
-#include "exec/spill/spiller_factory.h"
-#include "runtime/runtime_state.h"
+#include "common/global_types.h"
+#include "common/status.h"
+#include "exec/exec_node.h"
+#include "gen_cpp/PlanNodes_types.h"
+
+namespace starrocks::pipeline {
+class RuntimeFilterHub;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
-class BufferControlBlock;
 class ExprContext;
-class ResultWriter;
-class ExecNode;
 class ChunksSorter;
+class RowDescriptor;
+class RuntimeState;
+class SortExecExprs;
+class TupleDescriptor;
+struct OrderByType;
 
 namespace pipeline {
 

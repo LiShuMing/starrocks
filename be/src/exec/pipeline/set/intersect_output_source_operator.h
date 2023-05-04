@@ -14,9 +14,20 @@
 
 #pragma once
 
+#include <stdint.h>
+#include <memory>
+#include <utility>
+
 #include "exec/pipeline/operator.h"
 #include "exec/pipeline/set/intersect_context.h"
 #include "exec/pipeline/source_operator.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

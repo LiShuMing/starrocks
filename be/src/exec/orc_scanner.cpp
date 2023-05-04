@@ -14,17 +14,27 @@
 
 #include "exec/orc_scanner.h"
 
+#include <glog/logging.h>
 #include <memory>
+#include <ostream>
+#include <string>
+#include <type_traits>
+#include <utility>
 
-#include "column/array_column.h"
 #include "formats/orc/orc_chunk_reader.h"
 #include "formats/orc/orc_input_stream.h"
 #include "fs/fs.h"
 #include "gutil/strings/substitute.h"
-#include "runtime/broker_mgr.h"
 #include "runtime/descriptors.h"
-#include "runtime/exec_env.h"
 #include "runtime/runtime_state.h"
+#include "column/chunk.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "gen_cpp/types.pb.h"
+#include "gutil/casts.h"
+#include "orc/Exceptions.hh"
+#include "orc/OrcFile.hh"
+#include "util/runtime_profile.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
 

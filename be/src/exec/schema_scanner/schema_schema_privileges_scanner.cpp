@@ -14,11 +14,21 @@
 
 #include "exec/schema_scanner/schema_schema_privileges_scanner.h"
 
+#include <string.h>
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "exec/schema_scanner/schema_helper.h"
 #include "runtime/string_value.h"
 #include "types/logical_type.h"
+#include "column/chunk.h"
+#include "exprs/function_context.h"
+#include "util/phmap/phmap.h"
+#include "util/slice.h"
 
 namespace starrocks {
+class RuntimeState;
 
 SchemaScanner::ColumnDesc SchemaSchemaPrivilegesScanner::_s_db_privs_columns[] = {
         //   name,       type,          size

@@ -13,11 +13,15 @@
 // limitations under the License.
 
 #include <vector> // for allocator, vector
+#include <string>
+#include <string>
 
 #include "exprs/agg/factory/aggregate_factory.hpp"  // for AggregateFactory
 #include "exprs/agg/factory/aggregate_resolver.hpp" // for AggregateFuncRes...
 #include "types/logical_type.h"                     // for TYPE_BIGINT, Pri...
 #include "types/logical_type_infra.h"               // for type_dispatch_all
+#include "exprs/agg/aggregate.h"
+#include "exprs/agg/aggregate.h"
 
 namespace starrocks {
 

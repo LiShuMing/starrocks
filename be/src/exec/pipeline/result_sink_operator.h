@@ -14,17 +14,29 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <utility>
+#include <atomic>
+#include <memory>
+#include <string>
+#include <vector>
 
-#include "exec/pipeline/fragment_context.h"
 #include "exec/pipeline/operator.h"
-#include "gen_cpp/InternalService_types.h"
 #include "runtime/mysql_result_writer.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/stream_epoch_manager.h"
+#include "gen_cpp/DataSinks_types.h"
+#include "gen_cpp/Exprs_types.h"
+#include "util/runtime_profile.h"
 
 namespace starrocks {
 class BufferControlBlock;
 class ExprContext;
 class ResultWriter;
+class RuntimeState;
 
 namespace pipeline {
 class ResultSinkOperator final : public Operator {

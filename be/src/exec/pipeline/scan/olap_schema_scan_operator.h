@@ -14,13 +14,24 @@
 
 #pragma once
 
-#include "exec/pipeline/pipeline_builder.h"
+#include <stddef.h>
+#include <stdint.h>
+
 #include "exec/pipeline/scan/balanced_chunk_buffer.h"
 #include "exec/pipeline/scan/chunk_buffer_limiter.h"
 #include "exec/pipeline/scan/olap_schema_scan_context.h"
 #include "exec/pipeline/scan/scan_operator.h"
-#include "exec/schema_scan_node.h"
-#include "gen_cpp/Types_types.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "exec/pipeline/operator.h"
+#include "exec/pipeline/scan/chunk_source.h"
+#include "exec/pipeline/scan/morsel.h"
+
+namespace starrocks {
+class RuntimeState;
+class ScanNode;
+class TPlanNode;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

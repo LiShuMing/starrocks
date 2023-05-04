@@ -14,6 +14,10 @@
 
 #include "exec/pipeline/set/except_output_source_operator.h"
 
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
+
 namespace starrocks::pipeline {
 
 StatusOr<ChunkPtr> ExceptOutputSourceOperator::pull_chunk(RuntimeState* state) {

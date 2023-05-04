@@ -14,8 +14,13 @@
 
 #include "exec/file_scan_node.h"
 
+#include <glog/logging.h>
+#include <stddef.h>
 #include <chrono>
 #include <sstream>
+#include <algorithm>
+#include <string>
+#include <utility>
 
 #include "column/chunk.h"
 #include "exec/csv_scanner.h"
@@ -23,14 +28,21 @@
 #include "exec/orc_scanner.h"
 #include "exec/parquet_scanner.h"
 #include "exprs/expr.h"
-#include "fs/fs.h"
 #include "runtime/current_thread.h"
 #include "runtime/runtime_state.h"
 #include "util/defer_op.h"
 #include "util/runtime_profile.h"
 #include "util/thread.h"
+#include "common/logging.h"
+#include "common/statusor.h"
+#include "exec/file_scanner.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "runtime/descriptors.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
+class ExprContext;
+class ObjectPool;
 
 FileScanNode::FileScanNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& descs)
         : ScanNode(pool, tnode, descs), _tuple_id(tnode.file_scan_node.tuple_id) {}

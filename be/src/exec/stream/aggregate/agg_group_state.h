@@ -17,8 +17,25 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
+#include <memory>
+#include <vector>
+
 #include "exec/stream/aggregate/agg_state_data.h"
-#include "exec/stream/state/mem_state_table.h"
+#include "column/stream_chunk.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "exec/aggregator.h"
+#include "exec/stream/state/state_table.h"
+#include "exprs/agg/aggregate.h"
+#include "exprs/function_context.h"
+
+namespace starrocks {
+class Column;
+class RuntimeState;
+class TupleDescriptor;
+}  // namespace starrocks
 
 namespace starrocks::stream {
 

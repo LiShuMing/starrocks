@@ -14,9 +14,23 @@
 
 #include "exec/pipeline/dict_decode_operator.h"
 
+#include <ext/alloc_traits.h>
+#include <fmt/format.h>
+#include <glog/logging.h>
+#include <stddef.h>
+#include <algorithm>
+#include <type_traits>
+
 #include "column/column_helper.h"
-#include "common/logging.h"
 #include "runtime/global_dict/decoder.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "exprs/expr.h"
+#include "exprs/function_context.h"
+#include "runtime/runtime_state.h"
+#include "runtime/types.h"
+#include "types/logical_type.h"
+#include "util/phmap/phmap.h"
 
 namespace starrocks::pipeline {
 

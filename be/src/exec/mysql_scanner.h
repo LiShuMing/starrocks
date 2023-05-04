@@ -34,12 +34,13 @@
 
 #pragma once
 
-#include <cstdlib>
-#include <list>
+#include <stdint.h>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "common/status.h"
+#include "gutil/strings/substitute.h"
 
 #ifndef __StarRocksMysql
 #define __StarRocksMysql void

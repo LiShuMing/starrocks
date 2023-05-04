@@ -15,24 +15,35 @@
 #pragma once
 
 #include <bthread/mutex.h>
-
-#include <algorithm>
-#include <future>
+#include <butil/iobuf.h>
+#include <butil/iobuf_inl.h>
+#include <stdint.h>
 #include <list>
-#include <mutex>
 #include <queue>
 #include <unordered_set>
+#include <atomic>
+#include <functional>
+#include <memory>
+#include <vector>
 
-#include "column/chunk.h"
-#include "common/compiler_util.h"
-#include "exec/pipeline/fragment_context.h"
-#include "gen_cpp/BackendService.h"
-#include "runtime/current_thread.h"
-#include "runtime/runtime_state.h"
-#include "util/brpc_stub_cache.h"
-#include "util/defer_op.h"
 #include "util/disposable_closure.h"
 #include "util/phmap/phmap.h"
+#include "common/status.h"
+#include "exec/pipeline/stream_epoch_manager.h"
+#include "gen_cpp/Types_types.h"
+
+namespace doris {
+class PBackendService_Stub;
+}  // namespace doris
+namespace starrocks {
+class MemTracker;
+class PTransmitChunkParams;
+class PTransmitChunkResult;
+class PUniqueId;
+class RuntimeProfile;
+class RuntimeState;
+class TPlanFragmentDestination;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

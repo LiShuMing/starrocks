@@ -15,12 +15,14 @@
 #include "exec/cross_join_node.h"
 
 #include <memory>
+#include <algorithm>
+#include <cstdint>
+#include <iterator>
+#include <utility>
 
 #include "column/chunk.h"
 #include "column/column_helper.h"
-#include "column/nullable_column.h"
 #include "column/vectorized_fwd.h"
-#include "common/global_types.h"
 #include "common/object_pool.h"
 #include "common/statusor.h"
 #include "exec/pipeline/limit_operator.h"
@@ -29,14 +31,26 @@
 #include "exec/pipeline/nljoin/nljoin_probe_operator.h"
 #include "exec/pipeline/operator.h"
 #include "exec/pipeline/pipeline_builder.h"
-#include "exprs/expr_context.h"
-#include "exprs/literal.h"
 #include "gen_cpp/PlanNodes_types.h"
 #include "glog/logging.h"
 #include "runtime/current_thread.h"
 #include "runtime/runtime_state.h"
+#include "column/column.h"
+#include "column/const_column.h"
+#include "column/fixed_length_column.h"
+#include "exec/pipeline/pipeline_fwd.h"
+#include "exec/pipeline/runtime_filter_types.h"
+#include "exec/pipeline/stream_epoch_manager.h"
+#include "exprs/expr.h"
+#include "exprs/runtime_filter_bank.h"
+#include "gen_cpp/Metrics_types.h"
+#include "runtime/descriptors.h"
+#include "runtime/mem_tracker.h"
+#include "util/defer_op.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
+class ExprContext;
 
 CrossJoinNode::CrossJoinNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& descs)
         : ExecNode(pool, tnode, descs) {}

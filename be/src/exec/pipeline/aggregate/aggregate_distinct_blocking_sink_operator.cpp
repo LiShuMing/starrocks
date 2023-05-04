@@ -14,7 +14,15 @@
 
 #include "aggregate_distinct_blocking_sink_operator.h"
 
+#include <glog/logging.h>
+
 #include "runtime/current_thread.h"
+#include "column/chunk.h"
+#include "exec/aggregate/agg_hash_variant.h"
+#include "gen_cpp/Metrics_types.h"
+#include "runtime/runtime_state.h"
+#include "util/runtime_profile.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks::pipeline {
 

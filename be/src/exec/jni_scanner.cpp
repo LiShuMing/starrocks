@@ -14,13 +14,37 @@
 
 #include "jni_scanner.h"
 
+#include <ext/alloc_traits.h>
+#include <fmt/format.h>
+#include <glog/logging.h>
+#include <string.h>
+#include <cstdint>
+#include <memory>
+#include <vector>
+
 #include "column/array_column.h"
 #include "column/map_column.h"
 #include "column/struct_column.h"
 #include "column/type_traits.h"
-#include "fmt/core.h"
 #include "udf/java/java_udf.h"
-#include "util/defer_op.h"
+#include "column/binary_column.h"
+#include "column/bytes.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "column/fixed_length_column.h"
+#include "column/nullable_column.h"
+#include "exec/hdfs_scanner.h"
+#include "exprs/function_context.h"
+#include "gutil/casts.h"
+#include "runtime/decimalv3.h"
+#include "runtime/descriptors.h"
+#include "runtime/integer_overflow_arithmetics.h"
+#include "runtime/runtime_state.h"
+#include "runtime/types.h"
+#include "types/date_value.h"
+#include "types/timestamp_value.h"
+#include "util/runtime_profile.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
 

@@ -15,8 +15,7 @@
 #include "exec/query_cache/lane_arbiter.h"
 
 #include <glog/logging.h>
-
-#include <algorithm>
+#include <ext/alloc_traits.h>
 #include <limits>
 
 namespace starrocks::query_cache {

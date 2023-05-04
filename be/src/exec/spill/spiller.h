@@ -14,32 +14,35 @@
 
 #pragma once
 
+#include <glog/logging.h>
+#include <stddef.h>
 #include <atomic>
-#include <functional>
 #include <memory>
 #include <mutex>
-#include <queue>
 #include <vector>
+#include <ostream>
+#include <utility>
 
 #include "column/vectorized_fwd.h"
 #include "common/status.h"
-#include "exec/spill/block_manager.h"
 #include "exec/spill/common.h"
-#include "exec/spill/input_stream.h"
-#include "exec/spill/mem_table.h"
 #include "exec/spill/options.h"
-#include "exec/spill/partition.h"
-#include "exec/spill/serde.h"
 #include "exec/spill/spill_components.h"
-#include "exec/spill/spiller_factory.h"
-#include "fs/fs.h"
-#include "runtime/mem_tracker.h"
-#include "runtime/runtime_state.h"
-#include "util/blocking_queue.hpp"
-#include "util/compression/block_compression.h"
 #include "util/runtime_profile.h"
+#include "common/statusor.h"
+#include "exec/spill/executor.h"
+
+namespace starrocks {
+class RuntimeState;
+struct SpillPartitionInfo;
+}  // namespace starrocks
 
 namespace starrocks::spill {
+class BlockGroup;
+class BlockManager;
+class Serde;
+class SpillInputStream;
+class SpillerFactory;
 
 // some metrics for spill
 struct SpillProcessMetrics {

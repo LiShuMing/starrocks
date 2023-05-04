@@ -14,8 +14,16 @@
 
 #include "exec/pipeline/scan/olap_scan_prepare_operator.h"
 
+#include <memory>
+#include <utility>
+
 #include "exec/olap_scan_node.h"
-#include "storage/storage_engine.h"
+#include "exec/pipeline/scan/morsel.h"
+#include "exprs/expr.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "runtime/descriptors.h"
+#include "runtime/global_dict/parser.h"
+#include "runtime/runtime_state.h"
 
 namespace starrocks::pipeline {
 

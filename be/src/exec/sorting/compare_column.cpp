@@ -12,7 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <ext/alloc_traits.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <utility>
+#include <algorithm>
+#include <memory>
+#include <ostream>
+#include <vector>
 
 #include "column/array_column.h"
 #include "column/column_visitor_adapter.h"
@@ -28,8 +35,19 @@
 #include "glog/logging.h"
 #include "simd/selector.h"
 #include "types/logical_type.h"
+#include "column/column.h"
+#include "column/fixed_length_column.h"
+#include "common/status.h"
+#include "exprs/function_context.h"
+#include "simd/simd.h"
+#include "util/json.h"
+#include "util/slice.h"
 
 namespace starrocks {
+class StructColumn;
+template <typename T> class BinaryColumnBase;
+template <typename T> class FixedLengthColumnBase;
+template <typename T> class ObjectColumn;
 
 // Compare a column with datum, store result into a vector
 // For column-wise compare, only consider rows that are equal at previous columns

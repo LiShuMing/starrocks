@@ -15,8 +15,20 @@
 #include "exec/json_parser.h"
 
 #include <fmt/format.h>
+#include <simdjson/error-inl.h>
+#include <simdjson/error.h>
+#include <simdjson/generic/ondemand/array-inl.h>
+#include <simdjson/generic/ondemand/array_iterator-inl.h>
+#include <simdjson/generic/ondemand/document-inl.h>
+#include <simdjson/generic/ondemand/json_type.h>
+#include <simdjson/generic/ondemand/object-inl.h>
+#include <simdjson/generic/ondemand/parser-inl.h>
+#include <simdjson/generic/ondemand/parser.h>
+#include <simdjson/generic/ondemand/value-inl.h>
+#include <simdjson/generic/ondemand/value.h>
 
 #include "gutil/strings/substitute.h"
+#include "common/compiler_util.h"
 
 namespace starrocks {
 

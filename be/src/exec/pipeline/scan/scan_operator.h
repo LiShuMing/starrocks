@@ -14,20 +14,48 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
+#include <atomic>
+#include <memory>
+#include <mutex>
+#include <shared_mutex>
+#include <tuple>
+#include <utility>
+#include <vector>
+
 #include "exec/pipeline/source_operator.h"
 #include "exec/query_cache/cache_operator.h"
 #include "exec/query_cache/lane_arbiter.h"
 #include "exec/workgroup/work_group_fwd.h"
 #include "util/spinlock.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/pipeline/operator.h"
+#include "exec/pipeline/pipeline_fwd.h"
+#include "exec/pipeline/scan/chunk_buffer_limiter.h"
+#include "exec/pipeline/scan/chunk_source.h"
+#include "exec/pipeline/scan/morsel.h"
+#include "exec/query_cache/ticket_checker.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks::pipeline {
+class PipelineBuilderContext;
+class QueryContext;
+}  // namespace starrocks::pipeline
+namespace starrocks::workgroup {
+class ScanExecutor;
+struct ScanTaskGroup;
+}  // namespace starrocks::workgroup
 
 namespace starrocks {
 
-class PriorityThreadPool;
 class ScanNode;
+class RuntimeState;
 
 namespace pipeline {
 
-class ChunkBufferToken;
 using ChunkBufferTokenPtr = std::unique_ptr<ChunkBufferToken>;
 
 class ScanOperator : public SourceOperator {

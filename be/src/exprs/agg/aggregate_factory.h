@@ -14,10 +14,13 @@
 
 #pragma once
 
-#include "exprs/agg/aggregate.h"
+#include <string>
+
 #include "types/logical_type.h"
+#include "gen_cpp/Types_types.h"
 
 namespace starrocks {
+class AggregateFunction;
 
 const AggregateFunction* get_aggregate_function(const std::string& name, LogicalType arg_type, LogicalType return_type,
                                                 bool is_null,

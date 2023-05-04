@@ -15,10 +15,22 @@
 #pragma once
 
 #include "exec/aggregate/aggregate_base_node.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "exec/pipeline/operator.h"
+
+namespace starrocks::pipeline {
+class PipelineBuilderContext;
+}  // namespace starrocks::pipeline
 
 // Distinct means this node handle distinct or group by no aggregate function query.
 // Blocking means this node will consume all input and build hash set in open phase.
 namespace starrocks {
+class DescriptorTbl;
+class ObjectPool;
+class RuntimeState;
+class TPlanNode;
+
 class DistinctBlockingNode final : public AggregateBaseNode {
 public:
     DistinctBlockingNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& descs)

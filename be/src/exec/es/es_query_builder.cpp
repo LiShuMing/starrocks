@@ -36,9 +36,9 @@
 
 #include <utility>
 
-#include "common/logging.h"
 #include "rapidjson/rapidjson.h"
-#include "rapidjson/writer.h"
+#include "exec/es/es_predicate.h"
+#include "gen_cpp/Exprs_types.h"
 
 namespace starrocks {
 

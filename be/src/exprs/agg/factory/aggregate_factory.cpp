@@ -15,16 +15,20 @@
 #include "exprs/agg/aggregate_factory.h"
 
 #include <memory>
-#include <tuple>
-#include <unordered_map>
 
-#include "column/type_traits.h"
 #include "exprs/agg/aggregate.h"
 #include "exprs/agg/factory/aggregate_factory.hpp"
 #include "exprs/agg/factory/aggregate_resolver.hpp"
 #include "types/logical_type.h"
-#include "types/logical_type_infra.h"
 #include "udf/java/java_function_fwd.h"
+#include "exprs/agg/bitmap_intersect.h"
+#include "exprs/agg/bitmap_union.h"
+#include "exprs/agg/bitmap_union_count.h"
+#include "exprs/agg/hll_union.h"
+#include "exprs/agg/hll_union_count.h"
+#include "exprs/agg/percentile_approx.h"
+#include "exprs/agg/percentile_union.h"
+#include "exprs/agg/retention.h"
 
 namespace starrocks {
 

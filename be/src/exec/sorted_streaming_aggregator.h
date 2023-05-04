@@ -14,14 +14,23 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
 #include <memory>
+#include <vector>
 
 #include "column/vectorized_fwd.h"
 #include "common/statusor.h"
 #include "exec/aggregator.h"
+#include "common/status.h"
+#include "exprs/agg/aggregate.h"
 
 namespace starrocks {
 struct StateAllocator;
+class ObjectPool;
+class RuntimeProfile;
+class RuntimeState;
+
 class SortedStreamingAggregator final : public Aggregator {
 public:
     SortedStreamingAggregator(AggregatorParamsPtr params);

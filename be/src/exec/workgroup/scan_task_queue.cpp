@@ -14,9 +14,15 @@
 
 #include "exec/workgroup/scan_task_queue.h"
 
+#include <glog/logging.h>
+#include <algorithm>
+#include <chrono>
+#include <cstdint>
+
 #include "common/status.h"
 #include "exec/workgroup/work_group.h"
 #include "exec/workgroup/work_group_fwd.h"
+#include "util/time.h"
 
 namespace starrocks::workgroup {
 

@@ -13,25 +13,39 @@
 // limitations under the License.
 
 #pragma once
+#include <stddef.h>
 #include <atomic>
 #include <memory>
 #include <mutex>
-#include <queue>
 #include <unordered_map>
+#include <chrono>
+#include <cstdint>
+#include <limits>
+#include <list>
+#include <shared_mutex>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "exec/pipeline/pipeline_driver_queue.h"
-#include "exec/pipeline/query_context.h"
 #include "exec/workgroup/scan_task_queue.h"
 #include "runtime/mem_tracker.h"
 #include "storage/olap_define.h"
-#include "util/blocking_queue.hpp"
 #include "util/metrics.h"
-#include "util/priority_thread_pool.hpp"
-#include "util/starrocks_metrics.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "gen_cpp/WorkGroup_types.h"
+#include "gutil/integral_types.h"
+#include "gutil/strings/substitute.h"
+#include "runtime/integer_overflow_arithmetics.h"
+#include "util/time.h"
+
+namespace starrocks::pipeline {
+class QueryContext;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
-
-class TWorkGroup;
 
 namespace workgroup {
 
@@ -43,7 +57,7 @@ using std::chrono::duration_cast;
 using pipeline::QueryContext;
 
 class WorkGroup;
-class WorkGroupManager;
+
 using WorkGroupPtr = std::shared_ptr<WorkGroup>;
 using WorkGroupType = TWorkGroupType::type;
 

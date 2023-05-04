@@ -14,9 +14,31 @@
 
 #include "exec/pipeline/scan/olap_scan_context.h"
 
+#include <ext/alloc_traits.h>
+#include <fmt/format.h>
+#include <glog/logging.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <new>
+#include <shared_mutex>
+#include <string>
+
 #include "exec/olap_scan_node.h"
-#include "exprs/runtime_filter_bank.h"
 #include "storage/tablet.h"
+#include "common/config.h"
+#include "common/logging.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "gen_cpp/InternalService_types.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "runtime/descriptors.h"
+#include "runtime/runtime_state.h"
+#include "storage/olap_common.h"
+#include "storage/rowset/rowset.h"
+
+namespace starrocks {
+class ExprContext;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

@@ -14,16 +14,34 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
 #include <utility>
+#include <functional>
+#include <memory>
+#include <string>
+#include <vector>
 
 #include "column/vectorized_fwd.h"
-#include "exec/pipeline/nljoin/nljoin_context.h"
 #include "exec/pipeline/operator_with_dependency.h"
-#include "exprs/expr_context.h"
-#include "runtime/descriptors.h"
 #include "storage/chunk_helper.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/operator.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks {
+class Chunk;
+class ExprContext;
+class RowDescriptor;
+class RuntimeState;
+class SlotDescriptor;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
+class NLJoinContext;
 
 // NestLoopJoin
 // Implement the block-wise nestloop algorithm, support inner/outer join

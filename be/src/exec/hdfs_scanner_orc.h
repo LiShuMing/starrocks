@@ -14,14 +14,21 @@
 
 #pragma once
 
-#include <orc/OrcFile.hh>
+#include <cstdint>
+#include <memory>
+#include <set>
+#include <vector>
 
 #include "exec/hdfs_scanner.h"
 #include "formats/orc/orc_chunk_reader.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
 
 namespace starrocks {
 
 class OrcRowReaderFilter;
+class RuntimeState;
+class SlotDescriptor;
 
 class HdfsOrcScanner final : public HdfsScanner {
 public:

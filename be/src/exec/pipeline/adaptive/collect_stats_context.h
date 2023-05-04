@@ -14,17 +14,29 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
+#include <atomic>
+#include <queue>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
 #include "column/vectorized_fwd.h"
 #include "exec/pipeline/adaptive/adaptive_fwd.h"
 #include "exec/pipeline/context_with_dependency.h"
 #include "storage/chunk_helper.h"
 #include "util/moodycamel/concurrentqueue.h"
+#include "common/statusor.h"
+
+namespace starrocks::pipeline {
+struct AdaptiveDopParam;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
 
 class Status;
-template <typename T>
-class StatusOr;
+class RuntimeState;
 
 namespace pipeline {
 

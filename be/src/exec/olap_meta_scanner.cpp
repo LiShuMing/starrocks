@@ -14,9 +14,19 @@
 
 #include "exec/olap_meta_scanner.h"
 
+#include <glog/logging.h>
+#include <stdlib.h>
+#include <ostream>
+#include <string>
+
 #include "exec/olap_meta_scan_node.h"
 #include "storage/storage_engine.h"
 #include "storage/tablet_manager.h"
+#include "exec/exec_node.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "gen_cpp/Types_types.h"
+#include "runtime/runtime_state.h"
+#include "storage/olap_common.h"
 
 namespace starrocks {
 

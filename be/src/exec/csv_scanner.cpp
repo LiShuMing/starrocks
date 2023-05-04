@@ -14,16 +14,32 @@
 
 #include "exec/csv_scanner.h"
 
+#include <glog/logging.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <ostream>
+#include <type_traits>
+
 #include "column/adaptive_nullable_column.h"
 #include "column/chunk.h"
 #include "column/column_helper.h"
-#include "column/hash_set.h"
 #include "fs/fs.h"
 #include "gutil/strings/substitute.h"
 #include "runtime/runtime_state.h"
 #include "util/utf8_check.h"
+#include "column/nullable_column.h"
+#include "exprs/function_context.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "gutil/casts.h"
+#include "runtime/descriptors.h"
+#include "runtime/types.h"
+#include "types/logical_type.h"
+#include "util/runtime_profile.h"
+#include "util/slice.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
+class Column;
 
 Status CSVScanner::ScannerCSVReader::_fill_buffer() {
     SCOPED_RAW_TIMER(&_counter->file_read_ns);

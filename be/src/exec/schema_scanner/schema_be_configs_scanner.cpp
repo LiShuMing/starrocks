@@ -14,15 +14,24 @@
 
 #include "exec/schema_scanner/schema_be_configs_scanner.h"
 
+#include <map>
+#include <memory>
+#include <mutex>
+#include <optional>
+
 #include "agent/master_info.h"
 #include "exec/schema_scanner/schema_helper.h"
 #include "gutil/strings/substitute.h"
 #include "runtime/string_value.h"
 #include "types/logical_type.h"
-#include "util/metrics.h"
-#include "util/starrocks_metrics.h"
+#include "column/chunk.h"
+#include "common/configbase.h"
+#include "exprs/function_context.h"
+#include "util/phmap/phmap.h"
+#include "util/slice.h"
 
 namespace starrocks {
+class RuntimeState;
 
 SchemaScanner::ColumnDesc SchemaBeConfigsScanner::_s_columns[] = {
         {"BE_ID", TYPE_BIGINT, sizeof(int64_t), false},

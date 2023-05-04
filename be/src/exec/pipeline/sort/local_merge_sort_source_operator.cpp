@@ -14,9 +14,11 @@
 
 #include "exec/pipeline/sort/local_merge_sort_source_operator.h"
 
-#include "exprs/expr.h"
-#include "runtime/exec_env.h"
-#include "runtime/runtime_state.h"
+#include "exec/pipeline/sort/sort_context.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

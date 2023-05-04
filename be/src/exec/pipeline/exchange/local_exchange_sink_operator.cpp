@@ -14,8 +14,11 @@
 
 #include "exec/pipeline/exchange/local_exchange_sink_operator.h"
 
-#include "column/chunk.h"
-#include "runtime/runtime_state.h"
+#include "gen_cpp/Metrics_types.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

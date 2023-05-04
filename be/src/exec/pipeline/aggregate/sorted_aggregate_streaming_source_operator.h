@@ -14,8 +14,20 @@
 
 #pragma once
 
+#include <stdint.h>
+#include <memory>
+#include <utility>
+
 #include "exec/aggregator.h"
 #include "exec/pipeline/source_operator.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/pipeline/operator.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 class SortedAggregateStreamingSourceOperator : public SourceOperator {

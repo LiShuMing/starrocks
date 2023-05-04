@@ -14,6 +14,9 @@
 
 #include "exec/pipeline/driver_limiter.h"
 
+#include "common/status.h"
+#include "gutil/strings/substitute.h"
+
 namespace starrocks::pipeline {
 
 StatusOr<DriverLimiter::TokenPtr> DriverLimiter::try_acquire(int num_drivers) {

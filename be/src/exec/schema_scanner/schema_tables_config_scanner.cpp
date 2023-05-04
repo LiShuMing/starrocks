@@ -14,12 +14,21 @@
 
 #include "exec/schema_scanner/schema_tables_config_scanner.h"
 
-#include "common/logging.h"
+#include <stdint.h>
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "exec/schema_scanner/schema_helper.h"
 #include "runtime/string_value.h"
 #include "types/logical_type.h"
+#include "column/chunk.h"
+#include "exprs/function_context.h"
+#include "util/phmap/phmap.h"
+#include "util/slice.h"
 
 namespace starrocks {
+class RuntimeState;
 
 SchemaScanner::ColumnDesc SchemaTablesConfigScanner::_s_table_tables_config_columns[] = {
         //   name,       type,          size,     is_null

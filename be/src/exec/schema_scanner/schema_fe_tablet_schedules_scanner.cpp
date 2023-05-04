@@ -14,13 +14,19 @@
 
 #include "exec/schema_scanner/schema_fe_tablet_schedules_scanner.h"
 
+#include <memory>
+
 #include "exec/schema_scanner/schema_helper.h"
 #include "gutil/strings/substitute.h"
 #include "runtime/string_value.h"
-#include "storage/tablet.h"
 #include "types/logical_type.h"
+#include "column/chunk.h"
+#include "exprs/function_context.h"
+#include "util/phmap/phmap.h"
+#include "util/slice.h"
 
 namespace starrocks {
+class RuntimeState;
 
 SchemaScanner::ColumnDesc SchemaFeTabletSchedulesScanner::_s_columns[] = {
         {"TABLE_ID", TYPE_BIGINT, sizeof(int64_t), false},

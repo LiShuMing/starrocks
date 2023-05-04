@@ -14,25 +14,39 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
+#include <atomic>
+#include <memory>
+#include <mutex>
+#include <set>
+#include <string>
+#include <vector>
+
 #include "column/vectorized_fwd.h"
 #include "common/statusor.h"
 #include "exec/pipeline/runtime_filter_types.h"
 #include "exprs/runtime_filter_bank.h"
-#include "gutil/casts.h"
 #include "gutil/strings/substitute.h"
-#include "runtime/mem_tracker.h"
 #include "util/runtime_profile.h"
+#include "common/global_types.h"
+#include "common/status.h"
+#include "exec/exec_node.h"
+#include "gen_cpp/Types_types.h"
+#include "runtime/descriptors.h"
 
 namespace starrocks {
-class Expr;
 class ExprContext;
-class RuntimeProfile;
 class RuntimeState;
+class Chunk;
+class MemTracker;
+
 using RuntimeFilterProbeCollector = starrocks::RuntimeFilterProbeCollector;
 
 namespace pipeline {
 class Operator;
 class OperatorFactory;
+
 using OperatorPtr = std::shared_ptr<Operator>;
 using Operators = std::vector<OperatorPtr>;
 using LocalRFWaitingSet = std::set<TPlanNodeId>;

@@ -12,21 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <glog/logging.h>
+#include <stddef.h>
 #include <algorithm>
 #include <memory>
 #include <utility>
+#include <ostream>
+#include <vector>
 
 #include "column/chunk.h"
-#include "column/nullable_column.h"
 #include "column/vectorized_fwd.h"
 #include "exec/sorting/merge.h"
-#include "exec/sorting/sort_helper.h"
 #include "exec/sorting/sort_permute.h"
-#include "exec/sorting/sorting.h"
 #include "runtime/chunk_cursor.h"
 #include "util/array_view.hpp"
+#include "common/logging.h"
+#include "common/status.h"
+#include "common/statusor.h"
 
 namespace starrocks {
+struct SortDescs;
 
 // Some search algorithms with cursor
 struct CursorAlgo {

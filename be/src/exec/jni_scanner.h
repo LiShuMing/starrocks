@@ -14,14 +14,21 @@
 
 #pragma once
 
-#include "column/chunk.h"
-#include "common/logging.h"
+#include <stdint.h>
+#include <map>
+#include <string>
+#include <utility>
+
 #include "common/status.h"
 #include "hdfs_scanner.h"
 #include "jni.h"
-#include "runtime/runtime_state.h"
+#include "column/vectorized_fwd.h"
+#include "types/logical_type.h"
 
 namespace starrocks {
+class Column;
+class RuntimeState;
+struct TypeDescriptor;
 
 class JniScanner : public HdfsScanner {
 public:

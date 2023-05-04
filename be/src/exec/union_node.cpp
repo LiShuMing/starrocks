@@ -14,6 +14,14 @@
 
 #include "exec/union_node.h"
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <algorithm>
+#include <cstdint>
+#include <memory>
+#include <unordered_map>
+#include <utility>
+
 #include "column/column_helper.h"
 #include "column/nullable_column.h"
 #include "exec/pipeline/limit_operator.h"
@@ -23,8 +31,21 @@
 #include "exec/pipeline/set/union_passthrough_operator.h"
 #include "exprs/expr.h"
 #include "exprs/expr_context.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "column/const_column.h"
+#include "common/statusor.h"
+#include "exec/pipeline/pipeline_fwd.h"
+#include "exec/pipeline/runtime_filter_types.h"
+#include "exec/pipeline/stream_epoch_manager.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "runtime/descriptors.h"
+#include "util/runtime_profile.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
+class ObjectPool;
+
 UnionNode::UnionNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& descs)
         : ExecNode(pool, tnode, descs),
           _first_materialized_child_idx(tnode.union_node.first_materialized_child_idx),

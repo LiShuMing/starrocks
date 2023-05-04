@@ -14,10 +14,23 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
 #include <utility>
+#include <memory>
+#include <string>
 
 #include "exec/analytor.h"
 #include "exec/pipeline/operator.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "gen_cpp/PlanNodes_types.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 class AnalyticSinkOperator : public Operator {

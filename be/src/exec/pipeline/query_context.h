@@ -14,28 +14,53 @@
 
 #pragma once
 
+#include <glog/logging.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <atomic>
 #include <chrono>
 #include <mutex>
 #include <unordered_map>
+#include <memory>
+#include <shared_mutex>
+#include <thread>
+#include <vector>
 
-#include "exec/pipeline/fragment_context.h"
 #include "exec/pipeline/pipeline_fwd.h"
 #include "exec/pipeline/stream_epoch_manager.h"
-#include "exec/spill/query_spill_manager.h"
 #include "gen_cpp/InternalService_types.h" // for TQueryOptions
 #include "gen_cpp/Types_types.h"           // for TUniqueId
-#include "gen_cpp/internal_service.pb.h"
-#include "runtime/profile_report_worker.h"
-#include "runtime/query_statistics.h"
-#include "runtime/runtime_state.h"
-#include "util/debug/query_trace.h"
-#include "util/hash_util.hpp"
 #include "util/time.h"
+#include "common/object_pool.h"
+#include "common/status.h"
+#include "exec/workgroup/work_group_fwd.h"
+#include "runtime/mem_tracker.h"
+#include "util/metrics.h"
+
+namespace starrocks::debug {
+class QueryTrace;
+}  // namespace starrocks::debug
+namespace starrocks::pipeline {
+class FragmentContextManager;
+}  // namespace starrocks::pipeline
+namespace starrocks::spill {
+class QuerySpillManager;
+}  // namespace starrocks::spill
+namespace starrocks::workgroup {
+class WorkGroup;
+struct RunningQueryToken;
+}  // namespace starrocks::workgroup
 
 namespace starrocks {
-
-class StreamEpochManager;
+class DescriptorTbl;
+class ExecEnv;
+class PCollectQueryStatisticsRequest;
+class PCollectQueryStatisticsResult;
+class QueryStatistics;
+class QueryStatisticsRecvr;
+class RuntimeProfile;
+class TReportExecStatusParams;
+struct PipeLineReportTaskKey;
 
 namespace pipeline {
 

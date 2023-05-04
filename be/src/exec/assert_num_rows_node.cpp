@@ -14,6 +14,14 @@
 
 #include "exec/assert_num_rows_node.h"
 
+#include <assert.h>
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <algorithm>
+#include <map>
+#include <ostream>
+#include <utility>
+
 #include "exec/pipeline/assert_num_rows_operator.h"
 #include "exec/pipeline/limit_operator.h"
 #include "exec/pipeline/pipeline_builder.h"
@@ -21,8 +29,18 @@
 #include "gutil/strings/substitute.h"
 #include "runtime/runtime_state.h"
 #include "util/runtime_profile.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "column/column_helper.h"
+#include "exec/pipeline/operator.h"
+#include "exec/pipeline/pipeline_fwd.h"
+#include "exec/pipeline/runtime_filter_types.h"
+#include "runtime/descriptors.h"
+#include "runtime/mem_tracker.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
+class ObjectPool;
 
 AssertNumRowsNode::AssertNumRowsNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& descs)
         : ExecNode(pool, tnode, descs),

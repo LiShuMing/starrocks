@@ -14,14 +14,22 @@
 
 #pragma once
 
-#include <gen_cpp/Descriptors_types.h>
+#include <stddef.h>
+#include <memory>
+#include <vector>
 
 #include "exec/scan_node.h"
 #include "runtime/descriptors.h"
+#include "common/global_types.h"
+#include "common/object_pool.h"
+#include "common/status.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "util/runtime_profile.h"
 
 namespace starrocks {
 
 class RuntimeState;
+class TScanRangeParams;
 
 class MetaScanNode : public starrocks::ScanNode {
 public:

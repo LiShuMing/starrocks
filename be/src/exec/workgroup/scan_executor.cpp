@@ -14,7 +14,16 @@
 
 #include "exec/workgroup/scan_executor.h"
 
+#include <functional>
+#include <utility>
+
 #include "exec/workgroup/scan_task_queue.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "util/runtime_profile.h"
+#include "util/stopwatch.hpp"
+#include "util/thread.h"
+#include "util/threadpool.h"
 
 namespace starrocks::workgroup {
 

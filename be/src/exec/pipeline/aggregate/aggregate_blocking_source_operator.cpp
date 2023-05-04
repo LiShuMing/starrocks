@@ -14,9 +14,10 @@
 
 #include "aggregate_blocking_source_operator.h"
 
-#include <variant>
+#include <type_traits>
 
-#include "exec/exec_node.h"
+#include "column/chunk.h"
+#include "runtime/runtime_state.h"
 
 namespace starrocks::pipeline {
 

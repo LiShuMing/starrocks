@@ -37,21 +37,25 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <map>
 
-#include "cctz/time_zone.h"
 #include "column/vectorized_fwd.h"
 #include "gen_cpp/Exprs_types.h"
 #include "gen_cpp/Opcodes_types.h"
-#include "runtime/descriptors.h"
-#include "types/date_value.h"
 #include "types/logical_type.h"
 #include "util/timezone_utils.h"
+#include "common/global_types.h"
+#include "common/status.h"
+#include "runtime/types.h"
 
 namespace starrocks {
 
-class Status;
 class ExprContext;
 class EsPredicate;
+class Expr;
+class ObjectPool;
+class SlotDescriptor;
+class TupleDescriptor;
 
 class ExtLiteral {
 public:

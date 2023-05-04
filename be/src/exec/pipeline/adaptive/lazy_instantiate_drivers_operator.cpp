@@ -14,10 +14,20 @@
 
 #include "exec/pipeline/adaptive/lazy_instantiate_drivers_operator.h"
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <algorithm>
+#include <iterator>
+#include <typeinfo>
+#include <utility>
+
 #include "exec/pipeline/pipeline.h"
 #include "exec/pipeline/pipeline_driver.h"
 #include "exec/pipeline/pipeline_driver_executor.h"
 #include "exec/pipeline/result_sink_operator.h"
+#include "exec/pipeline/fragment_context.h"
+#include "runtime/exec_env.h"
+#include "runtime/runtime_state.h"
 
 namespace starrocks::pipeline {
 

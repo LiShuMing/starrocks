@@ -14,8 +14,13 @@
 
 #include "exec/pipeline/exchange/local_exchange_source_operator.h"
 
+#include <glog/logging.h>
+#include <stdint.h>
+#include <stdexcept>
+
 #include "column/chunk.h"
 #include "runtime/runtime_state.h"
+#include "common/compiler_util.h"
 
 namespace starrocks::pipeline {
 

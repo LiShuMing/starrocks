@@ -14,28 +14,48 @@
 
 #pragma once
 
+#include <stddef.h>
 #include <memory>
 #include <unordered_map>
+#include <cstdint>
+#include <tuple>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
 #include "exec/pipeline/operator.h"
 #include "exec/query_cache/cache_manager.h"
-#include "exec/query_cache/cache_param.h"
 #include "exec/query_cache/lane_arbiter.h"
 #include "exec/query_cache/multilane_operator.h"
 #include "storage/rowset/rowset.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/pipeline/pipeline_fwd.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks::query_cache {
+struct CacheParam;
+}  // namespace starrocks::query_cache
+
 namespace starrocks {
+class RuntimeState;
+
 namespace pipeline {
 class PipelineDriver;
+
 using DriverRawPtr = PipelineDriver*;
 } // namespace pipeline
 
 namespace query_cache {
 class PerLaneBuffer;
+
 using PerLaneBufferRawPtr = PerLaneBuffer*;
 using PerLaneBufferPtr = std::unique_ptr<PerLaneBuffer>;
 using PerLaneBuffers = std::vector<PerLaneBufferPtr>;
 
 class CacheOperator;
+
 using CacheOperatorRawPtr = CacheOperator*;
 using CacheOperatorPtr = std::shared_ptr<CacheOperator>;
 
@@ -109,6 +129,7 @@ private:
 };
 
 class CacheOperatorFactory;
+
 using CacheOperatorFactoryRawPtr = CacheOperatorFactory*;
 using CacheOperatorFactoryPtr = std::shared_ptr<CacheOperatorFactory>;
 

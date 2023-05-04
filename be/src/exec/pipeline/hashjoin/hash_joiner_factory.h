@@ -15,9 +15,15 @@
 #pragma once
 
 #include <memory>
-#include <vector>
+#include <cstdint>
+#include <unordered_map>
 
 #include "exec/hash_joiner.h"
+#include "common/status.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 
@@ -25,6 +31,7 @@ using HashJoiner = starrocks::HashJoiner;
 using HashJoinerPtr = std::shared_ptr<HashJoiner>;
 using HashJoinerMap = std::unordered_map<int32_t, HashJoinerPtr>;
 class HashJoinerFactory;
+
 using HashJoinerFactoryPtr = std::shared_ptr<HashJoinerFactory>;
 
 class HashJoinerFactory {

@@ -14,28 +14,29 @@
 
 #pragma once
 
-#include <arrow/api.h>
-#include <arrow/buffer.h>
-#include <arrow/io/api.h>
-#include <arrow/io/file.h>
 #include <arrow/io/interfaces.h>
-#include <parquet/api/reader.h>
-#include <parquet/api/writer.h>
-#include <parquet/arrow/reader.h>
-#include <parquet/arrow/writer.h>
-#include <parquet/exception.h>
-
+#include <arrow/record_batch.h>
+#include <arrow/result.h>
+#include <parquet/platform.h>
+#include <parquet/properties.h>
 #include <cstdint>
 #include <map>
 #include <string>
+#include <memory>
+#include <vector>
 
-#include "column/vectorized_fwd.h"
 #include "common/status.h"
-#include "exprs/expr.h"
-#include "fs/fs.h"
-#include "runtime/types.h"
+
+namespace parquet {
+class FileMetaData;
+}  // namespace parquet
+namespace parquet::arrow {
+class FileReader;
+}  // namespace parquet::arrow
 
 namespace starrocks {
+class RandomAccessFile;
+class SlotDescriptor;
 
 using RecordBatch = ::arrow::RecordBatch;
 using RecordBatchPtr = std::shared_ptr<RecordBatch>;

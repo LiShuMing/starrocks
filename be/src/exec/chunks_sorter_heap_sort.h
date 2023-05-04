@@ -14,22 +14,33 @@
 
 #pragma once
 
-#include <boost/smart_ptr/intrusive_ptr.hpp>
-#include <boost/smart_ptr/intrusive_ref_counter.hpp>
+#include <ext/alloc_traits.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <functional>
 #include <memory>
+#include <queue>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "column/chunk.h"
 #include "column/vectorized_fwd.h"
-#include "common/object_pool.h"
 #include "exec/chunks_sorter.h"
-#include "exprs/expr_context.h"
-#include "exprs/runtime_filter.h"
 #include "glog/logging.h"
-#include "runtime/runtime_state.h"
 #include "types/logical_type.h"
+#include "column/column.h"
+#include "common/status.h"
+#include "exec/exec_node.h"
+#include "exec/sorting/sorting.h"
+#include "util/runtime_profile.h"
 
 namespace starrocks {
+class ExprContext;
+class JoinRuntimeFilter;
+class MemTracker;
+class ObjectPool;
+class RuntimeState;
 
 namespace detail {
 using DataSegmentPtr = std::shared_ptr<DataSegment>;

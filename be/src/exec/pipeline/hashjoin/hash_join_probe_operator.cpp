@@ -14,7 +14,14 @@
 
 #include "exec/pipeline/hashjoin/hash_join_probe_operator.h"
 
+#include <memory>
+#include <utility>
+
 #include "runtime/current_thread.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

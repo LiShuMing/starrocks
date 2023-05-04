@@ -14,20 +14,34 @@
 
 #include "chunks_sorter_topn.h"
 
-#include "column/column_helper.h"
-#include "column/type_traits.h"
+#include <ext/alloc_traits.h>
+#include <fmt/format.h>
+#include <glog/logging.h>
+#include <algorithm>
+#include <cstdint>
+#include <ostream>
+
 #include "exec/sorting/merge.h"
 #include "exec/sorting/sort_permute.h"
 #include "exec/sorting/sorting.h"
 #include "exprs/expr.h"
 #include "gen_cpp/PlanNodes_types.h"
-#include "gutil/casts.h"
 #include "runtime/runtime_state.h"
 #include "types/logical_type_infra.h"
-#include "util/orlp/pdqsort.h"
 #include "util/stopwatch.hpp"
+#include "column/column.h"
+#include "common/statusor.h"
+#include "exprs/expr_context.h"
+#include "exprs/runtime_filter.h"
+#include "gen_cpp/Metrics_types.h"
+#include "runtime/types.h"
+#include "types/date_value.h"
+#include "types/timestamp_value.h"
+#include "util/slice.h"
 
 namespace starrocks {
+class MemTracker;
+class ObjectPool;
 
 ChunksSorterTopn::ChunksSorterTopn(RuntimeState* state, const std::vector<ExprContext*>* sort_exprs,
                                    const std::vector<bool>* is_asc_order, const std::vector<bool>* is_null_first,

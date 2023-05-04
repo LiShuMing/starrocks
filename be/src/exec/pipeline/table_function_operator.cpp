@@ -14,6 +14,27 @@
 
 #include "table_function_operator.h"
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <algorithm>
+#include <ostream>
+
+#include "column/chunk.h"
+#include "column/datum.h"
+#include "column/fixed_length_column_base.h"
+#include "column/nullable_column.h"
+#include "exprs/table_function/table_function.h"
+#include "exprs/table_function/table_function_factory.h"
+#include "gen_cpp/Exprs_types.h"
+#include "gen_cpp/Metrics_types.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "gen_cpp/Types_types.h"
+#include "gutil/casts.h"
+#include "runtime/runtime_state.h"
+#include "runtime/types.h"
+#include "types/logical_type.h"
+#include "util/stopwatch.hpp"
+
 namespace starrocks::pipeline {
 
 void TableFunctionOperator::close(RuntimeState* state) {

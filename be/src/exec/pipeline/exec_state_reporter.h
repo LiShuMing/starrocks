@@ -15,18 +15,23 @@
 #pragma once
 
 #include <memory>
+#include <functional>
+#include <vector>
 
-#include "exec/pipeline/fragment_context.h"
-#include "exec/pipeline/pipeline_fwd.h"
-#include "gen_cpp/FrontendService.h"
-#include "gen_cpp/InternalService_types.h"
-#include "gen_cpp/Types_types.h"
-#include "runtime/exec_env.h"
-#include "runtime/runtime_state.h"
-#include "service/backend_options.h"
 #include "util/threadpool.h"
+#include "common/status.h"
+#include "exec/pipeline/stream_epoch_manager.h"
+#include "gen_cpp/FrontendService_types.h"
+#include "gen_cpp/MVMaintenance_types.h"
+
+namespace starrocks {
+class ExecEnv;
+class TNetworkAddress;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
+class QueryContext;
+
 class ExecStateReporter {
 public:
     ExecStateReporter();

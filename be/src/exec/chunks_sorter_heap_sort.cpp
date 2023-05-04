@@ -17,19 +17,31 @@
 #include <functional>
 #include <memory>
 #include <vector>
+#include <algorithm>
+#include <ostream>
 
 #include "column/nullable_column.h"
-#include "column/type_traits.h"
 #include "column/vectorized_fwd.h"
-#include "common/object_pool.h"
-#include "exec/sorting/merge.h"
 #include "exprs/runtime_filter.h"
 #include "glog/logging.h"
 #include "gutil/casts.h"
 #include "types/logical_type_infra.h"
 #include "util/defer_op.h"
+#include "column/column_helper.h"
+#include "column/fixed_length_column.h"
+#include "exprs/expr.h"
+#include "exprs/expr_context.h"
+#include "gen_cpp/Metrics_types.h"
+#include "runtime/runtime_state.h"
+#include "runtime/types.h"
+#include "types/date_value.h"
+#include "types/timestamp_value.h"
+#include "util/slice.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
+class MemTracker;
+class ObjectPool;
 
 Status ChunksSorterHeapSort::update(RuntimeState* state, const ChunkPtr& chunk) {
     ScopedTimer<MonotonicStopWatch> timer(_build_timer);

@@ -14,10 +14,18 @@
 
 #pragma once
 
-#include "exec/olap_meta_scan_node.h"
+#include <stdint.h>
+#include <memory>
+
 #include "exec/pipeline/scan/meta_scan_context.h"
 #include "exec/pipeline/scan/meta_scan_prepare_operator.h"
-#include "exec/pipeline/source_operator.h"
+#include "common/status.h"
+#include "exec/pipeline/operator.h"
+
+namespace starrocks {
+class OlapMetaScanNode;
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

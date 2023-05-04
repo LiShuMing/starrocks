@@ -12,13 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "exprs/agg/aggregate_factory.h"
+#include <immintrin.h>
+#include <algorithm>
+#include <new>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <new>
+#include <string>
+#include <vector>
+
 #include "exprs/agg/factory/aggregate_factory.hpp"
 #include "exprs/agg/factory/aggregate_resolver.hpp"
 #include "exprs/agg/group_concat.h"
 #include "exprs/agg/percentile_cont.h"
 #include "types/logical_type.h"
 #include "util/percentile_value.h"
+#include "column/column.h"
+#include "column/vectorized_fwd.h"
+#include "common/statusor.h"
+#include "exprs/agg/aggregate.h"
+#include "exprs/agg/distinct.h"
+#include "types/date_value.h"
+#include "types/logical_type_infra.h"
+#include "types/timestamp_value.h"
+#include "util/phmap/phmap.h"
+#include "util/slice.h"
+#include "column/column.h"
+#include "column/vectorized_fwd.h"
+#include "common/statusor.h"
+#include "exprs/agg/aggregate.h"
+#include "exprs/agg/distinct.h"
+#include "types/date_value.h"
+#include "types/logical_type_infra.h"
+#include "types/timestamp_value.h"
+#include "util/phmap/phmap.h"
+#include "util/slice.h"
 
 namespace starrocks {
 

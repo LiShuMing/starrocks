@@ -14,12 +14,26 @@
 
 #include "exec/schema_scanner/schema_load_tracking_logs_scanner.h"
 
+#include <fmt/format.h>
 #include <climits>
+#include <algorithm>
+#include <memory>
+#include <string>
+#include <vector>
 
 #include "exec/schema_scanner/schema_helper.h"
 #include "http/http_client.h"
 #include "runtime/runtime_state.h"
 #include "runtime/string_value.h"
+#include "column/chunk.h"
+#include "column/nullable_column.h"
+#include "exprs/function_context.h"
+#include "gen_cpp/InternalService_types.h"
+#include "gutil/casts.h"
+#include "types/logical_type.h"
+#include "util/phmap/phmap.h"
+#include "util/slice.h"
+#include "util/time.h"
 
 namespace starrocks {
 

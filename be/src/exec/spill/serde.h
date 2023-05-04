@@ -14,6 +14,9 @@
 
 #pragma once
 
+#include <memory>
+#include <string>
+
 #include "column/vectorized_fwd.h"
 #include "common/status.h"
 #include "common/statusor.h"
@@ -35,6 +38,7 @@ struct SerdeContext {
 
 // Serde is used to serialize and deserialize spilled data.
 class Serde;
+
 using SerdePtr = std::shared_ptr<Serde>;
 class Serde {
 public:

@@ -14,8 +14,24 @@
 
 #pragma once
 
-#include "exec/exec_node.h"
+#include <glog/logging.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <algorithm>
+#include <memory>
+#include <vector>
+
 #include "exec/pipeline/source_operator.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/pipeline/operator.h"
+
+namespace starrocks {
+class ExprContext;
+class RuntimeState;
+class SlotDescriptor;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

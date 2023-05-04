@@ -14,15 +14,26 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <atomic>
+#include <cstdint>
+#include <shared_mutex>
+#include <unordered_map>
+#include <vector>
+
 #include "column/stream_chunk.h"
-#include "runtime/runtime_state.h"
+#include "common/status.h"
+#include "gen_cpp/Types_types.h"
+#include "util/hash_util.hpp"
 
 namespace starrocks {
 class ExecEnv;
 class TMVStartEpochTask;
+class RuntimeState;
 } // namespace starrocks
 
 namespace starrocks::pipeline {
+class QueryContext;
 
 using FragmentContext = pipeline::FragmentContext;
 using TabletId2BinlogOffset = std::unordered_map<int64_t, BinlogOffset>;

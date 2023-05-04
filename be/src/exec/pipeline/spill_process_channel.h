@@ -14,22 +14,26 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <algorithm>
+#include <utility>
+#include <vector>
 
 #include "column/vectorized_fwd.h"
 #include "common/statusor.h"
-#include "exec/spill/executor.h"
 #include "exec/spill/spiller.h"
 #include "util/blocking_queue.hpp"
-#include "util/runtime_profile.h"
+
+namespace starrocks::spill {
+struct IOTaskExecutor;
+}  // namespace starrocks::spill
 
 namespace starrocks {
 class SpillProcessChannel;
-namespace spill {
-class Spiller;
-}
 
 class SpillProcessTask {
 public:

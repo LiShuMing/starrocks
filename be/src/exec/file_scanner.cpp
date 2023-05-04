@@ -15,6 +15,12 @@
 #include "exec/file_scanner.h"
 
 #include <memory>
+#include <iterator>
+#include <map>
+#include <new>
+#include <sstream>
+#include <unordered_map>
+#include <utility>
 
 #include "column/chunk.h"
 #include "column/column_helper.h"
@@ -29,6 +35,20 @@
 #include "runtime/runtime_state.h"
 #include "runtime/stream_load/load_stream_mgr.h"
 #include "util/compression/stream_compression.h"
+#include "column/column.h"
+#include "common/global_types.h"
+#include "exprs/expr.h"
+#include "exprs/expr_context.h"
+#include "exprs/function_context.h"
+#include "gen_cpp/Exprs_types.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "gen_cpp/Types_types.h"
+#include "runtime/stream_load/stream_load_pipe.h"
+#include "runtime/types.h"
+#include "util/phmap/phmap.h"
+#include "util/runtime_profile.h"
+#include "util/slice.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
 

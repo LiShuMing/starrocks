@@ -14,10 +14,24 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <utility>
+#include <memory>
+#include <string>
+#include <vector>
 
 #include "exec/aggregator.h"
 #include "exec/pipeline/operator.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "exprs/expr.h"
+
+namespace starrocks {
+class ExprContext;
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 class AggregateDistinctBlockingSinkOperator : public Operator {

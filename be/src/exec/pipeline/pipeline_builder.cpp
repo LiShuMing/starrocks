@@ -14,16 +14,32 @@
 
 #include "exec/pipeline/pipeline_builder.h"
 
+#include <algorithm>
+#include <unordered_map>
+#include <utility>
+
 #include "exec/exec_node.h"
 #include "exec/pipeline/adaptive/collect_stats_context.h"
 #include "exec/pipeline/adaptive/collect_stats_sink_operator.h"
 #include "exec/pipeline/adaptive/collect_stats_source_operator.h"
-#include "exec/pipeline/exchange/exchange_source_operator.h"
-#include "exec/query_cache/cache_manager.h"
 #include "exec/query_cache/cache_operator.h"
 #include "exec/query_cache/conjugate_operator.h"
-#include "exec/query_cache/lane_arbiter.h"
 #include "exec/query_cache/multilane_operator.h"
+#include "exec/pipeline/adaptive/adaptive_fwd.h"
+#include "exec/pipeline/exchange/local_exchange.h"
+#include "exec/pipeline/exchange/local_exchange_memory_manager.h"
+#include "exec/pipeline/exchange/local_exchange_sink_operator.h"
+#include "exec/pipeline/exchange/local_exchange_source_operator.h"
+#include "exec/pipeline/scan/morsel.h"
+#include "exec/pipeline/source_operator.h"
+#include "exec/query_cache/cache_param.h"
+#include "gutil/casts.h"
+#include "runtime/exec_env.h"
+
+namespace starrocks {
+class ExprContext;
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

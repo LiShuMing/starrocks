@@ -14,27 +14,60 @@
 
 #include "exec/pipeline/exchange/exchange_sink_operator.h"
 
-#include <arpa/inet.h>
-
-#include <functional>
+#include <butil/iobuf.h>
+#include <butil/iobuf_inl.h>
+#include <ext/alloc_traits.h>
+#include <fmt/format.h>
+#include <glog/logging.h>
+#include <stdlib.h>
 #include <iostream>
 #include <memory>
 #include <random>
 #include <utility>
+#include <algorithm>
+#include <map>
+#include <new>
+#include <numeric>
+#include <string>
 
 #include "common/config.h"
 #include "exec/pipeline/exchange/shuffler.h"
 #include "exec/pipeline/exchange/sink_buffer.h"
 #include "exprs/expr.h"
 #include "runtime/data_stream_mgr.h"
-#include "runtime/descriptors.h"
 #include "runtime/exec_env.h"
 #include "runtime/local_pass_through_buffer.h"
 #include "runtime/runtime_state.h"
 #include "serde/protobuf_serde.h"
-#include "service/brpc.h"
 #include "util/compression/block_compression.h"
 #include "util/compression/compression_utils.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "common/compiler_util.h"
+#include "common/logging.h"
+#include "exec/exec_node.h"
+#include "exprs/expr_context.h"
+#include "exprs/function_context.h"
+#include "gen_cpp/InternalService_types.h"
+#include "gen_cpp/Metrics_types.h"
+#include "gen_cpp/Types_types.h"
+#include "gen_cpp/data.pb.h"
+#include "gen_cpp/internal_service.pb.h"
+#include "gutil/strings/substitute.h"
+#include "runtime/current_thread.h"
+#include "runtime/query_statistics.h"
+#include "service/backend_options.h"
+#include "util/brpc_stub_cache.h"
+#include "util/defer_op.h"
+#include "util/hash_util.hpp"
+#include "util/phmap/phmap_base.h"
+#include "util/slice.h"
+#include "util/stopwatch.hpp"
+#include "util/uid_util.h"
+
+namespace doris {
+class PBackendService_Stub;
+}  // namespace doris
 
 namespace starrocks::pipeline {
 

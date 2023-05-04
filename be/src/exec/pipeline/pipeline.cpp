@@ -14,10 +14,22 @@
 
 #include "exec/pipeline/pipeline.h"
 
+#include <algorithm>
+
 #include "exec/pipeline/pipeline_driver.h"
 #include "exec/pipeline/scan/connector_scan_operator.h"
 #include "exec/pipeline/stream_pipeline_driver.h"
 #include "runtime/runtime_state.h"
+#include "common/logging.h"
+#include "exec/pipeline/fragment_context.h"
+#include "exec/pipeline/query_context.h"
+#include "exec/pipeline/scan/morsel.h"
+#include "exec/pipeline/scan/scan_operator.h"
+#include "gen_cpp/Metrics_types.h"
+#include "gen_cpp/RuntimeProfile_types.h"
+#include "runtime/exec_env.h"
+#include "util/debug/query_trace_impl.h"
+#include "util/uid_util.h"
 
 namespace starrocks::pipeline {
 

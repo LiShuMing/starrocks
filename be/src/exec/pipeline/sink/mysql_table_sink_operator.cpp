@@ -14,16 +14,20 @@
 
 #include "exec/pipeline/sink/mysql_table_sink_operator.h"
 
-#include "column/chunk.h"
+#include <bthread/execution_queue.h>
+#include <bthread/execution_queue_inl.h>
+#include <glog/logging.h>
+#include <atomic>
+#include <ostream>
+
 #include "exec/pipeline/sink/sink_io_buffer.h"
-#include "exec/workgroup/scan_executor.h"
-#include "exec/workgroup/scan_task_queue.h"
 #include "exprs/expr.h"
 #include "runtime/mysql_table_writer.h"
 #include "runtime/runtime_state.h"
-#include "udf/java/utils.h"
-#include "util/defer_op.h"
-#include "util/spinlock.h"
+
+namespace starrocks {
+class RuntimeProfile;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

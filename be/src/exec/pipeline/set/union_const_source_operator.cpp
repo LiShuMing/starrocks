@@ -14,7 +14,16 @@
 
 #include "exec/pipeline/set/union_const_source_operator.h"
 
+#include <utility>
+
 #include "column/column_helper.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "exprs/expr.h"
+#include "exprs/expr_context.h"
+#include "exprs/function_context.h"
+#include "runtime/descriptors.h"
+#include "runtime/runtime_state.h"
 
 namespace starrocks::pipeline {
 

@@ -16,18 +16,24 @@
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
-
+#include <rapidjson/encodings.h>
+#include <rapidjson/rapidjson.h>
+#include <stddef.h>
 #include <string>
+#include <map>
 
-#include "column/chunk.h"
 #include "column/type_traits.h"
 #include "column/vectorized_fwd.h"
-#include "common/compiler_util.h"
-#include "http/http_client.h"
-#include "runtime/descriptors.h"
 #include "types/logical_type.h"
+#include "common/status.h"
+#include "util/slice.h"
 
 namespace starrocks {
+class Column;
+class RuntimeState;
+class TupleDescriptor;
+struct TypeDescriptor;
+
 class ScrollParser {
 public:
     ScrollParser(bool doc_value_mode);

@@ -14,9 +14,16 @@
 
 #include "exec/schema_scanner/schema_charsets_scanner.h"
 
+#include <string.h>
+#include <memory>
+
 #include "exec/schema_scanner/schema_helper.h"
 #include "runtime/string_value.h"
 #include "types/logical_type.h"
+#include "column/chunk.h"
+#include "exprs/function_context.h"
+#include "util/phmap/phmap.h"
+#include "util/slice.h"
 
 namespace starrocks {
 

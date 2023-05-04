@@ -14,8 +14,14 @@
 
 #include "exec/topn_node.h"
 
-#include <any>
+#include <fmt/format.h>
+#include <glog/logging.h>
+#include <stddef.h>
 #include <memory>
+#include <algorithm>
+#include <ostream>
+#include <unordered_set>
+#include <utility>
 
 #include "exec/chunks_sorter.h"
 #include "exec/chunks_sorter_full_sort.h"
@@ -36,6 +42,26 @@
 #include "exec/pipeline/spill_process_operator.h"
 #include "gutil/casts.h"
 #include "runtime/current_thread.h"
+#include "column/chunk.h"
+#include "common/object_pool.h"
+#include "common/statusor.h"
+#include "exec/pipeline/operator.h"
+#include "exec/pipeline/pipeline_fwd.h"
+#include "exec/pipeline/runtime_filter_types.h"
+#include "exec/pipeline/stream_epoch_manager.h"
+#include "exec/spill/executor.h"
+#include "exprs/column_ref.h"
+#include "exprs/expr.h"
+#include "exprs/expr_context.h"
+#include "exprs/runtime_filter_bank.h"
+#include "gen_cpp/Exprs_types.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "runtime/descriptors.h"
+#include "runtime/exec_env.h"
+#include "runtime/mem_tracker.h"
+#include "runtime/runtime_state.h"
+#include "runtime/types.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
 

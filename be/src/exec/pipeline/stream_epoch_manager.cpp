@@ -15,11 +15,22 @@
 #include "exec/pipeline/stream_epoch_manager.h"
 
 #include <fmt/format.h>
+#include <glog/logging.h>
+#include <stdint.h>
+#include <map>
+#include <mutex>
+#include <type_traits>
+#include <utility>
 
 #include "exec/pipeline/pipeline_driver_executor.h"
 #include "gen_cpp/MVMaintenance_types.h"
 #include "gen_cpp/PlanNodes_types.h"
 #include "runtime/exec_env.h"
+#include "exec/pipeline/fragment_context.h"
+#include "exec/pipeline/pipeline_driver.h"
+#include "exec/pipeline/query_context.h"
+#include "runtime/runtime_state.h"
+#include "util/uid_util.h"
 
 namespace starrocks::pipeline {
 

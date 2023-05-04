@@ -14,17 +14,22 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <limits>
 
 #include "gutil/macros.h"
 
 namespace starrocks::pipeline {
 
 class ChunkBufferToken;
+
 using ChunkBufferTokenPtr = std::unique_ptr<ChunkBufferToken>;
 class ChunkBufferLimiter;
+
 using ChunkBufferLimiterPtr = std::unique_ptr<ChunkBufferLimiter>;
 
 class ChunkBufferToken {

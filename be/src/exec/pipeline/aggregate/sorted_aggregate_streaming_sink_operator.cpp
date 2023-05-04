@@ -14,8 +14,13 @@
 
 #include "exec/pipeline/aggregate/sorted_aggregate_streaming_sink_operator.h"
 
+#include <glog/logging.h>
+#include <stddef.h>
+
 #include "exec/sorted_streaming_aggregator.h"
-#include "runtime/current_thread.h"
+#include "column/chunk.h"
+#include "runtime/runtime_state.h"
+#include "util/runtime_profile.h"
 
 namespace starrocks::pipeline {
 SortedAggregateStreamingSinkOperator::SortedAggregateStreamingSinkOperator(

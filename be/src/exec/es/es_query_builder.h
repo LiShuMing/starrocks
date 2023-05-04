@@ -35,15 +35,20 @@
 #pragma once
 
 #include <rapidjson/document.h>
-
 #include <string>
 #include <vector>
 
-#include "common/compiler_util.h"
 #include "common/status.h"
-#include "exec/es/es_predicate.h"
+#include "gen_cpp/Opcodes_types.h"
 
 namespace starrocks {
+class EsPredicate;
+struct ExtBinaryPredicate;
+struct ExtFunction;
+struct ExtInPredicate;
+struct ExtIsNullPredicate;
+struct ExtLikePredicate;
+struct ExtPredicate;
 
 class QueryBuilder {
 public:

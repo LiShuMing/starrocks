@@ -14,11 +14,24 @@
 
 #pragma once
 
+#include <stdint.h>
+#include <memory>
+
 #include "column/vectorized_fwd.h"
-#include "exec/meta_scan_node.h"
 #include "exec/pipeline/scan/chunk_source.h"
 #include "exec/pipeline/scan/meta_scan_context.h"
-#include "runtime/runtime_state.h"
+#include "common/status.h"
+#include "exec/pipeline/scan/morsel.h"
+#include "exec/workgroup/work_group_fwd.h"
+
+namespace starrocks {
+class MetaScanner;
+class RuntimeProfile;
+class RuntimeState;
+}  // namespace starrocks
+namespace starrocks::workgroup {
+class WorkGroup;
+}  // namespace starrocks::workgroup
 
 namespace starrocks::pipeline {
 

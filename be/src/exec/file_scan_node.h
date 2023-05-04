@@ -14,22 +14,35 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
 #include <thread>
 #include <vector>
+#include <deque>
+#include <iosfwd>
+#include <memory>
 
-#include "column/chunk.h"
 #include "common/status.h"
-#include "exec/file_scanner.h"
 #include "exec/scan_node.h"
 #include "gen_cpp/InternalService_types.h"
+#include "column/vectorized_fwd.h"
+#include "common/global_types.h"
+#include "exec/exec_node.h"
+#include "util/runtime_profile.h"
 
 namespace starrocks {
 
 class RuntimeState;
 struct ScannerCounter;
+class DescriptorTbl;
+class ExprContext;
+class FileScanner;
+class ObjectPool;
+class TBrokerScanRange;
+class TPlanNode;
+class TupleDescriptor;
 
 class FileScanNode final : public ScanNode {
 public:

@@ -14,8 +14,23 @@
 
 #include "exec/pipeline/assert_num_rows_operator.h"
 
+#include <glog/logging.h>
+#include <map>
+#include <ostream>
+#include <type_traits>
+#include <vector>
+
 #include "column/chunk.h"
 #include "gutil/strings/substitute.h"
+#include "column/column.h"
+#include "column/column_helper.h"
+#include "common/logging.h"
+#include "exprs/function_context.h"
+#include "runtime/descriptors.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 using namespace starrocks;
 

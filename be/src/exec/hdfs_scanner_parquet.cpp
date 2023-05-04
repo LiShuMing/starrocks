@@ -14,8 +14,16 @@
 
 #include "exec/hdfs_scanner_parquet.h"
 
+#include <cstdint>
+#include <string>
+
 #include "formats/parquet/file_reader.h"
 #include "util/runtime_profile.h"
+#include "common/statusor.h"
+#include "fs/fs.h"
+#include "gen_cpp/Metrics_types.h"
+#include "runtime/runtime_state.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
 

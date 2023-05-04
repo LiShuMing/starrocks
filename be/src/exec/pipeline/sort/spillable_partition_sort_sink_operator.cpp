@@ -14,16 +14,26 @@
 
 #include "exec/pipeline/sort/spillable_partition_sort_sink_operator.h"
 
-#include "exec/chunks_sorter_heap_sort.h"
-#include "exec/chunks_sorter_topn.h"
+#include <glog/logging.h>
+#include <functional>
+#include <ostream>
+#include <string>
+
 #include "exec/pipeline/query_context.h"
 #include "exec/spill/common.h"
 #include "exec/spill/executor.h"
 #include "exec/spill/spiller.h"
-#include "exec/spill/spiller.hpp"
 #include "exec/spillable_chunks_sorter_sort.h"
 #include "gen_cpp/InternalService_types.h"
-#include "storage/chunk_helper.h"
+#include "common/object_pool.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/spill_process_channel.h"
+#include "exec/sort_exec_exprs.h"
+#include "exec/sorting/sorting.h"
+#include "exec/spill/query_spill_manager.h"
+#include "runtime/current_thread.h"
+#include "runtime/runtime_state.h"
 
 namespace starrocks::pipeline {
 Status SpillablePartitionSortSinkOperator::prepare(RuntimeState* state) {

@@ -14,6 +14,9 @@
 
 #include "exec/schema_scanner/schema_be_txns_scanner.h"
 
+#include <memory>
+#include <optional>
+
 #include "agent/master_info.h"
 #include "exec/schema_scanner/schema_helper.h"
 #include "gutil/strings/substitute.h"
@@ -21,9 +24,13 @@
 #include "storage/storage_engine.h"
 #include "storage/txn_manager.h"
 #include "types/logical_type.h"
-#include "util/metrics.h"
+#include "column/chunk.h"
+#include "exprs/function_context.h"
+#include "util/phmap/phmap.h"
+#include "util/slice.h"
 
 namespace starrocks {
+class RuntimeState;
 
 SchemaScanner::ColumnDesc SchemaBeTxnsScanner::_s_columns[] = {
         {"BE_ID", TYPE_BIGINT, sizeof(int64_t), false},          {"LOAD_ID", TYPE_VARCHAR, sizeof(StringValue), false},

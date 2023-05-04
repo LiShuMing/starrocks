@@ -14,7 +14,14 @@
 
 #include "exec/olap_scan_prepare.h"
 
+#include <glog/logging.h>
+#include <stddef.h>
+#include <boost/variant/static_visitor.hpp>
 #include <variant>
+#include <algorithm>
+#include <ostream>
+#include <set>
+#include <utility>
 
 #include "column/type_traits.h"
 #include "exprs/dictmapping_expr.h"
@@ -29,6 +36,36 @@
 #include "types/date_value.hpp"
 #include "types/logical_type.h"
 #include "types/logical_type_infra.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "column/column_helper.h"
+#include "column/const_column.h"
+#include "column/datum.h"
+#include "column/fixed_length_column.h"
+#include "column/nullable_column.h"
+#include "column/vectorized_fwd.h"
+#include "common/config.h"
+#include "common/global_types.h"
+#include "common/logging.h"
+#include "common/object_pool.h"
+#include "common/statusor.h"
+#include "exprs/expr.h"
+#include "exprs/function_context.h"
+#include "exprs/runtime_filter.h"
+#include "exprs/runtime_filter_bank.h"
+#include "gen_cpp/Exprs_types.h"
+#include "gen_cpp/Opcodes_types.h"
+#include "gutil/casts.h"
+#include "gutil/stl_util.h"
+#include "runtime/global_dict/config.h"
+#include "runtime/global_dict/types_fwd_decl.h"
+#include "runtime/runtime_state.h"
+#include "runtime/types.h"
+#include "types/date_value.h"
+#include "types/timestamp_value.h"
+#include "util/decimal_types.h"
+#include "util/phmap/phmap.h"
+#include "util/slice.h"
 
 namespace starrocks {
 

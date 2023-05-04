@@ -14,10 +14,16 @@
 
 #include "exec/spill/log_block_manager.h"
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
 #include <utility>
+#include <algorithm>
+#include <ostream>
 
 #include "common/config.h"
 #include "exec/spill/common.h"
@@ -25,8 +31,11 @@
 #include "fs/fs.h"
 #include "io/input_stream.h"
 #include "runtime/exec_env.h"
-#include "storage/options.h"
 #include "util/uid_util.h"
+#include "exec/spill/dir_manager.h"
+#include "gutil/casts.h"
+#include "gutil/strings/substitute.h"
+#include "util/slice.h"
 
 namespace starrocks::spill {
 

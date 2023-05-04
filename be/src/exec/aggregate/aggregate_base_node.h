@@ -14,12 +14,19 @@
 
 #pragma once
 
-#include <any>
+#include <vector>
 
 #include "exec/aggregator.h"
 #include "exec/exec_node.h"
+#include "common/status.h"
+#include "exec/pipeline/operator.h"
 
 namespace starrocks {
+class DescriptorTbl;
+class ExprContext;
+class ObjectPool;
+class RuntimeState;
+class TPlanNode;
 
 class AggregateBaseNode : public ExecNode {
 public:

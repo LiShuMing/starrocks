@@ -14,7 +14,15 @@
 
 #include "exec/pipeline/exchange/multi_cast_local_exchange.h"
 
-#include "util/logging.h"
+#include <glog/logging.h>
+#include <algorithm>
+#include <cstdint>
+#include <ostream>
+
+#include "column/chunk.h"
+#include "common/logging.h"
+#include "gen_cpp/Metrics_types.h"
+#include "runtime/runtime_state.h"
 
 namespace starrocks::pipeline {
 

@@ -14,15 +14,30 @@
 
 #pragma once
 
-#include "column/type_traits.h"
+#include <memory>
+#include <utility>
+#include <vector>
+
 #include "column/vectorized_fwd.h"
 #include "exec/exec_node.h"
-#include "exprs/expr.h"
-#include "exprs/table_function/table_function_factory.h"
-#include "runtime/descriptors.h"
-#include "runtime/runtime_state.h"
+#include "common/global_types.h"
+#include "common/status.h"
+#include "exprs/function_context.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks::pipeline {
+class OperatorFactory;
+class PipelineBuilderContext;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
+class DescriptorTbl;
+class ObjectPool;
+class RuntimeState;
+class TPlanNode;
+class TableFunction;
+class TableFunctionState;
+
 class TableFunctionNode final : public ExecNode {
 public:
     TableFunctionNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& desc);

@@ -12,13 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <glog/logging.h>
+#include <stddef.h>
+#include <functional>
+#include <memory>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
 #include "exec/chunks_sorter_full_sort.h"
 #include "exec/spill/executor.h"
 #include "exec/spill/spiller.h"
 #include "exec/spill/spiller.hpp"
 #include "exec/spillable_chunks_sorter_sort.h"
+#include "column/chunk.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/pipeline/spill_process_channel.h"
+#include "exec/spill/options.h"
+#include "runtime/current_thread.h"
 
 namespace starrocks {
+class MemTracker;
+class RuntimeProfile;
+class RuntimeState;
+
 void SpillableChunksSorterFullSort::setup_runtime(RuntimeProfile* profile, MemTracker* parent_mem_tracker) {
     ChunksSorterFullSort::setup_runtime(profile, parent_mem_tracker);
     _spiller->set_metrics(spill::SpillProcessMetrics(profile));

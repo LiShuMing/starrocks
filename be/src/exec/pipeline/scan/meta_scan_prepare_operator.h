@@ -14,11 +14,24 @@
 
 #pragma once
 
-#include "exec/meta_scan_node.h"
+#include <stdint.h>
+#include <memory>
+#include <string>
+
 #include "exec/pipeline/scan/meta_scan_context.h"
 #include "exec/pipeline/source_operator.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
+class OperatorFactory;
+
 class MetaScanPrepareOperator : public SourceOperator {
 public:
     MetaScanPrepareOperator(OperatorFactory* factory, int32_t id, int32_t plan_node_id, int32_t driver_sequence,

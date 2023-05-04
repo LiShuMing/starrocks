@@ -14,13 +14,30 @@
 
 #pragma once
 
+#include <list>
+#include <memory>
+#include <vector>
+
 #include "column/vectorized_fwd.h"
 #include "exec/exec_node.h"
-#include "exprs/expr_context.h"
 #include "runtime/global_dict/parser.h"
 #include "util/runtime_profile.h"
+#include "common/global_types.h"
+#include "common/status.h"
+
+namespace starrocks::pipeline {
+class OperatorFactory;
+class PipelineBuilderContext;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
+class DescriptorTbl;
+class ExprContext;
+class ObjectPool;
+class RuntimeFilterProbeCollector;
+class RuntimeState;
+class TPlanNode;
+
 class ProjectNode final : public ExecNode {
 public:
     ProjectNode(ObjectPool* pool, const TPlanNode& node, const DescriptorTbl& desc);

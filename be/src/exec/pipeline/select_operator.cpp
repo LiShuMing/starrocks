@@ -14,9 +14,14 @@
 
 #include "exec/pipeline/select_operator.h"
 
+#include <ext/alloc_traits.h>
+#include <stddef.h>
+#include <type_traits>
+
 #include "column/chunk.h"
 #include "exprs/expr.h"
 #include "runtime/runtime_state.h"
+#include "column/column.h"
 
 namespace starrocks::pipeline {
 Status SelectOperator::prepare(RuntimeState* state) {

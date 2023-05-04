@@ -14,15 +14,40 @@
 
 #include "exec/pipeline/pipeline_driver_executor.h"
 
+#include <glog/logging.h>
 #include <memory>
+#include <functional>
+#include <ostream>
+#include <set>
+#include <type_traits>
+#include <typeinfo>
 
 #include "exec/pipeline/stream_pipeline_driver.h"
 #include "exec/workgroup/work_group.h"
 #include "gutil/strings/substitute.h"
 #include "runtime/current_thread.h"
 #include "util/debug/query_trace.h"
-#include "util/defer_op.h"
-#include "util/stack_util.h"
+#include "common/statusor.h"
+#include "exec/pipeline/exec_state_reporter.h"
+#include "exec/pipeline/fragment_context.h"
+#include "exec/pipeline/pipeline_driver_queue.h"
+#include "exec/pipeline/query_context.h"
+#include "exec/pipeline/source_operator.h"
+#include "gen_cpp/FrontendService_types.h"
+#include "gen_cpp/InternalService_types.h"
+#include "gen_cpp/MVMaintenance_types.h"
+#include "gen_cpp/Types_types.h"
+#include "gutil/casts.h"
+#include "runtime/runtime_state.h"
+#include "util/runtime_profile.h"
+#include "util/starrocks_metrics.h"
+#include "util/thread.h"
+#include "util/threadpool.h"
+#include "util/uid_util.h"
+
+namespace starrocks {
+class ExecEnv;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

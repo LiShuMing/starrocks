@@ -15,6 +15,11 @@
 #include "exec/pipeline/sort/local_partition_topn_source.h"
 
 #include <utility>
+#include <memory>
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

@@ -14,17 +14,40 @@
 
 #include "exec/schema_scan_node.h"
 
-#include <boost/algorithm/string.hpp>
+#include <glog/logging.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <boost/algorithm/string/predicate.hpp>
+#include <ostream>
+#include <utility>
 
 #include "column/column_helper.h"
-#include "exec/pipeline/scan/olap_schema_scan_context.h"
 #include "exec/pipeline/scan/olap_schema_scan_operator.h"
-#include "exec/schema_scanner/schema_helper.h"
 #include "runtime/runtime_state.h"
-#include "runtime/string_value.h"
 #include "util/runtime_profile.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "common/config.h"
+#include "common/object_pool.h"
+#include "common/status.h"
+#include "exec/pipeline/pipeline_builder.h"
+#include "exec/pipeline/scan/chunk_buffer_limiter.h"
+#include "exec/pipeline/scan/scan_operator.h"
+#include "exprs/function_context.h"
+#include "gen_cpp/FrontendService_types.h"
+#include "gen_cpp/Types_types.h"
+#include "gutil/int128.h"
+#include "runtime/descriptors.h"
+#include "runtime/mem_tracker.h"
+#include "runtime/types.h"
+#include "util/stopwatch.hpp"
+
+namespace starrocks::pipeline {
+class OperatorFactory;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
+class TScanRangeParams;
 
 SchemaScanNode::SchemaScanNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& descs)
         : ScanNode(pool, tnode, descs),

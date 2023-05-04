@@ -33,10 +33,14 @@
 // under the License.
 
 #include <mariadb/mysql.h>
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <cstdlib>
+#include <ostream>
+#include <utility>
 
 #define __StarRocksMysql MYSQL
 #define __StarRocksMysqlRes MYSQL_RES
-#include "common/logging.h"
 #include "gutil/strings/substitute.h"
 #include "mysql_scanner.h"
 

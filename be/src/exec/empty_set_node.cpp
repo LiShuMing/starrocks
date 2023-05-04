@@ -34,10 +34,17 @@
 
 #include "exec/empty_set_node.h"
 
+#include <memory>
+
 #include "exec/pipeline/empty_set_operator.h"
 #include "exec/pipeline/pipeline_builder.h"
+#include "exec/pipeline/operator.h"
 
 namespace starrocks {
+class DescriptorTbl;
+class ObjectPool;
+class RuntimeState;
+class TPlanNode;
 
 EmptySetNode::EmptySetNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& descs)
         : ExecNode(pool, tnode, descs) {}

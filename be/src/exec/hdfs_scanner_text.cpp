@@ -14,14 +14,39 @@
 
 #include "exec/hdfs_scanner_text.h"
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <sys/types.h>
+#include <boost/algorithm/string/case_conv.hpp>
+#include <boost/iterator/iterator_facade.hpp>
 #include <unordered_map>
+#include <algorithm>
+#include <ostream>
+#include <type_traits>
+#include <utility>
 
 #include "column/column_helper.h"
 #include "exec/exec_node.h"
 #include "gutil/strings/substitute.h"
 #include "util/compression/compression_utils.h"
-#include "util/compression/stream_compression.h"
 #include "util/utf8_check.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "column/const_column.h"
+#include "common/logging.h"
+#include "common/statusor.h"
+#include "exprs/function_context.h"
+#include "formats/csv/csv_reader.h"
+#include "fs/fs.h"
+#include "gen_cpp/Descriptors_types.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "gen_cpp/types.pb.h"
+#include "gutil/casts.h"
+#include "runtime/descriptors.h"
+#include "runtime/runtime_state.h"
+#include "util/runtime_profile.h"
+#include "util/slice.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
 

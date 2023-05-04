@@ -14,31 +14,29 @@
 
 #pragma once
 
-#include <arrow/io/api.h>
-#include <arrow/io/file.h>
-#include <arrow/io/interfaces.h>
-#include <parquet/api/reader.h>
-#include <parquet/api/writer.h>
-#include <parquet/arrow/reader.h>
-#include <parquet/arrow/writer.h>
-#include <parquet/exception.h>
-
 #include <cstdint>
-#include <map>
 #include <string>
+#include <cstddef>
+#include <memory>
+#include <vector>
 
 #include "common/status.h"
 #include "exec/file_builder.h"
 #include "formats/parquet/file_writer.h"
-#include "gen_cpp/DataSinks_types.h"
-#include "gen_cpp/PlanNodes_types.h"
 #include "gen_cpp/Types_types.h"
-#include "gen_cpp/parquet_types.h"
+
+namespace parquet {
+class WriterProperties;
+}  // namespace parquet
+namespace parquet::schema {
+class GroupNode;
+}  // namespace parquet::schema
 
 namespace starrocks {
 
 class ExprContext;
-class FileWriter;
+class Chunk;
+class WritableFile;
 
 struct ParquetBuilderOptions {
     TCompressionType::type compression_type = TCompressionType::SNAPPY;

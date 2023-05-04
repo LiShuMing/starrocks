@@ -34,9 +34,17 @@
 
 #include "exec/scan_node.h"
 
+#include <glog/logging.h>
+#include <algorithm>
+#include <type_traits>
+#include <utility>
+
 #include "exec/pipeline/scan/morsel.h"
+#include "gen_cpp/Metrics_types.h"
+#include "runtime/runtime_state.h"
 
 namespace starrocks {
+class TPlanNode;
 
 const std::string ScanNode::_s_bytes_read_counter = "BytesRead";
 const std::string ScanNode::_s_rows_read_counter = "RowsRead";

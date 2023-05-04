@@ -14,18 +14,26 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
 #include <functional>
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "column/column_helper.h"
 #include "column/vectorized_fwd.h"
 #include "common/status.h"
 #include "exec/sorting/sort_permute.h"
 #include "exec/sorting/sorting.h"
-#include "exprs/expr_context.h"
 #include "runtime/mem_tracker.h"
-#include "runtime/runtime_state.h"
+#include "common/statusor.h"
+
+namespace starrocks {
+class Chunk;
+class ExprContext;
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::spill {
 using FlushCallBack = std::function<Status(const ChunkPtr&)>;

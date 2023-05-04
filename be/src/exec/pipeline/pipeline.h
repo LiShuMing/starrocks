@@ -14,13 +14,25 @@
 
 #pragma once
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <stdint.h>
 #include <ctime>
 #include <utility>
+#include <atomic>
+#include <memory>
+#include <ostream>
+#include <string>
+#include <vector>
 
 #include "exec/pipeline/operator.h"
 #include "exec/pipeline/pipeline_fwd.h"
 #include "exec/pipeline/source_operator.h"
 #include "gutil/strings/substitute.h"
+#include "common/status.h"
+#include "exec/exec_node.h"
+#include "gutil/casts.h"
+#include "util/runtime_profile.h"
 
 namespace starrocks {
 

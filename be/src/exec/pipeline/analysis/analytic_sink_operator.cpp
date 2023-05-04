@@ -14,7 +14,9 @@
 
 #include "analytic_sink_operator.h"
 
-#include "runtime/current_thread.h"
+#include <glog/logging.h>
+#include <algorithm>
+
 #include "runtime/runtime_state.h"
 
 namespace starrocks::pipeline {

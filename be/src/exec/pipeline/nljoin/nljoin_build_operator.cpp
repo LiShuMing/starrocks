@@ -18,6 +18,11 @@
 #include "exec/pipeline/operator.h"
 #include "util/defer_op.h"
 #include "util/runtime_profile.h"
+#include "gen_cpp/Metrics_types.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

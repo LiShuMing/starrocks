@@ -14,7 +14,20 @@
 
 #include "exec/pipeline/hash_partition_context.h"
 
+#include <fmt/format.h>
+#include <new>
+#include <stdexcept>
+#include <type_traits>
+#include <utility>
+
 #include "exprs/expr.h"
+#include "exprs/expr_context.h"
+#include "gen_cpp/Exprs_types.h"
+#include "runtime/runtime_state.h"
+#include "runtime/types.h"
+#include "types/date_value.h"
+#include "types/timestamp_value.h"
+#include "util/phmap/phmap.h"
 
 namespace starrocks::pipeline {
 

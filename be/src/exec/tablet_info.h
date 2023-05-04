@@ -14,22 +14,34 @@
 
 #pragma once
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <stddef.h>
 #include <cstdint>
 #include <memory>
 #include <unordered_map>
 #include <vector>
+#include <iterator>
+#include <map>
+#include <ostream>
+#include <string>
+#include <utility>
 
 #include "column/column.h"
 #include "common/object_pool.h"
 #include "common/status.h"
 #include "gen_cpp/Descriptors_types.h"
 #include "gen_cpp/descriptors.pb.h"
-#include "runtime/descriptors.h"
+#include "column/vectorized_fwd.h"
 
 namespace starrocks {
 
-class MemPool;
 class RuntimeState;
+class Chunk;
+class ExprContext;
+class SlotDescriptor;
+class TExprNode;
+class TupleDescriptor;
 
 struct OlapTableIndexSchema {
     int64_t index_id;

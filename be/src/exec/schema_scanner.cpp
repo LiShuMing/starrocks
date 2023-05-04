@@ -14,7 +14,8 @@
 
 #include "exec/schema_scanner.h"
 
-#include "column/type_traits.h"
+#include <new>
+
 #include "exec/schema_scanner/schema_be_compactions_scanner.h"
 #include "exec/schema_scanner/schema_be_configs_scanner.h"
 #include "exec/schema_scanner/schema_be_metrics_scanner.h"
@@ -39,6 +40,10 @@
 #include "exec/schema_scanner/schema_user_privileges_scanner.h"
 #include "exec/schema_scanner/schema_variables_scanner.h"
 #include "exec/schema_scanner/schema_views_scanner.h"
+#include "common/object_pool.h"
+#include "gen_cpp/Types_types.h"
+#include "runtime/descriptors.h"
+#include "runtime/types.h"
 
 namespace starrocks {
 

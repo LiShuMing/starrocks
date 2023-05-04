@@ -14,15 +14,24 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <utility>
+#include <memory>
 
 #include "column/vectorized_fwd.h"
-#include "exec/pipeline/sort/sort_context.h"
 #include "exec/pipeline/source_operator.h"
-#include "exec/sort_exec_exprs.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/pipeline/operator.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 class SortContext;
+class Morsel;
+class SortContextFactory;
 
 /*
  * LocalMergeSortSourceOperator is used to merge multiple sorted datas from partion sort sink operator.

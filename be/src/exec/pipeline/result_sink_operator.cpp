@@ -14,7 +14,9 @@
 
 #include "exec/pipeline/result_sink_operator.h"
 
-#include "column/chunk.h"
+#include <glog/logging.h>
+#include <time.h>
+
 #include "exprs/expr.h"
 #include "runtime/buffer_control_block.h"
 #include "runtime/mysql_result_writer.h"
@@ -23,6 +25,11 @@
 #include "runtime/runtime_state.h"
 #include "runtime/statistic_result_writer.h"
 #include "runtime/variable_result_writer.h"
+#include "common/config.h"
+#include "exec/pipeline/query_context.h"
+#include "runtime/current_thread.h"
+#include "runtime/exec_env.h"
+#include "runtime/result_writer.h"
 
 namespace starrocks::pipeline {
 Status ResultSinkOperator::prepare(RuntimeState* state) {

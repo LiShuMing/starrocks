@@ -14,22 +14,35 @@
 
 #pragma once
 
+#include <stddef.h>
 #include <memory>
 #include <vector>
+#include <cstdint>
+#include <functional>
+#include <string>
+#include <unordered_map>
+#include <utility>
 
-#include "column/chunk.h"
 #include "common/status.h"
 #include "common/statusor.h"
 #include "exec/pipeline/operator.h"
 #include "exec/query_cache/lane_arbiter.h"
-#include "runtime/runtime_state.h"
+#include "column/vectorized_fwd.h"
+#include "exec/exec_node.h"
+#include "gutil/strings/substitute.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::query_cache {
 class MultilaneOperator;
+
 using MultilaneOperatorRawPtr = MultilaneOperator*;
 using MultilaneOperators = std::vector<MultilaneOperatorRawPtr>;
 using MultilaneOperatorPtr = std::shared_ptr<MultilaneOperator>;
 class MultilaneOperatorFactory;
+
 using MultilaneOperatorFactoryRawPtr = MultilaneOperatorFactory*;
 using MultilaneOperatorFactoryPtr = std::shared_ptr<MultilaneOperatorFactory>;
 

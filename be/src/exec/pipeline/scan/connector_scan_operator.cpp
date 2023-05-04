@@ -14,12 +14,26 @@
 
 #include "exec/pipeline/scan/connector_scan_operator.h"
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <stdint.h>
+#include <memory>
+#include <new>
+
 #include "column/chunk.h"
 #include "exec/connector_scan_node.h"
 #include "exec/pipeline/scan/balanced_chunk_buffer.h"
 #include "exec/workgroup/work_group.h"
-#include "runtime/exec_env.h"
 #include "runtime/runtime_state.h"
+#include "exec/scan_node.h"
+#include "exprs/expr.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "gutil/casts.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks {
+class ExprContext;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

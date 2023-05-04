@@ -14,16 +14,19 @@
 
 #include "exec/workgroup/work_group.h"
 
+#include <fmt/format.h>
 #include <utility>
+#include <algorithm>
+#include <ostream>
 
-#include "common/config.h"
-#include "exec/workgroup/work_group_fwd.h"
 #include "glog/logging.h"
 #include "runtime/exec_env.h"
 #include "util/cpu_info.h"
 #include "util/metrics.h"
 #include "util/starrocks_metrics.h"
 #include "util/time.h"
+#include "exec/pipeline/query_context.h"
+#include "util/defer_op.h"
 
 namespace starrocks::workgroup {
 

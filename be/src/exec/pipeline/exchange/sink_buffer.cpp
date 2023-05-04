@@ -15,12 +15,43 @@
 #include "exec/pipeline/exchange/sink_buffer.h"
 
 #include <bthread/bthread.h>
+#include <brpc/controller.h>
+#include <brpc/http_header.h>
+#include <fmt/format.h>
+#include <fmt/ostream.h>
+#include <glog/logging.h>
+#include <stddef.h>
+#include <algorithm>
+#include <cstdint>
+#include <exception>
+#include <mutex>
+#include <new>
+#include <ostream>
+#include <string>
+#include <type_traits>
+#include <utility>
 
-#include <chrono>
-
-#include "fmt/core.h"
 #include "util/time.h"
 #include "util/uid_util.h"
+#include "common/compiler_util.h"
+#include "common/config.h"
+#include "common/logging.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "gen_cpp/DataSinks_types.h"
+#include "gen_cpp/InternalService_types.h"
+#include "gen_cpp/Metrics_types.h"
+#include "gen_cpp/doris_internal_service.pb.h"
+#include "gen_cpp/internal_service.pb.h"
+#include "gen_cpp/types.pb.h"
+#include "runtime/current_thread.h"
+#include "runtime/exec_env.h"
+#include "runtime/mem_tracker.h"
+#include "runtime/runtime_state.h"
+#include "util/brpc_stub_cache.h"
+#include "util/defer_op.h"
+#include "util/runtime_profile.h"
+#include "util/slice.h"
 
 namespace starrocks::pipeline {
 

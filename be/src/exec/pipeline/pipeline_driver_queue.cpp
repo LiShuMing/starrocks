@@ -14,9 +14,14 @@
 
 #include "exec/pipeline/pipeline_driver_queue.h"
 
-#include "exec/pipeline/source_operator.h"
+#include <glog/logging.h>
+#include <algorithm>
+#include <chrono>
+#include <cstdint>
+
 #include "exec/workgroup/work_group.h"
-#include "gutil/strings/substitute.h"
+#include "common/status.h"
+#include "util/time.h"
 
 namespace starrocks::pipeline {
 

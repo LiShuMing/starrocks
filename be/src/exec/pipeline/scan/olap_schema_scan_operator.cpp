@@ -14,13 +14,20 @@
 
 #include "exec/pipeline/scan/olap_schema_scan_operator.h"
 
+#include <ext/alloc_traits.h>
 #include <utility>
+#include <memory>
+#include <vector>
 
-#include "exec/pipeline/pipeline_builder.h"
 #include "exec/pipeline/scan/balanced_chunk_buffer.h"
 #include "exec/pipeline/scan/olap_schema_chunk_source.h"
 #include "exec/pipeline/scan/scan_operator.h"
-#include "gen_cpp/Types_types.h"
+
+namespace starrocks {
+class RuntimeState;
+class ScanNode;
+class TPlanNode;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

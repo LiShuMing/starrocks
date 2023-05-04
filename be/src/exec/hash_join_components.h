@@ -14,13 +14,20 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
+#include <memory>
+
 #include "column/vectorized_fwd.h"
 #include "common/object_pool.h"
 #include "exec/join_hash_map.h"
-#include "runtime/runtime_state.h"
+#include "common/status.h"
+#include "common/statusor.h"
 
 namespace starrocks {
 class HashJoiner;
+class RuntimeState;
+
 class HashJoinProber {
 public:
     HashJoinProber(HashJoiner& hash_joiner) : _hash_joiner(hash_joiner) {}

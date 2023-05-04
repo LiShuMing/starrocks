@@ -14,11 +14,20 @@
 
 #include "exec/hdfs_scanner_orc.h"
 
+#include <cctz/time_zone.h>
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <stddef.h>
 #include <utility>
+#include <exception>
+#include <map>
+#include <ostream>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "exec/exec_node.h"
 #include "exec/iceberg/iceberg_delete_builder.h"
-#include "formats/orc/fill_function.h"
 #include "formats/orc/orc_chunk_reader.h"
 #include "formats/orc/orc_input_stream.h"
 #include "formats/orc/orc_min_max_decoder.h"
@@ -27,6 +36,42 @@
 #include "storage/chunk_helper.h"
 #include "util/runtime_profile.h"
 #include "util/timezone_utils.h"
+#include "column/binary_column.h"
+#include "column/bytes.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "column/column_helper.h"
+#include "column/const_column.h"
+#include "column/datum.h"
+#include "column/fixed_length_column.h"
+#include "column/nullable_column.h"
+#include "common/config.h"
+#include "common/global_types.h"
+#include "common/logging.h"
+#include "common/statusor.h"
+#include "exprs/expr.h"
+#include "exprs/expr_context.h"
+#include "exprs/function_context.h"
+#include "formats/orc/utils.h"
+#include "fs/fs.h"
+#include "gen_cpp/Metrics_types.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "gutil/casts.h"
+#include "gutil/strings/substitute.h"
+#include "orc/MemoryPool.hh"
+#include "orc/OrcFile.hh"
+#include "orc/Reader.hh"
+#include "orc/Vector.hh"
+#include "orc/sargs/SearchArgument.hh"
+#include "runtime/descriptors.h"
+#include "runtime/runtime_state.h"
+#include "runtime/types.h"
+#include "types/logical_type.h"
+#include "util/stopwatch.hpp"
+
+namespace orc {
+struct BloomFilterIndex;
+}  // namespace orc
 
 namespace starrocks {
 

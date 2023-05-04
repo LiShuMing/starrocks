@@ -16,8 +16,11 @@
 
 #include "exec/schema_scanner.h"
 #include "gen_cpp/FrontendService_types.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
 
 namespace starrocks {
+class RuntimeState;
 
 class SchemaTaskRunsScanner : public SchemaScanner {
 public:

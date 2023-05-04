@@ -14,11 +14,20 @@
 
 #include "exec/except_hash_set.h"
 
-#include "exec/aggregate/agg_hash_set.h"
-#include "exec/exec_node.h"
+#include <glog/logging.h>
+#include <string.h>
+
 #include "runtime/mem_tracker.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "common/compiler_util.h"
+#include "exprs/expr_context.h"
+#include "exprs/function_context.h"
+#include "runtime/runtime_state.h"
+#include "util/phmap/phmap_base.h"
 
 namespace starrocks {
+class Expr;
 
 template <typename HashSet>
 Status ExceptHashSet<HashSet>::BufferState::init(RuntimeState* state) {

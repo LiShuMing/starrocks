@@ -14,23 +14,31 @@
 
 #pragma once
 
+#include <stddef.h>
 #include <memory>
-#include <utility>
+#include <atomic>
+#include <cstdint>
+#include <vector>
 
-#include "column/column.h"
 #include "common/global_types.h"
-#include "common/object_pool.h"
 #include "common/status.h"
-#include "exec/data_sink.h"
 #include "exec/pipeline/exchange/shuffler.h"
 #include "exec/pipeline/exchange/sink_buffer.h"
-#include "exec/pipeline/fragment_context.h"
 #include "exec/pipeline/operator.h"
-#include "gen_cpp/data.pb.h"
-#include "gen_cpp/internal_service.pb.h"
-#include "serde/protobuf_serde.h"
 #include "util/raw_container.h"
 #include "util/runtime_profile.h"
+#include "column/vectorized_fwd.h"
+#include "common/statusor.h"
+#include "exec/pipeline/stream_epoch_manager.h"
+#include "gen_cpp/DataSinks_types.h"
+#include "gen_cpp/Partitions_types.h"
+#include "gen_cpp/types.pb.h"
+#include "runtime/runtime_state.h"
+#include "util/phmap/phmap.h"
+
+namespace starrocks::serde {
+class EncodeContext;
+}  // namespace starrocks::serde
 
 namespace butil {
 class IOBuf;
@@ -40,9 +48,10 @@ namespace starrocks {
 
 class BlockCompressionCodec;
 class ExprContext;
+class Chunk;
+class ChunkPB;
 
 namespace pipeline {
-class SinkBuffer;
 class ExchangeSinkOperator final : public Operator {
 public:
     ExchangeSinkOperator(OperatorFactory* factory, int32_t id, int32_t plan_node_id, int32_t driver_sequence,

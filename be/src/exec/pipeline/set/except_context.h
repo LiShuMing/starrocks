@@ -14,27 +14,36 @@
 
 #pragma once
 
-#include "column/chunk.h"
-#include "column/column_hash.h"
-#include "column/column_helper.h"
-#include "column/type_traits.h"
+#include <stddef.h>
+#include <atomic>
+#include <cstdint>
+#include <memory>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
 #include "common/statusor.h"
 #include "exec/except_hash_set.h"
-#include "exec/olap_common.h"
 #include "exec/pipeline/context_with_dependency.h"
-#include "exprs/expr_context.h"
-#include "gutil/casts.h"
 #include "runtime/mem_pool.h"
-#include "util/hash_util.hpp"
 #include "util/phmap/phmap.h"
-#include "util/slice.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+
+namespace starrocks {
+class ExprContext;
+class RuntimeState;
+class TupleDescriptor;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 
 class ExceptContext;
+
 using ExceptContextPtr = std::shared_ptr<ExceptContext>;
 
 class ExceptPartitionContextFactory;
+
 using ExceptPartitionContextFactoryPtr = std::shared_ptr<ExceptPartitionContextFactory>;
 
 // Used as the shared context for ExceptBuildSinkOperator, ExceptProbeSinkOperator, and ExceptOutputSourceOperator.

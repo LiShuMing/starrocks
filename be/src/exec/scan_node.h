@@ -34,22 +34,32 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
 #include <string>
+#include <map>
+#include <memory>
+#include <vector>
 
 #include "exec/exec_node.h"
 #include "gen_cpp/InternalService_types.h"
 #include "util/runtime_profile.h"
+#include "common/config.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/pipeline/scan/morsel.h"
 
 namespace starrocks {
+class DescriptorTbl;
+class ObjectPool;
+class RuntimeState;
+class TPlanNode;
 
 namespace pipeline {
-class MorselQueue;
 using MorselQueuePtr = std::unique_ptr<MorselQueue>;
-class MorselQueueFactory;
 using MorselQueueFactoryPtr = std::unique_ptr<MorselQueueFactory>;
 } // namespace pipeline
 
-class TScanRange;
 
 // Abstract base class of all scan nodes; introduces set_scan_range().
 //

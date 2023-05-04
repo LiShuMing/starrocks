@@ -14,8 +14,22 @@
 
 #pragma once
 
+#include <cstdint>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
 #include "exec/partition/chunks_partitioner.h"
 #include "storage/chunk_helper.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+
+namespace starrocks {
+class ExprContext;
+class RuntimeState;
+class TExpr;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

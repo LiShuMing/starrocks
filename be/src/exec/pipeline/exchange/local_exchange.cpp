@@ -14,9 +14,18 @@
 
 #include "exec/pipeline/exchange/local_exchange.h"
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+
 #include "column/chunk.h"
 #include "exec/pipeline/exchange/shuffler.h"
 #include "exprs/expr_context.h"
+#include "column/column.h"
+#include "common/statusor.h"
+#include "exprs/expr.h"
+#include "exprs/function_context.h"
+#include "gutil/strings/substitute.h"
+#include "util/hash_util.hpp"
 
 namespace starrocks::pipeline {
 

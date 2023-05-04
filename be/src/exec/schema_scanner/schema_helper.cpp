@@ -14,18 +14,39 @@
 
 #include "exec/schema_scanner/schema_helper.h"
 
-#include <sstream>
-
 #include "gen_cpp/FrontendService.h"
-#include "gen_cpp/FrontendService_types.h"
 #include "runtime/client_cache.h"
-#include "runtime/exec_env.h"
-#include "runtime/runtime_state.h"
-#include "util/network_util.h"
-#include "util/runtime_profile.h"
 #include "util/thrift_rpc_helper.h"
+#include "gutil/strings/substitute.h"
 
 namespace starrocks {
+class TDescribeTableParams;
+class TDescribeTableResult;
+class TGetDBPrivsParams;
+class TGetDBPrivsResult;
+class TGetDbsParams;
+class TGetDbsResult;
+class TGetLoadsParams;
+class TGetLoadsResult;
+class TGetTablePrivsParams;
+class TGetTablePrivsResult;
+class TGetTablesConfigRequest;
+class TGetTablesConfigResponse;
+class TGetTablesInfoRequest;
+class TGetTablesInfoResponse;
+class TGetTablesParams;
+class TGetTablesResult;
+class TGetTabletScheduleRequest;
+class TGetTabletScheduleResponse;
+class TGetTaskInfoResult;
+class TGetTaskRunInfoResult;
+class TGetTasksParams;
+class TGetUserPrivsParams;
+class TGetUserPrivsResult;
+class TListMaterializedViewStatusResult;
+class TListTableStatusResult;
+class TShowVariableRequest;
+class TShowVariableResult;
 
 Status SchemaHelper::get_db_names(const std::string& ip, const int32_t port, const TGetDbsParams& request,
                                   TGetDbsResult* result) {

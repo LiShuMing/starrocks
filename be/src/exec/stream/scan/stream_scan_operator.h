@@ -14,24 +14,39 @@
 
 #pragma once
 
+#include <glog/logging.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <queue>
+#include <atomic>
+#include <memory>
+#include <mutex>
 
-#include "common/logging.h"
 #include "connector/connector.h"
-#include "exec/pipeline/fragment_context.h"
-#include "exec/pipeline/pipeline_builder.h"
-#include "exec/pipeline/scan/balanced_chunk_buffer.h"
 #include "exec/pipeline/scan/chunk_source.h"
 #include "exec/pipeline/scan/connector_scan_operator.h"
-#include "exec/pipeline/scan/scan_operator.h"
-#include "exec/pipeline/stream_epoch_manager.h"
-#include "exec/workgroup/work_group_fwd.h"
-#include "storage/chunk_helper.h"
+#include "column/stream_chunk.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/pipeline/operator.h"
+#include "exec/pipeline/query_context.h"
+#include "exec/pipeline/scan/chunk_buffer_limiter.h"
+#include "exec/pipeline/scan/morsel.h"
+#include "gutil/casts.h"
+#include "runtime/runtime_state.h"
+
+namespace starrocks {
+class ConnectorScanNode;
+class RuntimeProfile;
+class ScanNode;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
+class BalancedChunkBuffer;
+class ScanOperator;
+class StreamEpochManager;
 
-class FragmentContext;
-class StreamChunkSource;
 
 class StreamScanOperatorFactory final : public ConnectorScanOperatorFactory {
 public:

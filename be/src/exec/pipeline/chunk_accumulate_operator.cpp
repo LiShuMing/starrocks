@@ -14,8 +14,8 @@
 
 #include "exec/pipeline/chunk_accumulate_operator.h"
 
-#include "column/chunk.h"
-#include "runtime/runtime_state.h"
+#include <type_traits>
+#include <utility>
 
 namespace starrocks::pipeline {
 

@@ -14,7 +14,10 @@
 
 #include "exec/pipeline/aggregate/spillable_aggregate_blocking_sink_operator.h"
 
+#include <glog/logging.h>
 #include <memory>
+#include <unordered_map>
+#include <vector>
 
 #include "column/vectorized_fwd.h"
 #include "exec/pipeline/aggregate/aggregate_blocking_sink_operator.h"
@@ -24,7 +27,10 @@
 #include "exec/spill/spiller.hpp"
 #include "gen_cpp/InternalService_types.h"
 #include "runtime/current_thread.h"
-#include "storage/chunk_helper.h"
+#include "column/chunk.h"
+#include "exec/spill/executor.h"
+#include "exec/spill/query_spill_manager.h"
+#include "runtime/runtime_state.h"
 
 namespace starrocks::pipeline {
 bool SpillableAggregateBlockingSinkOperator::need_input() const {

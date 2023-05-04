@@ -34,40 +34,62 @@
 
 #pragma once
 
+#include <stddef.h>
 #include <memory>
-#include <queue>
 #include <set>
 #include <string>
-#include <thread>
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <atomic>
+#include <cstdint>
+#include <deque>
+#include <functional>
+#include <map>
 
-#include "common/object_pool.h"
 #include "common/status.h"
 #include "common/tracer.h"
 #include "exec/data_sink.h"
-#include "exec/tablet_info.h"
 #include "gen_cpp/Types_types.h"
-#include "gen_cpp/doris_internal_service.pb.h"
 #include "gen_cpp/internal_service.pb.h"
 #include "runtime/mem_tracker.h"
-#include "util/bitmap.h"
-#include "util/compression/block_compression.h"
 #include "util/raw_container.h"
-#include "util/ref_count_closure.h"
-#include "util/reusable_closure.h"
 #include "util/threadpool.h"
+#include "column/chunk.h"
+#include "common/config.h"
+#include "common/global_types.h"
+#include "gen_cpp/types.pb.h"
+#include "runtime/decimalv2_value.h"
+#include "types/logical_type.h"
+#include "util/runtime_profile.h"
+#include "util/slice.h"
+
+namespace doris {
+class PBackendService_Stub;
+}  // namespace doris
 
 namespace starrocks {
 
-class Bitmap;
-class MemTracker;
-class RuntimeProfile;
 class RowDescriptor;
 class TupleDescriptor;
 class ExprContext;
 class TExpr;
+class BlockCompressionCodec;
+class ChunkPB;
+class Column;
+class ObjectPool;
+class OlapTableLocationParam;
+class OlapTablePartitionParam;
+class OlapTableSchemaParam;
+class RuntimeState;
+class SlotDescriptor;
+class StarRocksNodesInfo;
+class TDataSink;
+class TOlapTablePartition;
+struct NodeInfo;
+struct OlapTablePartition;
+template <typename T> class RefCountClosure;
+template <typename T> class ReusableClosure;
 
 namespace stream_load {
 

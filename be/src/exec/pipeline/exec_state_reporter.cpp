@@ -16,11 +16,39 @@
 
 #include <thrift/Thrift.h>
 #include <thrift/protocol/TDebugProtocol.h>
+#include <glog/logging.h>
+#include <transport/TTransportException.h>
+#include <map>
+#include <optional>
+#include <ostream>
+#include <string>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
 
 #include "agent/master_info.h"
 #include "runtime/client_cache.h"
 #include "runtime/exec_env.h"
 #include "service/backend_options.h"
+#include "column/stream_chunk.h"
+#include "common/config.h"
+#include "common/logging.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/fragment_context.h"
+#include "exec/pipeline/query_context.h"
+#include "gen_cpp/FrontendService.h"
+#include "gen_cpp/InternalService_types.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "gen_cpp/Types_types.h"
+#include "gutil/int128.h"
+#include "gutil/strings/substitute.h"
+#include "runtime/runtime_state.h"
+#include "util/monotime.h"
+#include "util/runtime_profile.h"
+
+namespace apache::thrift {
+class TProcessor;
+}  // namespace apache::thrift
 
 namespace starrocks::pipeline {
 std::string to_load_error_http_path(const std::string& file_name) {

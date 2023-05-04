@@ -14,14 +14,25 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <utility>
+#include <memory>
+#include <string>
+#include <type_traits>
+#include <vector>
 
-#include "exec/pipeline/fragment_context.h"
 #include "exec/pipeline/operator.h"
-#include "gen_cpp/InternalService_types.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/stream_epoch_manager.h"
+#include "gen_cpp/DataSinks_types.h"
+#include "gen_cpp/Exprs_types.h"
 
 namespace starrocks {
 class ExprContext;
+class RuntimeState;
 
 namespace pipeline {
 

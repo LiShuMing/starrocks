@@ -14,8 +14,17 @@
 
 #include "exec/pipeline/scan/meta_chunk_source.h"
 
-#include "exec/pipeline/scan/meta_scan_operator.h"
+#include <glog/logging.h>
+#include <utility>
+
 #include "exec/workgroup/work_group.h"
+#include "exec/meta_scanner.h"
+#include "gen_cpp/PlanNodes_types.h"
+
+namespace starrocks {
+class RuntimeProfile;
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

@@ -34,18 +34,25 @@
 
 #include "exec/olap_common.h"
 
+#include <boost/detail/basic_pointerbuf.hpp>
+#include <boost/lexical_cast.hpp>
 #include <string>
-#include <type_traits>
 #include <utility>
 #include <vector>
+#include <algorithm>
+#include <iterator>
+#include <map>
 
-#include "common/logging.h"
 #include "exec/olap_utils.h"
-#include "exec/scan_node.h"
 #include "gutil/stl_util.h"
 #include "gutil/strings/substitute.h"
 #include "runtime/large_int_value.h"
 #include "storage/tuple.h"
+#include "column/type_traits.h"
+#include "common/compiler_util.h"
+#include "gen_cpp/InternalService_types.h"
+#include "runtime/decimalv3.h"
+#include "runtime/time_types.h"
 
 namespace starrocks {
 

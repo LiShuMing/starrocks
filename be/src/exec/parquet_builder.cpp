@@ -14,21 +14,20 @@
 
 #include "parquet_builder.h"
 
-#include <arrow/buffer.h>
-#include <arrow/io/file.h>
-#include <arrow/io/interfaces.h>
-#include <parquet/arrow/writer.h>
-#include <parquet/exception.h>
+#include <parquet/properties.h>
+#include <parquet/schema.h>
+#include <parquet/type_fwd.h>
+#include <parquet/types.h>
+#include <utility>
 
-#include "column/chunk.h"
-#include "column/column_helper.h"
-#include "common/logging.h"
-#include "exprs/column_ref.h"
 #include "exprs/expr.h"
-#include "runtime/exec_env.h"
-#include "util/priority_thread_pool.hpp"
+#include "exprs/expr_context.h"
+#include "gutil/strings/substitute.h"
+#include "runtime/types.h"
 
 namespace starrocks {
+class Chunk;
+class WritableFile;
 
 ParquetBuilder::ParquetBuilder(std::unique_ptr<WritableFile> writable_file,
                                std::shared_ptr<::parquet::WriterProperties> properties,

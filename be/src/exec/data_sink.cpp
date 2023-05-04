@@ -34,15 +34,14 @@
 
 #include "exec/data_sink.h"
 
-#include <algorithm>
+#include <glog/logging.h>
+#include <stddef.h>
 #include <map>
 #include <memory>
+#include <ostream>
 
-#include "common/logging.h"
 #include "exec/exec_node.h"
-#include "exec/file_builder.h"
 #include "exec/tablet_sink.h"
-#include "exprs/expr.h"
 #include "gen_cpp/InternalService_types.h"
 #include "runtime/data_stream_sender.h"
 #include "runtime/export_sink.h"
@@ -52,8 +51,11 @@
 #include "runtime/result_sink.h"
 #include "runtime/runtime_state.h"
 #include "runtime/schema_table_sink.h"
+#include "gen_cpp/DataSinks_types.h"
 
 namespace starrocks {
+class Chunk;
+class TExpr;
 
 static std::unique_ptr<DataStreamSender> create_data_stream_sink(
         RuntimeState* state, const TDataStreamSink& data_stream_sink, const RowDescriptor& row_desc,

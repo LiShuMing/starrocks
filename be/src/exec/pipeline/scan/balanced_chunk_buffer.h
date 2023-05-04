@@ -14,11 +14,20 @@
 
 #pragma once
 
+#include <stddef.h>
 #include <vector>
+#include <algorithm>
+#include <atomic>
+#include <memory>
+#include <utility>
 
-#include "column/chunk.h"
 #include "exec/pipeline/scan/chunk_buffer_limiter.h"
 #include "util/blocking_queue.hpp"
+#include "column/vectorized_fwd.h"
+
+namespace starrocks {
+class Chunk;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

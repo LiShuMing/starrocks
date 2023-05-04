@@ -14,50 +14,71 @@
 
 #pragma once
 
-#include <optional>
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <stdlib.h>
+#include <atomic>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <tuple>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "exec/query_cache/ticket_checker.h"
 #include "gen_cpp/InternalService_types.h"
 #include "runtime/mem_pool.h"
-#include "storage/olap_common.h"
 #include "storage/range.h"
 #include "storage/rowset/segment_group.h"
 #include "storage/seek_range.h"
 #include "storage/tablet.h"
 #include "storage/tablet_reader_params.h"
 #include "storage/tuple.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "gutil/casts.h"
+#include "gutil/strings/substitute.h"
+#include "storage/rowset/common.h"
+#include "storage/rowset/short_key_range_option.h"
 
 namespace starrocks {
 
 struct OlapScanRange;
-class Tablet;
+
 using TabletSharedPtr = std::shared_ptr<Tablet>;
 class Rowset;
+
 using RowsetSharedPtr = std::shared_ptr<Rowset>;
 class Segment;
+
 using SegmentSharedPtr = std::shared_ptr<Segment>;
 
-struct TabletReaderParams;
 class SeekTuple;
 struct RowidRangeOption;
+
 using RowidRangeOptionPtr = std::shared_ptr<RowidRangeOption>;
-struct ShortKeyRangeOption;
 using ShortKeyRangeOptionPtr = std::shared_ptr<ShortKeyRangeOption>;
-struct ShortKeyOption;
 using ShortKeyOptionPtr = std::unique_ptr<ShortKeyOption>;
 class Schema;
+
 using SchemaPtr = std::shared_ptr<Schema>;
-class Range;
 
 namespace pipeline {
 
 class Morsel;
+
 using MorselPtr = std::unique_ptr<Morsel>;
 using Morsels = std::vector<MorselPtr>;
 class MorselQueue;
+
 using MorselQueuePtr = std::unique_ptr<MorselQueue>;
 using MorselQueueMap = std::unordered_map<int32_t, MorselQueuePtr>;
 class MorselQueueFactory;
+
 using MorselQueueFactoryPtr = std::unique_ptr<MorselQueueFactory>;
 using MorselQueueFactoryMap = std::unordered_map<int32_t, MorselQueueFactoryPtr>;
 

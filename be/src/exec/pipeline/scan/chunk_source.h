@@ -14,23 +14,35 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
 #include <future>
+#include <memory>
+#include <optional>
+#include <string>
 
 #include "column/vectorized_fwd.h"
 #include "common/statusor.h"
 #include "exec/pipeline/scan/morsel.h"
 #include "exec/workgroup/work_group_fwd.h"
 #include "util/exclusive_ptr.h"
+#include "common/status.h"
+#include "exec/pipeline/scan/chunk_buffer_limiter.h"
+#include "gutil/strings/substitute.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks::workgroup {
+class WorkGroup;
+}  // namespace starrocks::workgroup
 
 namespace starrocks {
 
 class RuntimeState;
-class RuntimeProfile;
 
 namespace pipeline {
 
 class BalancedChunkBuffer;
-class ChunkBufferToken;
+
 using ChunkBufferTokenPtr = std::unique_ptr<ChunkBufferToken>;
 
 class ChunkSource {

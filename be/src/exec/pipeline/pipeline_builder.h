@@ -14,16 +14,32 @@
 
 #pragma once
 
-#include <exec/pipeline/scan/olap_scan_operator.h>
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <functional>
+#include <list>
+#include <memory>
+#include <tuple>
+#include <vector>
 
-#include "exec/pipeline/exchange/local_exchange.h"
-#include "exec/pipeline/exchange/local_exchange_sink_operator.h"
-#include "exec/pipeline/exchange/local_exchange_source_operator.h"
-#include "exec/pipeline/fragment_context.h"
 #include "exec/pipeline/pipeline.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/operator.h"
+#include "exec/pipeline/pipeline_fwd.h"
+#include "exec/pipeline/stream_epoch_manager.h"
+#include "gen_cpp/Partitions_types.h"
+
+namespace starrocks::pipeline {
+class MorselQueueFactory;
+class SourceOperatorFactory;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
-class ExecNode;
+class ExprContext;
+class RuntimeState;
+
 namespace pipeline {
 
 class PipelineBuilderContext {

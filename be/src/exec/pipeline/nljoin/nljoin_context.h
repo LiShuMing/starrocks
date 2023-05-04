@@ -14,17 +14,24 @@
 
 #pragma once
 
-#include <algorithm>
+#include <ext/alloc_traits.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <atomic>
+#include <memory>
+#include <mutex>
+#include <utility>
+#include <vector>
 
-#include "column/chunk.h"
 #include "column/vectorized_fwd.h"
 #include "exec/pipeline/context_with_dependency.h"
-#include "exprs/expr_context.h"
-#include "runtime/runtime_state.h"
+#include "common/status.h"
 
 namespace starrocks {
 class RuntimeFilterBuildDescriptor;
+class Chunk;
+class ExprContext;
+class RuntimeState;
 }
 
 namespace starrocks::pipeline {

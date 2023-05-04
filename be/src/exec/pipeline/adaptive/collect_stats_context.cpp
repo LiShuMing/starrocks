@@ -15,11 +15,17 @@
 #include "exec/pipeline/adaptive/collect_stats_context.h"
 
 #include <utility>
+#include <algorithm>
+#include <cstdint>
+#include <memory>
+#include <type_traits>
 
 #include "column/chunk.h"
 #include "common/statusor.h"
 #include "exec/pipeline/adaptive/adaptive_dop_param.h"
 #include "exec/pipeline/adaptive/utils.h"
+#include "common/status.h"
+#include "runtime/runtime_state.h"
 
 namespace starrocks::pipeline {
 

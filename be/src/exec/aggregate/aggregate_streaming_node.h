@@ -15,11 +15,23 @@
 #pragma once
 
 #include "exec/aggregate/aggregate_base_node.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "exec/pipeline/operator.h"
+
+namespace starrocks::pipeline {
+class PipelineBuilderContext;
+}  // namespace starrocks::pipeline
 
 // Aggregate means this node handle query with aggregate functions.
 // Streaming means this node will handle input in get_next phase, and maybe directly
 // ouput child chunk.
 namespace starrocks {
+class DescriptorTbl;
+class ObjectPool;
+class RuntimeState;
+class TPlanNode;
+
 class AggregateStreamingNode final : public AggregateBaseNode {
 public:
     AggregateStreamingNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& descs)

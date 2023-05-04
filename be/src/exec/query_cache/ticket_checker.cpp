@@ -13,6 +13,10 @@
 // limitations under the License.
 
 #include "exec/query_cache/ticket_checker.h"
+
+#include <glog/logging.h>
+#include <utility>
+
 namespace starrocks::query_cache {
 void TicketChecker::enter(TicketIdType id, bool is_last) {
     auto [it, _] = _tickets.try_emplace(id, id, 0);

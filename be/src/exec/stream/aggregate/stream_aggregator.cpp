@@ -17,10 +17,31 @@
 
 #include "exec/stream/aggregate/stream_aggregator.h"
 
-#include "column/column_helper.h"
-#include "exec/stream/state/mem_state_table.h"
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <algorithm>
+#include <any>
+#include <ostream>
+#include <type_traits>
+#include <utility>
+
 #include "runtime/current_thread.h"
-#include "simd/simd.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "column/fixed_length_column.h"
+#include "exec/aggregate/agg_hash_variant.h"
+#include "exec/aggregate/agg_profile.h"
+#include "exec/stream/aggregate/agg_state_data.h"
+#include "exec/stream/state/state_table.h"
+#include "exprs/agg/aggregate.h"
+#include "gutil/casts.h"
+#include "util/runtime_profile.h"
+#include "util/stopwatch.hpp"
+
+namespace starrocks {
+class ObjectPool;
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::stream {
 

@@ -14,11 +14,30 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <map>
+#include <vector>
+
 #include "exec/exec_node.h"
 #include "exec/pipeline/set/union_passthrough_operator.h"
 #include "runtime/runtime_state.h"
+#include "column/vectorized_fwd.h"
+#include "common/global_types.h"
+#include "common/status.h"
+#include "exec/pipeline/operator.h"
+#include "exprs/function_context.h"
+
+namespace starrocks::pipeline {
+class PipelineBuilderContext;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
+class DescriptorTbl;
+class ExprContext;
+class ObjectPool;
+class SlotDescriptor;
+class TPlanNode;
+class TupleDescriptor;
 
 class UnionNode final : public ExecNode {
 public:

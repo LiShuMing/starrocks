@@ -14,8 +14,12 @@
 
 #include "exec/pipeline/operator.h"
 
+#include <ctype.h>
+#include <glog/logging.h>
 #include <algorithm>
 #include <utility>
+#include <map>
+#include <tuple>
 
 #include "exec/exec_node.h"
 #include "gutil/strings/substitute.h"
@@ -23,6 +27,14 @@
 #include "runtime/runtime_filter_cache.h"
 #include "runtime/runtime_state.h"
 #include "util/runtime_profile.h"
+#include "column/chunk.h"
+#include "common/compiler_util.h"
+#include "exprs/expr_context.h"
+#include "gen_cpp/Metrics_types.h"
+#include "gen_cpp/RuntimeProfile_types.h"
+#include "runtime/mem_tracker.h"
+#include "service/backend_options.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks::pipeline {
 

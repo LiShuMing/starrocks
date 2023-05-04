@@ -14,7 +14,13 @@
 
 #include "aggregate_streaming_source_operator.h"
 
-#include <variant>
+#include <any>
+#include <type_traits>
+
+#include "column/chunk.h"
+#include "exec/aggregate/agg_hash_variant.h"
+#include "runtime/runtime_state.h"
+#include "util/runtime_profile.h"
 
 namespace starrocks::pipeline {
 

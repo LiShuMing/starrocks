@@ -14,12 +14,19 @@
 
 #pragma once
 
+#include <stddef.h>
 #include <atomic>
 #include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "common/status.h"
 #include "common/statusor.h"
-#include "fs/fs.h"
+
+namespace starrocks {
+class FileSystem;
+}  // namespace starrocks
 
 namespace starrocks::spill {
 

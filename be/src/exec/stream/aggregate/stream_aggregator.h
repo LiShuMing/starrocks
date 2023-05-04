@@ -17,10 +17,23 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
+#include <memory>
+#include <vector>
+
 #include "exec/aggregator.h"
 #include "exec/stream/aggregate/agg_group_state.h"
 #include "runtime/mem_pool.h"
-#include "runtime/runtime_state.h"
+#include "column/stream_chunk.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+
+namespace starrocks {
+class ObjectPool;
+class RuntimeProfile;
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::stream {
 

@@ -14,8 +14,13 @@
 
 #include "exec/pipeline/scan/balanced_chunk_buffer.h"
 
-#include "fmt/format.h"
+#include <glog/logging.h>
+#include <ostream>
+#include <type_traits>
+
 #include "util/blocking_queue.hpp"
+#include "column/chunk.h"
+#include "exec/query_cache/owner_info.h"
 
 namespace starrocks::pipeline {
 

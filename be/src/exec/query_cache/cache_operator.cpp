@@ -15,16 +15,35 @@
 #include "exec/query_cache/cache_operator.h"
 
 #include <glog/logging.h>
-
+#include <ext/alloc_traits.h>
+#include <fmt/format.h>
 #include <vector>
+#include <algorithm>
+#include <limits>
+#include <optional>
+#include <string>
+#include <type_traits>
 
 #include "column/vectorized_fwd.h"
 #include "common/compiler_util.h"
-#include "exec/pipeline/pipeline_driver.h"
 #include "storage/rowset/rowset.h"
 #include "storage/storage_engine.h"
 #include "storage/tablet_manager.h"
 #include "util/time.h"
+#include "column/chunk.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/scan/morsel.h"
+#include "exec/query_cache/cache_param.h"
+#include "exec/query_cache/owner_info.h"
+#include "gen_cpp/Metrics_types.h"
+#include "gen_cpp/Types_types.h"
+#include "storage/olap_common.h"
+#include "storage/tablet.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
+
 namespace starrocks::query_cache {
 enum PerLaneBufferState {
     PLBS_INIT,

@@ -14,15 +14,29 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
 #include <queue>
+#include <atomic>
+#include <condition_variable>
+#include <deque>
+#include <memory>
+#include <mutex>
+#include <set>
+#include <unordered_set>
+#include <vector>
 
 #include "exec/pipeline/pipeline_driver.h"
 #include "exec/workgroup/work_group_fwd.h"
 #include "util/factory_method.h"
+#include "common/config.h"
+#include "common/statusor.h"
+#include "exec/query_cache/cache_operator.h"
 
 namespace starrocks::pipeline {
 
 class DriverQueue;
+
 using DriverQueuePtr = std::unique_ptr<DriverQueue>;
 
 class DriverQueue {

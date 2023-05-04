@@ -14,12 +14,33 @@
 
 #pragma once
 
+#include <stdint.h>
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "exec/exec_node.h"
 #include "exec/sort_exec_exprs.h"
+#include "column/vectorized_fwd.h"
+#include "common/global_types.h"
+#include "common/status.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks::pipeline {
+class OperatorFactory;
+class PipelineBuilderContext;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
 
 class ChunksSorter;
+class DescriptorTbl;
+class ExprContext;
+class ObjectPool;
+class RuntimeFilterBuildDescriptor;
+class RuntimeState;
+class TPlanNode;
+class TupleDescriptor;
 
 // Node for in-memory TopN (ORDER BY ... LIMIT).
 //

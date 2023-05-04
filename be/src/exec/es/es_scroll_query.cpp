@@ -17,9 +17,12 @@
 
 #include "exec/es/es_scroll_query.h"
 
+#include <glog/logging.h>
+#include <rapidjson/encodings.h>
+#include <rapidjson/rapidjson.h>
+#include <stdlib.h>
 #include <sstream>
 
-#include "common/logging.h"
 #include "exec/es/es_query_builder.h"
 #include "exec/es/es_scan_reader.h"
 #include "rapidjson/document.h"
@@ -27,6 +30,7 @@
 #include "rapidjson/writer.h"
 
 namespace starrocks {
+class EsPredicate;
 
 ESScrollQueryBuilder::ESScrollQueryBuilder() = default;
 

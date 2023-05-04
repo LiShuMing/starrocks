@@ -14,18 +14,28 @@
 
 #include "exec/pipeline/sink/file_sink_operator.h"
 
+#include <bthread/execution_queue.h>
+#include <bthread/execution_queue_inl.h>
+#include <glog/logging.h>
+#include <time.h>
 #include <utility>
+#include <atomic>
+#include <ostream>
 
-#include "column/chunk.h"
 #include "exec/pipeline/sink/sink_io_buffer.h"
-#include "exec/workgroup/scan_executor.h"
-#include "exec/workgroup/scan_task_queue.h"
 #include "exprs/expr.h"
 #include "runtime/buffer_control_block.h"
 #include "runtime/query_statistics.h"
 #include "runtime/result_buffer_mgr.h"
 #include "runtime/runtime_state.h"
-#include "udf/java/utils.h"
+#include "common/config.h"
+#include "exec/pipeline/query_context.h"
+#include "runtime/exec_env.h"
+#include "runtime/file_result_writer.h"
+
+namespace starrocks {
+class RuntimeProfile;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

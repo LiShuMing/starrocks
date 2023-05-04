@@ -14,8 +14,12 @@
 
 #include "exec/spill/dir_manager.h"
 
+#include <ext/alloc_traits.h>
+#include <string_view>
+
 #include "common/config.h"
 #include "storage/options.h"
+#include "fs/fs.h"
 
 namespace starrocks::spill {
 

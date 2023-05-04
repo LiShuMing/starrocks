@@ -15,12 +15,32 @@
 #include "exec/json_scanner.h"
 
 #include <fmt/format.h>
-#include <ryu/ryu.h>
-
-#include <algorithm>
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <simdjson/common_defs.h>
+#include <simdjson/dom/array-inl.h>
+#include <simdjson/dom/array.h>
+#include <simdjson/dom/element-inl.h>
+#include <simdjson/dom/element.h>
+#include <simdjson/dom/parser-inl.h>
+#include <simdjson/dom/parser.h>
+#include <simdjson/error-inl.h>
+#include <simdjson/error.h>
+#include <simdjson/generic/ondemand/document_stream-inl.h>
+#include <simdjson/generic/ondemand/field-inl.h>
+#include <simdjson/generic/ondemand/field.h>
+#include <simdjson/generic/ondemand/object-inl.h>
+#include <simdjson/generic/ondemand/object.h>
+#include <simdjson/generic/ondemand/object_iterator-inl.h>
+#include <simdjson/generic/ondemand/object_iterator.h>
+#include <simdjson/generic/ondemand/parser-inl.h>
+#include <simdjson/generic/ondemand/value.h>
+#include <string.h>
 #include <memory>
 #include <sstream>
 #include <utility>
+#include <cstdint>
+#include <tuple>
 
 #include "column/adaptive_nullable_column.h"
 #include "column/chunk.h"
@@ -33,10 +53,22 @@
 #include "fs/fs.h"
 #include "gutil/casts.h"
 #include "gutil/strings/substitute.h"
-#include "runtime/exec_env.h"
 #include "runtime/runtime_state.h"
 #include "runtime/types.h"
 #include "util/runtime_profile.h"
+#include "column/column.h"
+#include "column/datum.h"
+#include "column/nullable_column.h"
+#include "common/compiler_util.h"
+#include "exprs/expr.h"
+#include "exprs/function_context.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "gutil/strings/numbers.h"
+#include "runtime/descriptors.h"
+#include "runtime/stream_load/stream_load_pipe.h"
+#include "types/logical_type.h"
+#include "util/slice.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
 

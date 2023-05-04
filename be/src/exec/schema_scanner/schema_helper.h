@@ -14,14 +14,48 @@
 
 #pragma once
 
+#include <stdint.h>
+#include <string>
+
 #include "column/column.h"
 #include "column/type_traits.h"
 #include "common/status.h"
-#include "gen_cpp/FrontendService_types.h"
 #include "runtime/datetime_value.h"
 #include "types/logical_type.h"
+#include "column/nullable_column.h"
+#include "exprs/function_context.h"
+#include "gutil/casts.h"
+#include "types/date_value.h"
+#include "types/timestamp_value.h"
 
 namespace starrocks {
+class TDescribeTableParams;
+class TDescribeTableResult;
+class TGetDBPrivsParams;
+class TGetDBPrivsResult;
+class TGetDbsParams;
+class TGetDbsResult;
+class TGetLoadsParams;
+class TGetLoadsResult;
+class TGetTablePrivsParams;
+class TGetTablePrivsResult;
+class TGetTablesConfigRequest;
+class TGetTablesConfigResponse;
+class TGetTablesInfoRequest;
+class TGetTablesInfoResponse;
+class TGetTablesParams;
+class TGetTablesResult;
+class TGetTabletScheduleRequest;
+class TGetTabletScheduleResponse;
+class TGetTaskInfoResult;
+class TGetTaskRunInfoResult;
+class TGetTasksParams;
+class TGetUserPrivsParams;
+class TGetUserPrivsResult;
+class TListMaterializedViewStatusResult;
+class TListTableStatusResult;
+class TShowVariableRequest;
+class TShowVariableResult;
 
 // this class is a helper for getting schema info from FE
 class SchemaHelper {

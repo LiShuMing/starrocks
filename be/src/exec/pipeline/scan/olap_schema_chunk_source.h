@@ -14,16 +14,26 @@
 
 #pragma once
 
+#include <stdint.h>
+#include <memory>
+#include <vector>
+
 #include "column/vectorized_fwd.h"
-#include "exec/pipeline/scan/balanced_chunk_buffer.h"
 #include "exec/pipeline/scan/chunk_source.h"
 #include "exec/pipeline/scan/olap_schema_scan_context.h"
-#include "exec/pipeline/scan/scan_operator.h"
-#include "runtime/runtime_state.h"
+#include "common/status.h"
+#include "exec/pipeline/scan/morsel.h"
+#include "exec/workgroup/work_group_fwd.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks::workgroup {
+class WorkGroup;
+}  // namespace starrocks::workgroup
 
 namespace starrocks {
-class SchemaScannerParam;
 class SchemaScanner;
+class RuntimeState;
+class TupleDescriptor;
 
 namespace pipeline {
 

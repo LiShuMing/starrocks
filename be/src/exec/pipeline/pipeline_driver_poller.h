@@ -14,19 +14,24 @@
 
 #pragma once
 
+#include <stddef.h>
 #include <atomic>
 #include <condition_variable>
 #include <list>
 #include <memory>
 #include <mutex>
+#include <shared_mutex>
 
 #include "pipeline_driver.h"
-#include "pipeline_driver_queue.h"
 #include "util/thread.h"
+#include "exec/query_cache/cache_operator.h"
+#include "gutil/ref_counted.h"
 
 namespace starrocks::pipeline {
 
 class PipelineDriverPoller;
+class DriverQueue;
+
 using PipelineDriverPollerPtr = std::unique_ptr<PipelineDriverPoller>;
 
 class PipelineDriverPoller {

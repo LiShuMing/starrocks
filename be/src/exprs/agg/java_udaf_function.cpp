@@ -14,12 +14,11 @@
 
 #include "exprs/agg/java_udaf_function.h"
 
+#include <stdint.h>
 #include <memory>
 
-#include "column/vectorized_fwd.h"
 #include "common/status.h"
 #include "common/statusor.h"
-#include "fmt/core.h"
 #include "jni.h"
 #include "runtime/user_function_cache.h"
 

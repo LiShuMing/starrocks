@@ -15,7 +15,6 @@
 #pragma once
 
 #include "exec/schema_scanner.h"
-#include "gen_cpp/FrontendService_types.h"
 
 namespace starrocks {
 

@@ -14,26 +14,49 @@
 
 #pragma once
 
-#include <condition_variable>
+#include <glog/logging.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <memory>
 #include <mutex>
 #include <vector>
+#include <atomic>
+#include <ostream>
+#include <string>
+#include <utility>
 
-#include "column/chunk.h"
-#include "exec/olap_common.h"
 #include "exec/olap_scan_prepare.h"
 #include "exec/scan_node.h"
-#include "exec/tablet_scanner.h"
 #include "runtime/global_dict/parser.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "gen_cpp/InternalService_types.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "util/blocking_queue.hpp"
+#include "util/runtime_profile.h"
+#include "util/spinlock.h"
+
+namespace starrocks::pipeline {
+class OperatorFactory;
+class PipelineBuilderContext;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
 class DescriptorTbl;
-class SlotDescriptor;
 class TupleDescriptor;
-
 class Rowset;
+class ExprContext;
+class ObjectPool;
+class QueryStatistics;
+class RuntimeState;
+class Schema;
+class TabletScanner;
+
 using RowsetSharedPtr = std::shared_ptr<Rowset>;
 class Tablet;
+
 using TabletSharedPtr = std::shared_ptr<Tablet>;
 } // namespace starrocks
 

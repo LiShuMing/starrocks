@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <glog/logging.h>
 #include <any>
 #include <atomic>
 #include <cstddef>
@@ -23,30 +24,41 @@
 #include <new>
 #include <queue>
 #include <utility>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
-#include "column/chunk.h"
-#include "column/column_helper.h"
-#include "column/type_traits.h"
 #include "column/vectorized_fwd.h"
-#include "common/statusor.h"
 #include "exec/aggregate/agg_hash_variant.h"
 #include "exec/aggregate/agg_profile.h"
 #include "exec/pipeline/context_with_dependency.h"
 #include "exec/pipeline/spill_process_channel.h"
-#include "exprs/agg/aggregate_factory.h"
-#include "exprs/expr.h"
-#include "gen_cpp/QueryPlanExtra_constants.h"
-#include "gutil/strings/substitute.h"
-#include "runtime/current_thread.h"
 #include "runtime/descriptors.h"
 #include "runtime/mem_pool.h"
-#include "runtime/runtime_state.h"
 #include "runtime/types.h"
-#include "util/defer_op.h"
+#include "common/global_types.h"
+#include "common/status.h"
+#include "exec/exec_node.h"
+#include "exec/spill/spiller.h"
+#include "exprs/agg/aggregate.h"
+#include "exprs/function_context.h"
+#include "gen_cpp/Exprs_types.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "gen_cpp/Types_types.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks::pipeline {
+class Operator;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
 
 struct HashTableKeyAllocator;
+class Chunk;
+class Column;
+class ExprContext;
+class ObjectPool;
+class RuntimeState;
 
 struct RawHashTableIterator {
     RawHashTableIterator(HashTableKeyAllocator* alloc_, size_t x_, int y_) : alloc(alloc_), x(x_), y(y_) {}

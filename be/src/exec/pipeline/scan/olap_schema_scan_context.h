@@ -14,20 +14,27 @@
 
 #pragma once
 
-#include <unordered_map>
+#include <memory>
+#include <string>
+#include <vector>
 
 #include "common/object_pool.h"
-#include "exec/pipeline/scan/balanced_chunk_buffer.h"
-#include "gen_cpp/Types_types.h"
-#include "runtime/descriptors.h"
-#include "runtime/runtime_state.h"
+#include "common/global_types.h"
+#include "common/status.h"
+#include "gen_cpp/PlanNodes_types.h"
+
+namespace starrocks::pipeline {
+class BalancedChunkBuffer;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
 class SchemaScannerParam;
-class SchemaScanner;
+class ExprContext;
+class RuntimeState;
 
 namespace pipeline {
 class OlapSchemaScanContext;
+
 using OlapSchemaScanContextPtr = std::shared_ptr<OlapSchemaScanContext>;
 
 class OlapSchemaScanContext {

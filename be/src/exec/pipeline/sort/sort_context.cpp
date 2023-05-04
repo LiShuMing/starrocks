@@ -14,17 +14,27 @@
 
 #include "exec/pipeline/sort/sort_context.h"
 
+#include <glog/logging.h>
+#include <stddef.h>
 #include <algorithm>
 #include <mutex>
 #include <utility>
+#include <ostream>
 
 #include "column/vectorized_fwd.h"
 #include "exec/sorting/merge.h"
-#include "exec/sorting/sorting.h"
-#include "exprs/runtime_filter_bank.h"
 #include "runtime/chunk_cursor.h"
-#include "runtime/current_thread.h"
-#include "runtime/exec_env.h"
+#include "column/chunk.h"
+#include "exec/chunks_sorter.h"
+#include "exec/pipeline/runtime_filter_types.h"
+#include "runtime/runtime_state.h"
+
+namespace starrocks {
+class ExprContext;
+class RuntimeFilterBuildDescriptor;
+class TExpr;
+struct OrderByType;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

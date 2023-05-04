@@ -14,9 +14,14 @@
 
 #include "exec/analytic_node.h"
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <algorithm>
-#include <cmath>
 #include <memory>
+#include <utility>
+#include <vector>
 
 #include "column/chunk.h"
 #include "exec/pipeline/analysis/analytic_sink_operator.h"
@@ -27,13 +32,16 @@
 #include "exec/pipeline/limit_operator.h"
 #include "exec/pipeline/operator.h"
 #include "exec/pipeline/pipeline_builder.h"
-#include "exprs/agg/count.h"
-#include "exprs/expr.h"
-#include "gutil/strings/substitute.h"
 #include "runtime/runtime_state.h"
 #include "util/runtime_profile.h"
+#include "exec/analytor.h"
+#include "exec/pipeline/runtime_filter_types.h"
+#include "exec/pipeline/source_operator.h"
+#include "runtime/descriptors.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
+class ObjectPool;
 
 AnalyticNode::AnalyticNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& descs)
         : ExecNode(pool, tnode, descs),

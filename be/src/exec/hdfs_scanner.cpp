@@ -14,12 +14,36 @@
 
 #include "exec/hdfs_scanner.h"
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <ostream>
+#include <string_view>
+#include <type_traits>
+#include <utility>
+
 #include "column/column_helper.h"
 #include "exec/exec_node.h"
 #include "io/compressed_input_stream.h"
 #include "io/shared_buffered_input_stream.h"
 #include "util/compression/stream_compression.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "column/const_column.h"
+#include "common/config.h"
+#include "common/logging.h"
+#include "common/ownership.h"
+#include "exprs/expr.h"
+#include "exprs/expr_context.h"
+#include "gen_cpp/Exprs_types.h"
+#include "gen_cpp/Metrics_types.h"
+#include "io/cache_input_stream.h"
+#include "io/input_stream.h"
+#include "io/seekable_input_stream.h"
+#include "runtime/descriptors.h"
+#include "runtime/runtime_state.h"
+
 namespace starrocks {
+class THdfsScanRange;
 
 class CountedSeekableInputStream : public io::SeekableInputStreamWrapper {
 public:

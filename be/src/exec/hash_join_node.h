@@ -14,23 +14,34 @@
 
 #pragma once
 
-#include "column/chunk.h"
-#include "column/fixed_length_column.h"
+#include <stddef.h>
+#include <stdint.h>
+#include <list>
+#include <set>
+#include <vector>
+
 #include "column/vectorized_fwd.h"
 #include "exec/exec_node.h"
 #include "exec/join_hash_map.h"
-#include "util/phmap/phmap.h"
+#include "common/global_types.h"
+#include "common/status.h"
+#include "exec/pipeline/pipeline_fwd.h"
+#include "exprs/function_context.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks::pipeline {
+class PipelineBuilderContext;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
 
 class ObjectPool;
-class TPlanNode;
 class DescriptorTbl;
 class RuntimeState;
 class ExprContext;
-
-class ColumnRef;
 class RuntimeFilterBuildDescriptor;
+class MonotonicStopWatch;
 
 static constexpr size_t kHashJoinKeyColumnOffset = 1;
 class HashJoinNode final : public ExecNode {

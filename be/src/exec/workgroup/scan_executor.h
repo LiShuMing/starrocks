@@ -12,14 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stdint.h>
+#include <atomic>
+#include <memory>
+
 #include "util/limit_setter.h"
-#include "util/threadpool.h"
-#include "work_group.h"
+
+namespace starrocks {
+class ThreadPool;
+}  // namespace starrocks
 
 namespace starrocks::workgroup {
 
-class ScanExecutor;
-class WorkGroupManager;
 struct ScanTask;
 class ScanTaskQueue;
 

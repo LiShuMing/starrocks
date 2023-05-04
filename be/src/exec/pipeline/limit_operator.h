@@ -14,7 +14,20 @@
 
 #pragma once
 
+#include <atomic>
+#include <cstdint>
+#include <memory>
+#include <string>
+
 #include "exec/pipeline/operator.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 class LimitOperator final : public Operator {

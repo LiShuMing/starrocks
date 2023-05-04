@@ -13,15 +13,26 @@
 // limitations under the License.
 
 #pragma once
+#include <stdint.h>
 #include <memory>
+#include <vector>
 
 #include "exec/pipeline/operator.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::query_cache {
 class ConjugateOperator;
+
 using ConjugateOperatorRawPtr = ConjugateOperator*;
 using ConjugateOperatorPtr = std::shared_ptr<ConjugateOperator>;
 class ConjugateOperatorFactory;
+
 using ConjugateOperatorFactoryRawPtr = ConjugateOperatorFactory*;
 using ConjugateOperatorFactoryPtr = std::shared_ptr<ConjugateOperatorFactory>;
 

@@ -34,8 +34,14 @@
 
 #include "exec/exchange_node.h"
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <stddef.h>
+#include <ostream>
+#include <string>
+#include <utility>
+
 #include "column/chunk.h"
-#include "exec/pipeline/chunk_accumulate_operator.h"
 #include "exec/pipeline/exchange/exchange_merge_sort_source_operator.h"
 #include "exec/pipeline/exchange/exchange_source_operator.h"
 #include "exec/pipeline/limit_operator.h"
@@ -45,8 +51,18 @@
 #include "runtime/exec_env.h"
 #include "runtime/runtime_state.h"
 #include "util/runtime_profile.h"
+#include "column/column.h"
+#include "common/config.h"
+#include "exec/pipeline/operator.h"
+#include "exec/pipeline/pipeline_fwd.h"
+#include "exec/pipeline/runtime_filter_types.h"
+#include "exprs/function_context.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "runtime/query_statistics.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
+class ObjectPool;
 
 ExchangeNode::ExchangeNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& descs)
         : ExecNode(pool, tnode, descs),

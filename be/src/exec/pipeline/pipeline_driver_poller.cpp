@@ -14,7 +14,26 @@
 
 #include "pipeline_driver_poller.h"
 
+#include <emmintrin.h>
+#include <fmt/format.h>
+#include <glog/logging.h>
+#include <sched.h>
 #include <chrono>
+#include <ostream>
+#include <string>
+#include <thread>
+#include <vector>
+
+#include "common/logging.h"
+#include "common/status.h"
+#include "exec/pipeline/pipeline_driver.h"
+#include "exec/pipeline/pipeline_driver_queue.h"
+#include "exec/pipeline/query_context.h"
+#include "exec/pipeline/stream_epoch_manager.h"
+#include "util/runtime_profile.h"
+#include "util/stopwatch.hpp"
+#include "util/uid_util.h"
+
 namespace starrocks::pipeline {
 
 void PipelineDriverPoller::start() {

@@ -14,24 +14,33 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <memory>
-#include <unordered_map>
 #include <vector>
+#include <string>
+#include <unordered_set>
 
-#include "column/chunk.h"
 #include "common/status.h"
 #include "exec/olap_utils.h"
-#include "exprs/expr.h"
-#include "exprs/expr_context.h"
-#include "gen_cpp/InternalService_types.h"
-#include "runtime/runtime_state.h"
 #include "storage/conjunctive_predicates.h"
 #include "storage/tablet.h"
-#include "storage/tablet_reader.h"
+#include "common/object_pool.h"
+#include "gutil/strings/substitute.h"
+#include "storage/chunk_iterator.h"
+#include "storage/column_predicate.h"
+#include "storage/tablet_reader_params.h"
+#include "util/runtime_profile.h"
 
 namespace starrocks {
 
 class OlapScanNode;
+class Chunk;
+class ExprContext;
+class RuntimeState;
+class Schema;
+class SlotDescriptor;
+class TInternalScanRange;
+class TabletReader;
 
 struct TabletScannerParams {
     const TInternalScanRange* scan_range = nullptr;

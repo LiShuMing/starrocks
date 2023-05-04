@@ -14,17 +14,38 @@
 
 #pragma once
 
+#include <glog/logging.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <atomic>
 #include <memory>
+#include <mutex>
+#include <utility>
+#include <vector>
 
 #include "column/vectorized_fwd.h"
 #include "connector/connector.h"
 #include "exec/scan_node.h"
-#include "fs/fs.h"
+#include "common/status.h"
+#include "exec/exec_node.h"
+#include "gen_cpp/InternalService_types.h"
+#include "util/blocking_queue.hpp"
+#include "util/runtime_profile.h"
+#include "util/spinlock.h"
+
+namespace starrocks::pipeline {
+class OperatorFactory;
+class PipelineBuilderContext;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
 
 class ConnectorScanner;
+class DescriptorTbl;
+class ObjectPool;
+class RuntimeState;
+class TPlanNode;
+class TScanRange;
 
 class ConnectorScanNode final : public starrocks::ScanNode {
 public:

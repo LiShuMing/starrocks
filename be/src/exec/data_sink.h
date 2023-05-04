@@ -34,22 +34,23 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <utility>
 #include <vector>
+#include <memory>
 
-#include "column/vectorized_fwd.h"
 #include "common/status.h"
-#include "gen_cpp/DataSinks_types.h"
-#include "gen_cpp/Exprs_types.h"
-#include "runtime/query_statistics.h"
 
 namespace starrocks {
 
-class ObjectPool;
 class RuntimeProfile;
 class RuntimeState;
 class TPlanFragmentExecParams;
 class RowDescriptor;
+class Chunk;
+class QueryStatistics;
+class TDataSink;
+class TExpr;
 
 // Superclass of all data sinks.
 class DataSink {

@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
 #include <memory>
 #include <string>
 #include <vector>
@@ -22,10 +24,12 @@
 #include "common/status.h"
 #include "gutil/strings/substitute.h"
 #include "util/lru_cache.h"
-#include "util/slice.h"
+#include "column/vectorized_fwd.h"
+#include "common/statusor.h"
 
 namespace starrocks::query_cache {
 class CacheManager;
+
 using CacheManagerRawPtr = CacheManager*;
 using CacheManagerPtr = std::shared_ptr<CacheManager>;
 

@@ -14,11 +14,24 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <memory>
+#include <string>
+#include <utility>
 
 #include "exec/aggregator.h"
 #include "exec/pipeline/operator.h"
 #include "storage/chunk_helper.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/spill_process_channel.h"
+
+namespace starrocks {
+class RuntimeState;
+class SortedStreamingAggregator;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 // TODO: implements cache-relation method

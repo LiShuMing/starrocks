@@ -14,6 +14,10 @@
 
 #include "exec/pipeline/set/intersect_output_source_operator.h"
 
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
+
 namespace starrocks::pipeline {
 
 StatusOr<ChunkPtr> IntersectOutputSourceOperator::pull_chunk(RuntimeState* state) {

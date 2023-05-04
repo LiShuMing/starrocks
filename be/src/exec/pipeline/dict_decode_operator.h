@@ -14,11 +14,26 @@
 
 #pragma once
 
+#include <stdint.h>
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "common/global_types.h"
-#include "exec/olap_common.h"
 #include "exec/pipeline/operator.h"
 #include "runtime/global_dict/decoder.h"
 #include "runtime/global_dict/parser.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+
+namespace starrocks {
+class ExprContext;
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

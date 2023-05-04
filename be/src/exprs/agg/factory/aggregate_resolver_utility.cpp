@@ -12,13 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
+#include <string>
+#include <vector>
+
 #include "exprs/agg/aggregate.h"
-#include "exprs/agg/aggregate_factory.h"
 #include "exprs/agg/exchange_perf.h"
 #include "exprs/agg/factory/aggregate_factory.hpp"
 #include "exprs/agg/factory/aggregate_resolver.hpp"
 #include "types/logical_type.h"
 #include "types/logical_type_infra.h"
+#include "types/date_value.h"
+#include "types/timestamp_value.h"
+#include "util/slice.h"
+#include "types/date_value.h"
+#include "types/timestamp_value.h"
+#include "util/slice.h"
 
 namespace starrocks {
 

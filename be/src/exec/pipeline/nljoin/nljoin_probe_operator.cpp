@@ -14,14 +14,29 @@
 
 #include "exec/pipeline/nljoin/nljoin_probe_operator.h"
 
+#include <fmt/format.h>
+#include <glog/logging.h>
+#include <algorithm>
+#include <cstdint>
+#include <ostream>
+
 #include "column/chunk.h"
 #include "column/column_helper.h"
 #include "column/vectorized_fwd.h"
 #include "gen_cpp/PlanNodes_types.h"
-#include "runtime/current_thread.h"
 #include "runtime/descriptors.h"
 #include "simd/simd.h"
 #include "storage/chunk_helper.h"
+#include "column/column.h"
+#include "exec/pipeline/nljoin/nljoin_context.h"
+#include "exprs/expr.h"
+#include "exprs/function_context.h"
+#include "gen_cpp/Metrics_types.h"
+#include "runtime/runtime_state.h"
+
+namespace starrocks {
+class ExprContext;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

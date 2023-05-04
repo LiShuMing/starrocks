@@ -14,8 +14,18 @@
 
 #pragma once
 
+#include <stdint.h>
+#include <utility>
+
 #include "exec/pipeline/operator.h"
 #include "exec/pipeline/sort/local_partition_topn_context.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

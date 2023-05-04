@@ -17,13 +17,14 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <cstdio>
+#include <string>
 
 #include "exec/file_writer.h"
+#include "common/status.h"
 
 namespace starrocks {
-
-class RuntimeState;
 
 class LocalFileWriter : public FileWriter {
 public:

@@ -14,15 +14,25 @@
 
 #include "exec/pipeline/scan/morsel.h"
 
+#include <stdint.h>
+#include <sys/types.h>
+#include <algorithm>
+#include <iterator>
+
 #include "exec/olap_utils.h"
 #include "storage/chunk_helper.h"
 #include "storage/range.h"
 #include "storage/rowset/rowid_range_option.h"
 #include "storage/rowset/rowset.h"
 #include "storage/rowset/short_key_range_option.h"
-#include "storage/storage_engine.h"
 #include "storage/tablet_reader.h"
 #include "storage/tablet_reader_params.h"
+#include "column/schema.h"
+#include "storage/rowset/rowset_meta.h"
+#include "storage/rowset/segment.h"
+#include "storage/seek_tuple.h"
+#include "storage/short_key_index.h"
+#include "util/slice.h"
 
 namespace starrocks::pipeline {
 

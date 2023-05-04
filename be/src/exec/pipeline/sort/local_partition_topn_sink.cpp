@@ -14,7 +14,14 @@
 
 #include "exec/pipeline/sort/local_partition_topn_sink.h"
 
-#include <utility>
+#include <memory>
+#include <string>
+
+#include "exec/exec_node.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

@@ -14,23 +14,38 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
 #include <memory>
-#include <unordered_map>
+#include <atomic>
+#include <string>
+#include <utility>
+#include <vector>
 
-#include "exec/pipeline/exec_state_reporter.h"
 #include "exec/pipeline/pipeline_driver.h"
 #include "exec/pipeline/pipeline_driver_poller.h"
-#include "exec/pipeline/pipeline_driver_queue.h"
-#include "exec/pipeline/pipeline_fwd.h"
-#include "exec/pipeline/query_context.h"
-#include "runtime/runtime_state.h"
 #include "util/factory_method.h"
 #include "util/limit_setter.h"
-#include "util/threadpool.h"
+#include "common/status.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/stream_epoch_manager.h"
+#include "exec/query_cache/cache_operator.h"
+#include "util/metrics.h"
+
+namespace starrocks {
+class ExecEnv;
+class RuntimeProfile;
+class RuntimeState;
+class ThreadPool;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 
 class DriverExecutor;
+class DriverQueue;
+class ExecStateReporter;
+class QueryContext;
+
 using DriverExecutorPtr = std::shared_ptr<DriverExecutor>;
 
 class DriverExecutor {

@@ -14,6 +14,12 @@
 
 #include "exec/meta_scan_node.h"
 
+#include "exec/exec_node.h"
+#include "gen_cpp/InternalService_types.h"
+#include "gen_cpp/Metrics_types.h"
+#include "runtime/runtime_state.h"
+#include "util/stopwatch.hpp"
+
 namespace starrocks {
 
 MetaScanNode::MetaScanNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& descs)

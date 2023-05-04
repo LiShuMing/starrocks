@@ -14,8 +14,17 @@
 
 #include "exec/pipeline/set/union_passthrough_operator.h"
 
+#include <glog/logging.h>
+#include <utility>
+
 #include "column/column_helper.h"
-#include "column/nullable_column.h"
+#include "column/chunk.h"
+#include "exprs/function_context.h"
+#include "runtime/descriptors.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

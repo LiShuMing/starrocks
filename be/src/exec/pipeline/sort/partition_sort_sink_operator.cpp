@@ -14,7 +14,11 @@
 
 #include "exec/pipeline/sort/partition_sort_sink_operator.h"
 
+#include <glog/logging.h>
+#include <stddef.h>
 #include <memory>
+#include <list>
+#include <ostream>
 
 #include "exec/chunks_sorter.h"
 #include "exec/chunks_sorter_full_sort.h"
@@ -23,15 +27,11 @@
 #include "exec/pipeline/runtime_filter_types.h"
 #include "exprs/expr.h"
 #include "exprs/runtime_filter_bank.h"
-#include "gen_cpp/Exprs_types.h"
-#include "gen_cpp/Types_types.h"
-#include "gutil/casts.h"
 #include "runtime/current_thread.h"
-#include "runtime/exec_env.h"
 #include "runtime/runtime_filter_worker.h"
 #include "runtime/runtime_state.h"
-#include "storage/chunk_helper.h"
-#include "types/logical_type.h"
+#include "exec/sort_exec_exprs.h"
+#include "exprs/runtime_filter.h"
 
 using namespace starrocks;
 

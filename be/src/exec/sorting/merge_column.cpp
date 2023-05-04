@@ -12,14 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <ext/alloc_traits.h>
+#include <fmt/format.h>
+#include <glog/logging.h>
+#include <stddef.h>
 #include <utility>
+#include <algorithm>
+#include <cstdint>
+#include <deque>
+#include <memory>
+#include <string>
+#include <vector>
 
 #include "column/chunk.h"
-#include "column/column_helper.h"
 #include "column/column_visitor_adapter.h"
-#include "column/const_column.h"
-#include "column/datum.h"
-#include "column/json_column.h"
 #include "column/nullable_column.h"
 #include "column/vectorized_fwd.h"
 #include "exec/sorting/merge.h"
@@ -27,8 +33,20 @@
 #include "exec/sorting/sort_permute.h"
 #include "exec/sorting/sorting.h"
 #include "runtime/chunk_cursor.h"
+#include "column/binary_column.h"
+#include "column/column.h"
+#include "column/fixed_length_column.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exprs/expr_context.h"
+#include "exprs/function_context.h"
+#include "gutil/casts.h"
+#include "types/date_value.h"
+#include "types/timestamp_value.h"
+#include "util/slice.h"
 
 namespace starrocks {
+class Expr;
 
 struct EqualRange {
     using Range = std::pair<uint32_t, uint32_t>;

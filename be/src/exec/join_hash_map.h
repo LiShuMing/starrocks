@@ -19,14 +19,35 @@
 #include <gen_cpp/PlanNodes_types.h>
 #include <runtime/descriptors.h>
 #include <runtime/runtime_state.h>
-
+#include <crc32intrin.h>
+#include <glog/logging.h>
 #include <cstdint>
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <utility>
+#include <vector>
 
 #include "column/chunk.h"
 #include "column/column_hash.h"
 #include "column/column_helper.h"
 #include "column/vectorized_fwd.h"
 #include "util/phmap/phmap.h"
+#include "column/column.h"
+#include "column/nullable_column.h"
+#include "column/type_traits.h"
+#include "common/global_types.h"
+#include "common/status.h"
+#include "exprs/function_context.h"
+#include "runtime/mem_pool.h"
+#include "types/logical_type.h"
+#include "util/runtime_profile.h"
+#include "util/slice.h"
+#include "util/stopwatch.hpp"
+
+namespace starrocks {
+struct TypeDescriptor;
+}  // namespace starrocks
 
 #if defined(__aarch64__)
 #include "arm_acle.h"

@@ -15,8 +15,16 @@
 #include "exec/query_cache/multilane_operator.h"
 
 #include <glog/logging.h>
+#include <algorithm>
+#include <optional>
+#include <type_traits>
 
-#include "util/defer_op.h"
+#include "column/chunk.h"
+#include "exec/query_cache/owner_info.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::query_cache {
 MultilaneOperator::MultilaneOperator(pipeline::OperatorFactory* factory, int32_t driver_sequence, size_t num_lanes,

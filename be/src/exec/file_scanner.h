@@ -14,9 +14,15 @@
 
 #pragma once
 
+#include <stdint.h>
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "common/statusor.h"
-#include "exprs/expr.h"
-#include "util/runtime_profile.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "gen_cpp/types.pb.h"
 
 namespace starrocks {
 class SequentialFile;
@@ -24,6 +30,15 @@ class RandomAccessFile;
 } // namespace starrocks
 
 namespace starrocks {
+class ExprContext;
+class RowDescriptor;
+class RuntimeProfile;
+class RuntimeState;
+class SlotDescriptor;
+class TBrokerRangeDesc;
+class TBrokerScanRangeParams;
+class TNetworkAddress;
+class TupleDescriptor;
 
 struct ScannerCounter {
     int64_t num_rows_filtered = 0;

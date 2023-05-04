@@ -14,11 +14,21 @@
 
 #include "exec/intersect_hash_set.h"
 
-#include "exec/aggregate/agg_hash_set.h"
-#include "exec/exec_node.h"
+#include <string.h>
+
 #include "util/phmap/phmap_dump.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "common/compiler_util.h"
+#include "exprs/expr_context.h"
+#include "exprs/function_context.h"
+#include "runtime/mem_tracker.h"
+#include "runtime/runtime_state.h"
+#include "util/phmap/phmap_base.h"
 
 namespace starrocks {
+class Expr;
+
 template <typename HashSet>
 Status IntersectHashSet<HashSet>::init(RuntimeState* state) {
     _hash_set = std::make_unique<HashSet>();

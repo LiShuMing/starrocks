@@ -15,12 +15,22 @@
 #pragma once
 
 #include "exec/aggregate/aggregate_base_node.h"
-#include "exec/exec_node.h"
 #include "exec/pipeline/operator.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+
+namespace starrocks::pipeline {
+class PipelineBuilderContext;
+}  // namespace starrocks::pipeline
 
 // Aggregate means this node handle query with aggregate functions.
 // Blocking means this node will consume all input and build hash map in open phase.
 namespace starrocks {
+class DescriptorTbl;
+class ObjectPool;
+class RuntimeState;
+class TPlanNode;
+
 class AggregateBlockingNode final : public AggregateBaseNode {
 public:
     AggregateBlockingNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& descs)

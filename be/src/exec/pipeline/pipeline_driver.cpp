@@ -14,22 +14,39 @@
 
 #include "exec/pipeline/pipeline_driver.h"
 
+#include <sys/types.h>
 #include <sstream>
+#include <map>
+#include <set>
+#include <utility>
 
 #include "column/chunk.h"
 #include "common/statusor.h"
-#include "exec/pipeline/pipeline_driver_executor.h"
-#include "exec/pipeline/scan/olap_scan_operator.h"
 #include "exec/pipeline/source_operator.h"
 #include "exec/query_cache/cache_operator.h"
 #include "exec/query_cache/lane_arbiter.h"
 #include "exec/query_cache/multilane_operator.h"
 #include "exec/query_cache/ticket_checker.h"
 #include "exec/workgroup/work_group.h"
-#include "runtime/exec_env.h"
 #include "runtime/runtime_state.h"
 #include "util/debug/query_trace.h"
 #include "util/defer_op.h"
+#include "column/vectorized_fwd.h"
+#include "common/logging.h"
+#include "common/object_pool.h"
+#include "exec/pipeline/pipeline.h"
+#include "exec/pipeline/pipeline_driver_queue.h"
+#include "exec/pipeline/query_context.h"
+#include "exec/pipeline/runtime_filter_types.h"
+#include "exec/pipeline/scan/morsel.h"
+#include "exec/query_cache/owner_info.h"
+#include "exec/spill/query_spill_manager.h"
+#include "exprs/runtime_filter_bank.h"
+#include "gen_cpp/Metrics_types.h"
+#include "gen_cpp/RuntimeProfile_types.h"
+#include "runtime/current_thread.h"
+#include "runtime/mem_tracker.h"
+#include "util/uid_util.h"
 
 namespace starrocks::pipeline {
 

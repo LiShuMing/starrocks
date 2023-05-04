@@ -16,11 +16,22 @@
 
 #include <column/chunk.h>
 #include <runtime/descriptors.h>
+#include <assert.h>
+#include <ext/alloc_traits.h>
+#include <stddef.h>
+#include <algorithm>
+#include <ostream>
 
 #include "column/vectorized_fwd.h"
-#include "exec/hash_join_node.h"
 #include "serde/column_array_serde.h"
-#include "simd/simd.h"
+#include "column/fixed_length_column.h"
+#include "column/fixed_length_column_base.h"
+#include "common/statusor.h"
+#include "exec/join_hash_map.tpp"
+#include "exprs/column_ref.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "runtime/runtime_state.h"
+#include "runtime/types.h"
 
 namespace starrocks {
 

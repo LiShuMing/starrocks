@@ -14,14 +14,35 @@
 
 #include "exec/pipeline/stream_pipeline_driver.h"
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <cstdint>
+#include <memory>
+#include <new>
+#include <ostream>
+#include <string>
+#include <vector>
+
 #include "common/statusor.h"
 #include "exec/pipeline/pipeline_driver.h"
-#include "exec/pipeline/pipeline_driver_executor.h"
-#include "exec/pipeline/pipeline_fwd.h"
-#include "exec/pipeline/runtime_filter_types.h"
-#include "exec/pipeline/scan/morsel.h"
 #include "exec/workgroup/work_group.h"
 #include "exec/workgroup/work_group_fwd.h"
+#include "column/chunk.h"
+#include "column/vectorized_fwd.h"
+#include "common/compiler_util.h"
+#include "common/logging.h"
+#include "exec/pipeline/pipeline.h"
+#include "exec/pipeline/pipeline_driver_queue.h"
+#include "exec/pipeline/source_operator.h"
+#include "gutil/strings/substitute.h"
+#include "runtime/mem_tracker.h"
+#include "runtime/runtime_state.h"
+#include "util/debug/query_trace.h"
+#include "util/defer_op.h"
+#include "util/phmap/phmap.h"
+#include "util/runtime_profile.h"
+#include "util/stopwatch.hpp"
+#include "util/uid_util.h"
 
 namespace starrocks::pipeline {
 

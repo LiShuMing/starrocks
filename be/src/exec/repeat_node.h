@@ -14,16 +14,40 @@
 
 #pragma once
 
-#include "column/column_helper.h"
+#include <cstdint>
+#include <memory>
+#include <set>
+#include <vector>
+
 #include "exec/exec_node.h"
+#include "column/column.h"
+#include "column/const_column.h"
+#include "column/datum.h"
+#include "column/fixed_length_column.h"
+#include "column/nullable_column.h"
+#include "column/type_traits.h"
+#include "column/vectorized_fwd.h"
+#include "common/global_types.h"
+#include "common/status.h"
+#include "exprs/function_context.h"
+#include "types/logical_type.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks::pipeline {
+class OperatorFactory;
+class PipelineBuilderContext;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
 class DescriptorTbl;
-class SlotDescriptor;
 class TupleDescriptor;
 } // namespace starrocks
 
 namespace starrocks {
+class ObjectPool;
+class RuntimeState;
+class TPlanNode;
+
 class RepeatNode final : public ExecNode {
 public:
     RepeatNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& descs);

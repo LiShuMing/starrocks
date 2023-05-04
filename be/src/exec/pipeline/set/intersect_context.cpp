@@ -14,7 +14,18 @@
 
 #include "exec/pipeline/set/intersect_context.h"
 
+#include <ext/alloc_traits.h>
+#include <type_traits>
+
 #include "runtime/current_thread.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "column/column_helper.h"
+#include "exprs/expr.h"
+#include "exprs/expr_context.h"
+#include "runtime/descriptors.h"
+#include "runtime/runtime_state.h"
+#include "util/phmap/phmap_base.h"
 
 namespace starrocks::pipeline {
 

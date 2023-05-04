@@ -14,14 +14,9 @@
 
 #pragma once
 
-#include <atomic>
 #include <memory>
 #include <mutex>
-
-#include "exec/sort_exec_exprs.h"
-#include "exec/sorting/sorting.h"
-#include "exprs/expr_context.h"
-#include "runtime/runtime_state.h"
+#include <vector>
 
 namespace starrocks {
 namespace spill {

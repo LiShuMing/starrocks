@@ -14,6 +14,7 @@
 
 #include "exec/sorted_streaming_aggregator.h"
 
+#include <ext/alloc_traits.h>
 #include <cstdint>
 #include <memory>
 #include <utility>
@@ -22,13 +23,32 @@
 #include "column/column_visitor_adapter.h"
 #include "column/nullable_column.h"
 #include "column/vectorized_fwd.h"
-#include "common/object_pool.h"
-#include "exec/aggregate/agg_hash_map.h"
-#include "exprs/expr_context.h"
 #include "glog/logging.h"
 #include "runtime/mem_pool.h"
+#include "column/binary_column.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "column/fixed_length_column.h"
+#include "exec/aggregate/agg_profile.h"
+#include "exec/exec_node.h"
+#include "exprs/function_context.h"
+#include "gutil/casts.h"
+#include "runtime/current_thread.h"
+#include "runtime/runtime_state.h"
+#include "types/date_value.h"
+#include "types/timestamp_value.h"
+#include "util/runtime_profile.h"
+#include "util/slice.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
+class ArrayColumn;
+class ConstColumn;
+class MapColumn;
+class ObjectPool;
+class StructColumn;
+template <typename T> class FixedLengthColumnBase;
+template <typename T> class ObjectColumn;
 
 using NullMasks = NullColumn::Container;
 

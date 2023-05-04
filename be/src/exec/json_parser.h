@@ -14,10 +14,24 @@
 
 #pragma once
 
+#include <simdjson/generic/ondemand/array.h>
+#include <simdjson/generic/ondemand/array_iterator.h>
+#include <simdjson/generic/ondemand/document.h>
+#include <simdjson/generic/ondemand/document_stream-inl.h>
+#include <simdjson/generic/ondemand/document_stream.h>
+#include <simdjson/generic/ondemand/object.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <utility>
+#include <string>
+#include <vector>
 
 #include "exprs/json_functions.h"
-#include "simdjson.h"
+#include "common/status.h"
+
+namespace simdjson::fallback::ondemand {
+class parser;
+}  // namespace simdjson::fallback::ondemand
 
 namespace starrocks {
 

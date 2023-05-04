@@ -14,31 +14,43 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
 #include <unordered_map>
+#include <atomic>
+#include <functional>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <utility>
+#include <vector>
 
-#include "exec/exec_node.h"
 #include "exec/pipeline/adaptive/adaptive_dop_param.h"
 #include "exec/pipeline/driver_limiter.h"
 #include "exec/pipeline/pipeline.h"
-#include "exec/pipeline/pipeline_driver.h"
 #include "exec/pipeline/pipeline_fwd.h"
 #include "exec/pipeline/runtime_filter_types.h"
 #include "exec/pipeline/scan/morsel.h"
 #include "exec/query_cache/cache_param.h"
-#include "gen_cpp/FrontendService.h"
-#include "gen_cpp/HeartbeatService.h"
-#include "gen_cpp/InternalService_types.h"
 #include "gen_cpp/PlanNodes_types.h"
-#include "gen_cpp/QueryPlanExtra_types.h"
 #include "gen_cpp/Types_types.h"
-#include "runtime/profile_report_worker.h"
 #include "runtime/runtime_filter_worker.h"
 #include "runtime/runtime_state.h"
 #include "util/hash_util.hpp"
+#include "common/status.h"
+#include "exec/pipeline/stream_epoch_manager.h"
+#include "exec/workgroup/work_group_fwd.h"
+
+namespace starrocks::pipeline {
+class FragmentContextManager;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
 
 class StreamLoadContext;
+class DataSink;
+class ExecNode;
+class TScanRangeParams;
 
 namespace pipeline {
 

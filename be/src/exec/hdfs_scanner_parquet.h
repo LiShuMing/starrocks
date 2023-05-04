@@ -14,9 +14,18 @@
 
 #pragma once
 
+#include <memory>
+
 #include "exec/hdfs_scanner.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+
+namespace starrocks::parquet {
+class FileReader;
+}  // namespace starrocks::parquet
 
 namespace starrocks {
+class RuntimeState;
 
 class HdfsParquetScanner final : public HdfsScanner {
 public:

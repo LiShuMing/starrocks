@@ -14,6 +14,15 @@
 
 #include "hash_partition_sink_operator.h"
 
+#include <memory>
+#include <utility>
+
+#include "gen_cpp/Metrics_types.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
+
 namespace starrocks::pipeline {
 
 Status HashPartitionSinkOperator::prepare(RuntimeState* state) {

@@ -14,39 +14,51 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
 #include <memory>
 #include <utility>
+#include <atomic>
+#include <functional>
+#include <list>
+#include <set>
+#include <vector>
 
 #include "column/chunk.h"
-#include "column/fixed_length_column.h"
 #include "column/vectorized_fwd.h"
 #include "common/statusor.h"
-#include "exec/exec_node.h"
 #include "exec/hash_join_components.h"
-#include "exec/hash_join_node.h"
 #include "exec/join_hash_map.h"
 #include "exec/pipeline/context_with_dependency.h"
 #include "exec/pipeline/runtime_filter_types.h"
 #include "exec/pipeline/spill_process_channel.h"
-#include "exec/spill/spiller.h"
-#include "exprs/in_const_predicate.hpp"
-#include "util/phmap/phmap.h"
 #include "util/runtime_profile.h"
+#include "column/column.h"
+#include "column/column_helper.h"
+#include "column/const_column.h"
+#include "common/global_types.h"
+#include "common/status.h"
+#include "exec/spill/options.h"
+#include "exprs/expr.h"
+#include "exprs/expr_context.h"
+#include "exprs/function_context.h"
+#include "gen_cpp/InternalService_types.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "gen_cpp/Types_types.h"
+#include "runtime/descriptors.h"
+#include "runtime/runtime_state.h"
+#include "util/stopwatch.hpp"
+
+namespace starrocks::spill {
+class Spiller;
+}  // namespace starrocks::spill
 
 namespace starrocks {
 
 class ObjectPool;
-class TPlanNode;
-class DescriptorTbl;
-class RuntimeState;
-class ExprContext;
-class HashJoinProber;
-class HashJoinBuilder;
-
-class ColumnRef;
 class RuntimeFilterBuildDescriptor;
-
 class HashJoiner;
+
 using HashJoinerPtr = std::shared_ptr<HashJoiner>;
 
 // HashJoiner works in four consecutive phases, each phase has its own allowed operations.

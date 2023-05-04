@@ -14,11 +14,30 @@
 
 #include "exec/iceberg/iceberg_delete_builder.h"
 
+#include <stddef.h>
+#include <stdint.h>
+#include <exception>
+#include <memory>
+#include <ostream>
+
 #include "column/vectorized_fwd.h"
 #include "formats/orc/orc_chunk_reader.h"
 #include "formats/orc/orc_input_stream.h"
 #include "gen_cpp/Types_types.h"
 #include "runtime/descriptors.h"
+#include "column/binary_column.h"
+#include "column/chunk.h"
+#include "column/fixed_length_column.h"
+#include "column/fixed_length_column_base.h"
+#include "common/statusor.h"
+#include "exprs/function_context.h"
+#include "fs/fs.h"
+#include "gen_cpp/Descriptors_types.h"
+#include "gutil/int128.h"
+#include "orc/OrcFile.hh"
+#include "orc/Reader.hh"
+#include "util/phmap/phmap.h"
+#include "util/slice.h"
 
 namespace starrocks {
 

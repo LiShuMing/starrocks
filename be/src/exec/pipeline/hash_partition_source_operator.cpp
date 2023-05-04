@@ -14,6 +14,12 @@
 
 #include "hash_partition_source_operator.h"
 
+#include <utility>
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
+
 namespace starrocks::pipeline {
 
 bool HashPartitionSourceOperator::has_output() const {

@@ -19,8 +19,10 @@
 #include "exprs/expr.h"
 #include "exprs/expr_context.h"
 #include "types/logical_type.h"
+#include "exec/partition/partition_hash_variant.h"
 
 namespace starrocks {
+class RuntimeState;
 
 ChunksPartitioner::ChunksPartitioner(const bool has_nullable_partition_column,
                                      const std::vector<ExprContext*>& partition_exprs,

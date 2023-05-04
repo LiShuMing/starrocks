@@ -14,8 +14,13 @@
 
 #include "exec/tablet_scanner.h"
 
+#include <glog/logging.h>
+#include <stdlib.h>
 #include <memory>
 #include <utility>
+#include <algorithm>
+#include <cstdint>
+#include <new>
 
 #include "column/column_pool.h"
 #include "column/vectorized_fwd.h"
@@ -28,6 +33,31 @@
 #include "storage/storage_engine.h"
 #include "storage/tablet_manager.h"
 #include "util/starrocks_metrics.h"
+#include "column/binary_column.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "column/schema.h"
+#include "common/config.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "exec/olap_scan_prepare.h"
+#include "exprs/expr.h"
+#include "gen_cpp/InternalService_types.h"
+#include "gen_cpp/Metrics_types.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "gen_cpp/Types_types.h"
+#include "runtime/current_thread.h"
+#include "runtime/descriptors.h"
+#include "runtime/global_dict/types_fwd_decl.h"
+#include "runtime/runtime_state.h"
+#include "service/backend_options.h"
+#include "storage/olap_common.h"
+#include "storage/tablet_reader.h"
+#include "storage/tablet_schema.h"
+#include "storage/tuple.h"
+#include "util/metrics.h"
+#include "util/phmap/phmap.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
 

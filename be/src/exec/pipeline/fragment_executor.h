@@ -14,22 +14,28 @@
 
 #pragma once
 
+#include <glog/logging.h>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <vector>
+
 #include "common/status.h"
-#include "exec/pipeline/pipeline.h"
 #include "exec/pipeline/pipeline_fwd.h"
 #include "exec/workgroup/work_group_fwd.h"
 #include "gen_cpp/InternalService_types.h"
 #include "gutil/macros.h"
+#include "gen_cpp/Planner_types.h"
+#include "gen_cpp/Types_types.h"
 
 namespace starrocks {
 class DataSink;
 class ExecEnv;
-class RuntimeProfile;
-class TPlanFragmentExecParams;
 class RuntimeState;
+class TDataSink;
+class TExpr;
 
 namespace pipeline {
-class FragmentContext;
 class PipelineBuilderContext;
 class QueryContext;
 

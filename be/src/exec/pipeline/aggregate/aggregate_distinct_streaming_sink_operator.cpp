@@ -14,10 +14,16 @@
 
 #include "aggregate_distinct_streaming_sink_operator.h"
 
-#include <variant>
-
 #include "runtime/current_thread.h"
 #include "simd/simd.h"
+#include "column/chunk.h"
+#include "exec/aggregate/agg_hash_variant.h"
+#include "gen_cpp/Metrics_types.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "runtime/runtime_state.h"
+#include "util/runtime_profile.h"
+#include "util/stopwatch.hpp"
+
 namespace starrocks::pipeline {
 
 Status AggregateDistinctStreamingSinkOperator::prepare(RuntimeState* state) {

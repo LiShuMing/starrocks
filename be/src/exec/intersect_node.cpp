@@ -14,7 +14,10 @@
 
 #include "exec/intersect_node.h"
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
 #include <memory>
+#include <utility>
 
 #include "column/column_helper.h"
 #include "exec/pipeline/limit_operator.h"
@@ -26,8 +29,20 @@
 #include "exprs/expr.h"
 #include "runtime/current_thread.h"
 #include "runtime/runtime_state.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "exec/pipeline/operator.h"
+#include "exec/pipeline/runtime_filter_types.h"
+#include "exprs/expr_context.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "runtime/descriptors.h"
+#include "runtime/mem_tracker.h"
+#include "util/phmap/phmap.h"
+#include "util/phmap/phmap_base.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
+class ObjectPool;
 
 IntersectNode::IntersectNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& descs)
         : ExecNode(pool, tnode, descs), _tuple_id(tnode.intersect_node.tuple_id), _tuple_desc(nullptr) {}

@@ -15,10 +15,26 @@
 #include "exec/pipeline/sort/local_partition_topn_context.h"
 
 #include <exec/partition/chunks_partitioner.h>
-
+#include <ext/alloc_traits.h>
+#include <fmt/format.h>
+#include <stddef.h>
 #include <utility>
+#include <new>
+#include <stdexcept>
 
 #include "exec/chunks_sorter_topn.h"
+#include "exprs/expr.h"
+#include "exprs/expr_context.h"
+#include "gen_cpp/Exprs_types.h"
+#include "runtime/runtime_state.h"
+#include "runtime/types.h"
+#include "types/date_value.h"
+#include "types/timestamp_value.h"
+#include "util/phmap/phmap.h"
+
+namespace starrocks {
+struct OrderByType;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

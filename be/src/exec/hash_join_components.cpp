@@ -14,10 +14,20 @@
 
 #include "exec/hash_join_components.h"
 
+#include <glog/logging.h>
+#include <utility>
+
 #include "column/vectorized_fwd.h"
 #include "exec/hash_joiner.h"
+#include "column/chunk.h"
+#include "common/compiler_util.h"
+#include "gutil/strings/substitute.h"
+#include "runtime/current_thread.h"
+#include "util/runtime_profile.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
+class RuntimeState;
 
 void HashJoinProber::push_probe_chunk(RuntimeState* state, ChunkPtr&& chunk) {
     DCHECK(!_probe_chunk);

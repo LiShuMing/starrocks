@@ -14,8 +14,19 @@
 
 #include "exec/pipeline/query_context.h"
 
+#include <Thrift.h>
+#include <ext/alloc_traits.h>
+#include <protocol/TDebugProtocol.h>
+#include <transport/TTransportException.h>
 #include <memory>
 #include <vector>
+#include <algorithm>
+#include <cstdint>
+#include <limits>
+#include <optional>
+#include <ostream>
+#include <string>
+#include <utility>
 
 #include "agent/master_info.h"
 #include "exec/pipeline/fragment_context.h"
@@ -24,11 +35,35 @@
 #include "exec/workgroup/work_group.h"
 #include "runtime/client_cache.h"
 #include "runtime/current_thread.h"
-#include "runtime/data_stream_mgr.h"
 #include "runtime/exec_env.h"
 #include "runtime/query_statistics.h"
 #include "runtime/runtime_filter_cache.h"
 #include "util/thread.h"
+#include "common/logging.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "gen_cpp/FrontendService.h"
+#include "gen_cpp/FrontendService_types.h"
+#include "gen_cpp/Metrics_types.h"
+#include "gen_cpp/RuntimeProfile_types.h"
+#include "gen_cpp/internal_service.pb.h"
+#include "gen_cpp/types.pb.h"
+#include "gutil/int128.h"
+#include "runtime/profile_report_worker.h"
+#include "runtime/runtime_filter_worker.h"
+#include "runtime/runtime_state.h"
+#include "util/debug/query_trace_impl.h"
+#include "util/hash_util.hpp"
+#include "util/runtime_profile.h"
+#include "util/starrocks_metrics.h"
+#include "util/uid_util.h"
+
+namespace apache::thrift {
+class TProcessor;
+}  // namespace apache::thrift
+namespace starrocks {
+class TStatus;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

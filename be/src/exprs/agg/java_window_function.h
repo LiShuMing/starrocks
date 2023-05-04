@@ -15,10 +15,12 @@
 #pragma once
 
 #include <fmt/format.h>
-
+#include <stdint.h>
 #include <cstring>
 #include <limits>
 #include <vector>
+#include <memory>
+#include <string>
 
 #include "common/compiler_util.h"
 #include "exprs/agg/java_udaf_function.h"
@@ -26,6 +28,10 @@
 #include "types/logical_type.h"
 #include "udf/java/java_data_converter.h"
 #include "udf/java/java_udf.h"
+#include "column/column.h"
+#include "column/vectorized_fwd.h"
+#include "exprs/agg/aggregate.h"
+#include "exprs/function_context.h"
 
 namespace starrocks {
 void assign_jvalue(MethodTypeDescriptor method_type_desc, Column* col, int row_num, jvalue val);

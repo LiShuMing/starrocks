@@ -14,17 +14,25 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
 #include <utility>
+#include <memory>
+#include <string>
+#include <vector>
 
-#include "exec/pipeline/fragment_context.h"
 #include "exec/pipeline/operator.h"
-#include "gen_cpp/InternalService_types.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/data_sink.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/stream_epoch_manager.h"
+#include "exec/tablet_sink.h"
+#include "gutil/casts.h"
 
 namespace starrocks {
-
-namespace stream_load {
-class OlapTableSink;
-}
+class RuntimeState;
 
 namespace pipeline {
 class OlapTableSinkOperator final : public Operator {

@@ -14,12 +14,24 @@
 
 #pragma once
 
+#include <stddef.h>
 #include <mutex>
 #include <queue>
 #include <utility>
+#include <cstdint>
+#include <memory>
+#include <vector>
 
 #include "exec/pipeline/exchange/local_exchange_memory_manager.h"
 #include "exec/pipeline/source_operator.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/pipeline/operator.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 class LocalExchangeSourceOperator final : public SourceOperator {

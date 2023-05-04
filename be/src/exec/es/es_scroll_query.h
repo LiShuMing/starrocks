@@ -19,10 +19,10 @@
 
 #include <string>
 #include <vector>
-
-#include "exec/es/es_predicate.h"
+#include <map>
 
 namespace starrocks {
+class EsPredicate;
 
 class ESScrollQueryBuilder {
 public:

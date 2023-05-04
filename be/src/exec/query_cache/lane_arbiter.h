@@ -14,15 +14,17 @@
 
 #pragma once
 #include <gutil/macros.h>
-
+#include <stddef.h>
+#include <stdint.h>
 #include <atomic>
 #include <memory>
 #include <optional>
-#include <unordered_map>
 #include <unordered_set>
 #include <vector>
+
 namespace starrocks::query_cache {
 class LaneArbiter;
+
 using LaneArbiterRawPtr = LaneArbiter*;
 using LaneArbiterPtr = std::shared_ptr<LaneArbiter>;
 using LaneOwnerType = int64_t;

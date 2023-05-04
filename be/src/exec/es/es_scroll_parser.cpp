@@ -15,15 +15,32 @@
 #include "exec/es/es_scroll_parser.h"
 
 #include <fmt/format.h>
+#include <glog/logging.h>
+#include <rapidjson/allocators.h>
+#include <algorithm>
+#include <cstdint>
+#include <memory>
+#include <ostream>
+#include <utility>
+#include <vector>
 
 #include "column/array_column.h"
 #include "column/column_helper.h"
 #include "column/nullable_column.h"
-#include "common/config.h"
 #include "runtime/runtime_state.h"
 #include "types/logical_type.h"
 #include "types/timestamp_value.h"
 #include "util/timezone_utils.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "column/fixed_length_column.h"
+#include "exprs/function_context.h"
+#include "gutil/casts.h"
+#include "runtime/descriptors.h"
+#include "runtime/types.h"
+#include "types/date_value.h"
+#include "types/date_value.hpp"
+#include "util/string_parser.hpp"
 
 namespace starrocks {
 

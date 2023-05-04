@@ -14,8 +14,7 @@
 
 #include "exec/hash_joiner.h"
 
-#include <runtime/runtime_state.h>
-
+#include <glog/logging.h>
 #include <memory>
 
 #include "column/column_helper.h"
@@ -26,12 +25,20 @@
 #include "exprs/column_ref.h"
 #include "exprs/expr.h"
 #include "exprs/runtime_filter_bank.h"
-#include "gutil/strings/substitute.h"
 #include "runtime/current_thread.h"
-#include "runtime/runtime_filter_worker.h"
 #include "simd/simd.h"
-#include "util/debug_util.h"
 #include "util/runtime_profile.h"
+#include "column/nullable_column.h"
+#include "common/object_pool.h"
+#include "exec/exec_node.h"
+#include "exec/hash_join_node.h"
+#include "exec/spill/executor.h"
+#include "exec/spill/spiller.h"
+#include "exprs/in_const_predicate.hpp"
+#include "gen_cpp/Metrics_types.h"
+#include "gen_cpp/RuntimeProfile_types.h"
+#include "gutil/casts.h"
+#include "runtime/types.h"
 
 namespace starrocks {
 

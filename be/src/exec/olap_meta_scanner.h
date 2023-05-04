@@ -14,17 +14,19 @@
 
 #pragma once
 
-#include <gen_cpp/InternalService_types.h>
+#include <memory>
 
 #include "common/status.h"
 #include "exec/meta_scanner.h"
-#include "exec/olap_utils.h"
-#include "runtime/runtime_state.h"
 #include "storage/olap_meta_reader.h"
+#include "column/vectorized_fwd.h"
+#include "storage/tablet.h"
 
 namespace starrocks {
 
 class OlapMetaScanNode;
+class RuntimeState;
+class TInternalScanRange;
 
 class OlapMetaScanner : public MetaScanner {
 public:

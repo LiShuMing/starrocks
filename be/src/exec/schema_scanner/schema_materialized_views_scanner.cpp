@@ -14,11 +14,21 @@
 
 #include "exec/schema_scanner/schema_materialized_views_scanner.h"
 
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "exec/schema_scanner/schema_helper.h"
 #include "runtime/string_value.h"
 #include "types/logical_type.h"
+#include "column/chunk.h"
+#include "exprs/function_context.h"
+#include "gen_cpp/Types_types.h"
+#include "util/phmap/phmap.h"
+#include "util/slice.h"
 
 namespace starrocks {
+class RuntimeState;
 
 // Keep tracks with `information_schema.materialized_views` table's schema.
 SchemaScanner::ColumnDesc SchemaMaterializedViewsScanner::_s_tbls_columns[] = {

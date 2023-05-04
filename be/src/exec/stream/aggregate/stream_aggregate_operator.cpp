@@ -17,7 +17,11 @@
 
 #include "exec/stream/aggregate/stream_aggregate_operator.h"
 
-#include "exec/exec_node.h"
+#include <glog/logging.h>
+#include <type_traits>
+
+#include "column/stream_chunk.h"
+#include "runtime/runtime_state.h"
 
 namespace starrocks::stream {
 

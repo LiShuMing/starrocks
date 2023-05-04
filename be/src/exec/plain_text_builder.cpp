@@ -1,17 +1,22 @@
 #include "plain_text_builder.h"
 
+#include <glog/logging.h>
+#include <utility>
+
 #include "column/chunk.h"
-#include "column/const_column.h"
 #include "exprs/column_ref.h"
 #include "exprs/expr.h"
 #include "formats/csv/converter.h"
 #include "formats/csv/output_stream.h"
 #include "formats/csv/output_stream_file.h"
 #include "gutil/strings/substitute.h"
-#include "util/date_func.h"
-#include "util/mysql_row_buffer.h"
+#include "column/vectorized_fwd.h"
+#include "exprs/expr_context.h"
+#include "runtime/types.h"
 
 namespace starrocks {
+class Column;
+class WritableFile;
 
 const size_t PlainTextBuilder::OUTSTREAM_BUFFER_SIZE_BYTES = 1024 * 1024;
 

@@ -14,21 +14,34 @@
 
 #pragma once
 
-#include <utility>
+#include <stddef.h>
+#include <stdint.h>
+#include <algorithm>
+#include <memory>
+#include <string>
+#include <vector>
 
 #include "exec/pipeline/operator.h"
-#include "exec/pipeline/scan/chunk_source.h"
-#include "exec/workgroup/work_group_fwd.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/scan/morsel.h"
+#include "gen_cpp/Partitions_types.h"
+#include "gutil/casts.h"
+
+namespace starrocks::pipeline {
+class Pipeline;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
-
-class PriorityThreadPool;
+class ExprContext;
+class RuntimeState;
 
 namespace pipeline {
 
 class SourceOperator;
+
 using SourceOperatorPtr = std::shared_ptr<SourceOperator>;
-class MorselQueueFactory;
 
 class SourceOperatorFactory : public OperatorFactory {
 public:

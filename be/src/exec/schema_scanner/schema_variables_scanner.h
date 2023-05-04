@@ -16,11 +16,16 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include "exec/schema_scanner.h"
 #include "gen_cpp/FrontendService_types.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "gen_cpp/Types_types.h"
 
 namespace starrocks {
+class RuntimeState;
 
 class SchemaVariablesScanner : public SchemaScanner {
 public:

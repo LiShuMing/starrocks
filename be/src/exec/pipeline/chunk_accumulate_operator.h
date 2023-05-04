@@ -14,8 +14,17 @@
 
 #pragma once
 
+#include <stdint.h>
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "exec/pipeline/operator.h"
 #include "storage/chunk_helper.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
 
 namespace starrocks {
 

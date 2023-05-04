@@ -14,16 +14,33 @@
 
 #pragma once
 
-#include <unordered_map>
+#include <stdint.h>
+#include <map>
+#include <memory>
+#include <ostream>
+#include <utility>
+#include <vector>
 
-#include "column/chunk.h"
 #include "common/global_types.h"
 #include "exec/exec_node.h"
-#include "exec/olap_common.h"
 #include "runtime/global_dict/decoder.h"
 #include "runtime/global_dict/parser.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks::pipeline {
+class OperatorFactory;
+class PipelineBuilderContext;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
+class Chunk;
+class DescriptorTbl;
+class ExprContext;
+class ObjectPool;
+class RuntimeState;
+class TPlanNode;
 
 class DictDecodeNode final : public ExecNode {
 public:

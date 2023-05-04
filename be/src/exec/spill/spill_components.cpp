@@ -14,9 +14,27 @@
 
 #include "exec/spill/spill_components.h"
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <algorithm>
+#include <limits>
+#include <ostream>
+#include <string>
+#include <type_traits>
+
 #include "exec/spill/serde.h"
 #include "exec/spill/spiller.h"
 #include "exec/spill/spiller.hpp"
+#include "column/fixed_length_column.h"
+#include "exec/exec_node.h"
+#include "exec/sort_exec_exprs.h"
+#include "exec/spill/common.h"
+#include "exec/spill/options.h"
+#include "gen_cpp/Types_types.h"
+#include "runtime/current_thread.h"
+#include "runtime/runtime_state.h"
+#include "util/runtime_profile.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks::spill {
 // implements for SpillerWriter

@@ -14,11 +14,14 @@
 
 #include "exec/dict_decode_node.h"
 
+#include <ext/alloc_traits.h>
+#include <stddef.h>
 #include <utility>
+#include <algorithm>
+#include <cstdint>
 
 #include "column/chunk.h"
 #include "column/column_helper.h"
-#include "common/logging.h"
 #include "exec/pipeline/dict_decode_operator.h"
 #include "exec/pipeline/limit_operator.h"
 #include "exec/pipeline/pipeline_builder.h"
@@ -26,8 +29,22 @@
 #include "glog/logging.h"
 #include "runtime/runtime_state.h"
 #include "util/runtime_profile.h"
+#include "column/column.h"
+#include "exec/pipeline/operator.h"
+#include "exec/pipeline/pipeline_fwd.h"
+#include "exec/pipeline/runtime_filter_types.h"
+#include "exprs/expr.h"
+#include "exprs/function_context.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "runtime/types.h"
+#include "types/logical_type.h"
+#include "util/phmap/phmap.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
+class DescriptorTbl;
+class ExprContext;
+class ObjectPool;
 
 DictDecodeNode::DictDecodeNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& descs)
         : ExecNode(pool, tnode, descs) {}

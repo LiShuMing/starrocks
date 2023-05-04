@@ -14,12 +14,21 @@
 
 #pragma once
 
+#include <stdint.h>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "column/vectorized_fwd.h"
 #include "exec/pipeline/operator.h"
-#include "runtime/descriptors.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
 
 namespace starrocks {
 class ExprContext;
+class RuntimeState;
 
 namespace pipeline {
 class SelectOperator final : public Operator {

@@ -14,10 +14,23 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
 #include <unordered_map>
+#include <list>
+#include <memory>
+#include <vector>
 
 #include "exec/pipeline/pipeline_fwd.h"
 #include "exec/pipeline/source_operator.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/pipeline/operator.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

@@ -14,11 +14,21 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
 #include "exec/hdfs_scanner.h"
 #include "formats/csv/converter.h"
-#include "formats/csv/csv_reader.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
 
 namespace starrocks {
+class CSVReader;
+class Column;
+class RuntimeState;
 
 // This class used by data lake(Hive, Iceberg,... etc), not for broker load.
 // Broker load plz refer to csv_scanner.cpp

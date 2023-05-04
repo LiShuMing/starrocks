@@ -14,12 +14,21 @@
 
 #pragma once
 
-#include <memory>
+#include <stdint.h>
+#include <string>
+#include <utility>
 
 #include "exec/exec_node.h"
 #include "exec/pipeline/source_operator.h"
 #include "exec/pipeline/spill_process_channel.h"
-#include "exec/spill/spiller.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/pipeline/operator.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 // operator for process spill task

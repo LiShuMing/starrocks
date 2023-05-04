@@ -14,12 +14,21 @@
 
 #include "exec/spill/serde.h"
 
+#include <glog/logging.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <ostream>
+#include <utility>
+#include <vector>
+
 #include "exec/spill/options.h"
-#include "exec/spill/spiller.h"
 #include "gen_cpp/types.pb.h"
 #include "gutil/port.h"
-#include "runtime/runtime_state.h"
 #include "serde/column_array_serde.h"
+#include "column/chunk.h"
+#include "exec/spill/common.h"
+#include "util/compression/block_compression.h"
+#include "util/slice.h"
 
 namespace starrocks::spill {
 

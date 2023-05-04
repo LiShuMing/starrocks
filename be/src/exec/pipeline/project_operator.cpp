@@ -14,12 +14,23 @@
 
 #include "exec/pipeline/project_operator.h"
 
+#include <ext/alloc_traits.h>
+#include <stddef.h>
+#include <type_traits>
+
 #include "column/chunk.h"
 #include "column/column_helper.h"
 #include "column/nullable_column.h"
 #include "exprs/expr.h"
 #include "runtime/current_thread.h"
 #include "runtime/runtime_state.h"
+#include "column/column.h"
+#include "column/const_column.h"
+#include "common/global_types.h"
+#include "exprs/expr_context.h"
+#include "exprs/function_context.h"
+#include "gutil/casts.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks::pipeline {
 Status ProjectOperator::prepare(RuntimeState* state) {

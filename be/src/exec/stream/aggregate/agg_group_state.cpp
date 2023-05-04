@@ -17,8 +17,21 @@
 
 #include "exec/stream/aggregate/agg_group_state.h"
 
-#include "exprs/agg/stream/stream_detail_state.h"
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <cstdint>
+#include <ostream>
+#include <utility>
+
 #include "fmt/format.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "column/column_helper.h"
+#include "column/fixed_length_column.h"
+#include "common/global_types.h"
+#include "exec/stream/state/mem_state_table.h"
+#include "runtime/descriptors.h"
+#include "runtime/runtime_state.h"
 
 namespace starrocks::stream {
 

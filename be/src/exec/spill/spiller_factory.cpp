@@ -17,7 +17,6 @@
 #include <memory>
 #include <mutex>
 
-#include "common/statusor.h"
 #include "exec/spill/spiller.h"
 
 namespace starrocks {

@@ -14,15 +14,16 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <string>
+#include <memory>
+#include <vector>
 
-#include "column/chunk.h"
-#include "common/object_pool.h"
 #include "common/status.h"
 #include "gen_cpp/Descriptors_types.h"
-#include "gen_cpp/Types_types.h"
-#include "runtime/descriptors.h"
 #include "util/runtime_profile.h"
+#include "column/vectorized_fwd.h"
+#include "types/logical_type.h"
 
 namespace starrocks {
 // forehead declar class, because jni function init in StarRocksServer.
@@ -31,6 +32,9 @@ class RuntimeState;
 } // namespace starrocks
 
 namespace starrocks {
+class ObjectPool;
+class SlotDescriptor;
+class TUserIdentity;
 
 // scanner parameter from frontend
 struct SchemaScannerParam {

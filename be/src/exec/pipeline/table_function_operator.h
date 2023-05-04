@@ -14,12 +14,30 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "column/vectorized_fwd.h"
 #include "exec/pipeline/operator.h"
-#include "exprs/expr.h"
-#include "exprs/table_function/table_function_factory.h"
-#include "runtime/descriptors.h"
-#include "runtime/runtime_state.h"
+#include "column/column.h"
+#include "column/fixed_length_column.h"
+#include "common/global_types.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "exprs/function_context.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks {
+class RuntimeState;
+class TPlanNode;
+class TableFunction;
+class TableFunctionState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 class TableFunctionOperator final : public Operator {

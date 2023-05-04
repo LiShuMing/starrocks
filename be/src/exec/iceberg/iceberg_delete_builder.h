@@ -14,13 +14,22 @@
 
 #pragma once
 
+#include <glog/logging.h>
+#include <cstdint>
+#include <set>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "common/status.h"
-#include "fs/fs.h"
 #include "gutil/strings/substitute.h"
 #include "runtime/descriptors.h"
+#include "gen_cpp/PlanNodes_types.h"
 
 namespace starrocks {
 struct IcebergColumnMeta;
+class ExprContext;
+class FileSystem;
 
 class PositionDeleteBuilder {
 public:

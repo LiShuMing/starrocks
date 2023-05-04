@@ -14,15 +14,32 @@
 
 #pragma once
 
-#include "column/column_helper.h"
+#include <cstdint>
+#include <memory>
+#include <set>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "column/vectorized_fwd.h"
 #include "common/global_types.h"
 #include "exec/pipeline/operator.h"
-#include "exprs/expr_context.h"
-#include "runtime/runtime_state.h"
+#include "column/column.h"
+#include "column/const_column.h"
+#include "column/datum.h"
+#include "column/fixed_length_column.h"
+#include "column/type_traits.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "exprs/function_context.h"
+#include "types/logical_type.h"
 
 namespace starrocks {
 class TupleDescriptor;
+class ExprContext;
+class RuntimeState;
+
 namespace pipeline {
 class RepeatOperator : public Operator {
 public:

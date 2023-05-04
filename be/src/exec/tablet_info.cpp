@@ -14,13 +14,28 @@
 
 #include "exec/tablet_info.h"
 
+#include <fmt/format.h>
+#include <algorithm>
+
 #include "column/binary_column.h"
 #include "column/chunk.h"
 #include "column/column_helper.h"
 #include "exprs/expr.h"
-#include "runtime/mem_pool.h"
 #include "types/constexpr.h"
 #include "util/string_parser.hpp"
+#include "column/fixed_length_column.h"
+#include "common/compiler_util.h"
+#include "common/statusor.h"
+#include "exprs/expr_context.h"
+#include "gen_cpp/Exprs_types.h"
+#include "gutil/casts.h"
+#include "gutil/int128.h"
+#include "runtime/descriptors.h"
+#include "runtime/types.h"
+#include "types/date_value.h"
+#include "types/logical_type.h"
+#include "types/timestamp_value.h"
+#include "util/slice.h"
 
 namespace starrocks {
 

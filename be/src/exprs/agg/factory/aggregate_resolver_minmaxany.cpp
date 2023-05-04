@@ -12,7 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "exprs/agg/any_value.h"
+#include <immintrin.h>
+#include <algorithm>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <string>
+#include <vector>
+
 #include "exprs/agg/bitmap_intersect.h"
 #include "exprs/agg/factory/aggregate_factory.hpp"
 #include "exprs/agg/factory/aggregate_resolver.hpp"
@@ -20,8 +27,21 @@
 #include "types/bitmap_value.h"
 #include "types/logical_type.h"
 #include "types/logical_type_infra.h"
+#include "exprs/agg/aggregate.h"
+#include "exprs/agg/maxmin_by.h"
+#include "types/date_value.h"
+#include "types/timestamp_value.h"
+#include "util/json.h"
+#include "exprs/agg/aggregate.h"
+#include "exprs/agg/maxmin_by.h"
+#include "types/date_value.h"
+#include "types/timestamp_value.h"
+#include "util/json.h"
 
 namespace starrocks {
+template <starrocks::LogicalType LT> struct AnyValueAggregateData;
+
+template <starrocks::LogicalType LT> struct AnyValueAggregateData;
 
 void AggregateFuncResolver::register_bitmap() {
     add_aggregate_mapping<TYPE_TINYINT, TYPE_BIGINT, BitmapValue>(

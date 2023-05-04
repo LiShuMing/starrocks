@@ -14,13 +14,27 @@
 
 #pragma once
 
-#include <orc/OrcFile.hh>
+#include <stdint.h>
+#include <memory>
+#include <vector>
 
 #include "exec/file_scanner.h"
 #include "formats/orc/orc_chunk_reader.h"
-#include "fs/fs.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exprs/function_context.h"
+
+namespace orc {
+struct ColumnVectorBatch;
+}  // namespace orc
 
 namespace starrocks {
+class RuntimeProfile;
+class RuntimeState;
+class SlotDescriptor;
+class TBrokerScanRange;
+struct TypeDescriptor;
 
 class ORCScanner : public FileScanner {
 public:

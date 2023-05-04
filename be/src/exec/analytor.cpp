@@ -14,14 +14,17 @@
 
 #include "exec/analytor.h"
 
-#include <cmath>
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
 #include <ios>
 #include <memory>
+#include <algorithm>
+#include <future>
+#include <ostream>
 
 #include "column/chunk.h"
 #include "column/column_helper.h"
 #include "common/status.h"
-#include "exprs/agg/count.h"
 #include "exprs/anyval_util.h"
 #include "exprs/expr.h"
 #include "exprs/expr_context.h"
@@ -30,8 +33,19 @@
 #include "runtime/current_thread.h"
 #include "runtime/runtime_state.h"
 #include "udf/java/utils.h"
-#include "util/defer_op.h"
 #include "util/runtime_profile.h"
+#include "column/column.h"
+#include "column/const_column.h"
+#include "common/logging.h"
+#include "common/object_pool.h"
+#include "common/statusor.h"
+#include "exprs/agg/aggregate_factory.h"
+#include "gen_cpp/Exprs_types.h"
+#include "gen_cpp/Metrics_types.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "runtime/descriptors.h"
+#include "types/logical_type.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
 Status window_init_jvm_context(int64_t fid, const std::string& url, const std::string& checksum,

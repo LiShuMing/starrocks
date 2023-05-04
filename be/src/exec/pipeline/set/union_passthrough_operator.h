@@ -14,8 +14,24 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
 #include "exec/exec_node.h"
 #include "exec/pipeline/operator.h"
+#include "column/vectorized_fwd.h"
+#include "common/global_types.h"
+#include "common/status.h"
+#include "common/statusor.h"
+
+namespace starrocks {
+class RuntimeState;
+class SlotDescriptor;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 // UNION ALL operator has three kinds of sub-node as follows:

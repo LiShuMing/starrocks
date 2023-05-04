@@ -14,6 +14,8 @@
 
 #include "exec/jdbc_scanner.h"
 
+#include <fmt/format.h>
+#include <glog/logging.h>
 #include <memory>
 
 #include "column/column_helper.h"
@@ -27,7 +29,17 @@
 #include "runtime/types.h"
 #include "types/logical_type.h"
 #include "udf/java/java_udf.h"
-#include "util/defer_op.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "common/compiler_util.h"
+#include "common/config.h"
+#include "exprs/column_ref.h"
+#include "exprs/function_context.h"
+#include "gen_cpp/Metrics_types.h"
+#include "gutil/casts.h"
+#include "runtime/runtime_state.h"
+#include "util/slice.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
 

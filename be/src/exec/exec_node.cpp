@@ -36,8 +36,14 @@
 
 #include <thrift/protocol/TDebugProtocol.h>
 #include <unistd.h>
-
+#include <ext/alloc_traits.h>
+#include <fmt/format.h>
+#include <fmt/ostream.h>
+#include <glog/logging.h>
 #include <sstream>
+#include <algorithm>
+#include <tuple>
+#include <utility>
 
 #include "column/column_helper.h"
 #include "column/vectorized_fwd.h"
@@ -74,15 +80,30 @@
 #include "exec/union_node.h"
 #include "exprs/expr_context.h"
 #include "gutil/strings/substitute.h"
-#include "runtime/descriptors.h"
 #include "runtime/exec_env.h"
-#include "runtime/runtime_filter_cache.h"
 #include "runtime/runtime_state.h"
 #include "simd/simd.h"
 #include "util/debug_util.h"
 #include "util/runtime_profile.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "column/fixed_length_column.h"
+#include "column/nullable_column.h"
+#include "common/logging.h"
+#include "connector/connector.h"
+#include "exec/pipeline/operator.h"
+#include "exec/pipeline/stream_epoch_manager.h"
+#include "exprs/expr.h"
+#include "exprs/function_context.h"
+#include "gen_cpp/InternalService_types.h"
+#include "gen_cpp/Metrics_types.h"
+#include "runtime/current_thread.h"
+#include "runtime/mem_tracker.h"
+#include "runtime/runtime_filter_worker.h"
+#include "service/backend_options.h"
 
 namespace starrocks {
+class QueryStatistics;
 
 const std::string ExecNode::ROW_THROUGHPUT_COUNTER = "RowsReturnedRate";
 

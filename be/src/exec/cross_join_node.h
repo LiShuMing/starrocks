@@ -14,14 +14,36 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
+#include <list>
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "column/vectorized_fwd.h"
 #include "exec/exec_node.h"
-#include "exprs/expr_context.h"
 #include "gen_cpp/PlanNodes_types.h"
-#include "runtime/descriptors.h"
-#include "runtime/runtime_state.h"
+#include "common/global_types.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exprs/function_context.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks::pipeline {
+class OperatorFactory;
+class PipelineBuilderContext;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
+class Chunk;
+class DescriptorTbl;
+class ExprContext;
+class MonotonicStopWatch;
+class ObjectPool;
+class RuntimeFilterBuildDescriptor;
+class RuntimeState;
+class SlotDescriptor;
 
 class CrossJoinNode final : public ExecNode {
 public:

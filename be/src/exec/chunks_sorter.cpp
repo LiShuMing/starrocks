@@ -14,19 +14,27 @@
 
 #include "exec/chunks_sorter.h"
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <stddef.h>
 #include <utility>
+#include <cstdint>
 
 #include "column/column_helper.h"
-#include "column/type_traits.h"
 #include "exec/sorting/sort_permute.h"
-#include "exprs/expr.h"
 #include "gutil/casts.h"
 #include "runtime/current_thread.h"
-#include "runtime/runtime_state.h"
-#include "util/orlp/pdqsort.h"
-#include "util/stopwatch.hpp"
+#include "column/const_column.h"
+#include "column/datum.h"
+#include "column/nullable_column.h"
+#include "exec/sort_exec_exprs.h"
+#include "exprs/expr_context.h"
+#include "runtime/descriptors.h"
 
 namespace starrocks {
+class Expr;
+class MemTracker;
+class RuntimeState;
 
 static void get_compare_results_colwise(size_t rows_to_sort, Columns& order_by_columns,
                                         std::vector<CompareVector>& compare_results_array,

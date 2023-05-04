@@ -16,19 +16,27 @@
 
 #include <atomic>
 #include <utility>
+#include <memory>
+#include <vector>
 
 #include "column/vectorized_fwd.h"
 #include "common/statusor.h"
-#include "exec/sort_exec_exprs.h"
-#include "exec/sorting/sorting.h"
 #include "exec/spill/block_manager.h"
 #include "exec/spill/serde.h"
+#include "common/status.h"
+
+namespace starrocks {
+class RuntimeState;
+class SortExecExprs;
+struct SortDescs;
+}  // namespace starrocks
 
 namespace starrocks::spill {
 
 // InputStream is used in restore phase to represent an input stream of a restore task.
 // InputStream reads multiple Blocks and returns the deserialized Chunks.
 class SpillInputStream;
+
 using InputStreamPtr = std::shared_ptr<SpillInputStream>;
 
 class SpillInputStream {

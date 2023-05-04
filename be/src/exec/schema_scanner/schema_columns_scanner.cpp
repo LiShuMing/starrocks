@@ -14,14 +14,26 @@
 
 #include "exec/schema_scanner/schema_columns_scanner.h"
 
+#include <stdint.h>
+#include <string.h>
 #include <sstream>
+#include <memory>
+#include <vector>
 
 #include "exec/schema_scanner/schema_helper.h"
 #include "gutil/strings/substitute.h"
 #include "runtime/string_value.h"
 #include "types/logical_type.h"
+#include "column/chunk.h"
+#include "exprs/function_context.h"
+#include "gen_cpp/Types_types.h"
+#include "util/phmap/phmap.h"
+#include "util/runtime_profile.h"
+#include "util/slice.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
+class RuntimeState;
 
 SchemaScanner::ColumnDesc SchemaColumnsScanner::_s_col_columns[] = {
         //   name,       type,          size,                     is_null

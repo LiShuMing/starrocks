@@ -14,11 +14,18 @@
 
 #pragma once
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
 #include <cstring>
 #include <memory>
 #include <numeric>
 #include <string>
 #include <vector>
+#include <cstdint>
+#include <new>
+#include <ostream>
+#include <type_traits>
+#include <utility>
 
 #include "column/binary_column.h"
 #include "column/column_helper.h"
@@ -33,6 +40,9 @@
 #include "udf/java/java_data_converter.h"
 #include "udf/java/java_udf.h"
 #include "util/defer_op.h"
+#include "column/column.h"
+#include "column/fixed_length_column.h"
+#include "util/slice.h"
 
 namespace starrocks {
 

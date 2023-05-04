@@ -14,13 +14,24 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <atomic>
+#include <memory>
 
 #include "exec/pipeline/source_operator.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/pipeline/operator.h"
+#include "gen_cpp/Partitions_types.h"
 
 namespace starrocks {
 class DataStreamRecvr;
 class RowDescriptor;
+class RuntimeProfile;
+class RuntimeState;
+class TExchangeNode;
+
 namespace pipeline {
 class ExchangeSourceOperator : public SourceOperator {
 public:

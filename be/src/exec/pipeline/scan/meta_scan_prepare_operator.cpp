@@ -14,15 +14,14 @@
 
 #include "exec/pipeline/scan/meta_scan_prepare_operator.h"
 
-#include "exec/meta_scanner.h"
 #include "exec/pipeline/scan/meta_scan_context.h"
-#include "exec/pipeline/scan/meta_scan_operator.h"
-#include "gen_cpp/Types_types.h"
-#include "storage/olap_common.h"
-#include "storage/storage_engine.h"
-#include "storage/tablet_manager.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
+class OperatorFactory;
 
 MetaScanPrepareOperator::MetaScanPrepareOperator(OperatorFactory* factory, int32_t id, int32_t plan_node_id,
                                                  int32_t driver_sequence, const std::string& operator_name,

@@ -14,12 +14,19 @@
 
 #include "exec/pipeline/fragment_executor.h"
 
+#include <ext/alloc_traits.h>
+#include <stddef.h>
 #include <unordered_map>
+#include <algorithm>
+#include <ostream>
+#include <set>
+#include <string>
+#include <type_traits>
+#include <typeinfo>
+#include <unordered_set>
+#include <utility>
 
-#include "common/config.h"
-#include "exec/cross_join_node.h"
 #include "exec/exchange_node.h"
-#include "exec/olap_scan_node.h"
 #include "exec/pipeline/adaptive/lazy_instantiate_drivers_operator.h"
 #include "exec/pipeline/exchange/exchange_sink_operator.h"
 #include "exec/pipeline/exchange/multi_cast_local_exchange.h"
@@ -30,21 +37,16 @@
 #include "exec/pipeline/pipeline_builder.h"
 #include "exec/pipeline/pipeline_driver_executor.h"
 #include "exec/pipeline/result_sink_operator.h"
-#include "exec/pipeline/scan/connector_scan_operator.h"
 #include "exec/pipeline/scan/morsel.h"
-#include "exec/pipeline/scan/scan_operator.h"
 #include "exec/pipeline/sink/export_sink_operator.h"
 #include "exec/pipeline/sink/file_sink_operator.h"
 #include "exec/pipeline/sink/memory_scratch_sink_operator.h"
 #include "exec/pipeline/sink/mysql_table_sink_operator.h"
-#include "exec/pipeline/stream_pipeline_driver.h"
 #include "exec/scan_node.h"
 #include "exec/tablet_sink.h"
 #include "exec/workgroup/work_group.h"
-#include "gen_cpp/doris_internal_service.pb.h"
 #include "gutil/casts.h"
 #include "gutil/map_util.h"
-#include "runtime/data_stream_mgr.h"
 #include "runtime/data_stream_sender.h"
 #include "runtime/descriptors.h"
 #include "runtime/exec_env.h"
@@ -55,11 +57,46 @@
 #include "runtime/result_sink.h"
 #include "runtime/stream_load/stream_load_context.h"
 #include "runtime/stream_load/transaction_mgr.h"
-#include "util/debug/query_trace.h"
-#include "util/pretty_printer.h"
 #include "util/runtime_profile.h"
 #include "util/time.h"
 #include "util/uid_util.h"
+#include "common/compiler_util.h"
+#include "common/global_types.h"
+#include "common/statusor.h"
+#include "exec/data_sink.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/adaptive/adaptive_dop_param.h"
+#include "exec/pipeline/driver_limiter.h"
+#include "exec/pipeline/exchange/local_exchange.h"
+#include "exec/pipeline/exchange/local_exchange_memory_manager.h"
+#include "exec/pipeline/exchange/local_exchange_sink_operator.h"
+#include "exec/pipeline/exchange/local_exchange_source_operator.h"
+#include "exec/pipeline/operator.h"
+#include "exec/pipeline/pipeline.h"
+#include "exec/pipeline/pipeline_driver.h"
+#include "exec/pipeline/query_context.h"
+#include "exec/pipeline/source_operator.h"
+#include "exec/pipeline/stream_epoch_manager.h"
+#include "exec/query_cache/cache_param.h"
+#include "gen_cpp/DataSinks_types.h"
+#include "gen_cpp/Descriptors_types.h"
+#include "gen_cpp/Metrics_types.h"
+#include "gen_cpp/Partitions_types.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "gen_cpp/RuntimeFilter_types.h"
+#include "gen_cpp/WorkGroup_types.h"
+#include "gutil/strings/substitute.h"
+#include "runtime/current_thread.h"
+#include "runtime/mem_tracker.h"
+#include "runtime/runtime_filter_worker.h"
+#include "runtime/runtime_state.h"
+#include "util/debug/query_trace_impl.h"
+#include "util/defer_op.h"
+#include "util/stopwatch.hpp"
+
+namespace starrocks {
+class TExpr;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

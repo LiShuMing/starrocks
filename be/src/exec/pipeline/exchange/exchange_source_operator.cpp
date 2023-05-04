@@ -14,11 +14,21 @@
 
 #include "exec/pipeline/exchange/exchange_source_operator.h"
 
+#include <glog/logging.h>
+#include <type_traits>
+#include <utility>
+
 #include "runtime/data_stream_mgr.h"
 #include "runtime/data_stream_recvr.h"
-#include "runtime/descriptors.h"
 #include "runtime/exec_env.h"
 #include "runtime/runtime_state.h"
+#include "column/chunk.h"
+#include "common/config.h"
+#include "gen_cpp/PlanNodes_types.h"
+
+namespace starrocks {
+class RuntimeProfile;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 Status ExchangeSourceOperator::prepare(RuntimeState* state) {

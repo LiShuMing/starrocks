@@ -14,18 +14,28 @@
 
 #pragma once
 
+#include <stdint.h>
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "common/status.h"
 #include "exec/olap_common.h"
-#include "exprs/expr.h"
-#include "exprs/expr_context.h"
 #include "storage/olap_runtime_range_pruner.h"
+#include "exec/exec_node.h"
+#include "exec/olap_utils.h"
+#include "gen_cpp/InternalService_types.h"
+#include "runtime/descriptors.h"
+#include "types/logical_type.h"
 
 namespace starrocks {
 class RuntimeState;
-
 class RuntimeFilterProbeCollector;
 class PredicateParser;
 class ColumnPredicate;
+class ExprContext;
+class ObjectPool;
 
 class OlapScanConjunctsManager {
 public:

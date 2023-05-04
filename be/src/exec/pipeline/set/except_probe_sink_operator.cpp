@@ -14,6 +14,12 @@
 
 #include "exec/pipeline/set/except_probe_sink_operator.h"
 
+#include "exprs/expr.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
+
 namespace starrocks::pipeline {
 
 Status ExceptProbeSinkOperator::prepare(RuntimeState* state) {

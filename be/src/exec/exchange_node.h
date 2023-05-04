@@ -34,13 +34,31 @@
 
 #pragma once
 
+#include <stdint.h>
+#include <iosfwd>
+#include <memory>
+#include <vector>
+
 #include "exec/exec_node.h"
 #include "exec/sort_exec_exprs.h"
-#include "runtime/data_stream_recvr.h"
+#include "column/chunk.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "runtime/descriptors.h"
+
+namespace starrocks::pipeline {
+class OperatorFactory;
+class PipelineBuilderContext;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
-
-class RuntimeProfile;
+class DataStreamRecvr;
+class ObjectPool;
+class QueryStatistics;
+class QueryStatisticsRecvr;
+class RuntimeState;
+class TExchangeNode;
+class TPlanNode;
 
 // Receiver node for data streams. The data stream receiver is created in Prepare()
 // and closed in Close().

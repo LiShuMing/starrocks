@@ -34,10 +34,18 @@
 
 #pragma once
 
-#include "exprs/expr.h"
-#include "runtime/runtime_state.h"
+#include <vector>
+
+#include "common/status.h"
+#include "runtime/types.h"
 
 namespace starrocks {
+class ExprContext;
+class ObjectPool;
+class RowDescriptor;
+class RuntimeState;
+class TExpr;
+class TSortInfo;
 
 // Helper class to Prepare() , Open() and Close() the ordering expressions used to perform
 // comparisons in a sort. Used by TopNNode, SortNode.  When two

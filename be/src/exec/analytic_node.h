@@ -16,11 +16,20 @@
 
 #include "analytor.h"
 #include "exec/exec_node.h"
-#include "exprs/agg/aggregate_factory.h"
-#include "exprs/expr.h"
-#include "runtime/descriptors.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "exec/pipeline/pipeline_fwd.h"
+#include "gen_cpp/PlanNodes_types.h"
+
+namespace starrocks::pipeline {
+class PipelineBuilderContext;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
+class DescriptorTbl;
+class ObjectPool;
+class RuntimeState;
+class TupleDescriptor;
 
 class AnalyticNode final : public ExecNode {
 public:

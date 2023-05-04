@@ -14,9 +14,18 @@
 
 #include "exec/pipeline/hashjoin/hash_join_build_operator.h"
 
+#include <ext/alloc_traits.h>
+#include <algorithm>
+#include <utility>
+
 #include "exec/pipeline/query_context.h"
 #include "runtime/current_thread.h"
 #include "runtime/runtime_filter_worker.h"
+#include "gen_cpp/Metrics_types.h"
+#include "runtime/runtime_state.h"
+#include "util/defer_op.h"
+#include "util/runtime_profile.h"
+
 namespace starrocks::pipeline {
 
 HashJoinBuildOperator::HashJoinBuildOperator(OperatorFactory* factory, int32_t id, const string& name,

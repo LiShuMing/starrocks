@@ -14,11 +14,18 @@
 
 #include "exec/pipeline/spill_process_operator.h"
 
+#include <glog/logging.h>
 #include <memory>
+#include <unordered_map>
+#include <vector>
 
 #include "exec/pipeline/spill_process_channel.h"
 #include "exec/spill/executor.h"
 #include "exec/spill/spiller.hpp"
+#include "column/chunk.h"
+#include "exec/spill/spiller.h"
+#include "runtime/current_thread.h"
+#include "runtime/runtime_state.h"
 
 namespace starrocks::pipeline {
 

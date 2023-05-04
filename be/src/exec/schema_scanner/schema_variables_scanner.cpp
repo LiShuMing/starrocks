@@ -14,12 +14,20 @@
 
 #include "exec/schema_scanner/schema_variables_scanner.h"
 
+#include <string.h>
+#include <memory>
+#include <utility>
+
 #include "exec/schema_scanner/schema_helper.h"
-#include "runtime/runtime_state.h"
 #include "runtime/string_value.h"
 #include "types/logical_type.h"
+#include "column/chunk.h"
+#include "exprs/function_context.h"
+#include "util/phmap/phmap.h"
+#include "util/slice.h"
 
 namespace starrocks {
+class RuntimeState;
 
 SchemaScanner::ColumnDesc SchemaVariablesScanner::_s_vars_columns[] = {
         //   name,       type,          size

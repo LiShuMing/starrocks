@@ -14,8 +14,17 @@
 
 #include "exec/pipeline/sink/memory_scratch_sink_operator.h"
 
+#include <arrow/type_fwd.h>
+#include <glog/logging.h>
+
 #include "util/arrow/row_batch.h"
 #include "util/arrow/starrocks_column_to_arrow.h"
+#include "column/chunk.h"
+#include "exprs/expr.h"
+#include "gen_cpp/Types_types.h"
+#include "runtime/exec_env.h"
+#include "runtime/record_batch_queue.h"
+#include "runtime/runtime_state.h"
 
 namespace starrocks::pipeline {
 

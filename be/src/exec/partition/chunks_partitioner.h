@@ -14,17 +14,31 @@
 
 #pragma once
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <any>
 #include <queue>
+#include <memory>
+#include <mutex>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
-#include "column/chunk.h"
 #include "column/vectorized_fwd.h"
 #include "common/statusor.h"
 #include "exprs/expr_context.h"
 #include "partition_hash_variant.h"
 #include "runtime/current_thread.h"
+#include "common/object_pool.h"
+#include "common/status.h"
+#include "runtime/mem_pool.h"
+#include "runtime/types.h"
+#include "util/defer_op.h"
 
 namespace starrocks {
+class RuntimeState;
 
 struct PartitionColumnType {
     TypeDescriptor result_type;

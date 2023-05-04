@@ -14,15 +14,20 @@
 
 #include "exec/pipeline/nljoin/nljoin_context.h"
 
+#include <glog/logging.h>
 #include <algorithm>
-#include <numeric>
+#include <cstdint>
+#include <ostream>
+#include <string>
 
 #include "exec/cross_join_node.h"
 #include "exec/pipeline/runtime_filter_types.h"
-#include "exprs/expr.h"
 #include "fmt/format.h"
 #include "runtime/runtime_state.h"
 #include "storage/chunk_helper.h"
+#include "column/chunk.h"
+#include "column/column_helper.h"
+#include "common/statusor.h"
 
 namespace starrocks::pipeline {
 

@@ -12,18 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <arrow/array/array_base.h>
+#include <arrow/array/array_binary.h>
+#include <arrow/array/array_nested.h>
+#include <arrow/array/array_primitive.h>
+#include <stddef.h>
+#include <velocypack/Builder.h>
+#include <velocypack/Value.h>
 #include <memory>
 #include <string>
+#include <string_view>
+#include <utility>
 
-#include "arrow/array.h"
 #include "arrow/type.h"
-#include "arrow/type_fwd.h"
 #include "arrow/type_traits.h"
 #include "column/json_column.h"
 #include "common/statusor.h"
 #include "gutil/casts.h"
 #include "gutil/strings/substitute.h"
 #include "util/json.h"
+#include "common/status.h"
 
 namespace starrocks {
 

@@ -14,14 +14,27 @@
 
 #pragma once
 
-#include <gen_cpp/Descriptors_types.h>
+#include <memory>
+#include <ostream>
+#include <vector>
 
 #include "exec/meta_scan_node.h"
-#include "exec/olap_meta_scanner.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "exec/exec_node.h"
+
+namespace starrocks::pipeline {
+class OperatorFactory;
+class PipelineBuilderContext;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
 
 class RuntimeState;
+class DescriptorTbl;
+class ObjectPool;
+class OlapMetaScanner;
+class TPlanNode;
 
 class OlapMetaScanNode final : public MetaScanNode {
 public:

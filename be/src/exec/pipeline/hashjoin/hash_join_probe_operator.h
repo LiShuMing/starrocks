@@ -14,11 +14,23 @@
 
 #pragma once
 
+#include <stdint.h>
+#include <string>
+#include <vector>
+
 #include "exec/hash_joiner.h"
 #include "exec/pipeline/hashjoin/hash_joiner_factory.h"
 #include "exec/pipeline/operator.h"
 #include "exec/pipeline/operator_with_dependency.h"
-#include "exec/pipeline/pipeline_fwd.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "gutil/strings/substitute.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

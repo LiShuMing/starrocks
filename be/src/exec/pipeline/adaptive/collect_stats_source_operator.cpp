@@ -14,9 +14,20 @@
 
 #include "exec/pipeline/adaptive/collect_stats_source_operator.h"
 
+#include <algorithm>
+#include <memory>
+#include <utility>
+#include <vector>
+
 #include "exec/pipeline/adaptive/collect_stats_context.h"
 #include "exec/pipeline/adaptive/utils.h"
 #include "exec/pipeline/pipeline.h"
+#include "util/defer_op.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

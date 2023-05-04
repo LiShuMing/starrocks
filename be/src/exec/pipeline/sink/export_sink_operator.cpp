@@ -14,15 +14,27 @@
 
 #include "exec/pipeline/sink/export_sink_operator.h"
 
-#include "exec/data_sink.h"
+#include <bthread/execution_queue.h>
+#include <bthread/execution_queue_inl.h>
+#include <glog/logging.h>
+#include <atomic>
+#include <ostream>
+
 #include "exec/file_builder.h"
-#include "exec/pipeline/fragment_context.h"
 #include "exec/pipeline/sink/sink_io_buffer.h"
 #include "exec/plain_text_builder.h"
-#include "formats/csv/converter.h"
-#include "formats/csv/output_stream.h"
 #include "fs/fs_broker.h"
 #include "runtime/runtime_state.h"
+#include "exprs/expr.h"
+#include "fs/fs.h"
+#include "gen_cpp/Types_types.h"
+#include "gutil/strings/substitute.h"
+#include "util/time.h"
+
+namespace starrocks {
+class ExprContext;
+class RuntimeProfile;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

@@ -14,6 +14,8 @@
 
 #include "exec/schema_scanner/schema_statistics_scanner.h"
 
+#include <stdint.h>
+
 #include "runtime/string_value.h"
 #include "types/logical_type.h"
 

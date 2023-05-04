@@ -14,12 +14,17 @@
 
 #pragma once
 
+#include <stddef.h>
 #include <cstdint>
+#include <string>
+#include <vector>
 
 #include "exec/schema_scanner.h"
-#include "gen_cpp/FrontendService_types.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
 
 namespace starrocks {
+class RuntimeState;
 
 struct BeThreadInfo {
     std::string group;

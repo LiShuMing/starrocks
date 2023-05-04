@@ -14,19 +14,24 @@
 
 #pragma once
 
-#include "column/chunk.h"
+#include <stdint.h>
+#include <cstddef>
+#include <memory>
+#include <new>
+#include <vector>
+
 #include "column/column_hash.h"
-#include "exprs/expr_context.h"
 #include "runtime/mem_pool.h"
 #include "util/phmap/phmap.h"
 #include "util/phmap/phmap_dump.h"
 #include "util/slice.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "util/memcmp.h"
 
 namespace starrocks {
-
-class ExceptSliceFlag;
-struct ExceptSliceFlagEqual;
-struct ExceptSliceFlagHash;
+class ExprContext;
+class RuntimeState;
 
 class ExceptSliceFlag {
 public:

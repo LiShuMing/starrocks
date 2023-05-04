@@ -14,14 +14,21 @@
 
 #include "exec/pipeline/scan/olap_scan_operator.h"
 
-#include "column/chunk.h"
+#include <ext/alloc_traits.h>
+#include <utility>
+
 #include "exec/olap_scan_node.h"
 #include "exec/pipeline/scan/olap_chunk_source.h"
 #include "exec/pipeline/scan/olap_scan_context.h"
-#include "runtime/current_thread.h"
-#include "runtime/exec_env.h"
-#include "runtime/runtime_state.h"
-#include "storage/storage_engine.h"
+#include "exec/pipeline/scan/balanced_chunk_buffer.h"
+#include "exec/pipeline/scan/chunk_buffer_limiter.h"
+#include "gutil/casts.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks {
+class ExprContext;
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

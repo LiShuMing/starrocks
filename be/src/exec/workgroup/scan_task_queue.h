@@ -14,19 +14,26 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
 #include <queue>
 #include <set>
-#include <unordered_set>
+#include <functional>
+#include <memory>
+#include <utility>
 
 #include "common/statusor.h"
 #include "exec/workgroup/work_group_fwd.h"
 #include "util/blocking_priority_queue.hpp"
 #include "util/runtime_profile.h"
+#include "common/config.h"
+#include "gutil/macros.h"
 
 namespace starrocks::workgroup {
+class WorkGroup;
 
 struct ScanTaskGroup {
     int64_t runtime_ns = 0;

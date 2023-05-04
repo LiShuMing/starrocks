@@ -14,10 +14,14 @@
 
 #include "aggregator.h"
 
+#include <ext/alloc_traits.h>
 #include <algorithm>
 #include <memory>
 #include <type_traits>
-#include <variant>
+#include <array>
+#include <future>
+#include <ostream>
+#include <stdexcept>
 
 #include "column/chunk.h"
 #include "column/column_helper.h"
@@ -31,6 +35,26 @@
 #include "runtime/descriptors.h"
 #include "types/logical_type.h"
 #include "udf/java/utils.h"
+#include "column/column.h"
+#include "column/const_column.h"
+#include "column/nullable_column.h"
+#include "common/compiler_util.h"
+#include "common/logging.h"
+#include "common/object_pool.h"
+#include "common/statusor.h"
+#include "exec/query_cache/owner_info.h"
+#include "exprs/agg/aggregate_factory.h"
+#include "exprs/expr.h"
+#include "exprs/expr_context.h"
+#include "gutil/int128.h"
+#include "gutil/strings/substitute.h"
+#include "runtime/runtime_state.h"
+#include "types/date_value.h"
+#include "types/timestamp_value.h"
+#include "util/fixed_hash_map.h"
+#include "util/memcmp.h"
+#include "util/phmap/phmap.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
 

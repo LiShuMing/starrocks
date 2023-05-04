@@ -14,8 +14,24 @@
 
 #pragma once
 
+#include <stdint.h>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "exec/pipeline/operator.h"
 #include "exec/pipeline/set/except_context.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/except_hash_set.h"
+#include "exec/exec_node.h"
+
+namespace starrocks {
+class ExprContext;
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

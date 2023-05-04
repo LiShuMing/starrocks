@@ -14,21 +14,29 @@
 
 #pragma once
 
-#include <string_view>
 #include <utility>
 #include <vector>
+#include <memory>
+#include <string>
 
 #include "exec/file_scanner.h"
 #include "formats/csv/converter.h"
 #include "formats/csv/csv_reader.h"
-#include "util/logging.h"
-#include "util/raw_container.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
 
 namespace starrocks {
 class SequentialFile;
 }
 
 namespace starrocks {
+class Chunk;
+class Column;
+class RuntimeProfile;
+class RuntimeState;
+class SlotDescriptor;
+class TBrokerScanRange;
 
 class CSVScanner final : public FileScanner {
 public:

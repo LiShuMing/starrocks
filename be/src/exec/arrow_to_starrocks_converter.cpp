@@ -14,12 +14,23 @@
 
 #include "exec/arrow_to_starrocks_converter.h"
 
-#include <arrow/array.h>
+#include <arrow/array/array_base.h>
+#include <arrow/array/array_decimal.h>
+#include <arrow/type.h>
+#include <cctz/time_zone.h>
+#include <emmintrin.h>
+#include <ext/alloc_traits.h>
+#include <fmt/format.h>
+#include <glog/logging.h>
+#include <immintrin.h>
+#include <algorithm>
+#include <cstdint>
+#include <memory>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
-#include "arrow/array/array_binary.h"
 #include "arrow/array/array_nested.h"
-#include "arrow/scalar.h"
-#include "arrow/type_fwd.h"
 #include "arrow/type_traits.h"
 #include "column/array_column.h"
 #include "column/nullable_column.h"
@@ -35,8 +46,25 @@
 #include "runtime/types.h"
 #include "types/logical_type.h"
 #include "util/pred_guard.h"
+#include "column/column.h"
+#include "column/fixed_length_column.h"
+#include "column/json_column.h"
+#include "common/compiler_util.h"
+#include "gutil/casts.h"
+#include "runtime/decimalv3.h"
+#include "storage/olap_common.h"
+#include "types/date_value.h"
+#include "types/date_value.hpp"
+#include "types/timestamp_value.h"
+#include "util/decimal_types.h"
+#include "util/guard.h"
+#include "util/meta_macro.h"
+#include "util/slice.h"
+#include "util/timezone_utils.h"
+#include "util/value_generator.h"
 
 namespace starrocks {
+class DecimalV2Value;
 
 Status illegal_converting_error(const std::string& arrow_type_name, const std::string& type_name) {
     return Status::InternalError(strings::Substitute("Illegal converting from arrow type($0) to StarRocks type($1)",

@@ -14,6 +14,22 @@
 
 #include "mem_state_table.h"
 
+#include <ext/alloc_traits.h>
+#include <variant>
+
+#include "column/chunk.h"
+#include "column/column.h"
+#include "column/field.h"
+#include "gen_cpp/tablet_schema.pb.h"
+#include "runtime/types.h"
+#include "storage/chunk_helper.h"
+#include "storage/olap_common.h"
+#include "util/slice.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
+
 namespace starrocks::stream {
 namespace {
 

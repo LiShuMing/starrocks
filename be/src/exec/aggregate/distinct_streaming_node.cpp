@@ -14,7 +14,13 @@
 
 #include "exec/aggregate/distinct_streaming_node.h"
 
-#include <variant>
+#include <stddef.h>
+#include <stdint.h>
+#include <any>
+#include <memory>
+#include <tuple>
+#include <utility>
+#include <vector>
 
 #include "exec/aggregator.h"
 #include "exec/pipeline/aggregate/aggregate_distinct_streaming_sink_operator.h"
@@ -24,6 +30,17 @@
 #include "exec/pipeline/pipeline_builder.h"
 #include "runtime/current_thread.h"
 #include "simd/simd.h"
+#include "column/chunk.h"
+#include "exec/aggregate/agg_hash_variant.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/pipeline_fwd.h"
+#include "exec/pipeline/runtime_filter_types.h"
+#include "exec/pipeline/source_operator.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "runtime/mem_pool.h"
+#include "runtime/runtime_state.h"
+#include "util/runtime_profile.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
 

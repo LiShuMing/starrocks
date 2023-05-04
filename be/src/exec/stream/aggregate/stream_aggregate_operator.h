@@ -17,11 +17,23 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <utility>
+#include <memory>
+#include <unordered_map>
 
 #include "exec/aggregator.h"
 #include "exec/pipeline/source_operator.h"
 #include "exec/stream/aggregate/stream_aggregator.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/operator.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::stream {
 using StreamAggregatorPtr = std::shared_ptr<StreamAggregator>;

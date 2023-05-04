@@ -14,22 +14,20 @@
 
 #pragma once
 
-#include <cstdint>
-#include <map>
 #include <string>
-#include <utility>
+#include <cstddef>
+#include <memory>
+#include <vector>
 
 #include "exec/file_builder.h"
+#include "common/status.h"
+#include "formats/csv/converter.h"
+#include "formats/csv/output_stream.h"
 
 namespace starrocks {
-
-namespace csv {
-class Converter;
-class OutputStream;
-} // namespace csv
-
 class ExprContext;
-class FileWriter;
+class Chunk;
+class WritableFile;
 
 struct PlainTextBuilderOptions {
     std::string column_terminated_by;

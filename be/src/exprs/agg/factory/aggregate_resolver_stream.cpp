@@ -12,11 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
+#include <new>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <new>
+#include <string>
+#include <vector>
+
 #include "exprs/agg/factory/aggregate_factory.hpp"
 #include "exprs/agg/factory/aggregate_resolver.hpp"
 #include "exprs/agg/stream/retract_maxmin.h"
 #include "types/logical_type.h"
 #include "types/logical_type_infra.h"
+#include "types/date_value.h"
+#include "types/timestamp_value.h"
+#include "util/phmap/phmap.h"
+#include "types/date_value.h"
+#include "types/timestamp_value.h"
+#include "util/phmap/phmap.h"
 
 namespace starrocks {
 

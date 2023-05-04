@@ -17,8 +17,15 @@
 
 #include "exec/stream/aggregate/agg_state_data.h"
 
-#include "exprs/agg/stream/stream_detail_state.h"
-#include "fmt/format.h"
+#include <ext/alloc_traits.h>
+
+#include "column/chunk.h"
+#include "column/column.h"
+#include "column/fixed_length_column.h"
+#include "common/statusor.h"
+#include "exec/stream/state/state_table.h"
+#include "storage/chunk_helper.h"
+#include "storage/chunk_iterator.h"
 
 namespace starrocks::stream {
 

@@ -14,6 +14,10 @@
 
 #include "analytic_source_operator.h"
 
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
+
 namespace starrocks::pipeline {
 
 bool AnalyticSourceOperator::has_output() const {

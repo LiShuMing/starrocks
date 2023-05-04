@@ -14,10 +14,8 @@
 
 #include "exec/pipeline/source_operator.h"
 
-#include "exec/pipeline/pipeline.h"
-#include "exec/pipeline/pipeline_driver.h"
-
 namespace starrocks::pipeline {
+class Pipeline;
 
 void SourceOperatorFactory::add_group_dependent_pipeline(const Pipeline* dependent_op) {
     _group_leader->_group_dependent_pipelines.emplace_back(dependent_op);

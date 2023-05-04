@@ -14,23 +14,29 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
 #include <utility>
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
 
-#include "column/chunk.h"
 #include "column/vectorized_fwd.h"
 #include "common/object_pool.h"
 #include "common/status.h"
-#include "exec/olap_common.h"
-#include "exec/pipeline/scan/scan_operator.h"
-#include "exprs/expr_context.h"
 #include "jni.h"
 #include "runtime/descriptors.h"
-#include "runtime/mem_tracker.h"
-#include "runtime/runtime_state.h"
 #include "types/logical_type.h"
 #include "udf/java/java_udf.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "gutil/stl_util.h"
+#include "util/runtime_profile.h"
 
 namespace starrocks {
+class ExprContext;
+class RuntimeState;
 
 struct JDBCScanContext {
     std::string driver_path;

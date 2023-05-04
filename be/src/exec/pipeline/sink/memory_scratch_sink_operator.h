@@ -15,21 +15,31 @@
 #pragma once
 
 #include <utility>
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
-#include "exec/pipeline/fragment_context.h"
 #include "exec/pipeline/operator.h"
-#include "gen_cpp/InternalService_types.h"
 #include "runtime/result_queue_mgr.h"
-#include "util/blocking_queue.hpp"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/stream_epoch_manager.h"
+#include "gen_cpp/Exprs_types.h"
+#include "gutil/strings/substitute.h"
+#include "runtime/descriptors.h"
 
 namespace arrow {
-class MemoryPool;
 class RecordBatch;
 class Schema;
 } // namespace arrow
 
 namespace starrocks {
 class ExprContext;
+class RuntimeState;
 
 namespace pipeline {
 

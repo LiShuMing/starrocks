@@ -34,19 +34,27 @@
 
 #include "exec/tablet_sink.h"
 
+#include <brpc/controller.h>
+#include <brpc/http_header.h>
+#include <ext/alloc_traits.h>
+#include <fmt/format.h>
+#include <glog/logging.h>
+#include <opentelemetry/nostd/shared_ptr.h>
+#include <opentelemetry/trace/span.h>
+#include <opentelemetry/trace/span_metadata.h>
 #include <memory>
-#include <numeric>
 #include <sstream>
 #include <utility>
+#include <algorithm>
+#include <iterator>
+#include <unordered_set>
 
 #include "agent/master_info.h"
-#include "agent/utils.h"
 #include "column/binary_column.h"
 #include "column/chunk.h"
 #include "column/column_helper.h"
 #include "column/nullable_column.h"
 #include "common/statusor.h"
-#include "config.h"
 #include "exec/pipeline/query_context.h"
 #include "exec/pipeline/stream_epoch_manager.h"
 #include "exprs/expr.h"
@@ -59,14 +67,51 @@
 #include "serde/protobuf_serde.h"
 #include "simd/simd.h"
 #include "storage/storage_engine.h"
-#include "storage/tablet_manager.h"
-#include "types/hll.h"
 #include "util/brpc_stub_cache.h"
 #include "util/compression/compression_utils.h"
 #include "util/defer_op.h"
-#include "util/thread.h"
 #include "util/thrift_rpc_helper.h"
 #include "util/uid_util.h"
+#include "column/bytes.h"
+#include "column/column.h"
+#include "column/fixed_length_column.h"
+#include "column/stream_chunk.h"
+#include "column/type_traits.h"
+#include "column/vectorized_fwd.h"
+#include "common/compiler_util.h"
+#include "common/logging.h"
+#include "common/object_pool.h"
+#include "exec/exec_node.h"
+#include "exec/tablet_info.h"
+#include "exprs/expr_context.h"
+#include "exprs/function_context.h"
+#include "gen_cpp/DataSinks_types.h"
+#include "gen_cpp/Descriptors_types.h"
+#include "gen_cpp/FrontendService.h"
+#include "gen_cpp/FrontendService_types.h"
+#include "gen_cpp/InternalService_types.h"
+#include "gen_cpp/Metrics_types.h"
+#include "gen_cpp/StatusCode_types.h"
+#include "gen_cpp/Status_types.h"
+#include "gen_cpp/data.pb.h"
+#include "gen_cpp/descriptors.pb.h"
+#include "gen_cpp/doris_internal_service.pb.h"
+#include "gen_cpp/olap_common.pb.h"
+#include "gutil/casts.h"
+#include "gutil/int128.h"
+#include "runtime/client_cache.h"
+#include "runtime/decimalv3.h"
+#include "runtime/descriptors.h"
+#include "runtime/types.h"
+#include "util/compression/block_compression.h"
+#include "util/decimal_types.h"
+#include "util/metrics.h"
+#include "util/monotime.h"
+#include "util/phmap/phmap.h"
+#include "util/ref_count_closure.h"
+#include "util/reusable_closure.h"
+#include "util/starrocks_metrics.h"
+#include "util/stopwatch.hpp"
 
 static const uint8_t VALID_SEL_FAILED = 0x0;
 static const uint8_t VALID_SEL_OK = 0x1;

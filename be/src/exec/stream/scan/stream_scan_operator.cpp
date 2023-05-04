@@ -14,9 +14,25 @@
 
 #include "stream_scan_operator.h"
 
+#include <ext/alloc_traits.h>
+#include <fmt/format.h>
+#include <shared_mutex>
+#include <utility>
+#include <vector>
+
 #include "exec/connector_scan_node.h"
+#include "column/chunk.h"
+#include "exec/pipeline/stream_epoch_manager.h"
+#include "util/defer_op.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks {
+class ScanNode;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
+class BalancedChunkBuffer;
+class ScanOperator;
 
 StreamScanOperatorFactory::StreamScanOperatorFactory(int32_t id, ScanNode* scan_node, size_t dop,
                                                      ChunkBufferLimiterPtr buffer_limiter, bool is_stream_pipeline)

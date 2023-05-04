@@ -17,15 +17,33 @@
 
 #pragma once
 
+#include <glog/logging.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <memory>
+#include <ostream>
+#include <vector>
+
 #include "column/stream_chunk.h"
-#include "exec/aggregator.h"
-#include "exec/stream/state/state_table.h"
 #include "exprs/agg/aggregate.h"
+#include "column/vectorized_fwd.h"
+#include "common/logging.h"
+#include "common/status.h"
+
+namespace starrocks {
+class Column;
+class FunctionContext;
+struct AggFunctionTypes;
+}  // namespace starrocks
 
 namespace starrocks::stream {
+class StateTable;
+struct StateTableResult;
+
 using AggGroupStatePtr = uint8_t*;
 
 class AggStateData;
+
 using AggStateDataUPtr = std::unique_ptr<AggStateData>;
 
 struct AggStateDataParams {

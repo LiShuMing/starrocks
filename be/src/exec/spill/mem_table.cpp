@@ -14,17 +14,19 @@
 
 #include "exec/spill/mem_table.h"
 
-#include <glog/logging.h>
-
+#include <ext/alloc_traits.h>
 #include <memory>
+#include <type_traits>
 
 #include "column/chunk.h"
 #include "column/vectorized_fwd.h"
 #include "exec/chunks_sorter.h"
 #include "exec/spill/input_stream.h"
-#include "runtime/current_thread.h"
+#include "runtime/runtime_state.h"
 
 namespace starrocks::spill {
+struct SerdeContext;
+
 class RawChunkInputStream final : public SpillInputStream {
 public:
     RawChunkInputStream(std::vector<ChunkPtr> chunks) : _chunks(std::move(chunks)) {}

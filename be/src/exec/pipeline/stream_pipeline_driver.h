@@ -13,11 +13,22 @@
 // limitations under the License.
 
 #pragma once
-#include <atomic>
+#include <stddef.h>
+#include <stdint.h>
 
 #include "exec/pipeline/pipeline_driver.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/pipeline/operator.h"
+#include "exec/pipeline/stream_epoch_manager.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
+class Pipeline;
+class QueryContext;
 
 /**
  * `StreamPipelineDriver` is used in Incremental MV which is different from `PipelineDriver`:

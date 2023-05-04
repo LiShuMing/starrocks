@@ -14,16 +14,26 @@
 
 #include "exec/schema_scanner/schema_be_tablets_scanner.h"
 
+#include <glog/logging.h>
+#include <memory>
+#include <optional>
+
 #include "agent/master_info.h"
 #include "exec/schema_scanner/schema_helper.h"
 #include "gutil/strings/substitute.h"
 #include "runtime/string_value.h"
 #include "storage/storage_engine.h"
-#include "storage/tablet.h"
 #include "storage/tablet_manager.h"
 #include "types/logical_type.h"
+#include "column/chunk.h"
+#include "exprs/function_context.h"
+#include "gen_cpp/tablet_schema.pb.h"
+#include "storage/tablet_meta.h"
+#include "util/phmap/phmap.h"
+#include "util/slice.h"
 
 namespace starrocks {
+class RuntimeState;
 
 SchemaScanner::ColumnDesc SchemaBeTabletsScanner::_s_columns[] = {
         {"BE_ID", TYPE_BIGINT, sizeof(int64_t), false},         {"TABLE_ID", TYPE_BIGINT, sizeof(int64_t), false},

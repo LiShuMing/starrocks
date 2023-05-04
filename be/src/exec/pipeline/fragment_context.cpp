@@ -14,13 +14,27 @@
 
 #include "exec/pipeline/fragment_context.h"
 
+#include <glog/logging.h>
+#include <ostream>
+#include <string>
+
 #include "exec/data_sink.h"
 #include "exec/pipeline/pipeline_driver_executor.h"
-#include "exec/pipeline/stream_pipeline_driver.h"
 #include "runtime/data_stream_mgr.h"
 #include "runtime/exec_env.h"
 #include "runtime/stream_load/stream_load_context.h"
 #include "runtime/stream_load/transaction_mgr.h"
+#include "common/config.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/pipeline_driver.h"
+#include "exec/pipeline/query_context.h"
+#include "gen_cpp/InternalService_types.h"
+#include "gutil/int128.h"
+#include "runtime/message_body_sink.h"
+#include "runtime/profile_report_worker.h"
+#include "util/runtime_profile.h"
+#include "util/slice.h"
+#include "util/uid_util.h"
 
 namespace starrocks::pipeline {
 

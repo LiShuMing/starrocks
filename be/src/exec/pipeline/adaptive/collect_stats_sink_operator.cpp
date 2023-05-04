@@ -14,7 +14,16 @@
 
 #include "exec/pipeline/adaptive/collect_stats_sink_operator.h"
 
+#include <memory>
+#include <string>
+#include <utility>
+
 #include "exec/pipeline/adaptive/collect_stats_context.h"
+#include "exec/exec_node.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

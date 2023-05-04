@@ -14,10 +14,25 @@
 
 #include "exec/aggregate/aggregate_base_node.h"
 
-#include "exprs/anyval_util.h"
-#include "gutil/strings/substitute.h"
+#include <fmt/format.h>
+#include <map>
+#include <memory>
+#include <utility>
+
+#include "common/global_types.h"
+#include "exprs/column_ref.h"
+#include "exprs/expr.h"
+#include "exprs/expr_context.h"
+#include "exprs/runtime_filter_bank.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "gutil/casts.h"
+#include "runtime/mem_tracker.h"
+#include "runtime/types.h"
 
 namespace starrocks {
+class DescriptorTbl;
+class ObjectPool;
+class RuntimeState;
 
 AggregateBaseNode::AggregateBaseNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& descs)
         : ExecNode(pool, tnode, descs), _tnode(tnode) {}

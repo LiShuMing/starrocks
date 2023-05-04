@@ -14,8 +14,22 @@
 
 #pragma once
 
+#include <stdint.h>
+#include <memory>
+#include <utility>
+
 #include "exec/pipeline/sort/partition_sort_sink_operator.h"
-#include "exec/spill/spiller.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "exec/chunks_sorter.h"
+#include "exec/pipeline/operator.h"
+#include "exec/pipeline/sort/sort_context.h"
+#include "exec/spill/options.h"
+#include "exec/spill/spiller_factory.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 class SpillablePartitionSortSinkOperator final : public PartitionSortSinkOperator {

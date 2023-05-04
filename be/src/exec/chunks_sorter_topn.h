@@ -14,12 +14,29 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "column/vectorized_fwd.h"
 #include "exec/chunks_sorter.h"
-#include "exprs/expr_context.h"
 #include "util/runtime_profile.h"
+#include "column/chunk.h"
+#include "common/status.h"
+#include "exec/exec_node.h"
+#include "exec/sorting/sort_permute.h"
+#include "gen_cpp/PlanNodes_types.h"
 
 namespace starrocks {
+class ExprContext;
+class JoinRuntimeFilter;
+class MemTracker;
+class ObjectPool;
+class RuntimeState;
+
 // Sort Chunks in memory with specified order by rules.
 class ChunksSorterTopn : public ChunksSorter {
 public:

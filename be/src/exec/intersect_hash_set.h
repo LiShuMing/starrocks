@@ -14,17 +14,24 @@
 
 #pragma once
 
-#include "column/chunk.h"
+#include <stdint.h>
+#include <cstddef>
+#include <memory>
+#include <new>
+#include <vector>
+
 #include "column/column_hash.h"
-#include "exprs/expr_context.h"
 #include "runtime/mem_pool.h"
 #include "util/phmap/phmap.h"
 #include "util/slice.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "util/memcmp.h"
+#include "util/phmap/phmap_dump.h"
 
 namespace starrocks {
-
-class IntersectSliceFlag;
-struct IntersectSliceFlagEqual;
+class ExprContext;
+class RuntimeState;
 
 class IntersectSliceFlag {
 public:

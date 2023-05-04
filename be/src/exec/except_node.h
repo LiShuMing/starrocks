@@ -14,29 +14,34 @@
 
 #pragma once
 
-#include <unordered_set>
+#include <stdint.h>
+#include <memory>
+#include <vector>
 
-#include "column/chunk.h"
-#include "column/column_hash.h"
-#include "column/column_helper.h"
-#include "column/type_traits.h"
 #include "exec/except_hash_set.h"
-#include "exec/olap_common.h"
 #include "exec/pipeline/operator.h"
-#include "exprs/expr_context.h"
-#include "gutil/casts.h"
 #include "runtime/mem_pool.h"
-#include "util/hash_util.hpp"
-#include "util/phmap/phmap.h"
-#include "util/slice.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "exec/exec_node.h"
+#include "runtime/types.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks::pipeline {
+class PipelineBuilderContext;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
 class DescriptorTbl;
-class SlotDescriptor;
 class TupleDescriptor;
 } // namespace starrocks
 
 namespace starrocks {
+class ExprContext;
+class ObjectPool;
+class RuntimeState;
+class TPlanNode;
+
 class ExceptNode : public ExecNode {
 public:
     ExceptNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& descs);

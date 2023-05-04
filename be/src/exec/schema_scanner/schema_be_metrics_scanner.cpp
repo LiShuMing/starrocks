@@ -14,6 +14,14 @@
 
 #include "exec/schema_scanner/schema_be_metrics_scanner.h"
 
+#include <cstdlib>
+#include <map>
+#include <memory>
+#include <optional>
+#include <ostream>
+#include <set>
+#include <utility>
+
 #include "agent/master_info.h"
 #include "exec/schema_scanner/schema_helper.h"
 #include "gutil/strings/substitute.h"
@@ -21,8 +29,13 @@
 #include "types/logical_type.h"
 #include "util/metrics.h"
 #include "util/starrocks_metrics.h"
+#include "column/chunk.h"
+#include "exprs/function_context.h"
+#include "util/phmap/phmap.h"
+#include "util/slice.h"
 
 namespace starrocks {
+class RuntimeState;
 
 SchemaScanner::ColumnDesc SchemaBeMetricsScanner::_s_columns[] = {
         {"BE_ID", TYPE_BIGINT, sizeof(int64_t), false},

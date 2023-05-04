@@ -34,10 +34,24 @@
 
 #pragma once
 
+#include <memory>
+#include <vector>
+
 #include "exec/exec_node.h"
-#include "runtime/mem_pool.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks::pipeline {
+class OperatorFactory;
+class PipelineBuilderContext;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
+class DescriptorTbl;
+class ObjectPool;
+class RuntimeState;
+class TPlanNode;
 
 // Node that evaluates conjuncts and enforces a limit but otherwise passes along
 // the rows pulled from its child unchanged.

@@ -14,24 +14,42 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <memory>
+#include <cstddef>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "column/column_helper.h"
 #include "column/vectorized_fwd.h"
-#include "common/object_pool.h"
 #include "exec/pipeline/spill_process_channel.h"
-#include "exec/sort_exec_exprs.h"
-#include "exec/sorting/sort_permute.h"
 #include "exec/sorting/sorting.h"
-#include "exec/spill/executor.h"
-#include "exec/spill/spiller.h"
-#include "exprs/expr_context.h"
 #include "exprs/runtime_filter.h"
-#include "runtime/descriptors.h"
-#include "runtime/runtime_state.h"
 #include "util/runtime_profile.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "column/type_traits.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "exec/spill/options.h"
+#include "exprs/function_context.h"
+#include "gutil/casts.h"
+#include "types/logical_type.h"
+
+namespace starrocks::spill {
+class Spiller;
+}  // namespace starrocks::spill
 
 namespace starrocks {
+class ExprContext;
+class MemTracker;
+class ObjectPool;
+class RuntimeState;
+class SortExecExprs;
+class TupleDescriptor;
+struct OrderByType;
 
 struct DataSegment {
     static const uint8_t SMALLER_THAN_MIN_OF_SEGMENT = 2;
@@ -85,8 +103,8 @@ struct DataSegment {
 };
 using DataSegments = std::vector<DataSegment>;
 
-class SortedRuns;
 class ChunksSorter;
+
 using ChunksSorterPtr = std::shared_ptr<ChunksSorter>;
 using ChunksSorters = std::vector<ChunksSorterPtr>;
 

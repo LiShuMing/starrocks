@@ -14,9 +14,20 @@
 
 #pragma once
 
-#include "exec/partition/chunks_partitioner.h"
+#include <stdint.h>
+#include <string>
+
 #include "exec/pipeline/hash_partition_context.h"
 #include "exec/pipeline/operator.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 /**
  * HashPartition{Sink/Source}Operator pair is used to reorder the input sequence by

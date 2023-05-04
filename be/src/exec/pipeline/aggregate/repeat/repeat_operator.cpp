@@ -14,9 +14,16 @@
 
 #include "exec/pipeline/aggregate/repeat/repeat_operator.h"
 
+#include <ext/alloc_traits.h>
+
 #include "column/chunk.h"
-#include "exec/exec_node.h"
 #include "runtime/descriptors.h"
+#include "column/column_helper.h"
+#include "exprs/expr.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

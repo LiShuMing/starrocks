@@ -14,17 +14,33 @@
 
 #include "chunks_sorter_full_sort.h"
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <utility>
+
 #include "exec/sorting/merge.h"
 #include "exec/sorting/sort_permute.h"
 #include "exec/sorting/sorting.h"
-#include "exprs/column_ref.h"
-#include "exprs/expr.h"
 #include "gutil/strings/substitute.h"
-#include "runtime/current_thread.h"
 #include "runtime/runtime_state.h"
 #include "util/stopwatch.hpp"
+#include "column/binary_column.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "column/column_helper.h"
+#include "column/fixed_length_column.h"
+#include "common/statusor.h"
+#include "exprs/function_context.h"
+#include "gutil/casts.h"
+#include "util/guard.h"
+#include "util/phmap/phmap.h"
+#include "util/raw_container.h"
 
 namespace starrocks {
+class MemTracker;
 
 ChunksSorterFullSort::ChunksSorterFullSort(RuntimeState* state, const std::vector<ExprContext*>* sort_exprs,
                                            const std::vector<bool>* is_asc_order,

@@ -14,8 +14,16 @@
 
 #include "exec/pipeline/limit_operator.h"
 
+#include <stdint.h>
+#include <algorithm>
+#include <type_traits>
+#include <utility>
+
 #include "column/chunk.h"
-#include "runtime/runtime_state.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

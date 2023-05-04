@@ -14,8 +14,17 @@
 
 #pragma once
 
+#include <stddef.h>
 #include <functional>
 #include <queue>
+#include <atomic>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "column/vectorized_fwd.h"
 #include "common/status.h"
@@ -23,14 +32,20 @@
 #include "exec/spill/executor.h"
 #include "exec/spill/input_stream.h"
 #include "exec/spill/mem_table.h"
-#include "exec/spill/options.h"
 #include "exec/spill/partition.h"
 #include "exec/spill/serde.h"
-#include "fs/fs.h"
-#include "runtime/runtime_state.h"
+#include "column/chunk.h"
+#include "common/statusor.h"
+#include "gutil/casts.h"
+#include "runtime/mem_tracker.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::spill {
 class Spiller;
+struct SpilledOptions;
 
 using FlushAllCallBack = std::function<Status()>;
 using SpillHashColumn = UInt32Column;
@@ -181,6 +196,7 @@ private:
     MemTracker* _parent_tracker = nullptr;
 };
 struct SpilledPartition;
+
 using SpilledPartitionPtr = std::unique_ptr<SpilledPartition>;
 
 struct SpilledPartition : public SpillPartitionInfo {

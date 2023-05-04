@@ -17,7 +17,9 @@
 
 #include "exec/local_file_writer.h"
 
+#include <errno.h>
 #include <utility>
+#include <ostream>
 
 #include "util/error_util.h"
 

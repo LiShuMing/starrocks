@@ -35,8 +35,19 @@
 #pragma once
 
 #include "exec/exec_node.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "exec/pipeline/pipeline_fwd.h"
+
+namespace starrocks::pipeline {
+class PipelineBuilderContext;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
+class DescriptorTbl;
+class ObjectPool;
+class RuntimeState;
+class TPlanNode;
 
 /// Node that returns an empty result set, i.e., just sets eos_ in GetNext().
 /// Corresponds to EmptySetNode.java in the FE.

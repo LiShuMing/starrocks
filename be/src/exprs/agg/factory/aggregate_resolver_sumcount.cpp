@@ -12,12 +12,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+#include <new>
+#include <string>
+#include <tuple>
+#include <unordered_map>
+#include <vector>
+#include <memory>
+#include <new>
+#include <string>
+#include <tuple>
+#include <unordered_map>
+#include <vector>
+
 #include "column/type_traits.h"
 #include "exprs/agg/distinct.h"
 #include "exprs/agg/factory/aggregate_factory.hpp"
 #include "exprs/agg/factory/aggregate_resolver.hpp"
 #include "exprs/agg/sum.h"
 #include "types/logical_type.h"
+#include "column/hash_set.h"
+#include "exprs/agg/aggregate.h"
+#include "types/date_value.h"
+#include "types/logical_type_infra.h"
+#include "types/timestamp_value.h"
+#include "util/guard.h"
+#include "util/phmap/phmap.h"
+#include "util/phmap/phmap_dump.h"
+#include "column/hash_set.h"
+#include "exprs/agg/aggregate.h"
+#include "types/date_value.h"
+#include "types/logical_type_infra.h"
+#include "types/timestamp_value.h"
+#include "util/guard.h"
+#include "util/phmap/phmap.h"
+#include "util/phmap/phmap_dump.h"
 
 namespace starrocks {
 

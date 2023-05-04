@@ -14,6 +14,12 @@
 
 #include "exec/pipeline/set/intersect_build_sink_operator.h"
 
+#include "exprs/expr.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
+
 namespace starrocks::pipeline {
 
 StatusOr<ChunkPtr> IntersectBuildSinkOperator::pull_chunk(RuntimeState* state) {

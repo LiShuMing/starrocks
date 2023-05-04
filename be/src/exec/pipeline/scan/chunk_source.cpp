@@ -14,12 +14,18 @@
 
 #include "exec/pipeline/scan/chunk_source.h"
 
-#include <random>
+#include <utility>
 
 #include "common/statusor.h"
 #include "exec/pipeline/scan/balanced_chunk_buffer.h"
 #include "exec/workgroup/work_group.h"
 #include "runtime/runtime_state.h"
+#include "column/chunk.h"
+#include "exec/pipeline/scan/scan_operator.h"
+#include "exec/query_cache/owner_info.h"
+#include "exec/workgroup/scan_task_queue.h"
+#include "util/stopwatch.hpp"
+
 namespace starrocks::pipeline {
 
 ChunkSource::ChunkSource(int32_t scan_operator_id, RuntimeProfile* runtime_profile, MorselPtr&& morsel,

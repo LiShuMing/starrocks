@@ -14,10 +14,19 @@
 
 #include "exec/pipeline/aggregate/spillable_aggregate_blocking_source_operator.h"
 
-#include <algorithm>
+#include <glog/logging.h>
 
 #include "common/status.h"
 #include "exec/pipeline/aggregate/aggregate_blocking_source_operator.h"
+#include "column/chunk.h"
+#include "exec/pipeline/spill_process_channel.h"
+#include "exec/spill/executor.h"
+#include "exec/spill/spiller.h"
+#include "runtime/current_thread.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 void SpillableAggregateBlockingSourceOperator::close(RuntimeState* state) {

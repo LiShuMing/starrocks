@@ -14,14 +14,18 @@
 
 #pragma once
 
+#include <stddef.h>
 #include <vector>
+#include <cstdint>
+#include <memory>
 
 #include "column/vectorized_fwd.h"
 #include "glog/logging.h"
-#include "simd/simd.h"
 #include "util/array_view.hpp"
 
 namespace starrocks {
+class Chunk;
+class Column;
 
 struct PermutationItem {
     uint32_t chunk_index;

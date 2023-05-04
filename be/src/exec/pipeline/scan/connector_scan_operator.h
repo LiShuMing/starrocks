@@ -14,16 +14,43 @@
 
 #pragma once
 
+#include <stddef.h>
+#include <cstdint>
+#include <mutex>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "connector/connector.h"
-#include "exec/pipeline/pipeline_builder.h"
 #include "exec/pipeline/scan/balanced_chunk_buffer.h"
 #include "exec/pipeline/scan/scan_operator.h"
 #include "exec/workgroup/work_group_fwd.h"
 #include "storage/chunk_helper.h"
+#include "column/vectorized_fwd.h"
+#include "common/constexpr.h"
+#include "common/status.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/operator.h"
+#include "exec/pipeline/runtime_filter_types.h"
+#include "exec/pipeline/scan/chunk_buffer_limiter.h"
+#include "exec/pipeline/scan/chunk_source.h"
+#include "exec/pipeline/scan/morsel.h"
+#include "gen_cpp/Partitions_types.h"
+#include "util/phmap/phmap.h"
+#include "util/phmap/phmap_base.h"
+#include "util/phmap/phmap_utils.h"
+
+namespace starrocks::workgroup {
+class WorkGroup;
+}  // namespace starrocks::workgroup
 
 namespace starrocks {
 
 class ScanNode;
+class ConnectorScanNode;
+class ExprContext;
+class RuntimeProfile;
+class RuntimeState;
 
 namespace pipeline {
 

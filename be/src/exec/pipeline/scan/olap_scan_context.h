@@ -15,19 +15,36 @@
 #pragma once
 
 #include <mutex>
+#include <atomic>
+#include <cstdint>
+#include <memory>
+#include <utility>
+#include <vector>
 
 #include "exec/olap_scan_prepare.h"
 #include "exec/pipeline/context_with_dependency.h"
 #include "exec/pipeline/scan/balanced_chunk_buffer.h"
 #include "runtime/global_dict/parser.h"
-#include "util/phmap/phmap_fwd_decl.h"
+#include "common/constexpr.h"
+#include "common/object_pool.h"
+#include "common/status.h"
+#include "exec/olap_utils.h"
+#include "exec/pipeline/scan/chunk_buffer_limiter.h"
+#include "util/phmap/phmap.h"
+#include "util/phmap/phmap_base.h"
+#include "util/phmap/phmap_utils.h"
 
 namespace starrocks {
 
-class ScanNode;
 class Tablet;
+class ExprContext;
+class OlapScanNode;
+class RuntimeState;
+class TInternalScanRange;
+
 using TabletSharedPtr = std::shared_ptr<Tablet>;
 class Rowset;
+
 using RowsetSharedPtr = std::shared_ptr<Rowset>;
 
 class RuntimeFilterProbeCollector;
@@ -35,8 +52,10 @@ class RuntimeFilterProbeCollector;
 namespace pipeline {
 
 class OlapScanContext;
+
 using OlapScanContextPtr = std::shared_ptr<OlapScanContext>;
 class OlapScanContextFactory;
+
 using OlapScanContextFactoryPtr = std::shared_ptr<OlapScanContextFactory>;
 
 class OlapScanContext final : public ContextWithDependency {

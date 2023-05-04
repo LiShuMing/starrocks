@@ -14,28 +14,22 @@
 
 #include "exec/spill/spiller.h"
 
-#include <butil/iobuf.h>
-#include <fmt/core.h>
 #include <glog/logging.h>
-
-#include <cstdint>
-#include <functional>
+#include <ext/alloc_traits.h>
 #include <memory>
 #include <mutex>
 #include <utility>
 
-#include "column/chunk.h"
-#include "common/config.h"
 #include "common/status.h"
 #include "common/statusor.h"
-#include "exec/sort_exec_exprs.h"
 #include "exec/spill/input_stream.h"
-#include "exec/spill/mem_table.h"
 #include "exec/spill/options.h"
 #include "exec/spill/spiller.hpp"
-#include "gutil/port.h"
-#include "runtime/runtime_state.h"
-#include "serde/column_array_serde.h"
+#include "gen_cpp/Metrics_types.h"
+
+namespace starrocks {
+struct SpillPartitionInfo;
+}  // namespace starrocks
 
 namespace starrocks::spill {
 SpillProcessMetrics::SpillProcessMetrics(RuntimeProfile* profile) {

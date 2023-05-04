@@ -14,6 +14,12 @@
 
 #include "exec/sorting/sort_permute.h"
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <stdint.h>
+#include <algorithm>
+#include <string>
+
 #include "column/array_column.h"
 #include "column/binary_column.h"
 #include "column/column.h"
@@ -24,15 +30,20 @@
 #include "column/json_column.h"
 #include "column/map_column.h"
 #include "column/nullable_column.h"
-#include "column/object_column.h"
 #include "column/struct_column.h"
 #include "column/vectorized_fwd.h"
 #include "common/status.h"
-#include "exec/sorting/sorting.h"
 #include "gutil/casts.h"
 #include "gutil/strings/fastmem.h"
+#include "column/chunk.h"
+#include "column/fixed_length_column.h"
+#include "common/statusor.h"
+#include "exprs/function_context.h"
+#include "simd/simd.h"
+#include "util/slice.h"
 
 namespace starrocks {
+template <typename T> class ObjectColumn;
 
 bool TieIterator::next() {
     if (_inner_range_first >= end) {

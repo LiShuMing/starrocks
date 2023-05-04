@@ -12,10 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stddef.h>
+#include <stdint.h>
 #include <utility>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <type_traits>
+#include <vector>
 
-#include "column/chunk.h"
 #include "exec/pipeline/source_operator.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/operator.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 
@@ -41,6 +57,7 @@ namespace starrocks::pipeline {
 // 3. can pull chiunk. we maintain the progress of consumers.
 
 class MultiCastLocalExchangeSinkOperator;
+
 // ===== exchanger =====
 class MultiCastLocalExchanger {
 public:

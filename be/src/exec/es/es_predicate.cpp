@@ -35,29 +35,49 @@
 #include "exec/es/es_predicate.h"
 
 #include <gutil/strings/substitute.h>
-
+#include <cctz/time_zone.h>
+#include <fmt/format.h>
+#include <glog/logging.h>
+#include <stdint.h>
 #include <map>
 #include <sstream>
 #include <utility>
+#include <memory>
+#include <type_traits>
+#include <variant>
 
 #include "column/column.h"
 #include "column/column_viewer.h"
-#include "column/const_column.h"
-#include "common/logging.h"
 #include "common/status.h"
 #include "exec/es/es_query_builder.h"
 #include "exprs/column_ref.h"
 #include "exprs/expr.h"
 #include "exprs/expr_context.h"
-#include "exprs/in_const_predicate.hpp"
 #include "runtime/large_int_value.h"
-#include "runtime/runtime_state.h"
-#include "runtime/string_value.h"
-#include "service/backend_options.h"
 #include "types/logical_type.h"
-#include "util/runtime_profile.h"
+#include "column/column_helper.h"
+#include "column/datum.h"
+#include "column/type_traits.h"
+#include "common/object_pool.h"
+#include "common/statusor.h"
+#include "exprs/function_context.h"
+#include "exprs/predicate.h"
+#include "gen_cpp/Types_types.h"
+#include "gutil/casts.h"
+#include "runtime/descriptors.h"
+#include "types/timestamp_value.h"
+#include "util/phmap/phmap.h"
 
 namespace starrocks {
+class BitmapValue;
+class DecimalV2Value;
+class HyperLogLog;
+class JsonValue;
+class PercentileValue;
+class Slice;
+struct decimal12_t;
+struct int96_t;
+template <starrocks::LogicalType Type> class VectorizedInConstPredicate;
 
 using namespace std;
 

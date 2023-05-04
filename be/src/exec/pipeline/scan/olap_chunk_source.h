@@ -14,28 +14,41 @@
 
 #pragma once
 
-#include <utility>
+#include <stdint.h>
+#include <memory>
+#include <string>
+#include <unordered_set>
+#include <vector>
 
-#include "exec/olap_common.h"
-#include "exec/olap_scan_prepare.h"
 #include "exec/olap_utils.h"
 #include "exec/pipeline/scan/chunk_source.h"
 #include "exec/workgroup/work_group_fwd.h"
-#include "exprs/expr.h"
-#include "exprs/expr_context.h"
-#include "gen_cpp/InternalService_types.h"
-#include "runtime/runtime_state.h"
 #include "storage/conjunctive_predicates.h"
-#include "storage/tablet.h"
-#include "storage/tablet_reader.h"
+#include "column/vectorized_fwd.h"
+#include "common/object_pool.h"
+#include "common/status.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/scan/morsel.h"
+#include "storage/column_predicate.h"
+#include "storage/tablet_reader_params.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks::workgroup {
+class WorkGroup;
+}  // namespace starrocks::workgroup
 
 namespace starrocks {
 
 class SlotDescriptor;
+class Chunk;
+class ChunkIterator;
+class OlapScanNode;
+class RuntimeState;
+class TInternalScanRange;
+class TabletReader;
 
 namespace pipeline {
 
-class ScanOperator;
 class OlapScanContext;
 
 class OlapChunkSource final : public ChunkSource {

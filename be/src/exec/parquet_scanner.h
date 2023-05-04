@@ -14,12 +14,8 @@
 
 #pragma once
 
-#include <fs/fs.h>
-
-#include <map>
+#include <stddef.h>
 #include <memory>
-#include <sstream>
-#include <string>
 #include <vector>
 
 #include "column/vectorized_fwd.h"
@@ -27,12 +23,22 @@
 #include "exec/arrow_to_starrocks_converter.h"
 #include "exec/file_scanner.h"
 #include "parquet_reader.h"
-#include "parquet_scanner.h"
-#include "runtime/mem_pool.h"
-#include "util/runtime_profile.h"
-#include "util/slice.h"
+#include "common/object_pool.h"
+#include "common/statusor.h"
+#include "exprs/function_context.h"
+
+namespace arrow {
+class Array;
+class DataType;
+}  // namespace arrow
 
 namespace starrocks {
+class Expr;
+class RuntimeProfile;
+class RuntimeState;
+class SlotDescriptor;
+class TBrokerScanRange;
+struct TypeDescriptor;
 
 // Broker scanner convert the data read from broker to starrocks's tuple.
 class ParquetScanner : public FileScanner {

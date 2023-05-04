@@ -14,21 +14,21 @@
 
 #include "exec/olap_scan_node.h"
 
+#include <stdlib.h>
 #include <chrono>
 #include <thread>
+#include <algorithm>
+#include <shared_mutex>
+#include <unordered_set>
 
 #include "column/column_pool.h"
-#include "column/type_traits.h"
 #include "common/status.h"
 #include "exec/olap_scan_prepare.h"
-#include "exec/pipeline/limit_operator.h"
 #include "exec/pipeline/noop_sink_operator.h"
 #include "exec/pipeline/pipeline_builder.h"
 #include "exec/pipeline/scan/chunk_buffer_limiter.h"
 #include "exec/pipeline/scan/olap_scan_operator.h"
 #include "exec/pipeline/scan/olap_scan_prepare_operator.h"
-#include "exprs/expr_context.h"
-#include "exprs/runtime_filter_bank.h"
 #include "glog/logging.h"
 #include "runtime/current_thread.h"
 #include "runtime/descriptors.h"
@@ -42,8 +42,37 @@
 #include "util/defer_op.h"
 #include "util/priority_thread_pool.hpp"
 #include "util/runtime_profile.h"
+#include "column/binary_column.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "common/compiler_util.h"
+#include "common/config.h"
+#include "common/logging.h"
+#include "common/object_pool.h"
+#include "exec/olap_utils.h"
+#include "exec/pipeline/operator.h"
+#include "exec/pipeline/runtime_filter_types.h"
+#include "exec/pipeline/scan/morsel.h"
+#include "exec/pipeline/scan/olap_scan_context.h"
+#include "exec/pipeline/scan/scan_operator.h"
+#include "exec/tablet_scanner.h"
+#include "exprs/expr.h"
+#include "gen_cpp/Metrics_types.h"
+#include "gen_cpp/RuntimeProfile_types.h"
+#include "gen_cpp/Types_types.h"
+#include "gen_cpp/data.pb.h"
+#include "gen_cpp/tablet_schema.pb.h"
+#include "gutil/stl_util.h"
+#include "runtime/mem_tracker.h"
+#include "runtime/query_statistics.h"
+#include "runtime/runtime_state.h"
+#include "runtime/types.h"
+#include "storage/tablet_schema.h"
+#include "types/logical_type.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
+class ExprContext;
 
 OlapScanNode::OlapScanNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& descs)
         : ScanNode(pool, tnode, descs), _olap_scan_node(tnode.olap_scan_node), _status(Status::OK()) {

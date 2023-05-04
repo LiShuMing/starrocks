@@ -12,16 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <algorithm>
 #include <utility>
+#include <atomic>
+#include <memory>
+#include <ostream>
+#include <string>
+#include <vector>
 
 #include "column/array_column.h"
 #include "column/binary_column.h"
-#include "column/chunk.h"
 #include "column/column.h"
 #include "column/column_helper.h"
 #include "column/column_visitor_adapter.h"
-#include "column/const_column.h"
 #include "column/fixed_length_column_base.h"
 #include "column/json_column.h"
 #include "column/map_column.h"
@@ -30,8 +37,19 @@
 #include "exec/sorting/sort_permute.h"
 #include "exec/sorting/sorting.h"
 #include "util/orlp/pdqsort.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exprs/function_context.h"
+#include "gutil/casts.h"
+#include "simd/simd.h"
+#include "util/json.h"
+#include "util/slice.h"
 
 namespace starrocks {
+class ConstColumn;
+class StructColumn;
+template <typename T> class ObjectColumn;
 
 // Sort a column by permtuation
 class ColumnSorter final : public ColumnVisitorAdapter<ColumnSorter> {

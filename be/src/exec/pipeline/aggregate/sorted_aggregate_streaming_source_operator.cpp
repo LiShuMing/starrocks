@@ -14,8 +14,14 @@
 
 #include "exec/pipeline/aggregate/sorted_aggregate_streaming_source_operator.h"
 
-#include "exec/pipeline/sort/sort_context.h"
+#include <glog/logging.h>
+
 #include "exec/sorted_streaming_aggregator.h"
+#include "column/chunk.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 SortedAggregateStreamingSourceOperator::SortedAggregateStreamingSourceOperator(

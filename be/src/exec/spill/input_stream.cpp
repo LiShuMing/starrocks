@@ -14,12 +14,25 @@
 
 #include "exec/spill/input_stream.h"
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <stddef.h>
 #include <utility>
+#include <algorithm>
+#include <type_traits>
 
 #include "exec/spill/serde.h"
 #include "runtime/sorted_chunks_merger.h"
 #include "util/blocking_queue.hpp"
 #include "util/defer_op.h"
+#include "column/chunk.h"
+#include "exec/sort_exec_exprs.h"
+#include "runtime/chunk_cursor.h"
+
+namespace starrocks {
+class RuntimeState;
+struct SortDescs;
+}  // namespace starrocks
 
 namespace starrocks::spill {
 

@@ -16,6 +16,11 @@
 
 #include <atomic>
 #include <memory>
+#include <algorithm>
+#include <chrono>
+#include <ostream>
+#include <string>
+#include <thread>
 
 #include "common/config.h"
 #include "exec/pipeline/scan/chunk_buffer_limiter.h"
@@ -24,6 +29,22 @@
 #include "runtime/current_thread.h"
 #include "runtime/exec_env.h"
 #include "util/priority_thread_pool.hpp"
+#include "column/chunk.h"
+#include "common/object_pool.h"
+#include "exec/pipeline/operator.h"
+#include "exec/pipeline/pipeline_builder.h"
+#include "exec/pipeline/runtime_filter_types.h"
+#include "exec/pipeline/scan/scan_operator.h"
+#include "exec/pipeline/stream_epoch_manager.h"
+#include "gen_cpp/Metrics_types.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "runtime/descriptors.h"
+#include "runtime/mem_tracker.h"
+#include "runtime/runtime_state.h"
+#include "runtime/types.h"
+#include "types/logical_type.h"
+#include "util/defer_op.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
 

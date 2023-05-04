@@ -14,6 +14,16 @@
 
 #include "exec/pipeline/hashjoin/hash_joiner_factory.h"
 
+#include <glog/logging.h>
+#include <stdint.h>
+#include <utility>
+
+#include "exprs/expr.h"
+
+namespace starrocks {
+class RuntimeState;
+}  // namespace starrocks
+
 namespace starrocks::pipeline {
 
 Status HashJoinerFactory::prepare(RuntimeState* state) {

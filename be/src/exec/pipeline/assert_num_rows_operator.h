@@ -14,18 +14,20 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <utility>
+#include <memory>
+#include <string>
 
-#include "column/chunk.h"
 #include "column/vectorized_fwd.h"
-#include "exec/pipeline/source_operator.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exec/exec_node.h"
+#include "exec/pipeline/operator.h"
+#include "gen_cpp/PlanNodes_types.h"
 
 namespace starrocks {
-class BufferControlBlock;
-class ExprContext;
-class ResultWriter;
-class ExecNode;
-class ChunksSorter;
+class RuntimeState;
 
 namespace pipeline {
 class AssertNumRowsOperator final : public Operator {

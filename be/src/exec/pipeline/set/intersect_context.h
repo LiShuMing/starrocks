@@ -14,27 +14,36 @@
 
 #pragma once
 
-#include "column/chunk.h"
-#include "column/column_hash.h"
-#include "column/column_helper.h"
-#include "column/type_traits.h"
+#include <stddef.h>
+#include <stdint.h>
+#include <atomic>
+#include <memory>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
 #include "common/statusor.h"
 #include "exec/intersect_hash_set.h"
-#include "exec/olap_common.h"
 #include "exec/pipeline/context_with_dependency.h"
-#include "exprs/expr_context.h"
-#include "gutil/casts.h"
 #include "runtime/mem_pool.h"
-#include "util/hash_util.hpp"
 #include "util/phmap/phmap.h"
-#include "util/slice.h"
+#include "column/vectorized_fwd.h"
+#include "common/status.h"
+
+namespace starrocks {
+class ExprContext;
+class RuntimeState;
+class TupleDescriptor;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 
 class IntersectContext;
+
 using IntersectContextPtr = std::shared_ptr<IntersectContext>;
 
 class IntersectPartitionContextFactory;
+
 using IntersectPartitionContextFactoryPtr = std::shared_ptr<IntersectPartitionContextFactory>;
 
 // Used as the shared context for IntersectBuildSinkOperator, IntersectProbeSinkOperator, and IntersectOutputSourceOperator.

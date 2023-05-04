@@ -14,6 +14,11 @@
 
 #include "exec/except_node.h"
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <stddef.h>
+#include <utility>
+
 #include "column/column_helper.h"
 #include "exec/pipeline/limit_operator.h"
 #include "exec/pipeline/pipeline_builder.h"
@@ -24,8 +29,21 @@
 #include "exprs/expr.h"
 #include "runtime/current_thread.h"
 #include "runtime/runtime_state.h"
+#include "column/chunk.h"
+#include "column/column.h"
+#include "exec/pipeline/pipeline_fwd.h"
+#include "exec/pipeline/runtime_filter_types.h"
+#include "exprs/expr_context.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "runtime/descriptors.h"
+#include "runtime/mem_tracker.h"
+#include "util/defer_op.h"
+#include "util/phmap/phmap.h"
+#include "util/phmap/phmap_base.h"
+#include "util/stopwatch.hpp"
 
 namespace starrocks {
+class ObjectPool;
 
 ExceptNode::ExceptNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& descs)
         : ExecNode(pool, tnode, descs), _tuple_id(tnode.except_node.tuple_id), _tuple_desc(nullptr) {}

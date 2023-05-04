@@ -14,14 +14,29 @@
 
 #include "exec/repeat_node.h"
 
+#include <ext/alloc_traits.h>
+#include <glog/logging.h>
+#include <utility>
+
 #include "exec/pipeline/aggregate/repeat/repeat_operator.h"
 #include "exec/pipeline/limit_operator.h"
-#include "exec/pipeline/operator.h"
 #include "exec/pipeline/pipeline_builder.h"
-#include "exprs/expr.h"
 #include "runtime/runtime_state.h"
+#include "column/chunk.h"
+#include "common/config.h"
+#include "exec/pipeline/pipeline_fwd.h"
+#include "exec/pipeline/runtime_filter_types.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "runtime/descriptors.h"
+#include "util/stopwatch.hpp"
+
+namespace starrocks::pipeline {
+class OperatorFactory;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
+class ObjectPool;
+
 RepeatNode::RepeatNode(ObjectPool* pool, const TPlanNode& tnode, const DescriptorTbl& descs)
         : ExecNode(pool, tnode, descs),
           _slot_id_set_list(tnode.repeat_node.slot_id_set_list),

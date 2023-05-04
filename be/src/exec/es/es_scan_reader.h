@@ -35,6 +35,8 @@
 #pragma once
 
 #include <string>
+#include <map>
+#include <memory>
 
 #include "http/http_client.h"
 

@@ -15,45 +15,33 @@
 #pragma once
 
 #include <memory>
-#include <tuple>
-#include <unordered_map>
 
-#include "column/type_traits.h"
 #include "exprs/agg/aggregate.h"
-#include "exprs/agg/aggregate_factory.h"
 #include "exprs/agg/any_value.h"
 #include "exprs/agg/array_agg.h"
 #include "exprs/agg/avg.h"
-#include "exprs/agg/bitmap_intersect.h"
-#include "exprs/agg/bitmap_union.h"
-#include "exprs/agg/bitmap_union_count.h"
 #include "exprs/agg/bitmap_union_int.h"
-#include "exprs/agg/count.h"
 #include "exprs/agg/distinct.h"
 #include "exprs/agg/exchange_perf.h"
 #include "exprs/agg/group_concat.h"
 #include "exprs/agg/histogram.h"
 #include "exprs/agg/hll_ndv.h"
-#include "exprs/agg/hll_union.h"
-#include "exprs/agg/hll_union_count.h"
 #include "exprs/agg/intersect_count.h"
 #include "exprs/agg/maxmin.h"
 #include "exprs/agg/maxmin_by.h"
 #include "exprs/agg/nullable_aggregate.h"
-#include "exprs/agg/percentile_approx.h"
-#include "exprs/agg/percentile_cont.h"
-#include "exprs/agg/percentile_union.h"
-#include "exprs/agg/retention.h"
 #include "exprs/agg/stream/retract_maxmin.h"
 #include "exprs/agg/sum.h"
 #include "exprs/agg/variance.h"
 #include "exprs/agg/window.h"
-#include "exprs/agg/window_funnel.h"
 #include "types/logical_type.h"
-#include "types/logical_type_infra.h"
-#include "udf/java/java_function_fwd.h"
 
 namespace starrocks {
+template <bool IsWindowFunc> class CountAggregateFunction;
+template <bool IsWindowFunc> class CountNullableAggregateFunction;
+template <starrocks::LogicalType LT> class PercentileContAggregateFunction;
+template <starrocks::LogicalType LT> class PercentileDiscAggregateFunction;
+template <starrocks::LogicalType LT> class WindowFunnelAggregateFunction;
 
 // TODO(murphy) refactor the factory into a shim style
 class AggregateFactory {

@@ -14,6 +14,8 @@
 
 #include "exec/pipeline/scan/chunk_buffer_limiter.h"
 
+#include <algorithm>
+
 #include "glog/logging.h"
 
 namespace starrocks::pipeline {

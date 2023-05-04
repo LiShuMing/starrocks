@@ -14,26 +14,45 @@
 
 #pragma once
 
-#include <atomic>
-#include <boost/algorithm/string.hpp>
-#include <utility>
+#include <stddef.h>
+#include <stdint.h>
+#include <boost/algorithm/string/case_conv.hpp>
+#include <boost/iterator/iterator_facade.hpp>
+#include <algorithm>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
-#include "column/chunk.h"
-#include "exprs/expr.h"
-#include "exprs/expr_context.h"
+#include "column/vectorized_fwd.h"
+#include "common/global_types.h"
+#include "common/status.h"
+#include "common/statusor.h"
+#include "exprs/function_context.h"
+#include "gen_cpp/types.pb.h"
+#include "runtime/types.h"
+#include "util/stopwatch.hpp"
+
+namespace starrocks::io {
+class CacheInputStream;
+class SharedBufferedInputStream;
+}  // namespace starrocks::io
+#include <atomic>
+
 #include "fs/fs.h"
-#include "io/cache_input_stream.h"
-#include "io/shared_buffered_input_stream.h"
-#include "runtime/descriptors.h"
-#include "runtime/runtime_state.h"
 #include "util/runtime_profile.h"
 
-namespace starrocks::parquet {
-class FileReader;
-}
 namespace starrocks {
 
 class RuntimeFilterProbeCollector;
+class ExprContext;
+class RuntimeState;
+class SlotDescriptor;
+class THdfsScanRange;
+class TIcebergDeleteFile;
+class TIcebergSchema;
+class TupleDescriptor;
 
 struct HdfsScanStats {
     int64_t raw_rows_read = 0;
@@ -73,7 +92,6 @@ struct HdfsScanStats {
     }
 };
 
-class HdfsParquetProfile;
 
 struct HdfsScanProfile {
     RuntimeProfile* runtime_profile = nullptr;

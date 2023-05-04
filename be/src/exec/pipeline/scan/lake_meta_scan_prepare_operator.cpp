@@ -14,10 +14,21 @@
 
 #include "exec/pipeline/scan/lake_meta_scan_prepare_operator.h"
 
+#include <string>
+#include <vector>
+
 #include "exec/pipeline/scan/meta_scan_context.h"
-#include "exec/pipeline/scan/meta_scan_operator.h"
 #include "gen_cpp/Types_types.h"
-#include "storage/olap_common.h"
+#include "exec/exec_node.h"
+#include "exec/lake_meta_scanner.h"
+#include "exec/meta_scanner.h"
+#include "exec/pipeline/scan/morsel.h"
+#include "gen_cpp/PlanNodes_types.h"
+
+namespace starrocks {
+class LakeMetaScanNode;
+class RuntimeState;
+}  // namespace starrocks
 
 namespace starrocks::pipeline {
 

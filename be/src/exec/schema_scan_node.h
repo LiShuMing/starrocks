@@ -14,10 +14,23 @@
 
 #pragma once
 
+#include <iosfwd>
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "exec/scan_node.h"
 #include "exec/schema_scanner.h"
-#include "gen_cpp/Descriptors_types.h"
-#include "runtime/descriptors.h"
+#include "column/vectorized_fwd.h"
+#include "common/global_types.h"
+#include "exec/exec_node.h"
+#include "gen_cpp/PlanNodes_types.h"
+#include "util/runtime_profile.h"
+
+namespace starrocks::pipeline {
+class OperatorFactory;
+class PipelineBuilderContext;
+}  // namespace starrocks::pipeline
 
 namespace starrocks {
 class TupleDescriptor;
@@ -26,6 +39,9 @@ class Status;
 } // namespace starrocks
 
 namespace starrocks {
+class DescriptorTbl;
+class ObjectPool;
+class TScanRangeParams;
 
 class SchemaScanNode final : public ScanNode {
 public:

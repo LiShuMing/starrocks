@@ -1,0 +1,482 @@
+Python 3.10.6
+[1mApache Maven 3.6.3[m
+Maven home: /usr/share/maven
+Java version: 11.0.18, vendor: Ubuntu, runtime: /usr/lib/jvm/java-11-openjdk-amd64
+Default locale: en_US, platform encoding: ANSI_X3.4-1968
+OS name: "linux", version: "5.15.0-46-generic", arch: "amd64", family: "unix"
+Get params:
+    BUILD_BE            -- 1
+    BE_CMAKE_TYPE       -- 
+    BUILD_FE            -- 0
+    BUILD_SPARK_DPP     -- 0
+    CLEAN               -- 1
+    RUN_UT              -- 0
+    WITH_GCOV           -- OFF
+    WITH_BENCH          -- OFF
+    USE_STAROS          -- OFF
+    USE_AVX2            -- ON
+    USE_AVX512          -- OFF
+    PARALLEL            -- 27
+    ENABLE_QUERY_DEBUG_TRACE -- OFF
+    WITH_BLOCK_CACHE    -- OFF
+    USE_JEMALLOC        -- ON
+
+Build generated code
+rm -rf /root/starrocks/gensrc/build/
+make -C script
+make[1]: Entering directory '/root/starrocks/gensrc/script'
+python /root/starrocks/gensrc/script/../../build-support/gen_build_version.py --cpp /root/starrocks/gensrc/script/../build//gen_cpp --java /root/starrocks/gensrc/script/../../fe/fe-core/target/generated-sources/build
+python /root/starrocks/gensrc/script/gen_functions.py --cpp /root/starrocks/gensrc/script/../build//gen_cpp  --java /root/starrocks/gensrc/script/../../fe/fe-core/target/generated-sources/build
+make[1]: Leaving directory '/root/starrocks/gensrc/script'
+make -C proto
+make[1]: Entering directory '/root/starrocks/gensrc/proto'
+/var/local/thirdparty/installed/bin/protoc --proto_path=/root/starrocks/gensrc/proto --cpp_out=/root/starrocks/gensrc/proto/../build//gen_cpp /root/starrocks/gensrc/proto/persistent_index.proto
+/var/local/thirdparty/installed/bin/protoc --proto_path=/root/starrocks/gensrc/proto --cpp_out=/root/starrocks/gensrc/proto/../build//gen_cpp /root/starrocks/gensrc/proto/olap_file.proto
+/var/local/thirdparty/installed/bin/protoc --proto_path=/root/starrocks/gensrc/proto --cpp_out=/root/starrocks/gensrc/proto/../build//gen_cpp /root/starrocks/gensrc/proto/snapshot.proto
+/var/local/thirdparty/installed/bin/protoc --proto_path=/root/starrocks/gensrc/proto --cpp_out=/root/starrocks/gensrc/proto/../build//gen_cpp /root/starrocks/gensrc/proto/lake_service.proto
+/var/local/thirdparty/installed/bin/protoc --proto_path=/root/starrocks/gensrc/proto --cpp_out=/root/starrocks/gensrc/proto/../build//gen_cpp /root/starrocks/gensrc/proto/tablet_schema.proto
+/var/local/thirdparty/installed/bin/protoc --proto_path=/root/starrocks/gensrc/proto --cpp_out=/root/starrocks/gensrc/proto/../build//gen_cpp /root/starrocks/gensrc/proto/doris_internal_service.proto
+/var/local/thirdparty/installed/bin/protoc --proto_path=/root/starrocks/gensrc/proto --cpp_out=/root/starrocks/gensrc/proto/../build//gen_cpp /root/starrocks/gensrc/proto/binlog.proto
+/var/local/thirdparty/installed/bin/protoc --proto_path=/root/starrocks/gensrc/proto --cpp_out=/root/starrocks/gensrc/proto/../build//gen_cpp /root/starrocks/gensrc/proto/data.proto
+/var/local/thirdparty/installed/bin/protoc --proto_path=/root/starrocks/gensrc/proto --cpp_out=/root/starrocks/gensrc/proto/../build//gen_cpp /root/starrocks/gensrc/proto/lake_types.proto
+/var/local/thirdparty/installed/bin/protoc --proto_path=/root/starrocks/gensrc/proto --cpp_out=/root/starrocks/gensrc/proto/../build//gen_cpp /root/starrocks/gensrc/proto/status.proto
+/var/local/thirdparty/installed/bin/protoc --proto_path=/root/starrocks/gensrc/proto --cpp_out=/root/starrocks/gensrc/proto/../build//gen_cpp /root/starrocks/gensrc/proto/types.proto
+/var/local/thirdparty/installed/bin/protoc --proto_path=/root/starrocks/gensrc/proto --cpp_out=/root/starrocks/gensrc/proto/../build//gen_cpp /root/starrocks/gensrc/proto/internal_service.proto
+/var/local/thirdparty/installed/bin/protoc --proto_path=/root/starrocks/gensrc/proto --cpp_out=/root/starrocks/gensrc/proto/../build//gen_cpp /root/starrocks/gensrc/proto/segment.proto
+/var/local/thirdparty/installed/bin/protoc --proto_path=/root/starrocks/gensrc/proto --cpp_out=/root/starrocks/gensrc/proto/../build//gen_cpp /root/starrocks/gensrc/proto/orc_proto.proto
+/var/local/thirdparty/installed/bin/protoc --proto_path=/root/starrocks/gensrc/proto --cpp_out=/root/starrocks/gensrc/proto/../build//gen_cpp /root/starrocks/gensrc/proto/descriptors.proto
+/var/local/thirdparty/installed/bin/protoc --proto_path=/root/starrocks/gensrc/proto --cpp_out=/root/starrocks/gensrc/proto/../build//gen_cpp /root/starrocks/gensrc/proto/olap_common.proto
+make[1]: Leaving directory '/root/starrocks/gensrc/proto'
+make -C thrift
+make[1]: Entering directory '/root/starrocks/gensrc/thrift'
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/MVMaintenance.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/FrontendService.thrift
+[WARNING:/root/starrocks/gensrc/thrift/FrontendService.thrift:698] The "byte" type is a compatibility alias for "i8". Use "i8" to emphasize the signedness of this type.
+
+[WARNING:/root/starrocks/gensrc/thrift/FrontendService.thrift:1247] No field key specified for request, resulting protocol may have conflicts or not be backwards compatible!
+
+[WARNING:/root/starrocks/gensrc/thrift/FrontendService.thrift:1250] No field key specified for params, resulting protocol may have conflicts or not be backwards compatible!
+
+[WARNING:/root/starrocks/gensrc/thrift/FrontendService.thrift:1247] No field key specified for request, resulting protocol may have conflicts or not be backwards compatible!
+
+[WARNING:/root/starrocks/gensrc/thrift/FrontendService.thrift:1250] No field key specified for params, resulting protocol may have conflicts or not be backwards compatible!
+
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/Planner.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/StatusCode.thrift
+patch -p0 -d /root/starrocks/gensrc/thrift/../build//gen_cpp < StatusCode_types.diff 2>&1 1>/dev/null
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/StarrocksExternalService.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/Normalization.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/RuntimeProfile.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/RuntimeFilter.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/parquet.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/FileBrokerService.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/Metrics.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/CloudConfiguration.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/BackendService.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/PlanNodes.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/Data.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/Status.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/Opcodes.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/WorkGroup.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/ResourceUsage.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/Descriptors.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/Types.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/Exprs.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/DataSinks.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/Partitions.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/AgentService.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/InternalService.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/MasterService.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/QueryPlanExtra.thrift
+/var/local/thirdparty/installed/bin/thrift -I /root/starrocks/gensrc/thrift -I /root/starrocks/gensrc/thrift/../build//thrift/ --allow-64bit-consts --gen cpp -out /root/starrocks/gensrc/thrift/../build//gen_cpp /root/starrocks/gensrc/thrift/HeartbeatService.thrift
+make[1]: Leaving directory '/root/starrocks/gensrc/thrift'
+cmake version 3.22.1
+
+CMake suite maintained and supported by Kitware (kitware.com/cmake).
+Build Backend: Release
+-- The CXX compiler identification is Clang 14.0.0
+-- The C compiler identification is Clang 14.0.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /bin/clang++-14 - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /bin/clang-14 - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Build type is RELEASE
+-- Build target arch is x86_64
+-- make test: OFF
+-- defined PIC_LIB_PATH
+-- build gensrc if necessary
+make: Entering directory '/root/starrocks/gensrc'
+make -C script
+make[1]: Entering directory '/root/starrocks/gensrc/script'
+python /root/starrocks/gensrc/script/../../build-support/gen_build_version.py --cpp /root/starrocks/gensrc/script/../build//gen_cpp --java /root/starrocks/gensrc/script/../../fe/fe-core/target/generated-sources/build
+gen_build_version.py /root/starrocks/gensrc/script/../build//gen_cpp/version.cpp: old fingerprint = 5090cf0635e2c109e2cfd1dc85e67a98, new fingerprint = 5090cf0635e2c109e2cfd1dc85e67a98
+gen_build_version.py /root/starrocks/gensrc/script/../../fe/fe-core/target/generated-sources/build/com/starrocks/common/Version.java: old fingerprint = a013dcec9b32cb55e011cede2d345216, new fingerprint = a013dcec9b32cb55e011cede2d345216
+make[1]: Leaving directory '/root/starrocks/gensrc/script'
+make -C proto
+make[1]: Entering directory '/root/starrocks/gensrc/proto'
+make[1]: Nothing to be done for 'all'.
+make[1]: Leaving directory '/root/starrocks/gensrc/proto'
+make -C thrift
+make[1]: Entering directory '/root/starrocks/gensrc/thrift'
+make[1]: Nothing to be done for 'all'.
+make[1]: Leaving directory '/root/starrocks/gensrc/thrift'
+make: Leaving directory '/root/starrocks/gensrc'
+-- Looking for pthread.h
+-- Looking for pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Found Boost: /var/local/thirdparty/installed/include (found suitable version "1.80.0", minimum required is "1.80.0") found components: thread regex program_options filesystem context chrono atomic 
+-- /var/local/thirdparty/installed/lib/libboost_thread.a/var/local/thirdparty/installed/lib/libboost_regex.a/var/local/thirdparty/installed/lib/libboost_program_options.a/var/local/thirdparty/installed/lib/libboost_filesystem.a/var/local/thirdparty/installed/lib/libboost_context.a/var/local/thirdparty/installed/lib/libboost_chrono.a/var/local/thirdparty/installed/lib/libboost_atomic.a
+-- Using OpenSSL Root Dir: /var/local/thirdparty/installed/
+-- Found AWS SDK for C++, Version: 1.9.179, Install Root:/var/local/thirdparty/installed, Platform Prefix:, Platform Dependent Libraries: pthread;crypto;ssl;z;curl
+-- Components specified for AWSSDK: core;s3;s3-crt;transfer;identity-management;sts, application will be depending on libs: aws-cpp-sdk-s3-crt;aws-cpp-sdk-transfer;aws-cpp-sdk-identity-management;aws-cpp-sdk-cognito-identity;aws-cpp-sdk-sts;aws-cpp-sdk-s3;aws-cpp-sdk-core;aws-crt-cpp;aws-c-auth;aws-c-cal;aws-c-common;aws-c-compression;aws-c-event-stream;aws-c-http;aws-c-io;aws-c-mqtt;aws-c-s3;aws-checksums;pthread;crypto;ssl;z;curl
+-- Try finding aws-cpp-sdk-core
+-- Found LibCrypto: /root/starrocks/thirdparty/installed/lib/libcrypto.a  
+-- LibCrypto Include Dir: /root/starrocks/thirdparty/installed/include
+-- LibCrypto Shared Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Static Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Include Dir: /root/starrocks/thirdparty/installed/include
+-- LibCrypto Shared Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Static Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Include Dir: /root/starrocks/thirdparty/installed/include
+-- LibCrypto Shared Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Static Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Include Dir: /root/starrocks/thirdparty/installed/include
+-- LibCrypto Shared Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Static Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Include Dir: /root/starrocks/thirdparty/installed/include
+-- LibCrypto Shared Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Static Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Include Dir: /root/starrocks/thirdparty/installed/include
+-- LibCrypto Shared Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Static Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Include Dir: /root/starrocks/thirdparty/installed/include
+-- LibCrypto Shared Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Static Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Include Dir: /root/starrocks/thirdparty/installed/include
+-- LibCrypto Shared Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Static Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Include Dir: /root/starrocks/thirdparty/installed/include
+-- LibCrypto Shared Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Static Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Include Dir: /root/starrocks/thirdparty/installed/include
+-- LibCrypto Shared Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Static Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Include Dir: /root/starrocks/thirdparty/installed/include
+-- LibCrypto Shared Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Static Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Include Dir: /root/starrocks/thirdparty/installed/include
+-- LibCrypto Shared Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Static Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Include Dir: /root/starrocks/thirdparty/installed/include
+-- LibCrypto Shared Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Static Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Include Dir: /root/starrocks/thirdparty/installed/include
+-- LibCrypto Shared Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Static Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Include Dir: /root/starrocks/thirdparty/installed/include
+-- LibCrypto Shared Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Static Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Include Dir: /root/starrocks/thirdparty/installed/include
+-- LibCrypto Shared Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Static Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Include Dir: /root/starrocks/thirdparty/installed/include
+-- LibCrypto Shared Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Static Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Include Dir: /root/starrocks/thirdparty/installed/include
+-- LibCrypto Shared Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Static Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Include Dir: /root/starrocks/thirdparty/installed/include
+-- LibCrypto Shared Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Static Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Include Dir: /root/starrocks/thirdparty/installed/include
+-- LibCrypto Shared Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Static Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Include Dir: /root/starrocks/thirdparty/installed/include
+-- LibCrypto Shared Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- LibCrypto Static Lib:  /root/starrocks/thirdparty/installed/lib/libcrypto.a
+-- Found aws-cpp-sdk-core
+-- Try finding aws-cpp-sdk-s3
+-- Found aws-cpp-sdk-s3
+-- Try finding aws-cpp-sdk-sts
+-- Found aws-cpp-sdk-sts
+-- Try finding aws-cpp-sdk-cognito-identity
+-- Found aws-cpp-sdk-cognito-identity
+-- Try finding aws-cpp-sdk-identity-management
+-- Found aws-cpp-sdk-identity-management
+-- Try finding aws-cpp-sdk-transfer
+-- Found aws-cpp-sdk-transfer
+-- Try finding aws-cpp-sdk-s3-crt
+-- Found aws-cpp-sdk-s3-crt
+-- Looking for sched_getcpu
+-- Looking for sched_getcpu - found
+-- Compiler Flags:   -Wall -Wno-sign-compare -Wno-unknown-pragmas -pthread -Wno-register -Wno-strict-aliasing -fno-omit-frame-pointer -std=gnu++17 -D__STDC_FORMAT_MACROS -Wno-deprecated -Wno-vla -Wno-comment -Wno-unused-parameter -Wno-documentation -Wno-weak-vtables -Wno-reserved-identifier -Wno-suggest-destructor-override -Wno-documentation-unknown-command -Wno-old-style-cast -Wno-c++20-designator -Wno-mismatched-tags -Wno-bitwise-instead-of-logical -DBOOST_DATE_TIME_POSIX_TIME_STD_CONFIG -DBOOST_SYSTEM_NO_DEPRECATED -DBOOST_UUID_RANDOM_PROVIDER_FORCE_POSIX -Werror=return-type -Werror=switch --gcc-toolchain=/bin/.. -msse4.2 -mavx2  -Wno-attributes -DS2_USE_GFLAGS -DS2_USE_GLOG -faligned-new  -g -Wno-unused-local-typedefs -O3 -gdwarf-4 -DNDEBUG
+-- Build type: RELEASE
+-- compiler Clang version 14.0.0
+-- Performing Test ORC_CXX_HAS_INITIALIZER_LIST
+-- Performing Test ORC_CXX_HAS_INITIALIZER_LIST - Success
+-- Performing Test ORC_CXX_HAS_NOEXCEPT
+-- Performing Test ORC_CXX_HAS_NOEXCEPT - Success
+-- Performing Test ORC_CXX_HAS_NULLPTR
+-- Performing Test ORC_CXX_HAS_NULLPTR - Success
+-- Performing Test ORC_CXX_HAS_OVERRIDE
+-- Performing Test ORC_CXX_HAS_OVERRIDE - Success
+-- Performing Test ORC_CXX_HAS_UNIQUE_PTR
+-- Performing Test ORC_CXX_HAS_UNIQUE_PTR - Success
+-- Performing Test ORC_CXX_HAS_CSTDINT
+-- Performing Test ORC_CXX_HAS_CSTDINT - Success
+-- Performing Test ORC_CXX_HAS_THREAD_LOCAL
+-- Performing Test ORC_CXX_HAS_THREAD_LOCAL - Success
+-- SNAPPY_HOME: /var/local/thirdparty/installed
+-- Found the Snappy header: /var/local/thirdparty/installed/include/snappy.h
+-- Found the Snappy library: /var/local/thirdparty/installed/lib/libsnappy.a
+-- ZLIB_HOME: /var/local/thirdparty/installed
+-- Found the ZLIB header: /var/local/thirdparty/installed/include/zlib.h
+-- Found the ZLIB library: /var/local/thirdparty/installed/lib/libz.a
+-- Found the ZLIB static library: /var/local/thirdparty/installed/lib/libz.a
+-- ZSTD_HOME: /var/local/thirdparty/installed
+-- Found the zstd header: /var/local/thirdparty/installed/include/zstd/zstd.h
+-- Found the zstd library: /var/local/thirdparty/installed/lib
+-- LZ4_HOME: /var/local/thirdparty/installed
+-- Found the LZ4 header: /var/local/thirdparty/installed/include/lz4/lz4.h
+-- Found the LZ4 library: /var/local/thirdparty/installed/lib
+-- PROTOBUF_HOME: /var/local/thirdparty/installed
+-- Found the Protobuf headers: /var/local/thirdparty/installed/include
+-- Found the Protobuf library: /var/local/thirdparty/installed/lib/libprotobuf.a
+-- Found the Protoc library: /var/local/thirdparty/installed/lib/libprotoc.a
+-- Found the Protoc executable: /var/local/thirdparty/installed/bin/protoc
+-- Found the Protobuf static library: /var/local/thirdparty/installed/lib/libprotobuf.a
+-- Found the Protoc static library: /var/local/thirdparty/installed/lib/libprotoc.a
+-- Performing Test HAS_PREAD
+-- Performing Test HAS_PREAD - Success
+-- Performing Test HAS_STRPTIME
+-- Performing Test HAS_STRPTIME - Success
+-- Performing Test HAS_STOLL
+-- Performing Test HAS_STOLL - Success
+-- Performing Test HAS_BUILTIN_OVERFLOW_CHECK
+-- Performing Test HAS_BUILTIN_OVERFLOW_CHECK - Success
+-- Performing Test INT64_IS_LL
+-- Performing Test INT64_IS_LL - Failed
+-- Performing Test HAS_DIAGNOSTIC_PUSH
+-- Performing Test HAS_DIAGNOSTIC_PUSH - Success
+-- Performing Test HAS_STD_ISNAN
+-- Performing Test HAS_STD_ISNAN - Success
+-- Performing Test HAS_STD_MUTEX
+-- Performing Test HAS_STD_MUTEX - Success
+-- Performing Test NEEDS_REDUNDANT_MOVE
+-- Performing Test NEEDS_REDUNDANT_MOVE - Failed
+-- Performing Test HAS_DOUBLE_TO_STRING
+-- Performing Test HAS_DOUBLE_TO_STRING - Success
+-- Performing Test HAS_INT64_TO_STRING
+-- Performing Test HAS_INT64_TO_STRING - Success
+-- Performing Test HAS_CONSTEXPR
+-- Performing Test HAS_CONSTEXPR - Success
+-- Performing Test HAS_PRE_1970
+-- Performing Test HAS_PRE_1970 - Success
+-- Performing Test HAS_POST_2038
+-- Performing Test HAS_POST_2038 - Success
+-- Performing Test NEEDS_Z_PREFIX
+-- Performing Test NEEDS_Z_PREFIX - Failed
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /root/starrocks/be/build_Release
+[  0%] Generating orc_proto.pb.h, orc_proto.pb.cc
+[  1%] Generating /root/starrocks/gensrc/build/geo/wkt_yacc.y.cpp, /root/starrocks/gensrc/build/geo/wkt_yacc.y.hpp
+[  1%] Generating bit_packing_gen.inc
+[  2%] Generating /root/starrocks/gensrc/build/geo/wkt_lex.l.cpp, /root/starrocks/gensrc/build/geo/wkt_lex.l.h
+[  2%] Building CXX object src/connector/CMakeFiles/Connector.dir/connector.cpp.o
+[  2%] Building CXX object src/common/CMakeFiles/Common.dir/daemon.cpp.o
+[  2%] Building CXX object CMakeFiles/build_version.dir/build_version.cc.o
+[  2%] Building CXX object src/agent/CMakeFiles/Agent.dir/agent_server.cpp.o
+[  2%] Building CXX object src/column/CMakeFiles/Column.dir/array_column.cpp.o
+[  3%] Building CXX object src/formats/CMakeFiles/Formats.dir/csv/array_converter.cpp.o
+[  3%] Building CXX object src/fs/CMakeFiles/FileSystem.dir/fd_cache.cpp.o
+[  3%] Building CXX object src/io/CMakeFiles/IO.dir/array_input_stream.cpp.o
+[  3%] Building CXX object src/http/CMakeFiles/Webserver.dir/download_action.cpp.o
+[  4%] Building CXX object src/storage/rowset/CMakeFiles/Rowset.dir/unique_rowset_id_generator.cpp.o
+[  5%] Building CXX object src/exprs/CMakeFiles/Exprs.dir/agg/factory/aggregate_factory.cpp.o
+[  4%] Building CXX object src/gutil/CMakeFiles/Gutil.dir/bits.cc.o
+[  5%] Building CXX object src/script/CMakeFiles/Script.dir/script.cpp.o
+[  5%] Building CXX object src/serde/CMakeFiles/Serde.dir/column_array_serde.cpp.o
+[  5%] Building CXX object src/service/CMakeFiles/Service.dir/backend_options.cpp.o
+[  5%] Building CXX object src/service/service_cn/CMakeFiles/ServiceCN.dir/compute_service.cpp.o
+[  5%] Building CXX object src/service/service_be/CMakeFiles/ServiceBE.dir/backend_service.cpp.o
+[  5%] Building CXX object src/testutil/CMakeFiles/TestUtil.dir/desc_tbl_builder.cc.o
+[  5%] Building CXX object src/types/CMakeFiles/Types.dir/array_type_info.cpp.o
+[  5%] Building CXX object src/runtime/CMakeFiles/Runtime.dir/broker_mgr.cpp.o
+[  5%] Building CXX object src/gen_cpp/CMakeFiles/StarRocksGen.dir/thrift_types_customize_impl.cpp.o
+[  5%] Building CXX object src/agent/CMakeFiles/Agent.dir/client_cache.cpp.o
+[  6%] Building CXX object src/storage/CMakeFiles/Storage.dir/aggregate_type.cpp.o
+[  6%] Built target build_version
+[  6%] Building CXX object src/exec/CMakeFiles/Exec.dir/data_sink.cpp.o
+[  6%] Building CXX object src/agent/CMakeFiles/Agent.dir/heartbeat_server.cpp.o
+[  7%] Building CXX object src/common/CMakeFiles/Common.dir/status.cpp.o
+[  7%] Building CXX object src/formats/orc/apache-orc/c++/src/CMakeFiles/orc.dir/io/InputStream.cc.o
+[  7%] Building CXX object src/geo/CMakeFiles/Geo.dir/geo_common.cpp.o
+[  7%] Building CXX object src/geo/CMakeFiles/Geo.dir/geo_types.cpp.o
+[  8%] Building C object src/gutil/CMakeFiles/Gutil.dir/dynamic_annotations.c.o
+[  8%] Building CXX object src/gutil/CMakeFiles/Gutil.dir/hash/city.cc.o
+[  8%] Building CXX object src/storage/CMakeFiles/Storage.dir/base_tablet.cpp.o
+[  8%] Building CXX object src/agent/CMakeFiles/Agent.dir/task_worker_pool.cpp.o
+[  8%] Building CXX object src/gen_cpp/CMakeFiles/StarRocksGen.dir/root/starrocks/gensrc/build/gen_cpp/AgentService_constants.cpp.o
+[  8%] Building CXX object src/agent/CMakeFiles/Agent.dir/utils.cpp.o
+[  8%] Building CXX object src/io/CMakeFiles/IO.dir/compressed_input_stream.cpp.o
+[  8%] Building CXX object src/gutil/CMakeFiles/Gutil.dir/hash/hash.cc.o
+[  8%] Building CXX object src/gutil/CMakeFiles/Gutil.dir/hash/jenkins.cc.o
+[  8%] Building CXX object src/geo/CMakeFiles/Geo.dir/wkt_parse.cpp.o
+[  8%] Building CXX object src/service/CMakeFiles/Service.dir/backend_base.cpp.o
+[  8%] Building CXX object src/gutil/CMakeFiles/Gutil.dir/int128.cc.o
+[  8%] Building CXX object src/types/CMakeFiles/Types.dir/bitmap_value.cpp.o
+[  8%] Building CXX object src/gutil/CMakeFiles/Gutil.dir/once.cc.o
+[  8%] Building CXX object src/gutil/CMakeFiles/Gutil.dir/ref_counted.cc.o
+[  8%] Building CXX object src/storage/rowset/CMakeFiles/Rowset.dir/rowset.cpp.o
+[  8%] Building C object src/script/CMakeFiles/Script.dir/__/thirdparty/wren/wren.c.o
+[  8%] Building CXX object src/service/service_cn/CMakeFiles/ServiceCN.dir/http_service.cpp.o
+[  8%] Building CXX object src/geo/CMakeFiles/Geo.dir/root/starrocks/gensrc/build/geo/wkt_lex.l.cpp.o
+[  8%] Building CXX object src/exprs/CMakeFiles/Exprs.dir/agg/factory/aggregate_resolver_approx.cpp.o
+[  8%] Building CXX object src/formats/CMakeFiles/Formats.dir/csv/array_reader.cpp.o
+[  9%] Building CXX object src/io/CMakeFiles/IO.dir/fd_output_stream.cpp.o
+[  9%] Building CXX object src/service/service_cn/CMakeFiles/ServiceCN.dir/starrocks_cn.cpp.o
+[  9%] Building CXX object src/testutil/CMakeFiles/TestUtil.dir/function_utils.cpp.o
+[  9%] Building CXX object src/io/CMakeFiles/IO.dir/fd_input_stream.cpp.o
+[  9%] Building CXX object src/io/CMakeFiles/IO.dir/seekable_input_stream.cpp.o
+[  9%] Building CXX object src/formats/CMakeFiles/Formats.dir/csv/binary_converter.cpp.o
+[  9%] Building CXX object src/io/CMakeFiles/IO.dir/readable.cpp.o
+[  9%] Building CXX object src/types/CMakeFiles/Types.dir/date_value.cpp.o
+[  9%] Building CXX object src/column/CMakeFiles/Column.dir/adaptive_nullable_column.cpp.o
+[  9%] Building CXX object src/runtime/CMakeFiles/Runtime.dir/buffer_control_block.cpp.o
+[ 10%] Building CXX object src/connector/CMakeFiles/Connector.dir/hive_connector.cpp.o
+[ 10%] Building CXX object src/connector/CMakeFiles/Connector.dir/es_connector.cpp.o
+[ 10%] Building CXX object src/column/CMakeFiles/Column.dir/chunk.cpp.o
+[ 10%] Building CXX object src/io/CMakeFiles/IO.dir/s3_input_stream.cpp.o
+[ 10%] Linking CXX static library ../../../output/tmp/RELEASE/libTestUtil.a
+[ 10%] Built target TestUtil
+[ 10%] Building CXX object src/io/CMakeFiles/IO.dir/s3_output_stream.cpp.o
+[ 10%] Building CXX object src/io/CMakeFiles/IO.dir/cache_input_stream.cpp.o
+[ 10%] Building CXX object src/http/CMakeFiles/Webserver.dir/http_headers.cpp.o
+[ 11%] Building CXX object src/types/CMakeFiles/Types.dir/hll.cpp.o
+[ 11%] Building CXX object src/types/CMakeFiles/Types.dir/logical_type.cpp.o
+[ 11%] Building CXX object src/types/CMakeFiles/Types.dir/map_type_info.cpp.o
+[ 11%] Building CXX object src/types/CMakeFiles/Types.dir/struct_type_info.cpp.o
+[ 11%] Building CXX object src/serde/CMakeFiles/Serde.dir/protobuf_serde.cpp.o
+[ 11%] Building CXX object src/formats/CMakeFiles/Formats.dir/csv/boolean_converter.cpp.o
+[ 11%] Building CXX object src/formats/CMakeFiles/Formats.dir/csv/converter.cpp.o
+[ 11%] Building CXX object src/exec/CMakeFiles/Exec.dir/empty_set_node.cpp.o
+[ 11%] Building CXX object src/runtime/CMakeFiles/Runtime.dir/client_cache.cpp.o
+[ 11%] Building CXX object src/runtime/CMakeFiles/Runtime.dir/local_pass_through_buffer.cpp.o
+[ 12%] Building CXX object src/exec/CMakeFiles/Exec.dir/exec_node.cpp.o
+[ 12%] Building CXX object src/exec/CMakeFiles/Exec.dir/exchange_node.cpp.o
+[ 12%] Building CXX object src/service/CMakeFiles/Service.dir/internal_service.cpp.o
+[ 12%] Building CXX object src/http/CMakeFiles/Webserver.dir/http_method.cpp.o
+[ 13%] Building CXX object src/http/CMakeFiles/Webserver.dir/http_request.cpp.o
+[ 13%] Building CXX object src/formats/CMakeFiles/Formats.dir/csv/csv_reader.cpp.o
+[ 13%] Building CXX object src/service/CMakeFiles/Service.dir/staros_worker.cpp.o
+[ 13%] Building CXX object src/http/CMakeFiles/Webserver.dir/http_channel.cpp.o
+[ 13%] Building CXX object src/http/CMakeFiles/Webserver.dir/http_status.cpp.o
+[ 13%] Building CXX object src/service/CMakeFiles/Service.dir/mem_hook.cpp.o
+[ 13%] Building CXX object src/column/CMakeFiles/Column.dir/chunk_extra_data.cpp.o
+[ 13%] Building CXX object src/service/CMakeFiles/Service.dir/service.cpp.o
+[ 13%] Building CXX object src/formats/CMakeFiles/Formats.dir/csv/date_converter.cpp.o
+[ 13%] Building CXX object src/http/CMakeFiles/Webserver.dir/http_parser.cpp.o
+[ 13%] Building CXX object src/exec/CMakeFiles/Exec.dir/scan_node.cpp.o
+[ 13%] Building CXX object src/http/CMakeFiles/Webserver.dir/web_page_handler.cpp.o
+[ 13%] Building CXX object src/exec/CMakeFiles/Exec.dir/select_node.cpp.o
+[ 13%] Building CXX object src/storage/CMakeFiles/Storage.dir/decimal12.cpp.o
+[ 14%] Building CXX object src/runtime/CMakeFiles/Runtime.dir/data_stream_mgr.cpp.o
+[ 14%] Building CXX object src/formats/CMakeFiles/Formats.dir/csv/datetime_converter.cpp.o
+[ 14%] Building CXX object src/exprs/CMakeFiles/Exprs.dir/agg/factory/aggregate_resolver_avg.cpp.o
+[ 14%] Building CXX object src/formats/CMakeFiles/Formats.dir/csv/decimalv2_converter.cpp.o
+[ 15%] Building CXX object src/formats/CMakeFiles/Formats.dir/csv/decimalv3_converter.cpp.o
+[ 15%] Building CXX object src/service/service_be/CMakeFiles/ServiceBE.dir/http_service.cpp.o
+[ 15%] Building CXX object src/storage/CMakeFiles/Storage.dir/decimal_type_info.cpp.o
+[ 15%] Building CXX object src/formats/CMakeFiles/Formats.dir/csv/float_converter.cpp.o
+[ 15%] Linking CXX static library ../../../output/tmp/RELEASE/libSerde.a
+[ 15%] Built target Serde
+[ 15%] Building CXX object src/formats/CMakeFiles/Formats.dir/csv/json_converter.cpp.o
+[ 15%] Building CXX object src/http/CMakeFiles/Webserver.dir/monitor_action.cpp.o
+[ 15%] Building CXX object src/http/CMakeFiles/Webserver.dir/default_path_handlers.cpp.o
+[ 15%] Building CXX object src/storage/CMakeFiles/Storage.dir/delete_handler.cpp.o
+[ 15%] Building CXX object src/common/CMakeFiles/Common.dir/statusor.cpp.o
+[ 15%] Building CXX object src/common/CMakeFiles/Common.dir/logconfig.cpp.o
+[ 15%] Building CXX object src/common/CMakeFiles/Common.dir/configbase.cpp.o
+[ 15%] Building CXX object src/exec/CMakeFiles/Exec.dir/sort_exec_exprs.cpp.o
+[ 15%] Building CXX object src/exec/CMakeFiles/Exec.dir/olap_common.cpp.o
+[ 15%] Building CXX object src/exec/CMakeFiles/Exec.dir/tablet_info.cpp.o
+[ 15%] Building CXX object src/exec/CMakeFiles/Exec.dir/tablet_sink.cpp.o
+[ 15%] Building CXX object src/exec/CMakeFiles/Exec.dir/mysql_scanner.cpp.o
+[ 15%] Building CXX object src/formats/CMakeFiles/Formats.dir/csv/numeric_converter.cpp.o
+[ 15%] Building CXX object src/connector/CMakeFiles/Connector.dir/jdbc_connector.cpp.o
+[ 15%] Building CXX object src/runtime/CMakeFiles/Runtime.dir/sender_queue.cpp.o
+[ 15%] Building CXX object src/connector/CMakeFiles/Connector.dir/lake_connector.cpp.o
+[ 15%] Building CXX object src/storage/CMakeFiles/Storage.dir/del_vector.cpp.o
+[ 15%] Building CXX object src/formats/CMakeFiles/Formats.dir/csv/nullable_converter.cpp.o
+[ 15%] Building CXX object src/formats/CMakeFiles/Formats.dir/csv/default_value_converter.cpp.o
+[ 15%] Building CXX object src/storage/CMakeFiles/Storage.dir/delta_column_group.cpp.o
+[ 15%] Building CXX object src/storage/CMakeFiles/Storage.dir/key_coder.cpp.o
+[ 15%] Building CXX object src/formats/CMakeFiles/Formats.dir/json/nullable_column.cpp.o
+[ 15%] Building CXX object src/storage/rowset/CMakeFiles/Rowset.dir/rowset_factory.cpp.o
+[ 15%] Building CXX object src/storage/rowset/CMakeFiles/Rowset.dir/rowset_meta_manager.cpp.o
+[ 15%] Building CXX object src/storage/rowset/CMakeFiles/Rowset.dir/rowset_writer.cpp.o
+[ 15%] Building CXX object src/service/service_be/CMakeFiles/ServiceBE.dir/internal_service.cpp.o
+[ 15%] Building CXX object src/service/service_be/CMakeFiles/ServiceBE.dir/lake_service.cpp.o
+[ 15%] Building CXX object src/exec/CMakeFiles/Exec.dir/es/es_predicate.cpp.o
+[ 15%] Building CXX object src/exprs/CMakeFiles/Exprs.dir/agg/factory/aggregate_resolver_minmaxany.cpp.o
+[ 15%] Building CXX object src/runtime/CMakeFiles/Runtime.dir/data_stream_sender.cpp.o
+[ 15%] Linking CXX static library ../../../output/tmp/RELEASE/libScript.a
+[ 15%] Built target Script
+[ 15%] Building CXX object src/exprs/CMakeFiles/Exprs.dir/agg/factory/aggregate_resolver_others.cpp.o
+[ 15%] Building CXX object src/formats/CMakeFiles/Formats.dir/json/numeric_column.cpp.o
+[ 16%] Building CXX object src/exec/CMakeFiles/Exec.dir/es/es_scan_reader.cpp.o
+[ 17%] Building CXX object src/exprs/CMakeFiles/Exprs.dir/agg/factory/aggregate_resolver_sumcount.cpp.o
+[ 17%] Building CXX object src/runtime/CMakeFiles/Runtime.dir/multi_cast_data_stream_sink.cpp.o
+[ 17%] Building CXX object src/exprs/CMakeFiles/Exprs.dir/agg/factory/aggregate_resolver_stream.cpp.o
+[ 17%] Building CXX object src/formats/CMakeFiles/Formats.dir/json/binary_column.cpp.o
+[ 17%] Building CXX object src/exprs/CMakeFiles/Exprs.dir/agg/factory/aggregate_resolver_utility.cpp.o
+[ 17%] Building CXX object src/storage/CMakeFiles/Storage.dir/memtable_flush_executor.cpp.o
+[ 17%] Building CXX object src/exprs/CMakeFiles/Exprs.dir/agg/factory/aggregate_resolver_variance.cpp.o
+[ 17%] Building CXX object src/exec/CMakeFiles/Exec.dir/es/es_scroll_query.cpp.o
+[ 17%] Building CXX object src/exec/CMakeFiles/Exec.dir/es/es_query_builder.cpp.o
+[ 17%] Building CXX object src/formats/CMakeFiles/Formats.dir/orc/orc_chunk_reader.cpp.o
+[ 18%] Building CXX object src/formats/CMakeFiles/Formats.dir/orc/orc_input_stream.cpp.o
+[ 18%] Building CXX object src/formats/CMakeFiles/Formats.dir/orc/orc_mapping.cpp.o
+[ 18%] Building CXX object src/common/CMakeFiles/Common.dir/s3_uri.cpp.o
+[ 18%] Building CXX object src/exprs/CMakeFiles/Exprs.dir/agg/factory/aggregate_resolver_window.cpp.o
+[ 18%] Building CXX object src/exprs/CMakeFiles/Exprs.dir/anyval_util.cpp.o
+[ 18%] Building CXX object src/service/service_be/CMakeFiles/ServiceBE.dir/starrocks_be.cpp.o
+[ 19%] Linking CXX static library ../../../../output/tmp/RELEASE/libServiceCN.a
+[ 19%] Built target ServiceCN
+[ 19%] Building CXX object src/formats/CMakeFiles/Formats.dir/orc/orc_min_max_decoder.cpp.o
+[ 19%] Building CXX object src/formats/CMakeFiles/Formats.dir/orc/fill_function.cpp.o
+[ 19%] Building CXX object src/storage/CMakeFiles/Storage.dir/segment_flush_executor.cpp.o
+[ 19%] Building CXX object src/common/CMakeFiles/Common.dir/tracer.cpp.o
+[ 19%] Building CXX object src/runtime/CMakeFiles/Runtime.dir/datetime_value.cpp.o
+[ 19%] Building CXX object src/exec/CMakeFiles/Exec.dir/es/es_scroll_parser.cpp.o
+[ 19%] Building CXX object src/exec/CMakeFiles/Exec.dir/local_file_writer.cpp.o
+[ 19%] Building CXX object src/runtime/CMakeFiles/Runtime.dir/descriptors.cpp.o
+[ 19%] Building CXX object src/common/CMakeFiles/Common.dir/minidump.cpp.o
+[ 19%] Building CXX object src/formats/CMakeFiles/Formats.dir/orc/utils.cpp.o
+[ 19%] Building CXX object src/formats/CMakeFiles/Formats.dir/parquet/column_chunk_reader.cpp.o
+[ 19%] Linking CXX static library ../../../output/tmp/RELEASE/libCommon.a
+[ 19%] Built target Common
+[ 19%] Building CXX object src/exprs/CMakeFiles/Exprs.dir/base64.cpp.o
+[ 19%] Building CXX object src/exec/CMakeFiles/Exec.dir/plain_text_builder.cpp.o
+[ 19%] Building CXX object src/exprs/CMakeFiles/Exprs.dir/expr_context.cpp.o
+[ 19%] Building CXX object src/exprs/CMakeFiles/Exprs.dir/expr.cpp.o
+[ 19%] Building CXX object src/connector/CMakeFiles/Connector.dir/mysql_connector.cpp.o
+[ 19%] Building CXX object src/runtime/CMakeFiles/Runtime.dir/exec_env.cpp.o
+[ 19%] Building CXX object src/exprs/CMakeFiles/Exprs.dir/function_context.cpp.o
+[ 19%] Building CXX object src/runtime/CMakeFiles/Runtime.dir/user_function_cache.cpp.o
+[ 19%] Building CXX object src/connector/CMakeFiles/Connector.dir/file_connector.cpp.o
+[ 20%] Building CXX object src/storage/CMakeFiles/Storage.dir/segment_replicate_executor.cpp.o
+[ 21%] Building CXX object src/exprs/CMakeFiles/Exprs.dir/table_function/table_function_factory.cpp.o
+[ 21%] Building CXX object src/exprs/CMakeFiles/Exprs.dir/table_function/json_each.cpp.o
+[ 21%] Building CXX object src/formats/CMakeFiles/Formats.dir/parquet/column_converter.cpp.o
+[ 21%] Building CXX object src/formats/CMakeFiles/Formats.dir/parquet/column_reader.cpp.o
+[ 21%] Building CXX object src/storage/CMakeFiles/Storage.dir/metadata_util.cpp.o

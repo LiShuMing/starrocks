@@ -67,7 +67,7 @@ struct PartitionInfo {
 class RollingAsyncParquetWriter {
 public:
     RollingAsyncParquetWriter(const TableInfo& tableInfo, const PartitionInfo& partitionInfo,
-                              const std::vector<ExprContext*>& output_expr_ctxs, RuntimeProfile* parent_profile);
+                              std::vector<ExprContext*> output_expr_ctxs, RuntimeProfile* parent_profile);
     ~RollingAsyncParquetWriter() = default;
 
     Status append_chunk(Chunk* chunk, RuntimeState* state); //check if we need a new file, file_writer->write

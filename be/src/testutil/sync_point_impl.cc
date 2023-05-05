@@ -22,7 +22,7 @@
 
 #include "testutil/sync_point_impl.h"
 
-#include <signal.h>
+#include <csignal>
 #include <sys/types.h>
 #include <unistd.h>
 

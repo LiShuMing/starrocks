@@ -414,7 +414,7 @@ if ("${USE_STAROS}" STREQUAL "ON")
 endif()
 include(cmake_modules/FindClangTools.cmake)
 if (CLANG_TIDY_PATH)
-    set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_PATH}")
+    set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_PATH};-quiet")
 endif()
 
 # Check if functions are supported in this platform. All flags will generated

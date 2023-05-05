@@ -456,7 +456,7 @@ std::string json_to_string(const rapidjson::Value& val_obj) {
     rapidjson::StringBuffer buf;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buf);
     val_obj.Accept(writer);
-    return std::string(buf.GetString());
+    return {buf.GetString()};
 }
 
 Status TabletMetaManager::build_primary_meta(DataDir* store, rapidjson::Document& doc, rocksdb::ColumnFamilyHandle* cf,

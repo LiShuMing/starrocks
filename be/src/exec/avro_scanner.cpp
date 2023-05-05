@@ -73,7 +73,7 @@ AvroScanner::AvroScanner(RuntimeState* state, RuntimeProfile* profile, const TBr
           _closed(false) {}
 
 AvroScanner::AvroScanner(RuntimeState* state, RuntimeProfile* profile, const TBrokerScanRange& scan_range,
-                         ScannerCounter* counter, const std::string schema_text)
+                         ScannerCounter* counter, const std::string& schema_text)
         : FileScanner(state, profile, scan_range.params, counter),
           _scan_range(scan_range),
           _schema_text(schema_text),
@@ -144,7 +144,7 @@ Status AvroScanner::open() {
         }
 
         serdes_conf_t* sconf =
-                serdes_conf_new(NULL, 0, "schema.registry.url", confluent_schema_registry_url.c_str(), NULL);
+                serdes_conf_new(nullptr, 0, "schema.registry.url", confluent_schema_registry_url.c_str(), NULL);
         _serdes = serdes_new(sconf, _err_buf, sizeof(_err_buf));
         if (!_serdes) {
             LOG(ERROR) << "failed to create serdes handle: " << _err_buf;
@@ -175,7 +175,7 @@ Status AvroScanner::open() {
 void AvroScanner::_materialize_src_chunk_adaptive_nullable_column(ChunkPtr& chunk) {
     chunk->materialized_nullable();
     for (int i = 0; i < chunk->num_columns(); i++) {
-        AdaptiveNullableColumn* adaptive_column =
+        auto* adaptive_column =
                 down_cast<AdaptiveNullableColumn*>(chunk->get_column_by_index(i).get());
         chunk->update_column_by_index(NullableColumn::create(adaptive_column->materialized_raw_data_column(),
                                                              adaptive_column->materialized_raw_null_column()),
@@ -307,7 +307,7 @@ Status AvroScanner::_parse_avro(Chunk* chunk, const std::shared_ptr<SequentialFi
                         auto err_msg = "Cannot get value by index: " + std::string(avro_strerror());
                         return Status::InternalError(err_msg);
                     }
-                    _data_idx_to_fieldname.push_back(std::string(field_name));
+                    _data_idx_to_fieldname.emplace_back(field_name);
                 }
 
                 _init_data_idx_to_slot_once = true;

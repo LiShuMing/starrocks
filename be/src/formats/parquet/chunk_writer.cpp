@@ -29,9 +29,9 @@
 
 namespace starrocks::parquet {
 
-ChunkWriter::ChunkWriter(::parquet::RowGroupWriter* rg_writer, const std::vector<TypeDescriptor>& type_descs,
-                         const std::shared_ptr<::parquet::schema::GroupNode>& schema)
-        : _rg_writer(rg_writer), _type_descs(type_descs), _schema(schema) {
+ChunkWriter::ChunkWriter(::parquet::RowGroupWriter* rg_writer, std::vector<TypeDescriptor> type_descs,
+                         std::shared_ptr<::parquet::schema::GroupNode> schema)
+        : _rg_writer(rg_writer), _type_descs(std::move(type_descs)), _schema(std::move(schema)) {
     int num_columns = rg_writer->num_columns();
     _estimated_buffered_bytes.resize(num_columns);
     std::fill(_estimated_buffered_bytes.begin(), _estimated_buffered_bytes.end(), 0);

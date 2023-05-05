@@ -24,9 +24,9 @@
 namespace starrocks {
 
 RollingAsyncParquetWriter::RollingAsyncParquetWriter(const TableInfo& tableInfo, const PartitionInfo& partitionInfo,
-                                                     const std::vector<ExprContext*>& output_expr_ctxs,
+                                                     std::vector<ExprContext*> output_expr_ctxs,
                                                      RuntimeProfile* parent_profile)
-        : _output_expr_ctxs(output_expr_ctxs), _parent_profile(parent_profile) {
+        : _output_expr_ctxs(std::move(output_expr_ctxs)), _parent_profile(parent_profile) {
     init_rolling_writer(tableInfo, partitionInfo);
 }
 

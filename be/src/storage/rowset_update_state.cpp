@@ -460,13 +460,12 @@ Status RowsetUpdateState::_prepare_auto_increment_partial_update_states(Tablet* 
     */
     _auto_increment_partial_update_states[idx].delete_pks = _upserts[idx]->clone_empty();
     std::vector<uint32_t> delete_idxes;
-    const int64* data =
+    const auto* data =
             reinterpret_cast<const int64*>(_auto_increment_partial_update_states[idx].write_column->raw_data());
 
     // just check the rows which are not exist in the previous version
     // because the rows exist in the previous version may contain 0 which are specified by the user
-    for (int i = 0; i < _auto_increment_partial_update_states[idx].rowids.size(); ++i) {
-        uint32_t row_idx = _auto_increment_partial_update_states[idx].rowids[i];
+    for (const auto& row_idx: _auto_increment_partial_update_states[idx].rowids) {
         if (data[row_idx] == 0) {
             delete_idxes.emplace_back(row_idx);
         }

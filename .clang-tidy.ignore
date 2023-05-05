@@ -1,0 +1,6 @@
+
+gensrc/
+be/src/geo/
+be/src/agent/agent_server.cpp
+be/src/gen_cpp/
+be/src/formats/orc/apache-orc/

@@ -28,6 +28,7 @@ import com.starrocks.catalog.KeysType;
 import com.starrocks.catalog.MaterializedIndexMeta;
 import com.starrocks.catalog.OlapTable;
 import com.starrocks.catalog.Partition;
+import com.starrocks.sql.ast.CreateMaterializedViewStmt;
 import com.starrocks.sql.optimizer.OptExpression;
 import com.starrocks.sql.optimizer.OptimizerContext;
 import com.starrocks.sql.optimizer.Utils;
@@ -622,7 +623,8 @@ public class MaterializedViewRule extends Rule {
             }
             Set<Integer> indexColumns = Sets.newHashSet();
             List<Column> candidateIndexSchema = entry.getValue().getSchema();
-            candidateIndexSchema.forEach(column -> indexColumns.add(columnToIds.get(column.getName())));
+            candidateIndexSchema.forEach(column ->
+                    indexColumns.add(columnToIds.get(CreateMaterializedViewStmt.baseColumnOfMV(column))));
             // The columns in query output must be subset of the columns in SPJ view
             if (!indexColumns.containsAll(columnNamesInQueryOutput)) {
                 iterator.remove();
@@ -646,7 +648,10 @@ public class MaterializedViewRule extends Rule {
         List<Column> schema = mvMeta.getSchema();
         for (Column column : schema) {
             if (column.isAggregated()) {
-                ColumnRefOperator columnRef = factory.getColumnRef(columnToIds.get(column.getName()));
+                // NOTE: Here we suppose that mvMeta's column name is the same with base table's column name,
+                // but this is not true for now.
+                String baseColumnName = CreateMaterializedViewStmt.baseColumnOfMV(column);
+                ColumnRefOperator columnRef = factory.getColumnRef(columnToIds.get(baseColumnName));
                 CallOperator fn = new CallOperator(column.getAggregationType().name().toLowerCase(),
                         column.getType(),
                         Lists.newArrayList(columnRef));

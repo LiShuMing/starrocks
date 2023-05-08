@@ -465,7 +465,6 @@ public class MaterializedViewHandler extends AlterHandler {
                         "The materialized view of aggregation or unique table must has grouping columns");
             }
             for (MVColumnItem mvColumnItem : mvColumnItemList) {
-                // TODO:
                 String baseColumnName = mvColumnItem.getBaseColumnName();
                 String mvColumnName = mvColumnItem.getName();
                 Column baseColumn = olapTable.getColumn(baseColumnName);

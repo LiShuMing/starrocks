@@ -227,21 +227,18 @@ public class CreateMaterializedViewStmt extends DdlStmt {
                 String baseColumnName = baseSlotRef.getColumnName().toLowerCase();
                 String functionName = functionCallExpr.getFnName().getFunction();
                 String mvColumnName = MVUtils.getMVColumnName(functionName, baseColumnName);
+                Expr defineExpr = baseSlotRef;
                 switch (functionName.toLowerCase()) {
                     case "sum":
                     case "min":
                     case "max":
-                        result.put(mvColumnName, null);
                         break;
                     case FunctionSet.BITMAP_UNION:
                         if (functionCallExpr.getChild(0) instanceof FunctionCallExpr) {
                             CastExpr castExpr = new CastExpr(new TypeDef(Type.VARCHAR), baseSlotRef);
                             List<Expr> params = Lists.newArrayList();
                             params.add(castExpr);
-                            FunctionCallExpr defineExpr = new FunctionCallExpr(FunctionSet.TO_BITMAP, params);
-                            result.put(mvColumnName, defineExpr);
-                        } else {
-                            result.put(mvColumnName, null);
+                            defineExpr = new FunctionCallExpr(FunctionSet.TO_BITMAP, params);
                         }
                         break;
                     case FunctionSet.HLL_UNION:
@@ -249,10 +246,8 @@ public class CreateMaterializedViewStmt extends DdlStmt {
                             CastExpr castExpr = new CastExpr(new TypeDef(Type.VARCHAR), baseSlotRef);
                             List<Expr> params = Lists.newArrayList();
                             params.add(castExpr);
-                            FunctionCallExpr defineExpr = new FunctionCallExpr(FunctionSet.HLL_HASH, params);
+                            defineExpr = new FunctionCallExpr(FunctionSet.HLL_HASH, params);
                             result.put(mvColumnName, defineExpr);
-                        } else {
-                            result.put(mvColumnName, null);
                         }
                         break;
                     case FunctionSet.PERCENTILE_UNION:
@@ -260,21 +255,18 @@ public class CreateMaterializedViewStmt extends DdlStmt {
                             CastExpr castExpr = new CastExpr(new TypeDef(Type.VARCHAR), baseSlotRef);
                             List<Expr> params = Lists.newArrayList();
                             params.add(castExpr);
-                            FunctionCallExpr defineExpr = new FunctionCallExpr(FunctionSet.PERCENTILE_HASH, params);
-                            result.put(mvColumnName, defineExpr);
-                        } else {
-                            result.put(mvColumnName, null);
+                            defineExpr = new FunctionCallExpr(FunctionSet.PERCENTILE_HASH, params);
                         }
                         break;
                     case FunctionSet.COUNT:
-                        Expr defineExpr = new CaseExpr(null, Lists.newArrayList(
+                        defineExpr = new CaseExpr(null, Lists.newArrayList(
                                 new CaseWhenClause(new IsNullPredicate(slots.get(0), false),
                                         new IntLiteral(0, Type.BIGINT))), new IntLiteral(1, Type.BIGINT));
-                        result.put(mvColumnName, defineExpr);
                         break;
                     default:
                         throw new AnalysisException("Unsupported function:" + functionName);
                 }
+                result.put(mvColumnName, defineExpr);
             } else {
                 throw new AnalysisException("Unsupported select item:" + selectListItem.toSql());
             }
@@ -462,7 +454,7 @@ public class CreateMaterializedViewStmt extends DdlStmt {
         Type baseType = baseColumnRef.getType();
         Expr functionChild0 = functionCallExpr.getChild(0);
         AggregateType mvAggregateType;
-        Expr defineExpr = null;
+        Expr defineExpr = baseColumnRef;
         Type type;
         switch (functionName.toLowerCase()) {
             case "sum":

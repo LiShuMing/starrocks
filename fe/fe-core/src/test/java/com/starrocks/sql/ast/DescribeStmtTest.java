@@ -168,6 +168,14 @@ public class DescribeStmtTest {
     }
 
     @Test
+    public void testDescSyncMV1() throws Exception {
+        String mv = "CREATE MATERIALIZED VIEW store_amt AS\n" +
+                "SELECT store_id, SUM(sale_amt) as sale_amt\n" +
+                "FROM sales_records\n" +
+                "GROUP BY store_id;";
+    }
+
+    @Test
     public void testDescSyncMvAll() throws Exception {
         String destTableSql = "desc store_amt all";
         DescribeStmt describeStmt = (DescribeStmt) UtFrameUtils.parseStmtWithNewParser(destTableSql,

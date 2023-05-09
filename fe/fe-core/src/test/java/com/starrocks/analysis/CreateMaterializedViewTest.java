@@ -2767,5 +2767,17 @@ public class CreateMaterializedViewTest {
                     () -> UtFrameUtils.parseStmtWithNewParser(sql, connectContext));
         }
     }
+
+    @Test
+    public void testCreateSyncMVWithAlias() throws Exception {
+        {
+            String sql = "create materialized view mv_alias1\n" +
+                    "PROPERTIES (\n" +
+                    "\"replication_num\" = \"1\"\n" +
+                    ")\n" +
+                    "as select k1 as kk1, sum(k2) as kk2 from tbl1 tb1 group by k1;";
+            UtFrameUtils.parseStmtWithNewParser(sql, connectContext);
+        }
+    }
 }
 

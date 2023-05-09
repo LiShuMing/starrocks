@@ -72,6 +72,7 @@ import com.starrocks.sql.analyzer.mvpattern.MVColumnPattern;
 import com.starrocks.sql.analyzer.mvpattern.MVColumnPercentileUnionPattern;
 import com.starrocks.sql.optimizer.rule.mv.MVUtils;
 import com.starrocks.sql.parser.NodePosition;
+import jdk.internal.joptsimple.internal.Strings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -431,7 +432,8 @@ public class CreateMaterializedViewStmt extends DdlStmt {
                     beginIndexOfAggregation = i;
                 }
                 meetAggregate = true;
-                mvColumnItemList.add(buildMVColumnItem(functionCallExpr, statement.isReplay()));
+                mvColumnItemList.add(buildMVColumnItem(selectListItem.getAlias(),
+                        functionCallExpr, statement.isReplay()));
                 joiner.add(functionCallExpr.toSqlImpl());
             }
         }
@@ -443,7 +445,9 @@ public class CreateMaterializedViewStmt extends DdlStmt {
         return beginIndexOfAggregation;
     }
 
-    private static MVColumnItem buildMVColumnItem(FunctionCallExpr functionCallExpr, boolean isReplay) {
+    private static MVColumnItem buildMVColumnItem(String aliasName,
+                                                  FunctionCallExpr functionCallExpr,
+                                                  boolean isReplay) {
         String functionName = functionCallExpr.getFnName().getFunction();
         List<SlotRef> slots = new ArrayList<>();
         functionCallExpr.collect(SlotRef.class, slots);
@@ -512,7 +516,8 @@ public class CreateMaterializedViewStmt extends DdlStmt {
             throw new SemanticException(
                     String.format("Invalid aggregate function '%s' for '%s'", mvAggregateType, type));
         }
-        String mvColumnName = MVUtils.getMVColumnName(functionName, baseColumnName);
+        String mvColumnName = Strings.isNullOrEmpty(aliasName) ?
+                MVUtils.getMVColumnName(functionName, baseColumnName) : aliasName;
         return new MVColumnItem(mvColumnName, type, mvAggregateType, functionCallExpr.isNullable(), false, defineExpr,
                 baseColumnName);
     }

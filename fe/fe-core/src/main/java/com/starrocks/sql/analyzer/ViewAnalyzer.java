@@ -50,11 +50,31 @@ public class ViewAnalyzer {
 
             Analyzer.analyze(stmt.getQueryStatement(), context);
 
-            List<Column> viewColumns = analyzeViewColumns(stmt.getQueryStatement().getQueryRelation(), stmt.getColWithComments());
-            stmt.setColumns(viewColumns);
-            String viewSql = AstToSQLBuilder.toSQL(stmt.getQueryStatement());
-            stmt.setInlineViewDef(viewSql);
-            return null;
+            // When user-specified view's columns are present, we set names of comments of viewColumns according
+            // to user-specified column information.
+            if (stmt.getCols() != null) {
+                if (stmt.getCols().size() != viewColumns.size()) {
+                    ErrorReport.reportSemanticException(ErrorCode.ERR_VIEW_WRONG_LIST);
+                }
+                List<ColWithComment> colWithComments = stmt.getCols();
+                for (int i = 0; i < stmt.getCols().size(); ++i) {
+                    Column col = viewColumns.get(i);
+                    ColWithComment colWithComment = colWithComments.get(i);
+                    colWithComment.analyze();
+                    col.setName(colWithComment.getColName());
+                    col.setComment(colWithComment.getComment());
+                }
+            }
+            stmt.setFinalCols(viewColumns);
+
+            Set<String> columnNameSet = new HashSet<>();
+            for (Column column : viewColumns) {
+                if (columnNameSet.contains(column.getName())) {
+                    throw new SemanticException("Duplicate column name '%s'", column.getName());
+                } else {
+                    columnNameSet.add(column.getName());
+                }
+            }
         }
 
         @Override

@@ -60,6 +60,7 @@ import com.starrocks.sql.ast.AlterMaterializedViewStmt;
 import com.starrocks.sql.ast.AstVisitor;
 import com.starrocks.sql.ast.AsyncRefreshSchemeDesc;
 import com.starrocks.sql.ast.CancelRefreshMaterializedViewStmt;
+import com.starrocks.sql.ast.ColWithComment;
 import com.starrocks.sql.ast.CreateMaterializedViewStatement;
 import com.starrocks.sql.ast.DistributionDesc;
 import com.starrocks.sql.ast.DropMaterializedViewStmt;
@@ -89,7 +90,6 @@ import com.starrocks.sql.optimizer.transformer.OptExprBuilder;
 import com.starrocks.sql.optimizer.transformer.RelationTransformer;
 import com.starrocks.sql.plan.ExecPlan;
 import com.starrocks.sql.plan.PlanFragmentBuilder;
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.logging.log4j.LogManager;
@@ -234,24 +234,9 @@ public class MaterializedViewAnalyzer {
                 throw new SemanticException("Materialized view query statement only support select or set operation");
             }
 
-            List<SelectRelation> selectRelations =
-                    SelectRelationCollector.collectBaseRelations(queryStatement.getQueryRelation());
-            if (CollectionUtils.isEmpty(selectRelations)) {
-                throw new SemanticException("Materialized view query statement must contain at least one select");
-            }
-
-            // derive alias
             // analyze query statement, can check whether tables and columns exist in catalog
             Analyzer.analyze(queryStatement, context);
-
-            List<String> columnNames = selectRelations.get(0).getRelationFields().getAllFields()
-                    .stream().map(Field::getName).collect(Collectors.toList());
-
-            // for select star, use `analyze` to deduce its child's output and validate select list then.
-            for (SelectRelation selectRelation : selectRelations) {
-                // check alias except * and SlotRef
-                validateSelectItem(selectRelation);
-            }
+            AnalyzerUtils.checkNondeterministicFunction(queryStatement);
 
             // convert queryStatement to sql and set
             statement.setInlineViewDef(AstToSQLBuilder.toSQL(queryStatement));
@@ -266,28 +251,34 @@ public class MaterializedViewAnalyzer {
             if (baseTableInfos.isEmpty()) {
                 throw new SemanticException("Can not find base table in query statement");
             }
-            statement.setBaseTableInfos(baseTableInfos);
-            Map<Column, Expr> columnExprMap = Maps.newHashMap();
-            Map<TableName, Table> aliasTableMap = getAllBaseTables(queryStatement, context);
-
-            // get outputExpressions and convert it to columns which in selectRelation
-            // set the columns into createMaterializedViewStatement
-            // record the relationship between columns and outputExpressions for next check
-            genColumnAndSetIntoStmt(statement, selectRelations.get(0), columnNames, columnExprMap);
-
-            // some check if partition exp exists
-            if (statement.getPartitionExpDesc() != null) {
-                // check partition expression all in column list and
-                // write the expr into partitionExpDesc if partition expression exists
-                checkExpInColumn(statement, columnExprMap, context, aliasTableMap);
-                // check whether partition expression functions are allowed if it exists
-                checkPartitionExpParams(statement);
-                // check partition column must be base table's partition column
-                checkPartitionColumnWithBaseTable(statement, aliasTableMap);
-            }
+             // set the columns into createMaterializedViewStatement
+             List<Column> mvColumns = genMaterializedViewColumns(statement);
+             statement.setMvColumnItems(mvColumns);
+ 
+             Map<TableName, Table> aliasTableMap = AnalyzerUtils.collectAllTableAndViewWithAlias(queryStatement);
+             Map<Column, Expr> columnExprMap = Maps.newHashMap();
+             List<Expr> outputExpressions = queryStatement.getQueryRelation().getOutputExpression();
+             for (int i = 0; i < outputExpressions.size(); ++i) {
+                 columnExprMap.put(mvColumns.get(i), outputExpressions.get(i));
+             }
+             // some check if partition exp exists
+             if (statement.getPartitionExpDesc() != null) {
+               // check partition expression all in column list and
+               // write the expr into partitionExpDesc if partition expression exists
+               checkExpInColumn(statement, columnExprMap);
+               // check partition expression is supported
+               checkPartitionColumnExprs(statement, columnExprMap);
+               // check whether partition expression functions are allowed if it exists
+               checkPartitionExpPatterns(statement);
+               // check partition column must be base table's partition column
+               checkPartitionColumnWithBaseTable(statement, aliasTableMap);
+             }
             // check and analyze distribution
             checkDistribution(statement, aliasTableMap);
 
+            statement.setBaseTableInfos(baseTableInfos);
+
+     
             planMVQuery(statement, queryStatement, context);
             return null;
         }
@@ -364,12 +355,6 @@ public class MaterializedViewAnalyzer {
             }
         }
 
-        private void validateSelectItem(SelectRelation selectRelation) {
-            for (Expr expr : selectRelation.getOutputExpression()) {
-                checkNondeterministicFunction(expr);
-            }
-        }
-
         // TODO(murphy) implement
         // Plan the query statement and store in memory
         private void planMVQuery(CreateMaterializedViewStatement createStmt, QueryStatement query, ConnectContext ctx) {
@@ -433,19 +418,34 @@ public class MaterializedViewAnalyzer {
             }
         }
 
-        private void genColumnAndSetIntoStmt(CreateMaterializedViewStatement statement, QueryRelation queryRelation,
-                                             List<String> columnNames, Map<Column, Expr> columnExprMap) {
+        private List<Column> genMaterializedViewColumns(CreateMaterializedViewStatement statement) {
+            List<String> columnNames = statement.getQueryStatement().getQueryRelation()
+                    .getRelationFields().getAllFields().stream()
+                    .map(Field::getName).collect(Collectors.toList());
+            List<Expr> outputExpressions = statement.getQueryStatement().getQueryRelation().getOutputExpression();
+
             List<Column> mvColumns = Lists.newArrayList();
-            Scope queryScope = statement.getQueryStatement().getQueryRelation().getScope();
-            List<Field> relationFields = queryScope.getRelationFields().getAllFields();
-            List<Expr> outputExpression = queryRelation.getOutputExpression();
-            for (int i = 0; i < relationFields.size(); ++i) {
-                Type type = AnalyzerUtils.transformTypeForMv(relationFields.get(i).getType());
-                Column column = new Column(columnNames.get(i), type, relationFields.get(i).isNullable());
+
+            for (int i = 0; i < outputExpressions.size(); ++i) {
+                Type type = AnalyzerUtils.transformTypeForMv(outputExpressions.get(i).getType());
+                Column column = new Column(columnNames.get(i), type, outputExpressions.get(i).isNullable());
                 // set default aggregate type, look comments in class Column
                 column.setAggregationType(AggregateType.NONE, false);
                 mvColumns.add(column);
-                columnExprMap.put(column, outputExpression.get(i));
+            }
+
+            if (statement.getColWithComments() != null) {
+                List<ColWithComment> colWithComments = statement.getColWithComments();
+                if (colWithComments.size() != mvColumns.size()) {
+                    ErrorReport.reportSemanticException(ErrorCode.ERR_VIEW_WRONG_LIST);
+                }
+                for (int i = 0; i < colWithComments.size(); ++i) {
+                    Column column = mvColumns.get(i);
+                    ColWithComment colWithComment = colWithComments.get(i);
+                    colWithComment.analyze();
+                    column.setName(colWithComment.getColName());
+                    column.setComment(colWithComment.getComment());
+                }
             }
 
             // set duplicate key, when sort key is set, it is dup key col.
@@ -492,7 +492,7 @@ public class MaterializedViewAnalyzer {
                 Column column = mvColumns.get(i);
                 if (!column.getName().equalsIgnoreCase(keyCols.get(i))) {
                     String keyName = keyCols.get(i);
-                    if (!mvColumns.stream().anyMatch(col -> col.getName().equalsIgnoreCase(keyName))) {
+                    if (mvColumns.stream().noneMatch(col -> col.getName().equalsIgnoreCase(keyName))) {
                         throw new SemanticException("Sort key(%s) doesn't exist.", keyCols.get(i));
                     }
                     throw new SemanticException("Sort key should be a ordered prefix of select cols.");
@@ -504,8 +504,7 @@ public class MaterializedViewAnalyzer {
                 column.setIsKey(true);
                 column.setAggregationType(null, false);
             }
-
-            statement.setMvColumnItems(mvColumns);
+            return mvColumns;
         }
 
         private void checkExpInColumn(CreateMaterializedViewStatement statement,

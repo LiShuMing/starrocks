@@ -108,7 +108,7 @@ public class Column implements Writable {
     // In other cases, such as define expr in `MaterializedIndexMeta`, it may not be analyzed after being relayed.
     private Expr defineExpr; // use to define column in materialize view
     // For single sync table materialized view, record each base column for the output column.
-    // it's not persistent because it can be deduced from `defineExpr`.
+    @SerializedName(value = "baseColumnName")
     private String baseColumnName;
     @SerializedName(value = "materializedColumnExpr")
     private Expr materializedColumnExpr;
@@ -325,13 +325,18 @@ public class Column implements Writable {
     }
 
     public String getBaseColumnName() {
-        if (baseColumnName == null) {
-            SlotRef refCol = getRefColumn();
-            if (refCol != null) {
-                baseColumnName = refCol.getColumnName();
-            }
-        }
+        // TODO: it may not be persistent because it can be deduced from `defineExpr`.
+        // if (baseColumnName == null) {
+        //     SlotRef refCol = getRefColumn();
+        //     if (refCol != null) {
+        //         baseColumnName = refCol.getColumnName();
+        //     }
+        //  }
         return Strings.isNullOrEmpty(baseColumnName) ? name : baseColumnName;
+    }
+
+    public void setBaseColumnName(String baseColumnName) {
+        this.baseColumnName = baseColumnName;
     }
 
     public int getOlapColumnIndexSize() {

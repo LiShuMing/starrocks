@@ -139,6 +139,7 @@ public class MVColumnItem {
         result.setIsKey(isKey);
         result.setName(name);
         result.setAggregationType(aggregationType, isAggregationTypeImplicit);
+        result.setBaseColumnName(baseColumnName);
         return result;
     }
 }

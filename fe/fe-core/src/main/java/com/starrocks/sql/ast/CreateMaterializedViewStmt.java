@@ -247,7 +247,6 @@ public class CreateMaterializedViewStmt extends DdlStmt {
                             List<Expr> params = Lists.newArrayList();
                             params.add(castExpr);
                             defineExpr = new FunctionCallExpr(FunctionSet.HLL_HASH, params);
-                            result.put(mvColumnName, defineExpr);
                         }
                         break;
                     case FunctionSet.PERCENTILE_UNION:

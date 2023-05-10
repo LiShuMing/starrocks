@@ -80,6 +80,7 @@ import com.starrocks.sql.ast.DropMaterializedViewStmt;
 import com.starrocks.sql.ast.DropRollupClause;
 import com.starrocks.sql.ast.MVColumnItem;
 import com.starrocks.thrift.TStorageMedium;
+import com.starrocks.thrift.TStorageType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -213,7 +214,7 @@ public class MaterializedViewHandler extends AlterHandler {
             // Step2: create mv job
             RollupJobV2 rollupJobV2 = createMaterializedViewJob(mvIndexName, baseIndexName, mvColumns, addMVClause
                     .getProperties(), olapTable, db, baseIndexId, addMVClause.getMVKeysType(),
-                    addMVClause.getOrigStmt(), addMVClause.isPopulate());
+                    addMVClause.getOrigStmt());
 
             addAlterJobV2(rollupJobV2);
 
@@ -228,8 +229,30 @@ public class MaterializedViewHandler extends AlterHandler {
             GlobalStateMgr.getCurrentState().getEditLog().logAlterJob(rollupJobV2);
             LOG.info("finished to create materialized view job: {}", rollupJobV2.getJobId());
         } else {
-            if (addMVClause.isPopulate()) {
+            boolean isPopulate = PropertyAnalyzer.analyzeBooleanProp(addMVClause.getProperties(),
+                    PropertyAnalyzer.PROPERTIES_MATERIALIZED_VIEW_POPULATE, true);
+            if (isPopulate) {
                 throw new DdlException("Cannot populate history datas if target table is set.");
+            }
+            // Partitioned target table is not supported yet: need to maintain the changed mapping between
+            // the base table and the target table.
+
+            // When create all rollup replicas success, add rollup index to globalStateMgr
+            db.writeLock();
+            try {
+                for (Partition partition : olapTable.getPartitions()) {
+                    long partitionId = partition.getId();
+                    MaterializedIndex rollupIndex = this.partitionIdToRollupIndex.get(partitionId);
+                    Preconditions.checkNotNull(rollupIndex);
+                    Preconditions.checkState(rollupIndex.getState() == IndexState.SHADOW, rollupIndex.getState());
+                    partition.createRollupIndex(rollupIndex);
+                }
+
+                olapTable.setIndexMeta(rollupIndexId, rollupIndexName, rollupSchema, 0 /* initial schema version */,
+                        rollupSchemaHash, rollupShortKeyColumnCount, TStorageType.COLUMN, rollupKeysType, origStmt);
+                olapTable.rebuildFullSchema();
+            } finally {
+                db.writeUnlock();
             }
         }
     }
@@ -282,7 +305,7 @@ public class MaterializedViewHandler extends AlterHandler {
                 // step 3 create rollup job
                 RollupJobV2 alterJobV2 = createMaterializedViewJob(rollupIndexName, baseIndexName, rollupSchema,
                         addRollupClause.getProperties(),
-                        olapTable, db, baseIndexId, olapTable.getKeysType(), null, true);
+                        olapTable, db, baseIndexId, olapTable.getKeysType(), null);
 
                 rollupNameJobMap.put(addRollupClause.getRollupName(), alterJobV2);
                 logJobIdSet.add(alterJobV2.getJobId());

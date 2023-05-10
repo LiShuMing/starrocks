@@ -145,11 +145,13 @@ public class CreateMaterializedViewStmt extends DdlStmt {
     //  If `targetTableName` is set, use `targetTableName` instead of `mvName` as the result table.
     private TableName targetTableName;
 
-    public CreateMaterializedViewStmt(String mvName, QueryStatement queryStatement, Map<String, String> properties) {
+    public CreateMaterializedViewStmt(String mvName, QueryStatement queryStatement,
+                                      Map<String, String> properties, TableName targetTableName) {
         super(NodePosition.ZERO);
         this.mvName = mvName;
         this.queryStatement = queryStatement;
         this.properties = properties;
+        this.targetTableName = targetTableName;
     }
 
     public QueryStatement getQueryStatement() {

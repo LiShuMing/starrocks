@@ -561,6 +561,7 @@ createMaterializedViewStatement
     : CREATE MATERIALIZED VIEW (IF NOT EXISTS)? mvName=qualifiedName
     comment?
     materializedViewDesc*
+    (TO targetTable=qualifiedName)
     AS queryStatement
     ;
 

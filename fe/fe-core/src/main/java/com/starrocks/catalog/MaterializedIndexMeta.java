@@ -39,6 +39,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.gson.annotations.SerializedName;
 import com.starrocks.analysis.Expr;
+import com.starrocks.analysis.TableName;
 import com.starrocks.common.io.Text;
 import com.starrocks.common.io.Writable;
 import com.starrocks.persist.gson.GsonPostProcessable;
@@ -74,6 +75,8 @@ public class MaterializedIndexMeta implements Writable, GsonPostProcessable {
     private KeysType keysType;
     @SerializedName(value = "defineStmt")
     private OriginStatement defineStmt;
+    @SerializedName(value = "targetTable")
+    private TableName targetTable;
 
     public MaterializedIndexMeta(long indexId, List<Column> schema, int schemaVersion, int schemaHash,
                                  short shortKeyColumnCount, TStorageType storageType, KeysType keysType,

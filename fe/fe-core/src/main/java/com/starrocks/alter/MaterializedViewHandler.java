@@ -38,6 +38,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.starrocks.analysis.TableName;
 import com.starrocks.catalog.AggregateType;
 import com.starrocks.catalog.Column;
 import com.starrocks.catalog.Database;
@@ -209,11 +210,12 @@ public class MaterializedViewHandler extends AlterHandler {
         long baseIndexId = checkAndGetBaseIndex(baseIndexName, olapTable);
         // Step1.3: mv clause validation
         List<Column> mvColumns = checkAndPrepareMaterializedView(addMVClause, db, olapTable);
+        Map<String, String> properties = addMVClause.getProperties();
 
         if (addMVClause.getTargetTableName() == null) {
             // Step2: create mv job
-            RollupJobV2 rollupJobV2 = createMaterializedViewJob(mvIndexName, baseIndexName, mvColumns, addMVClause
-                    .getProperties(), olapTable, db, baseIndexId, addMVClause.getMVKeysType(),
+            RollupJobV2 rollupJobV2 = createMaterializedViewJob(mvIndexName, baseIndexName, mvColumns, 
+                    properties, olapTable, db, baseIndexId, addMVClause.getMVKeysType(),
                     addMVClause.getOrigStmt());
 
             addAlterJobV2(rollupJobV2);
@@ -229,27 +231,63 @@ public class MaterializedViewHandler extends AlterHandler {
             GlobalStateMgr.getCurrentState().getEditLog().logAlterJob(rollupJobV2);
             LOG.info("finished to create materialized view job: {}", rollupJobV2.getJobId());
         } else {
-            boolean isPopulate = PropertyAnalyzer.analyzeBooleanProp(addMVClause.getProperties(),
+            boolean isPopulate = PropertyAnalyzer.analyzeBooleanProp(properties,
                     PropertyAnalyzer.PROPERTIES_MATERIALIZED_VIEW_POPULATE, true);
             if (isPopulate) {
                 throw new DdlException("Cannot populate history datas if target table is set.");
             }
             // Partitioned target table is not supported yet: need to maintain the changed mapping between
             // the base table and the target table.
+            GlobalStateMgr globalStateMgr = GlobalStateMgr.getCurrentState();
+            TableName target = addMVClause.getTargetTableName();
+            Database targetDB = globalStateMgr.getDb(target.getDb());
+            if (db == null) {
+                ErrorReport.reportDdlException(ErrorCode.ERR_BAD_DB_ERROR, targetDB);
+            }
+
+            Table targetTable = targetDB.getTable(target.getTbl());
+            if (targetTable == null) {
+                throw new DdlException("create materialized failed. table:" + target.getTbl() + " not exist");
+            }
+            if (!targetTable.isOlapTable()) {
+                throw new DdlException("Do not support create rollup on " + targetTable.getType().name() +
+                        " table[" + target.getTbl() + "], please use new syntax to create materialized view");
+            }
+            long targetDBId = targetDB.getId();
+            long targetTableId = targetTable.getId();
+            OlapTable targetOlapTable = (OlapTable) targetTable;
+            // get rollup schema hash
+            int mvSchemaHash = Util.schemaHash(0 /* init schema version */, mvColumns, targetOlapTable.getCopiedBfColumns(),
+                    targetOlapTable.getBfFpp());
+            long mvIndexId = globalStateMgr.getNextId();
 
             // When create all rollup replicas success, add rollup index to globalStateMgr
             db.writeLock();
             try {
                 for (Partition partition : olapTable.getPartitions()) {
-                    long partitionId = partition.getId();
-                    MaterializedIndex rollupIndex = this.partitionIdToRollupIndex.get(partitionId);
+                    String partName = partition.getName();
+                    Partition targetPartition = targetOlapTable.getPartition(partName);
+                    if (targetPartition == null) {
+                        // TODO:
+                        throw new DdlException("Target table has no partition name:" + partName);
+                    }
+                    MaterializedIndex rollupIndex = new MaterializedIndex(mvIndexId, IndexState.NORMAL);
+                    TStorageMedium medium = olapTable.getPartitionInfo()
+                            .getDataProperty(targetPartition.getId()).getStorageMedium();
+                    TabletMeta mvTabletMeta = new TabletMeta(targetDBId, targetTableId,
+                            targetPartition.getId(), mvIndexId, mvSchemaHash, medium);
+                    for (Tablet targetTablet : targetPartition.getBaseIndex().getTablets()) {
+                        rollupIndex.addTablet(targetTablet, mvTabletMeta);
+                    }
                     Preconditions.checkNotNull(rollupIndex);
-                    Preconditions.checkState(rollupIndex.getState() == IndexState.SHADOW, rollupIndex.getState());
                     partition.createRollupIndex(rollupIndex);
                 }
 
-                olapTable.setIndexMeta(rollupIndexId, rollupIndexName, rollupSchema, 0 /* initial schema version */,
-                        rollupSchemaHash, rollupShortKeyColumnCount, TStorageType.COLUMN, rollupKeysType, origStmt);
+                // get short key column count
+                short mvShortKeyColumnCount = GlobalStateMgr.calcShortKeyColumnCount(mvColumns, properties);
+                olapTable.setIndexMeta(mvIndexId, mvIndexName, mvColumns, 0 /* initial schema version */,
+                        mvSchemaHash, mvShortKeyColumnCount, TStorageType.COLUMN,
+                        addMVClause.getMVKeysType(), addMVClause.getOrigStmt());
                 olapTable.rebuildFullSchema();
             } finally {
                 db.writeUnlock();

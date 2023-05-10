@@ -209,22 +209,29 @@ public class MaterializedViewHandler extends AlterHandler {
         // Step1.3: mv clause validation
         List<Column> mvColumns = checkAndPrepareMaterializedView(addMVClause, db, olapTable);
 
-        // Step2: create mv job
-        RollupJobV2 rollupJobV2 = createMaterializedViewJob(mvIndexName, baseIndexName, mvColumns, addMVClause
-                .getProperties(), olapTable, db, baseIndexId, addMVClause.getMVKeysType(), addMVClause.getOrigStmt());
+        if (addMVClause.getTargetTableName() == null) {
+            // Step2: create mv job
+            RollupJobV2 rollupJobV2 = createMaterializedViewJob(mvIndexName, baseIndexName, mvColumns, addMVClause
+                    .getProperties(), olapTable, db, baseIndexId, addMVClause.getMVKeysType(),
+                    addMVClause.getOrigStmt(), addMVClause.isPopulate());
 
-        addAlterJobV2(rollupJobV2);
+            addAlterJobV2(rollupJobV2);
 
-        olapTable.setState(OlapTableState.ROLLUP);
+            olapTable.setState(OlapTableState.ROLLUP);
 
-        boolean isColocateMv = PropertyAnalyzer.analyzeBooleanProp(addMVClause.getProperties(),
-                PropertyAnalyzer.PROPERTIES_COLOCATE_MV, false);
-        if (isColocateMv) {
-            olapTable.addColocateMaterializedView(rollupJobV2.getRollupIndexName());
+            boolean isColocateMv = PropertyAnalyzer.analyzeBooleanProp(addMVClause.getProperties(),
+                    PropertyAnalyzer.PROPERTIES_COLOCATE_MV, false);
+            if (isColocateMv) {
+                olapTable.addColocateMaterializedView(rollupJobV2.getRollupIndexName());
+            }
+
+            GlobalStateMgr.getCurrentState().getEditLog().logAlterJob(rollupJobV2);
+            LOG.info("finished to create materialized view job: {}", rollupJobV2.getJobId());
+        } else {
+            if (addMVClause.isPopulate()) {
+                throw new DdlException("Cannot populate history datas if target table is set.");
+            }
         }
-
-        GlobalStateMgr.getCurrentState().getEditLog().logAlterJob(rollupJobV2);
-        LOG.info("finished to create materialized view job: {}", rollupJobV2.getJobId());
     }
 
     /**
@@ -275,7 +282,7 @@ public class MaterializedViewHandler extends AlterHandler {
                 // step 3 create rollup job
                 RollupJobV2 alterJobV2 = createMaterializedViewJob(rollupIndexName, baseIndexName, rollupSchema,
                         addRollupClause.getProperties(),
-                        olapTable, db, baseIndexId, olapTable.getKeysType(), null);
+                        olapTable, db, baseIndexId, olapTable.getKeysType(), null, true);
 
                 rollupNameJobMap.put(addRollupClause.getRollupName(), alterJobV2);
                 logJobIdSet.add(alterJobV2.getJobId());
@@ -323,9 +330,9 @@ public class MaterializedViewHandler extends AlterHandler {
      * @throws AnalysisException
      */
     private RollupJobV2 createMaterializedViewJob(String mvName, String baseIndexName,
-                                                  List<Column> mvColumns, Map<String, String> properties, OlapTable
-                                                          olapTable, Database db, long baseIndexId, KeysType mvKeysType,
-                                                  OriginStatement origStmt)
+                                                  List<Column> mvColumns, Map<String, String> properties,
+                                                  OlapTable olapTable, Database db, long baseIndexId,
+                                                  KeysType mvKeysType, OriginStatement origStmt)
             throws DdlException, AnalysisException {
         if (mvKeysType == null) {
             // assign rollup index's key type, same as base index's
@@ -338,6 +345,8 @@ public class MaterializedViewHandler extends AlterHandler {
         short mvShortKeyColumnCount = GlobalStateMgr.calcShortKeyColumnCount(mvColumns, properties);
         // get timeout
         long timeoutMs = PropertyAnalyzer.analyzeTimeout(properties, Config.alter_table_timeout_second) * 1000;
+        boolean isPopulate = PropertyAnalyzer.analyzeBooleanProp(properties,
+                PropertyAnalyzer.PROPERTIES_MATERIALIZED_VIEW_POPULATE, true);
 
         // create rollup job
         long dbId = db.getId();
@@ -349,7 +358,7 @@ public class MaterializedViewHandler extends AlterHandler {
         RollupJobV2 mvJob = new RollupJobV2(jobId, dbId, tableId, olapTable.getName(), timeoutMs,
                 baseIndexId, mvIndexId, baseIndexName, mvName,
                 mvColumns, baseSchemaHash, mvSchemaHash,
-                mvKeysType, mvShortKeyColumnCount, origStmt);
+                mvKeysType, mvShortKeyColumnCount, origStmt, isPopulate);
 
         /*
          * create all rollup indexes. and set state.

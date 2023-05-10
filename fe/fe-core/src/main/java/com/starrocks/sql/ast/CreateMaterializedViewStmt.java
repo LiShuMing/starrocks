@@ -35,6 +35,7 @@
 package com.starrocks.sql.ast;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -72,7 +73,6 @@ import com.starrocks.sql.analyzer.mvpattern.MVColumnPattern;
 import com.starrocks.sql.analyzer.mvpattern.MVColumnPercentileUnionPattern;
 import com.starrocks.sql.optimizer.rule.mv.MVUtils;
 import com.starrocks.sql.parser.NodePosition;
-import jdk.internal.joptsimple.internal.Strings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -134,16 +134,19 @@ public class CreateMaterializedViewStmt extends DdlStmt {
     private String dbName;
     private KeysType mvKeysType = KeysType.DUP_KEYS;
 
-    //if process is replaying log, isReplay is true, otherwise is false, avoid replay process error report, only in Rollup or MaterializedIndexMeta is true
+    // If the process is replaying log, isReplay is true, otherwise is false,
+    // avoid replay process error report, only in Rollup or MaterializedIndexMeta is true
     private boolean isReplay = false;
 
-    public CreateMaterializedViewStmt(String mvName, QueryStatement queryStatement, Map<String, String> properties) {
-        this(mvName, queryStatement, properties, NodePosition.ZERO);
-    }
+    // `Populate` means whether to insert the existed data into the new MV. if false, then no insert the existed
+    // data into MV.
+    private boolean isPopulate = true;
 
-    public CreateMaterializedViewStmt(String mvName, QueryStatement queryStatement, Map<String, String> properties,
-                                      NodePosition pos) {
-        super(pos);
+    //  If `targetTableName` is set, use `targetTableName` instead of `mvName` as the result table.
+    private TableName targetTableName;
+
+    public CreateMaterializedViewStmt(String mvName, QueryStatement queryStatement, Map<String, String> properties) {
+        super(NodePosition.ZERO);
         this.mvName = mvName;
         this.queryStatement = queryStatement;
         this.properties = properties;
@@ -199,6 +202,22 @@ public class CreateMaterializedViewStmt extends DdlStmt {
 
     public void setMvKeysType(KeysType mvKeysType) {
         this.mvKeysType = mvKeysType;
+    }
+
+    public boolean isPopulate() {
+        return isPopulate;
+    }
+
+    public void setPopulate(boolean populate) {
+        isPopulate = populate;
+    }
+
+    public TableName getTargetTableName() {
+        return targetTableName;
+    }
+
+    public void setTargetTableName(TableName targetTableName) {
+        this.targetTableName = targetTableName;
     }
 
     public Map<String, Expr> parseDefineExprWithoutAnalyze(String originalSql) throws AnalysisException {

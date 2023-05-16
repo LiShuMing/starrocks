@@ -14,8 +14,22 @@
 
 package com.starrocks.planner;
 
+import com.starrocks.catalog.MaterializedView;
+import com.starrocks.scheduler.Constants;
+import com.starrocks.scheduler.ExecuteOption;
+import com.starrocks.scheduler.Task;
+import com.starrocks.scheduler.TaskBuilder;
+import com.starrocks.scheduler.TaskManager;
+import com.starrocks.scheduler.TaskRun;
+import com.starrocks.server.GlobalStateMgr;
+import com.starrocks.sql.ast.PartitionRangeDesc;
+import com.starrocks.sql.ast.RefreshMaterializedViewStatement;
+import com.starrocks.utframe.UtFrameUtils;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import java.util.HashMap;
 
 public class MaterializedViewManualTest extends MaterializedViewTestBase {
 
@@ -23,6 +37,26 @@ public class MaterializedViewManualTest extends MaterializedViewTestBase {
     public static void setUp() throws Exception {
         MaterializedViewTestBase.setUp();
         starRocksAssert.useDatabase(MATERIALIZED_DB_NAME);
+
+        String tableSQL = "CREATE TABLE `test_partition_expr_tbl1` (\n" +
+                "  `order_id` bigint(20) NOT NULL DEFAULT \"-1\" COMMENT \"\",\n" +
+                "  `dt` datetime NOT NULL DEFAULT \"1996-01-01 00:00:00\" COMMENT \"\"\n" +
+                ") ENGINE=OLAP\n" +
+                "DUPLICATE KEY(`order_id`, `dt`)\n" +
+                "PARTITION BY RANGE(`dt`)\n" +
+                "(\n" +
+                "PARTITION p2023041015 VALUES [(\"2023-04-10 15:00:00\"), (\"2023-04-10 16:00:00\")),\n" +
+                "PARTITION p2023041016 VALUES [(\"2023-04-10 16:00:00\"), (\"2023-04-10 17:00:00\")),\n" +
+                "PARTITION p2023041017 VALUES [(\"2023-04-10 17:00:00\"), (\"2023-04-10 18:00:00\")),\n" +
+                "PARTITION p2023041018 VALUES [(\"2023-04-10 18:00:00\"), (\"2023-04-10 19:00:00\")),\n" +
+                "PARTITION p2023041019 VALUES [(\"2023-04-10 19:00:00\"), (\"2023-04-10 20:00:00\")),\n" +
+                "PARTITION p2023041020 VALUES [(\"2023-04-10 20:00:00\"), (\"2023-04-10 21:00:00\")),\n" +
+                "PARTITION p2023041021 VALUES [(\"2023-04-10 21:00:00\"), (\"2023-04-10 22:00:00\"))\n" +
+                ")\n" +
+                "DISTRIBUTED BY HASH(`order_id`) BUCKETS 9\n" +
+                "PROPERTIES (\n" +
+                "\"replication_num\" = \"1\");";
+        starRocksAssert.withTable(tableSQL);
     }
 
     @Test
@@ -117,29 +151,6 @@ public class MaterializedViewManualTest extends MaterializedViewTestBase {
 
     @Test
     public void testPartitionColumnExpr1() throws Exception {
-        String tableSQL = "CREATE TABLE `test_partition_expr_tbl1` (\n" +
-                "  `order_id` bigint(20) NOT NULL DEFAULT \"-1\" COMMENT \"\",\n" +
-                "  `dt` datetime NOT NULL DEFAULT \"1996-01-01 00:00:00\" COMMENT \"\",\n" +
-                "  `value` varchar(256) NULL \n" +
-                ") ENGINE=OLAP\n" +
-                "DUPLICATE KEY(`order_id`, `dt`)\n" +
-                "PARTITION BY RANGE(`dt`)\n" +
-                "(\n" +
-                "PARTITION p2023041017 VALUES [(\"2023-04-10 17:00:00\"), (\"2023-04-10 18:00:00\")),\n" +
-                "PARTITION p2023041021 VALUES [(\"2023-04-10 21:00:00\"), (\"2023-04-10 22:00:00\"))\n" +
-                ")\n" +
-                "DISTRIBUTED BY HASH(`order_id`) BUCKETS 9\n" +
-                "PROPERTIES (\n" +
-                "\"dynamic_partition.enable\" = \"true\",\n" +
-                "\"dynamic_partition.time_unit\" = \"HOUR\",\n" +
-                "\"dynamic_partition.time_zone\" = \"Asia/Shanghai\",\n" +
-                "\"dynamic_partition.start\" = \"-240\",\n" +
-                "\"dynamic_partition.end\" = \"2\",\n" +
-                "\"dynamic_partition.prefix\" = \"p\",\n" +
-                "\"dynamic_partition.buckets\" = \"9\"," +
-                "\"replication_num\" = \"1\"" +
-                ");";
-        starRocksAssert.withTable(tableSQL);
         String mv = "CREATE MATERIALIZED VIEW `test_partition_expr_mv1`\n" +
                 "COMMENT \"MATERIALIZED_VIEW\"\n" +
                 "PARTITION BY (date_trunc('hour', ds))\n" +
@@ -186,6 +197,92 @@ public class MaterializedViewManualTest extends MaterializedViewTestBase {
                 "WHERE `dt` >= '2023-04-10 17:00:00' and `dt` < '2023-04-10 18:00:00'\n" +
                 "group by ts").nonMatch("test_partition_expr_mv1");
         starRocksAssert.dropMaterializedView("test_partition_expr_mv1");
+    }
+
+    private static void refreshMaterializedViewSync(String sql) throws Exception {
+        RefreshMaterializedViewStatement refreshMaterializedViewStatement =
+                (RefreshMaterializedViewStatement) UtFrameUtils.parseStmtWithNewParser(sql, connectContext);
+        try {
+            TaskManager taskManager = GlobalStateMgr.getCurrentState().getTaskManager();
+            String dbName = refreshMaterializedViewStatement.getMvName().getDb();
+            String mvName = refreshMaterializedViewStatement.getMvName().getTbl();
+            boolean force = refreshMaterializedViewStatement.isForceRefresh();
+            PartitionRangeDesc range =
+                    refreshMaterializedViewStatement.getPartitionRangeDesc();
+            MaterializedView materializedView = getMv(dbName, mvName);
+
+            HashMap<String, String> taskRunProperties = new HashMap<>();
+            taskRunProperties.put(TaskRun.PARTITION_START, range == null ? null : range.getPartitionStart());
+            taskRunProperties.put(TaskRun.PARTITION_END, range == null ? null : range.getPartitionEnd());
+            taskRunProperties.put(TaskRun.FORCE, Boolean.toString(force));
+
+            ExecuteOption executeOption = new ExecuteOption(Constants.TaskRunPriority.LOWEST.value(), false, taskRunProperties);
+            executeOption.setManual();
+
+            final String mvTaskName = TaskBuilder.getMvTaskName(materializedView.getId());
+            if (!taskManager.containTask(mvTaskName)) {
+                Task task = TaskBuilder.buildMvTask(materializedView, dbName);
+                TaskBuilder.updateTaskInfo(task, materializedView);
+                taskManager.createTask(task, false);
+            }
+            taskManager.executeTaskSync(mvTaskName, executeOption);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Assert.fail();
+        }
+    }
+
+    @Test
+    public void testPartitionColumnExpr2() throws Exception {
+        String mv = "CREATE MATERIALIZED VIEW `test_partition_expr_mv2`\n" +
+                "COMMENT \"MATERIALIZED_VIEW\"\n" +
+                "PARTITION BY (date_trunc('hour', `ds`))\n" +
+                "DISTRIBUTED BY HASH(`ds`) BUCKETS 10\n" +
+                "PROPERTIES (\n" +
+                "\"replication_num\" = \"1\")\n" +
+                "AS\n" +
+                "SELECT \n" +
+                "count(DISTINCT `order_id`) AS `order_num`, \n" +
+                "time_slice(`dt`, INTERVAL 5 minute) AS `ds`\n" +
+                "FROM `test_partition_expr_tbl1`\n" +
+                "group by ds;";
+        starRocksAssert.withMaterializedView(mv);
+        refreshMaterializedViewSync("REFRESH MATERIALIZED VIEW test_partition_expr_mv2 \n" +
+                "PARTITION START (\"2023-04-10 15:00:00\") END (\"2023-04-10 17:00:00\");");
+        refreshMaterializedViewSync("REFRESH MATERIALIZED VIEW test_partition_expr_mv2 \n" +
+                "PARTITION START (\"2023-04-10 18:00:00\") END (\"2023-04-10 20:00:00\");");
+
+        sql("SELECT \n" +
+                "count(DISTINCT `order_id`) AS `order_num`, \n" +
+                "time_slice(`dt`, INTERVAL 5 minute) AS ds \n" +
+                "FROM `test_partition_expr_tbl1`\n" +
+                "WHERE time_slice(`dt`, INTERVAL 5 minute) BETWEEN '2023-04-10 17:00:00' AND '2023-04-10 18:00:00'\n" +
+                "group by ds")
+                .match("test_partition_expr_mv2");
+
+//        sql("SELECT \n" +
+//                "count(DISTINCT `order_id`) AS `order_num`, \n" +
+//                "time_slice(`dt`, INTERVAL 5 minute) AS ds \n" +
+//                "FROM `test_partition_expr_tbl1`\n" +
+//                "WHERE time_slice(`dt`, INTERVAL 5 minute) BETWEEN '2023-04-11' AND '2023-04-12' or " +
+//                "time_slice(`dt`, INTERVAL 5 minute) BETWEEN '2023-04-12' AND '2023-04-13'\n" +
+//                "group by ds")
+//                .match("test_partition_expr_mv1");
+//        sql("SELECT \n" +
+//                "count(DISTINCT `order_id`) AS `order_num`, \n" +
+//                "time_slice(`dt`, INTERVAL 5 minute) AS `ts`\n" +
+//                "FROM `test_partition_expr_tbl1`\n" +
+//                "WHERE time_slice(dt, interval 5 minute) >= '2023-04-10 17:00:00' and time_slice(dt, interval 5 minute) < '2023-04-10 18:00:00'\n" +
+//                "group by ts")
+//                .match("test_partition_expr_mv1");
+//
+//        sql("SELECT \n" +
+//                "count(DISTINCT `order_id`) AS `order_num`, \n" +
+//                "time_slice(`dt`, INTERVAL 5 minute) AS `ts`\n" +
+//                "FROM `test_partition_expr_tbl1`\n" +
+//                "WHERE `dt` >= '2023-04-10 17:00:00' and `dt` < '2023-04-10 18:00:00'\n" +
+//                "group by ts").nonMatch("test_partition_expr_mv1");
+        starRocksAssert.dropMaterializedView("test_partition_expr_mv2");
     }
 
     @Test

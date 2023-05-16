@@ -69,12 +69,12 @@ public class MaterializedViewTestBase extends PlanTestBase {
         FeConstants.runningUnitTest = true;
         starRocksAssert = new StarRocksAssert(connectContext);
 
-        new MockUp<MaterializedView>() {
-            @Mock
-            Set<String> getPartitionNamesToRefreshForMv() {
-                return Sets.newHashSet();
-            }
-        };
+//        new MockUp<MaterializedView>() {
+//            @Mock
+//            Set<String> getPartitionNamesToRefreshForMv() {
+//                return Sets.newHashSet();
+//            }
+//        };
 
         new MockUp<UtFrameUtils>() {
             @Mock

@@ -303,7 +303,9 @@ public class TaskManager {
         if (task == null) {
             throw new DmlException("execute task:" + taskName + " failed");
         }
-        TaskRun taskRun = TaskRunBuilder.newBuilder(task).build();
+        TaskRun taskRun = TaskRunBuilder.newBuilder(task)
+                .properties(option.getTaskRunProperties())
+                .build();
         SubmitResult submitResult = taskRunManager.submitTaskRun(taskRun, option);
         if (submitResult.getStatus() != SUBMITTED) {
             throw new DmlException("execute task:" + taskName + " failed");

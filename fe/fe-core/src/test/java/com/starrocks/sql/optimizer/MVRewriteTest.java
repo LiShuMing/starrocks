@@ -1158,10 +1158,11 @@ public class MVRewriteTest {
     public void testCaseWhenAggregate() throws Exception {
         String createEmpsMVSQL = "create materialized view " + EMPS_MV_NAME + " as select empid, deptno, sum(salary) "
                 + "from " + EMPS_TABLE_NAME + " group by empid, deptno;";
+        starRocksAssert.withMaterializedView(createEmpsMVSQL);
         String query =
                 "select deptno, sum(case salary when 1 then 2 when 2 then 3 end) as ssalary from " + EMPS_TABLE_NAME +
                         " group by deptno";
-        starRocksAssert.withMaterializedView(createEmpsMVSQL).query(query).explainWithout(QUERY_USE_EMPS_MV);
+        starRocksAssert.query(query).explainWithout(QUERY_USE_EMPS_MV);
 
         query = "select deptno, sum(case deptno when 1 then 2 when 2 then 3 end) as ssalary from " + EMPS_TABLE_NAME +
                 " group by deptno";
@@ -1195,6 +1196,7 @@ public class MVRewriteTest {
         createMaterializedViewStmt.getMVColumnItemList().forEach(k -> Assert.assertTrue(k.isKey()));
 
         starRocksAssert.withMaterializedView(createMVSQL).query(query).explainContains("rollup: partial_order_by_mv");
+        starRocksAssert.dropMaterializedView("partial_order_by_mv");
 
         String createMVSQL2 = "CREATE MATERIALIZED VIEW order_by_mv AS " +
                 "SELECT k6, k7 FROM all_type_table GROUP BY k6, k7 ORDER BY k6, k7";
@@ -1251,5 +1253,30 @@ public class MVRewriteTest {
                 + "from " + EMPS_TABLE_NAME + ";";
         String query = "select count(*) from " + EMPS_TABLE_NAME + " where bitmap_contains(to_bitmap(1),2)";
         starRocksAssert.withMaterializedView(createEmpsMVSQL).query(query).explainContains(QUERY_USE_EMPS);
+    }
+
+    @Test
+    public void testLogicalMaterializedView_Rewrite1() throws Exception {
+        connectContext.getSessionVariable().setOptimizerExecuteTimeout(300000);
+        String t1 = "CREATE TABLE `test3` (\n" +
+                "  `k1` tinyint(4) NULL DEFAULT \"0\",\n" +
+                "  `k2` varchar(64) NULL DEFAULT \"\",\n" +
+                "  `k3` bigint NULL DEFAULT \"0\",\n" +
+                "  `k4` varchar(64) NULL DEFAULT \"\"\n" +
+                ") ENGINE=OLAP\n" +
+                "        DUPLICATE KEY(`k1`)\n" +
+                "        DISTRIBUTED BY HASH(`k1`) BUCKETS 1\n" +
+                "        PROPERTIES (\n" +
+                "                \"replication_num\" = \"1\"\n" +
+                "        )";
+        String mv1 = "CREATE MATERIALIZED VIEW test_mv3\n" +
+                "        as\n" +
+                "        select k1, k1 * 2 as k1, length(k2) as k2, sum(k3), hll_union(hll_hash(k4)) as k5 " +
+                "from test3 group by k1, k2;";
+        starRocksAssert.withTable(t1)
+                .withMaterializedView(mv1);
+        starRocksAssert.query(
+                        "select k1 * 2, length(k2), sum(k3), hll_union(hll_hash(k4)) as k5 from test3 group by k1, k2;")
+                .explainContains("test_mv3");
     }
 }

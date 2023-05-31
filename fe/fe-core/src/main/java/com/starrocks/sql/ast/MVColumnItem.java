@@ -34,13 +34,16 @@
 
 package com.starrocks.sql.ast;
 
-import com.google.common.base.Preconditions;
+import com.google.api.client.util.Sets;
+import com.google.common.annotations.VisibleForTesting;
 import com.starrocks.analysis.Expr;
 import com.starrocks.catalog.AggregateType;
 import com.starrocks.catalog.Column;
 import com.starrocks.catalog.OlapTable;
 import com.starrocks.catalog.Type;
 import com.starrocks.common.DdlException;
+
+import java.util.Set;
 
 /**
  * This is a result of semantic analysis for AddMaterializedViewClause.
@@ -57,23 +60,22 @@ public class MVColumnItem {
     private boolean isAllowNull;
     private boolean isAggregationTypeImplicit;
     private Expr defineExpr;
-    private final String baseColumnName;
+    private Set<String> baseColumnNames;
 
-    public MVColumnItem(String name, Type type, AggregateType aggregateType, boolean isAllowNull,
-                        boolean isAggregationTypeImplicit, Expr defineExpr, String baseColumnName) {
+    public MVColumnItem(String name, Type type, AggregateType aggregateType, boolean isAggregationTypeImplicit,
+                        Expr defineExpr, boolean isAllowNull, Set<String> baseColumnNames) {
         this.name = name;
         this.type = type;
         this.aggregationType = aggregateType;
-        this.isAllowNull = isAllowNull;
         this.isAggregationTypeImplicit = isAggregationTypeImplicit;
         this.defineExpr = defineExpr;
-        this.baseColumnName = baseColumnName;
+        this.isAllowNull = isAllowNull;
+        this.baseColumnNames = baseColumnNames;
     }
 
+    @VisibleForTesting
     public MVColumnItem(String name, Type type) {
-        this.name = name;
-        this.type = type;
-        this.baseColumnName = name;
+        this(name, type, null, false, null, true, Sets.newHashSet());
     }
 
     public boolean isAllowNull() {
@@ -121,23 +123,25 @@ public class MVColumnItem {
         this.defineExpr = defineExpr;
     }
 
-    public String getBaseColumnName() {
-        return baseColumnName;
+    public Set<String> getBaseColumnNames() {
+        return baseColumnNames;
     }
 
     public Column toMVColumn(OlapTable olapTable) throws DdlException {
         Column baseColumn = olapTable.getBaseColumn(name);
+        Column result;
         if (baseColumn == null) {
-            Preconditions.checkNotNull(defineExpr);
-            Column result = new Column(name, type, isKey, aggregationType, isAllowNull,
-                    ColumnDef.DefaultValueDef.EMPTY_VALUE, "");
-            result.setDefineExpr(defineExpr);
-            return result;
+            result = new Column(name, type, isKey, aggregationType, isAllowNull,
+                    null, "");
+            if (defineExpr != null) {
+                result.setDefineExpr(defineExpr);
+            }
         } else {
-            Column result = new Column(baseColumn);
-            result.setIsKey(isKey);
-            result.setAggregationType(aggregationType, isAggregationTypeImplicit);
-            return result;
+            result = new Column(baseColumn);
         }
+        result.setIsKey(isKey);
+        result.setName(name);
+        result.setAggregationType(aggregationType, isAggregationTypeImplicit);
+        return result;
     }
 }

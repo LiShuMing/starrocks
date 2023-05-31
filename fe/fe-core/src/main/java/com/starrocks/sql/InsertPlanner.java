@@ -48,7 +48,6 @@ import com.starrocks.sql.analyzer.RelationFields;
 import com.starrocks.sql.analyzer.RelationId;
 import com.starrocks.sql.analyzer.Scope;
 import com.starrocks.sql.analyzer.SemanticException;
-import com.starrocks.sql.ast.CreateMaterializedViewStmt;
 import com.starrocks.sql.ast.DefaultValueExpr;
 import com.starrocks.sql.ast.InsertStmt;
 import com.starrocks.sql.ast.QueryRelation;
@@ -103,6 +102,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.starrocks.catalog.DefaultExpr.SUPPORTED_DEFAULT_FNS;
+import static com.starrocks.sql.optimizer.rule.mv.MVUtils.MATERIALIZED_VIEW_NAME_PREFIX;
 
 public class InsertPlanner {
     // Only for unit test
@@ -441,7 +441,6 @@ public class InsertPlanner {
     private OptExprBuilder fillShadowColumns(ColumnRefFactory columnRefFactory, InsertStmt insertStatement,
                                              List<ColumnRefOperator> outputColumns, OptExprBuilder root,
                                              ConnectContext session) {
-        Set<Column> baseSchema = Sets.newHashSet(insertStatement.getTargetTable().getBaseSchema());
         List<Column> fullSchema = insertStatement.getTargetTable().getFullSchema();
         Map<ColumnRefOperator, ScalarOperator> columnRefMap = new HashMap<>();
 
@@ -471,15 +470,7 @@ public class InsertPlanner {
 
             // Target column which starts with "mv" should not be treated as materialized view column when this column exists in base schema,
             // this could be created by user.
-            if (targetColumn.isNameWithPrefix(CreateMaterializedViewStmt.MATERIALIZED_VIEW_NAME_PREFIX) &&
-                    !baseSchema.contains(targetColumn)) {
-                String originName = targetColumn.getRefColumn().getColumnName();
-                Optional<Column> optOriginColumn = fullSchema.stream()
-                        .filter(c -> c.nameEquals(originName, false)).findFirst();
-                Preconditions.checkState(optOriginColumn.isPresent());
-                Column originColumn = optOriginColumn.get();
-                ColumnRefOperator originColRefOp = outputColumns.get(fullSchema.indexOf(originColumn));
-
+            if (targetColumn.isNameWithPrefix(MATERIALIZED_VIEW_NAME_PREFIX)) {
                 ExpressionAnalyzer.analyzeExpression(targetColumn.getDefineExpr(), new AnalyzeState(),
                         new Scope(RelationId.anonymous(),
                                 new RelationFields(insertStatement.getTargetTable().getBaseSchema().stream()
@@ -490,7 +481,18 @@ public class InsertPlanner {
                 ExpressionMapping expressionMapping =
                         new ExpressionMapping(new Scope(RelationId.anonymous(), new RelationFields()),
                                 Lists.newArrayList());
-                expressionMapping.put(targetColumn.getRefColumn(), originColRefOp);
+                List<SlotRef> slots = targetColumn.getRefColumns();
+
+                for (SlotRef slot : slots) {
+                    String originName = slot.getColumnName();
+                    Optional<Column> optOriginColumn = fullSchema.stream()
+                            .filter(c -> c.nameEquals(originName, false)).findFirst();
+                    Preconditions.checkState(optOriginColumn.isPresent());
+                    Column originColumn = optOriginColumn.get();
+                    ColumnRefOperator originColRefOp = outputColumns.get(fullSchema.indexOf(originColumn));
+                    expressionMapping.put(slot, originColRefOp);
+                }
+
                 ScalarOperator scalarOperator =
                         SqlToScalarOperatorTranslator.translate(targetColumn.getDefineExpr(), expressionMapping,
                                 columnRefFactory);

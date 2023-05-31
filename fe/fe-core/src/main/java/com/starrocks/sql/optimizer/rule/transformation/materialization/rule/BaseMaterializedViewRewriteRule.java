@@ -16,6 +16,7 @@
 package com.starrocks.sql.optimizer.rule.transformation.materialization.rule;
 
 import com.google.common.collect.Lists;
+import com.starrocks.catalog.OlapTable;
 import com.starrocks.catalog.Table;
 import com.starrocks.sql.optimizer.MaterializationContext;
 import com.starrocks.sql.optimizer.MvRewriteContext;
@@ -46,22 +47,28 @@ public abstract class BaseMaterializedViewRewriteRule extends TransformationRule
         super(type, pattern);
     }
 
-    private boolean checkOlapScanWithoutTabletOrPartitionHints(OptExpression input) {
+    private boolean canUseMVRewrite(OptExpression input) {
         if (input.getOp() instanceof LogicalOlapScanOperator) {
             LogicalOlapScanOperator scan = input.getOp().cast();
+            // Not rewrite if scan has table hints
             if (scan.hasTableHints()) {
+                return false;
+            }
+            // Not rewrite if scan has been rewritten by sync mv.
+            Table table = scan.getTable();
+            if ((table instanceof OlapTable) && scan.getSelectedIndexId() != ((OlapTable) table).getBaseIndexId()) {
                 return false;
             }
         }
         if (input.getInputs().isEmpty()) {
             return true;
         }
-        return input.getInputs().stream().allMatch(this::checkOlapScanWithoutTabletOrPartitionHints);
+        return input.getInputs().stream().allMatch(this::canUseMVRewrite);
     }
 
     @Override
     public boolean check(OptExpression input, OptimizerContext context) {
-        return !context.getCandidateMvs().isEmpty() && checkOlapScanWithoutTabletOrPartitionHints(input);
+        return !context.getCandidateMvs().isEmpty() && canUseMVRewrite(input);
     }
 
     @Override

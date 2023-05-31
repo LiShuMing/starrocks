@@ -224,7 +224,16 @@ public class Optimizer {
                         new MvRewritePreprocessor(connectContext, columnRefFactory, context, logicOperatorTree);
                 preprocessor.prepareMvCandidatesForPlan();
             }
+            if (connectContext.getSessionVariable().isEnableSyncMaterializedViewRewrite()) {
+                try (PlannerProfile.ScopedTimer ignored = PlannerProfile.getScopedTimer("Optimizer.preprocessSyncMvs")) {
+                    MvRewritePreprocessor preprocessor =
+                            new MvRewritePreprocessor(connectContext, columnRefFactory, context, logicOperatorTree);
+                    preprocessor.prepareSyncMvCandidatesForPlan(connectContext);
+                }
+            }
         }
+
+
     }
 
     private OptExpression logicalRuleRewrite(OptExpression tree, TaskContext rootTaskContext) {

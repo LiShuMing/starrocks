@@ -21,7 +21,9 @@ import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.starrocks.analysis.CaseExpr;
 import com.starrocks.analysis.FunctionCallExpr;
+import com.starrocks.analysis.SlotRef;
 import com.starrocks.catalog.Column;
 import com.starrocks.catalog.FunctionSet;
 import com.starrocks.catalog.KeysType;
@@ -516,7 +518,13 @@ public class MaterializedViewRule extends Rule {
         // Assume sync mv's column names are mapping with query scan node's columns by column name.
         // We can find the according query column id by the mv column name.
         // Once mv's column name is not the same with scan node, how can we do it?
-        return columnToIds.get(mvColumn.getName());
+        List<SlotRef> baseColumnRefs = mvColumn.getRefColumns();
+        // To be compatible with old policy, remove this later.
+        if (baseColumnRefs == null) {
+            return columnToIds.get(mvColumn.getName());
+        }
+        // TODO: handle multi slot refs for MVColumn.
+        return columnToIds.get(baseColumnRefs.get(0).getColumnName());
     }
 
     private Set<Long> matchBestPrefixIndex(
@@ -654,7 +662,9 @@ public class MaterializedViewRule extends Rule {
         if (aggregatedColumnsInQueryOutput == null) {
             return true;
         }
-        keyColumnsToExprList(columnToIds, candidateIndexMeta, indexAggColumnExprList);
+        if (!keyColumnsToExprList(columnToIds, candidateIndexMeta, indexAggColumnExprList)) {
+            return false;
+        }
 
         // The aggregated columns in query output must be subset of the aggregated columns in view
         if (!aggFunctionsMatchAggColumns(columnToIds, candidateIndexMeta, mvIdx,
@@ -712,7 +722,7 @@ public class MaterializedViewRule extends Rule {
         return result;
     }
 
-    private void keyColumnsToExprList(Map<String, Integer> columnToIds, MaterializedIndexMeta mvMeta,
+    private boolean keyColumnsToExprList(Map<String, Integer> columnToIds, MaterializedIndexMeta mvMeta,
                                       List<CallOperator> result) {
         for (Column column : mvMeta.getSchema()) {
             if (!column.isAggregated()) {
@@ -726,6 +736,7 @@ public class MaterializedViewRule extends Rule {
                 }
             }
         }
+        return true;
     }
 
     private boolean aggFunctionsMatchAggColumns(Map<String, Integer> columnToIds,
@@ -736,13 +747,19 @@ public class MaterializedViewRule extends Rule {
         ColumnRefSet keyColumns = new ColumnRefSet();
         Set<Integer> usedBaseColumnIds = Sets.newHashSet();
         for (Column column : candidateIndexMeta.getSchema()) {
-            int baseColumnId = getMVColumnToQueryColumnId(columnToIds, column);
-            usedBaseColumnIds.add(baseColumnId);
-
-            ColumnRefOperator columnRef = factory.getColumnRef(baseColumnId);
             if (!column.isAggregated()) {
+                int baseColumnId = getMVColumnToQueryColumnId(columnToIds, column);
+                usedBaseColumnIds.add(baseColumnId);
+                ColumnRefOperator columnRef = factory.getColumnRef(baseColumnId);
                 keyColumns.union(columnRef);
             } else {
+                List<SlotRef> baseColumnRefs = column.getRefColumns();
+                if (baseColumnRefs.size() != 1) {
+                    return false;
+                }
+                int baseColumnId = columnToIds.get(baseColumnRefs.get(0).getColumnName());
+                usedBaseColumnIds.add(baseColumnId);
+                ColumnRefOperator columnRef = factory.getColumnRef(baseColumnId);
                 aggregateColumns.union(columnRef);
             }
         }
@@ -869,7 +886,11 @@ public class MaterializedViewRule extends Rule {
                 if (mvColumn.getAggregationType() == null) {
                     return false;
                 }
-                String mvColumnName = MVUtils.getMVColumnName(mvColumn, queryFnName, queryColumn.getName());
+                String mvFuncName = mvColumn.getAggregationType().name().toLowerCase();
+                if (queryFnName.equalsIgnoreCase(FunctionSet.COUNT) && mvColumn.getDefineExpr() instanceof CaseExpr) {
+                    mvFuncName = FunctionSet.COUNT;
+                }
+                String mvColumnName = MVUtils.getMVAggColumnName(mvFuncName, queryColumn.getName());
                 if (mvColumnName.equalsIgnoreCase(mvColumn.getName())) {
                     mvIdToRewriteContexts.computeIfAbsent(indexId, k -> Lists.newArrayList())
                             .add(new RewriteContext(queryFn, queryColumnRef, mvColumnRef, mvColumn));

@@ -248,9 +248,19 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
             this.asyncRefreshContext = new AsyncRefreshContext();
             this.lastRefreshTime = 0;
         }
+        public MvRefreshScheme(RefreshType type) {
+            this.type = type;
+            this.moment = RefreshMoment.IMMEDIATE;
+            this.asyncRefreshContext = new AsyncRefreshContext();
+            this.lastRefreshTime = 0;
+        }
 
         public boolean isIncremental() {
             return this.type.equals(RefreshType.INCREMENTAL);
+        }
+
+        public boolean isSync() {
+            return this.type.equals(RefreshType.SYNC);
         }
 
         public RefreshMoment getMoment() {
@@ -330,6 +340,9 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
     @SerializedName(value = "maxMVRewriteStaleness")
     private int maxMVRewriteStaleness = 0;
 
+    // For sync mode mv, we record the base table to used for rewrite.
+    private OlapTable syncBaseTable = null;
+
     // MVRewriteContextCache is a cache that stores metadata related to the materialized view rewrite context.
     // This cache is used during the FE's lifecycle to improve the performance of materialized view
     // rewriting operations.
@@ -405,6 +418,19 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
         this.dbId = dbId;
         this.refreshScheme = refreshScheme;
         this.active = true;
+    }
+
+    // Used for sync mv
+    public MaterializedView(Database db, String mvName,
+                            MaterializedIndexMeta indexMeta, OlapTable baseTable,
+                            PartitionInfo partitionInfo, DistributionInfo distributionInfo,
+                            MvRefreshScheme refreshScheme) {
+        this(indexMeta.getIndexId(), db.getId(), mvName, indexMeta.getSchema(), indexMeta.getKeysType(),
+                partitionInfo, distributionInfo, refreshScheme);
+        Preconditions.checkState(baseTable.getIndexIdByName(mvName) != null);
+        this.baseTableInfos = Lists.newArrayList();
+        this.baseTableInfos.add(new BaseTableInfo(db.getId(), db.getFullName(), baseTable.getId()));
+        this.syncBaseTable = baseTable;
     }
 
     public MvId getMvId() {
@@ -781,7 +807,11 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
     }
 
     public boolean isForceExternalTableQueryRewrite() {
-        return tableProperty.getForceExternalTableQueryRewrite();
+        return tableProperty != null && tableProperty.getForceExternalTableQueryRewrite();
+    }
+
+    public OlapTable getBaseTable() {
+        return syncBaseTable;
     }
 
     public boolean shouldTriggeredRefreshBy(String dbName, String tableName) {

@@ -21,6 +21,7 @@ import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.starrocks.analysis.CaseExpr;
 import com.starrocks.analysis.FunctionCallExpr;
 import com.starrocks.catalog.Column;
 import com.starrocks.catalog.FunctionSet;
@@ -52,6 +53,7 @@ import com.starrocks.sql.optimizer.rule.Rule;
 import com.starrocks.sql.optimizer.rule.RuleType;
 import org.apache.commons.collections4.map.CaseInsensitiveMap;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -195,6 +197,11 @@ public class MaterializedViewRule extends Rule {
             Map.Entry<Long, MaterializedIndexMeta> entry = iterator.next();
             Long mvIdx = entry.getKey();
             MaterializedIndexMeta mvMeta = entry.getValue();
+            // Ignore logical materialized view.
+            if (entry.getValue().isLogical()) {
+                iterator.remove();
+                continue;
+            }
 
             // Ignore original query index.
             if (mvIdx == scanOperator.getSelectedIndexId()) {
@@ -516,7 +523,7 @@ public class MaterializedViewRule extends Rule {
         // Assume sync mv's column names are mapping with query scan node's columns by column name.
         // We can find the according query column id by the mv column name.
         // Once mv's column name is not the same with scan node, how can we do it?
-        return columnToIds.get(mvColumn.getName());
+        return columnToIds.get(mvColumn.getBaseColumnName());
     }
 
     private Set<Long> matchBestPrefixIndex(
@@ -869,7 +876,13 @@ public class MaterializedViewRule extends Rule {
                 if (mvColumn.getAggregationType() == null) {
                     return false;
                 }
-                String mvColumnName = MVUtils.getMVColumnName(mvColumn, queryFnName, queryColumn.getName());
+                String mvFuncName = mvColumn.getAggregationType().name().toLowerCase();
+                if (queryFnName.equalsIgnoreCase(FunctionSet.COUNT) && mvColumn.getDefineExpr() instanceof CaseExpr) {
+                    mvFuncName = FunctionSet.COUNT;
+                }
+                List<String> columnNames = new ArrayList<>();
+                columnNames.add(queryColumn.getName());
+                String mvColumnName = MVUtils.getMVColumnName(mvFuncName, columnNames);
                 if (mvColumnName.equalsIgnoreCase(mvColumn.getName())) {
                     mvIdToRewriteContexts.computeIfAbsent(indexId, k -> Lists.newArrayList())
                             .add(new RewriteContext(queryFn, queryColumnRef, mvColumnRef, mvColumn));

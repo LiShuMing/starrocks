@@ -694,6 +694,7 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
                 }
             } else {
                 active = false;
+                setInactiveAndReason("base mv is not active: base table ids not existed");
                 return;
             }
         }

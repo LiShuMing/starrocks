@@ -1636,6 +1636,10 @@ public class LocalMetastore implements ConnectorMetadata {
             MaterializedIndex index = entry.getValue();
             MaterializedIndexMeta indexMeta = table.getIndexIdToMeta().get(indexId);
 
+            if (indexMeta.isLogical()) {
+                continue;
+            }
+
             // create tablets
             TabletMeta tabletMeta =
                     new TabletMeta(db.getId(), table.getId(), partitionId, indexId, indexMeta.getSchemaHash(),
@@ -2075,6 +2079,29 @@ public class LocalMetastore implements ConnectorMetadata {
                 }
             } // end for partitions
             DynamicPartitionUtil.registerOrRemovePartitionTTLTable(dbId, materializedView);
+        }
+    }
+
+    public void replayCreateMaterializedIndexMeta(String dbName, String tableName, String indexName,
+                                                  MaterializedIndexMeta indexMeta) {
+        Database db = this.fullNameToDb.get(dbName);
+        if (db == null) {
+            return;
+        }
+        OlapTable table = (OlapTable) db.getTable(tableName);
+        if (table == null) {
+            return;
+        }
+        if (!isCheckpointThread()) {
+            db.writeLock();
+            try {
+                table.addMaterializedIndexMeta(indexName, indexMeta);
+                table.rebuildFullSchema();
+                table.lastSchemaUpdateTime.set(System.currentTimeMillis());
+                LOG.info("replay create sync materialized view {}", indexName);
+            } finally {
+                db.writeUnlock();
+            }
         }
     }
 

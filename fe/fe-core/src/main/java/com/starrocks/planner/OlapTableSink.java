@@ -47,15 +47,14 @@ import com.starrocks.analysis.TupleDescriptor;
 import com.starrocks.catalog.Column;
 import com.starrocks.catalog.Database;
 import com.starrocks.catalog.DistributionInfo;
-import com.starrocks.catalog.ExpressionRangePartitionInfoV2;
 import com.starrocks.catalog.ExpressionRangePartitionInfo;
+import com.starrocks.catalog.ExpressionRangePartitionInfoV2;
 import com.starrocks.catalog.ExternalOlapTable;
 import com.starrocks.catalog.HashDistributionInfo;
 import com.starrocks.catalog.KeysType;
 import com.starrocks.catalog.ListPartitionInfo;
 import com.starrocks.catalog.LocalTablet;
 import com.starrocks.catalog.MaterializedIndex;
-import com.starrocks.catalog.MaterializedIndex.IndexExtState;
 import com.starrocks.catalog.MaterializedIndexMeta;
 import com.starrocks.catalog.OlapTable;
 import com.starrocks.catalog.Partition;
@@ -87,10 +86,10 @@ import com.starrocks.thrift.TOlapTablePartition;
 import com.starrocks.thrift.TOlapTablePartitionParam;
 import com.starrocks.thrift.TOlapTableSchemaParam;
 import com.starrocks.thrift.TOlapTableSink;
+import com.starrocks.thrift.TPartialUpdateMode;
 import com.starrocks.thrift.TTabletLocation;
 import com.starrocks.thrift.TUniqueId;
 import com.starrocks.thrift.TWriteQuorumType;
-import com.starrocks.thrift.TPartialUpdateMode;
 import com.starrocks.transaction.TransactionState;
 import com.starrocks.warehouse.Warehouse;
 import org.apache.commons.collections4.CollectionUtils;
@@ -319,6 +318,9 @@ public class OlapTableSink extends DataSink {
         partitionParam.setEnable_automatic_partition(enableAutomaticPartition);
 
         PartitionType partType = table.getPartitionInfo().getType();
+        boolean hasAssociatedTables = table.hasAssociatedTables();
+        // partitionParam.setEnable_associated_tables(hasAssociatedTables);
+        Database db = GlobalStateMgr.getCurrentState().getDb(dbId);
         switch (partType) {
             case RANGE:
             case EXPR_RANGE:
@@ -333,7 +335,7 @@ public class OlapTableSink extends DataSink {
                     TOlapTablePartition tPartition = new TOlapTablePartition();
                     tPartition.setId(partition.getId());
                     setRangeKeys(rangePartitionInfo, partition, tPartition);
-                    setIndexAndBucketNums(partition, tPartition);
+                    setIndexAndBucketNums(db, table, partition, tPartition);
                     partitionParam.addToPartitions(tPartition);
                     selectedDistInfo = setDistributedColumns(partitionParam, selectedDistInfo, partition, table);
                 }
@@ -357,7 +359,7 @@ public class OlapTableSink extends DataSink {
                     TOlapTablePartition tPartition = new TOlapTablePartition();
                     tPartition.setId(partition.getId());
                     setListPartitionValues(listPartitionInfo, partition, tPartition);
-                    setIndexAndBucketNums(partition, tPartition);
+                    setIndexAndBucketNums(db, table, partition, tPartition);
                     partitionParam.addToPartitions(tPartition);
                     selectedDistInfo = setDistributedColumns(partitionParam, selectedDistInfo, partition, table);
                 }
@@ -379,7 +381,7 @@ public class OlapTableSink extends DataSink {
                 TOlapTablePartition tPartition = new TOlapTablePartition();
                 tPartition.setId(partition.getId());
                 // No lowerBound and upperBound for this range
-                setIndexAndBucketNums(partition, tPartition);
+                setIndexAndBucketNums(db, table, partition, tPartition);
                 partitionParam.addToPartitions(tPartition);
                 partitionParam.setDistributed_columns(
                         getDistColumns(partition.getDistributionInfo(), table));
@@ -446,11 +448,53 @@ public class OlapTableSink extends DataSink {
         }
     }
 
-    private void setIndexAndBucketNums(Partition partition, TOlapTablePartition tPartition) {
-        for (MaterializedIndex index : partition.getMaterializedIndices(IndexExtState.ALL)) {
+    private void setIndexAndBucketNums(Database db,
+                                       OlapTable olapTable,
+                                       Partition partition,
+                                       TOlapTablePartition tPartition) throws AnalysisException {
+        int basePartitionTabletSize = -1;
+        for (MaterializedIndex index : partition.getMaterializedIndices(MaterializedIndex.IndexExtState.ALL)) {
             tPartition.addToIndexes(new TOlapTableIndexTablets(index.getId(), Lists.newArrayList(
                     index.getTablets().stream().map(Tablet::getId).collect(Collectors.toList()))));
             tPartition.setNum_buckets(index.getTablets().size());
+            basePartitionTabletSize = index.getTablets().size();
+        }
+
+        // Attach the associated table's tablet indexes' into the partition thrift.
+        for (Map.Entry<Long, MaterializedIndexMeta> associatedIndexMeta : olapTable.getAssociatedIndexMetas().entrySet()) {
+            MaterializedIndexMeta indexMeta = associatedIndexMeta.getValue();
+            Long targetTableId = indexMeta.getTargetTableId();
+            Long targetIndexId = indexMeta.getTargetTableIndexId();
+            OlapTable targetTable = (OlapTable) db.getTable(targetTableId);
+            Partition targetPartition;
+            if (targetTable.getPartitionInfo().isPartitioned()) {
+                targetPartition = targetTable.getPartition(partition.getName());
+                if (targetPartition == null) {
+                    throw new AnalysisException(String.format("Associated table's partition should be kept the same with the base " +
+                            "table, partition {} is not found in target table {}", partition.getName(), targetTable.getName()));
+                }
+            } else {
+                targetPartition = targetTable.getPartitions().iterator().next();
+                if (targetPartition == null) {
+                    throw new AnalysisException(String.format("Associated table's partition should be kept the same with the base " +
+                            "table, partition is not found in target table {}", targetTable.getName()));
+                }
+            }
+            Preconditions.checkNotNull(targetPartition);
+            MaterializedIndex targetIndex = targetPartition.getBaseIndex();
+            if (targetIndex.getId() != targetIndexId) {
+                throw new AnalysisException(String.format("Only support associated table's({}) base partition id {}, but now " +
+                        "the partition id is {}", targetTable.getName(), targetIndex.getId(), targetIndexId));
+            }
+            tPartition.addToIndexes(new TOlapTableIndexTablets(targetIndex.getId(), Lists.newArrayList(
+                    targetIndex.getTablets().stream().map(Tablet::getId).collect(Collectors.toList()))));
+             long targetPartitionId = targetPartition.getId();
+            if (targetIndex.getTablets().size() != basePartitionTabletSize) {
+                throw new AnalysisException(String.format("Associated table's({}) partition {}'s tablets' size {} should be " +
+                        "equal base table partition's size {}", targetTable.getName(), targetPartitionId,
+                        targetIndex.getTablets().size(), basePartitionTabletSize));
+            }
+            // tPartition.putToAssociated_partition_ids(index.getId(), targetPartitionId);
         }
     }
 
@@ -480,7 +524,8 @@ public class OlapTableSink extends DataSink {
         for (Long partitionId : partitionIds) {
             Partition partition = table.getPartition(partitionId);
             int quorum = table.getPartitionInfo().getQuorumNum(partition.getId(), table.writeQuorum());
-            for (MaterializedIndex index : partition.getMaterializedIndices(IndexExtState.ALL)) {
+            // TODO:  add associated tables partition
+            for (MaterializedIndex index : partition.getMaterializedIndices(MaterializedIndex.IndexExtState.ALL)) {
                 for (Tablet tablet : index.getTablets()) {
                     if (table.isCloudNativeTableOrMaterializedView()) {
                         Warehouse warehouse = GlobalStateMgr.getCurrentWarehouseMgr().getDefaultWarehouse();

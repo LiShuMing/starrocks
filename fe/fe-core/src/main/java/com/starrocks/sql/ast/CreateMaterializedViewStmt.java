@@ -353,12 +353,14 @@ public class CreateMaterializedViewStmt extends DdlStmt {
             selectListItemExpr.collect(SlotRef.class, slots);
             if (!isReplay) {
                 if (slots.size() == 0) {
-                    throw new SemanticException(
-                            "The materialized view currently does not support const expr in select statement");
+                    throw new SemanticException(String.format("The materialized view currently does not support " +
+                            "const expr in select " + "statement: {}", selectListItemExpr.toMySql()));
                 }
+                // TODO: support multi slot-refs later.
                 if (slots.size() > 1) {
                     throw new SemanticException(
-                            "The materialized view currently does not support multi-slot-refs expr");
+                            String.format("The materialized view currently does not support multi-slot-refs expr: {}",
+                                    selectListItemExpr.toSql()));
                 }
             }
 

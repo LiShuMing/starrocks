@@ -340,9 +340,6 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
     @SerializedName(value = "maxMVRewriteStaleness")
     private int maxMVRewriteStaleness = 0;
 
-    // For sync mode mv, we record the base table to used for rewrite.
-    private OlapTable syncBaseTable = null;
-
     // MVRewriteContextCache is a cache that stores metadata related to the materialized view rewrite context.
     // This cache is used during the FE's lifecycle to improve the performance of materialized view
     // rewriting operations.
@@ -428,13 +425,29 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
         this(indexMeta.getIndexId(), db.getId(), mvName, indexMeta.getSchema(), indexMeta.getKeysType(),
                 partitionInfo, distributionInfo, refreshScheme);
         Preconditions.checkState(baseTable.getIndexIdByName(mvName) != null);
-        // copy olap table into mv.
-        baseTable.copyOnlyForQuery(this);
-        this.partitionInfo = partitionInfo;
-        this.defaultDistributionInfo = distributionInfo;
+        long indexId = indexMeta.getIndexId();
+        this.state = baseTable.state;
         this.baseIndexId = indexMeta.getIndexId();
+
+        this.indexNameToId.put(baseTable.getIndexNameById(indexId), indexId);
+        this.indexIdToMeta.put(indexId, indexMeta);
+
         this.baseTableInfos = Lists.newArrayList();
         this.baseTableInfos.add(new BaseTableInfo(db.getId(), db.getFullName(), baseTable.getId()));
+
+        Map<Long, Partition> idToPartitions = new HashMap<>(baseTable.idToPartition.size());
+        Map<String, Partition> nameToPartitions = Maps.newTreeMap(String.CASE_INSENSITIVE_ORDER);
+        for (Map.Entry<Long, Partition> kv : baseTable.idToPartition.entrySet()) {
+            // TODO: only copy mv's partition index.
+            Partition copiedPartition = kv.getValue().shallowCopy();
+            idToPartitions.put(kv.getKey(), copiedPartition);
+            nameToPartitions.put(kv.getValue().getName(), copiedPartition);
+        }
+        this.idToPartition = idToPartitions;
+        this.nameToPartition = nameToPartitions;
+        if (baseTable.tableProperty != null) {
+            this.tableProperty = baseTable.tableProperty.copy();
+        }
     }
 
     public MvId getMvId() {

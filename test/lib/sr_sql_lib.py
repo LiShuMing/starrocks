@@ -835,7 +835,7 @@ class StarrocksSQLApiLib(object):
         status = ""
         show_sql = "SHOW ALTER MATERIALIZED VIEW"
         while True:
-            res = self.execute_sql(show_sql, "dml", False)
+            res = self.execute_sql(show_sql, True)
             status = res["result"][-1][8]
             if status == "FINISHED" or status == "CANCELLED" or status == "":
                 break

@@ -340,6 +340,9 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
     @SerializedName(value = "maxMVRewriteStaleness")
     private int maxMVRewriteStaleness = 0;
 
+    // For sync mode mv, we record the base table to used for rewrite.
+    private OlapTable syncBaseTable = null;
+
     // MVRewriteContextCache is a cache that stores metadata related to the materialized view rewrite context.
     // This cache is used during the FE's lifecycle to improve the performance of materialized view
     // rewriting operations.

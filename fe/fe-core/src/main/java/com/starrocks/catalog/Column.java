@@ -204,6 +204,8 @@ public class Column implements Writable, GsonPreProcessable, GsonPostProcessable
     public String getDisplayName() {
         if (defineExpr == null) {
             return name;
+        } else if ((defineExpr instanceof SlotRef) && name != null) {
+            return name;
         } else {
             return defineExpr.toSql();
         }

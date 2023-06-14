@@ -414,9 +414,11 @@ public class CreateMaterializedViewStmt extends DdlStmt {
             Set<String> fullSchemaColNames = table.getFullSchema().stream().map(Column::getName).collect(Collectors.toSet());
             if (fullSchemaColNames.contains(mvColumnItem.getName())) {
                 Expr existedDefinedExpr = table.getColumn(mvColumnItem.getName()).getDefineExpr();
-                if (existedDefinedExpr != null && !existedDefinedExpr.equals(mvColumnItem.getDefineExpr())) {
+                if (existedDefinedExpr != null && !existedDefinedExpr.toSqlWithoutTbl()
+                        .equalsIgnoreCase(mvColumnItem.getDefineExpr().toSqlWithoutTbl())) {
                     throw new SemanticException(String.format("The mv column %s has already existed in the table's full " +
-                            "schema, please set another alias name", selectListItem.getAlias()));
+                                    "schema, old expr: %s, new expr: %s", selectListItem.getAlias(),
+                            existedDefinedExpr.toSqlWithoutTbl(), mvColumnItem.getDefineExpr().toSqlWithoutTbl()));
                 }
             }
         }

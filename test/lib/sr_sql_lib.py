@@ -840,7 +840,6 @@ class StarrocksSQLApiLib(object):
             if status == "FINISHED" or status == "CANCELLED" or status == "":
                 break
             time.sleep(0.5)
-        time.sleep(10)
         tools.assert_equal("FINISHED", status, "wait alter table finish error")
 
 

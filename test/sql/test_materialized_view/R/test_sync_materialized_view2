@@ -22,7 +22,15 @@ function: wait_materialized_view_finish()
 None
 -- !result
 create materialized view user_tags_percential_mv2
-as select user_id + 1 as col1, time, percentile_union(percentile_hash(cast(tag_id * 10 as double))) as agg3 from user_tags group by col1, time;
+as select user_id + 1 as col2, time, percentile_union(percentile_hash(cast(tag_id * 10 as double))) as agg3 from user_tags group by col2, time;
+-- result:
+-- !result
+function: wait_materialized_view_finish()
+-- result:
+None
+-- !result
+create materialized view same_column_ref_mv1 
+as select user_id + 1 as col2, time, sum(tag_id* 10) as sum1 , sum(tag_id* 100) as sum2, count(tag_id* 10) as count1 from user_tags group by col2, time;
 -- result:
 -- !result
 function: wait_materialized_view_finish()
@@ -73,7 +81,12 @@ select user_id + 1 as col1, time, percentile_union(percentile_hash(cast(tag_id *
 2	2023-04-13	None
 3	2023-04-13	None
 4	2023-04-13	None
-6	2023-04-13	None
+-- !result
+select user_id + 1 as col1, time, sum(tag_id* 10) as sum1 , sum(tag_id* 100) as sum2, count(tag_id* 10) as count1 from user_tags group by col1, time;
+-- result:
+2	2023-04-13	300	3000	10
+3	2023-04-13	100	1000	2
+4	2023-04-13	120	1200	2
 -- !result
 drop materialized view user_tags_mv2;
 -- result:
@@ -82,6 +95,9 @@ drop materialized view user_tags_hll_mv2;
 -- result:
 -- !result
 drop materialized view user_tags_percential_mv2;
+-- result:
+-- !result
+drop materialized view same_column_ref_mv1;
 -- result:
 -- !result
 create materialized view user_tags_percential_mv2

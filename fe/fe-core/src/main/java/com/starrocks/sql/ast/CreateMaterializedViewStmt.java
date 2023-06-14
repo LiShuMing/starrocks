@@ -49,6 +49,7 @@ import com.starrocks.analysis.OrderByElement;
 import com.starrocks.analysis.SlotRef;
 import com.starrocks.analysis.TableName;
 import com.starrocks.catalog.AggregateType;
+import com.starrocks.catalog.Column;
 import com.starrocks.catalog.FunctionSet;
 import com.starrocks.catalog.KeysType;
 import com.starrocks.catalog.OlapTable;
@@ -298,7 +299,7 @@ public class CreateMaterializedViewStmt extends DdlStmt {
         if (!(selectRelation.getRelation() instanceof TableRelation)) {
             throw new SemanticException("Materialized view query statement only support direct query from table.");
         }
-        int beginIndexOfAggregation = genColumnAndSetIntoStmt(selectRelation);
+        int beginIndexOfAggregation = genColumnAndSetIntoStmt(table, selectRelation);
         if (selectRelation.isDistinct() || selectRelation.hasAggregation()) {
             this.setMvKeysType(KeysType.AGG_KEYS);
         }
@@ -330,7 +331,7 @@ public class CreateMaterializedViewStmt extends DdlStmt {
         }
     }
 
-    private int genColumnAndSetIntoStmt(SelectRelation selectRelation) {
+    private int genColumnAndSetIntoStmt(Table table, SelectRelation selectRelation) {
         List<MVColumnItem> mvColumnItemList = Lists.newArrayList();
 
         boolean meetAggregate = false;
@@ -363,7 +364,7 @@ public class CreateMaterializedViewStmt extends DdlStmt {
                                     selectListItemExpr.toSql()));
                 }
             }
-
+            MVColumnItem mvColumnItem;
             if (selectListItemExpr instanceof FunctionCallExpr
                     && ((FunctionCallExpr) selectListItemExpr).isAggregateFunction()) {
                 // Aggregate Function must match pattern.
@@ -391,7 +392,7 @@ public class CreateMaterializedViewStmt extends DdlStmt {
                 }
                 meetAggregate = true;
 
-                MVColumnItem mvColumnItem = buildAggColumnItem(selectListItem, slots);
+                mvColumnItem = buildAggColumnItem(selectListItem, slots);
                 if (!mvColumnNameSet.add(mvColumnItem.getName())) {
                     ErrorReport.reportSemanticException(ErrorCode.ERR_DUP_FIELDNAME, mvColumnItem.getName());
                 }
@@ -402,13 +403,21 @@ public class CreateMaterializedViewStmt extends DdlStmt {
                             "Column %s at wrong location", selectListItemExpr.toMySql());
                 }
 
-                MVColumnItem mvColumnItem = buildNonAggColumnItem(selectListItem, slots);
+                mvColumnItem = buildNonAggColumnItem(selectListItem, slots);
                 if (!mvColumnNameSet.add(mvColumnItem.getName())) {
                     ErrorReport.reportSemanticException(ErrorCode.ERR_DUP_FIELDNAME, mvColumnItem.getName());
                 }
 
                 mvColumnItemList.add(mvColumnItem);
                 joiner.add(selectListItemExpr.toSql());
+            }
+            Set<String> fullSchemaColNames = table.getFullSchema().stream().map(Column::getName).collect(Collectors.toSet());
+            if (fullSchemaColNames.contains(mvColumnItem.getName())) {
+                Expr existedDefinedExpr = table.getColumn(mvColumnItem.getName()).getDefineExpr();
+                if (existedDefinedExpr != null && !existedDefinedExpr.equals(mvColumnItem.getDefineExpr())) {
+                    throw new SemanticException(String.format("The mv column %s has already existed in the table's full " +
+                            "schema, please set another alias name", selectListItem.getAlias()));
+                }
             }
         }
         if (beginIndexOfAggregation == 0) {

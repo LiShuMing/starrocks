@@ -158,7 +158,6 @@ public class MvRewritePreprocessor {
                             new MaterializedView.MvRefreshScheme(MaterializedView.RefreshType.SYNC);
                     MaterializedView mv = new MaterializedView(db, mvName, indexMeta, olapTable,
                             mvPartitionInfo, mvDistributionInfo, mvRefreshScheme);
-                    mv.setName(olapTable.getIndexNameById(indexId));
                     mv.setViewDefineSql(" " + viewDefineSql);
                     mv.setBaseIndexId(indexId);
                     relatedMvs.add(mv);

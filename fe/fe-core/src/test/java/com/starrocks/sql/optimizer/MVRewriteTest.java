@@ -1037,16 +1037,15 @@ public class MVRewriteTest {
         String plan = starRocksAssert.withMaterializedView(createMVSQL).query(union).explainQuery();
         Assert.assertTrue(plan.contains("1:OlapScanNode\n" +
                 "     TABLE: emps\n" +
-                "     PREAGGREGATION: OFF. Reason: Group columns isn't bound table emps\n" +
-                "     PREDICATES: 18: deptno > 300\n" +
+                "     PREAGGREGATION: OFF. Reason: Predicates include the value column\n" +
+                "     PREDICATES: 4: deptno > 300\n" +
                 "     partitions=1/1\n" +
                 "     rollup: emps_mv"));
-        Assert.assertTrue(plan.contains("4:OlapScanNode\n" +
+        Assert.assertTrue(plan.contains("7:OlapScanNode\n" +
                 "     TABLE: emps\n" +
                 "     PREAGGREGATION: ON\n" +
                 "     PREDICATES: 11: deptno < 200\n" +
-                "     partitions=1/1\n" +
-                "     rollup: emps"));
+                "     partitions=1/1"));
         starRocksAssert.assertMVWithoutComplexExpression(HR_DB_NAME, EMPS_TABLE_NAME);
     }
 

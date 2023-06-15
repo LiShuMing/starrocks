@@ -44,7 +44,6 @@ import com.starrocks.sql.optimizer.base.HashDistributionDesc;
 import com.starrocks.sql.optimizer.operator.logical.LogicalOlapScanOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
-import com.starrocks.sql.optimizer.rule.mv.MVUtils;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -107,10 +106,10 @@ public class MvRewritePreprocessor {
                     continue;
                 }
 
-                // To avoid adding optimization times, only put the mv with complex expressions into materialized views.
-                if (!MVUtils.containComplexExpresses(indexMeta)) {
-                    continue;
-                }
+                //                // To avoid adding optimization times, only put the mv with complex expressions into materialized views.
+                //                if (!MVUtils.containComplexExpresses(indexMeta)) {
+                //                    continue;
+                //                }
 
                 try {
                     long dbId = indexMeta.getDbId();

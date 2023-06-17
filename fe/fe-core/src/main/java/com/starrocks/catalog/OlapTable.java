@@ -1260,7 +1260,7 @@ public class OlapTable extends Table {
             return;
         }
         ColocateTableIndex colocateTableIndex = GlobalStateMgr.getCurrentColocateIndex();
-        if (!colocateTableIndex.isColocateTable(this.id) && colocateMaterializedViewNames.contains(rollupIndexName)) {
+        if (!colocateTableIndex.isColocateTable(this.id)) {
             String dbName = GlobalStateMgr.getCurrentState().getDb(dbId).getFullName();
             String colocateGroupName;
             if (!Strings.isNullOrEmpty(this.colocateGroup)) {
@@ -1285,6 +1285,8 @@ public class OlapTable extends Table {
             ColocatePersistInfo info =
                     ColocatePersistInfo.createForAddTable(groupId, this.id, backendsPerBucketSeq);
             GlobalStateMgr.getCurrentState().getEditLog().logColocateAddTable(info);
+        } else {
+            addColocateMaterializedView(rollupIndexName);
         }
     }
 

@@ -1811,7 +1811,7 @@ public class CreateMaterializedViewTest {
             currentState.createMaterializedView((CreateMaterializedViewStmt) statementBase);
             waitingRollupJobV2Finish();
             ColocateTableIndex colocateTableIndex = currentState.getColocateTableIndex();
-            String fullGroupName = testDb.getId() + "_" + testDb.getFullName() + ":" + "colocateMv";
+            String fullGroupName = testDb.getId() + "_" + testDb.getFullName() + ":" + "colocateTable";
             System.out.println(fullGroupName);
             long tableId = colocateTableIndex.getTableIdByGroup(fullGroupName);
             Assert.assertNotEquals(-1, tableId);
@@ -1919,6 +1919,7 @@ public class CreateMaterializedViewTest {
             OlapTable table = (OlapTable) testDb.getTable("colocateTable3");
             Assert.assertFalse(table.isInColocateMvGroup());
             Assert.assertEquals(2, table.getColocateMaterializedViewNames().size());
+
             ColocateTableIndex.GroupId groupId = colocateTableIndex.getGroup(tableId);
             Assert.assertEquals(1, colocateTableIndex.getAllTableIds(groupId).size());
 

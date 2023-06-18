@@ -257,7 +257,7 @@ private:
     // BeId
     std::set<int64_t> _failed_channels;
     // enable colocate index
-    bool _colocate_mv_index = config::enable_load_colocate_mv;
+    bool _colocate_mv_index{false};
 
     bool _enable_replicated_storage = false;
     TWriteQuorumType::type _write_quorum_type = TWriteQuorumType::MAJORITY;

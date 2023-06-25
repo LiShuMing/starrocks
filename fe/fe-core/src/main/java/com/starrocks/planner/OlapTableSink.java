@@ -240,7 +240,9 @@ public class OlapTableSink extends DataSink {
         tSink.setLocation(createLocation(dstTable));
         tSink.setNodes_info(GlobalStateMgr.getCurrentState().createNodesInfo(clusterId));
         tSink.setPartial_update_mode(this.partialUpdateMode);
-        if (Config.enable_colocate_mv_index && dstTable.isEnableColocateMVIndex()) {
+        // TODO: Support colocate mv index optimization even if enableReplicatedStorage is true.
+        if (!enableReplicatedStorage && Config.enable_colocate_mv_index &&
+                dstTable.isEnableColocateMVIndex()) {
             tSink.setEnable_colocate_mv_index(true);
         }
     }

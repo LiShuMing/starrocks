@@ -1789,7 +1789,7 @@ public class CreateMaterializedViewTest {
 
     // ========== test colocate mv ==========
     @Test
-    public void testCreateColocateMvNormal() throws Exception {
+    public void testCreateColocateMvToExitGroup() throws Exception {
         starRocksAssert.withTable("CREATE TABLE test.colocateTable\n" +
                 "(\n" +
                 "    k1 int,\n" +
@@ -1798,7 +1798,8 @@ public class CreateMaterializedViewTest {
                 ")\n" +
                 "DISTRIBUTED BY HASH(k2) BUCKETS 3\n" +
                 "PROPERTIES (\n" +
-                "\"replication_num\" = \"1\"\n" +
+                "\"replication_num\" = \"1\",\n" +
+                "\"colocate_with\" = \"colocate_group1\"\n" +
                 ");");
 
         String sql = "create materialized view colocateMv\n" +
@@ -1811,20 +1812,17 @@ public class CreateMaterializedViewTest {
             currentState.createMaterializedView((CreateMaterializedViewStmt) statementBase);
             waitingRollupJobV2Finish();
             ColocateTableIndex colocateTableIndex = currentState.getColocateTableIndex();
-            String fullGroupName = testDb.getId() + "_" + testDb.getFullName() + ":" + "colocateTable";
-            System.out.println(fullGroupName);
+            String fullGroupName = testDb.getId() + "_" + "colocate_group1";
             long tableId = colocateTableIndex.getTableIdByGroup(fullGroupName);
             Assert.assertNotEquals(-1, tableId);
 
-            OlapTable table = (OlapTable) testDb.getTable("colocateTable");
-            Assert.assertEquals(1, table.getColocateMaterializedViewNames().size());
             ColocateTableIndex.GroupId groupId = colocateTableIndex.getGroup(tableId);
             Assert.assertEquals(1, colocateTableIndex.getAllTableIds(groupId).size());
+            OlapTable table = (OlapTable) testDb.getTable("colocateTable");
+            Assert.assertTrue(table.isEnableColocateMVIndex());
 
             dropMv("colocateMv");
-            Assert.assertFalse(currentState.getColocateTableIndex().isColocateTable(tableId));
-            Assert.assertEquals(0, table.getColocateMaterializedViewNames().size());
-
+            Assert.assertTrue(currentState.getColocateTableIndex().isColocateTable(tableId));
         } catch (Exception e) {
             Assert.fail(e.getMessage());
         } finally {
@@ -1833,7 +1831,7 @@ public class CreateMaterializedViewTest {
     }
 
     @Test
-    public void testCreateColocateMvToExitGroup() throws Exception {
+    public void testCreateColocateMvWithoutGroup() throws Exception {
         starRocksAssert.withTable("CREATE TABLE test.colocateTable2\n" +
                 "(\n" +
                 "    k1 int,\n" +
@@ -1842,9 +1840,13 @@ public class CreateMaterializedViewTest {
                 ")\n" +
                 "DISTRIBUTED BY HASH(k2) BUCKETS 3\n" +
                 "PROPERTIES (\n" +
-                "\"replication_num\" = \"1\",\n" +
-                "\"colocate_with\" = \"group2\"\n" +
+                "\"replication_num\" = \"1\"\n" +
                 ");");
+
+        ColocateTableIndex colocateTableIndex = currentState.getColocateTableIndex();
+        String fullGroupName = testDb.getId() + "_" + "group2";
+        long tableId = colocateTableIndex.getTableIdByGroup(fullGroupName);
+        Assert.assertEquals(-1, tableId);
 
         String sql = "create materialized view colocateMv2\n" +
                 "PROPERTIES (\n" +
@@ -1854,28 +1856,13 @@ public class CreateMaterializedViewTest {
         try {
             StatementBase statementBase = UtFrameUtils.parseStmtWithNewParser(sql, connectContext);
             currentState.createMaterializedView((CreateMaterializedViewStmt) statementBase);
-
-            waitingRollupJobV2Finish();
-            ColocateTableIndex colocateTableIndex = currentState.getColocateTableIndex();
-            String fullGroupName = testDb.getId() + "_" + "group2";
-            long tableId = colocateTableIndex.getTableIdByGroup(fullGroupName);
-            Assert.assertNotEquals(-1, tableId);
-
-            OlapTable table = (OlapTable) testDb.getTable("colocateTable2");
-            Assert.assertEquals(1, table.getColocateMaterializedViewNames().size());
-            ColocateTableIndex.GroupId groupId = colocateTableIndex.getGroup(tableId);
-            Assert.assertEquals(1, colocateTableIndex.getAllTableIds(groupId).size());
-
-            dropMv("colocateMv2");
-            Assert.assertTrue(currentState.getColocateTableIndex().isColocateTable(tableId));
-            Assert.assertEquals(0, table.getColocateMaterializedViewNames().size());
-
+            Assert.fail();
         } catch (Exception e) {
-            Assert.fail(e.getMessage());
+            Assert.assertTrue(e.getMessage().contains("Please ensure table colocateTable2 is in colocate group " +
+                    "if you want to use mv colocate optimization."));
         } finally {
             currentState.getColocateTableIndex().clear();
         }
-
     }
 
     @Test
@@ -1917,8 +1904,7 @@ public class CreateMaterializedViewTest {
             Assert.assertNotEquals(-1, tableId);
 
             OlapTable table = (OlapTable) testDb.getTable("colocateTable3");
-            Assert.assertFalse(table.isInColocateMvGroup());
-            Assert.assertEquals(2, table.getColocateMaterializedViewNames().size());
+            Assert.assertTrue(table.isEnableColocateMVIndex());
 
             ColocateTableIndex.GroupId groupId = colocateTableIndex.getGroup(tableId);
             Assert.assertEquals(1, colocateTableIndex.getAllTableIds(groupId).size());
@@ -1928,9 +1914,8 @@ public class CreateMaterializedViewTest {
             StmtExecutor stmtExecutor = new StmtExecutor(connectContext, statementBase);
             stmtExecutor.execute();
 
-            Assert.assertEquals(2, table.getColocateMaterializedViewNames().size());
             Assert.assertEquals("groupNew", table.getColocateGroup());
-            Assert.assertFalse(table.isInColocateMvGroup());
+            Assert.assertTrue(table.isEnableColocateMVIndex());
             Assert.assertTrue(colocateTableIndex.isColocateTable(tableId));
 
             sql = "alter table colocateTable3 set (\"colocate_with\" = \"\")";
@@ -1938,22 +1923,18 @@ public class CreateMaterializedViewTest {
             stmtExecutor = new StmtExecutor(connectContext, statementBase);
             stmtExecutor.execute();
 
-            Assert.assertTrue(colocateTableIndex.isColocateTable(tableId));
-            Assert.assertTrue(table.isInColocateMvGroup());
-            groupId = colocateTableIndex.getGroup(tableId);
+            Assert.assertFalse(colocateTableIndex.isColocateTable(tableId));
+            Assert.assertFalse(table.isEnableColocateMVIndex());
             Assert.assertNotEquals("group1", table.getColocateGroup());
 
             dropMv("colocateMv4");
-            Assert.assertEquals(1, table.getColocateMaterializedViewNames().size());
             dropMv("colocateMv3");
             Assert.assertFalse(colocateTableIndex.isColocateTable(tableId));
-
         } catch (Exception e) {
             Assert.fail(e.getMessage());
         } finally {
             currentState.getColocateTableIndex().clear();
         }
-
     }
 
     // ========== other test ==========

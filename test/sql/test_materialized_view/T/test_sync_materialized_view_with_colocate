@@ -22,6 +22,8 @@ function: wait_materialized_view_finish()
 insert into user_tags values('2023-04-13', 1, 'a', 1), ('2023-04-13', 1, 'b', 2), ('2023-04-13', 1, 'c', 3), ('2023-04-13', 1, 'd', 4), ('2023-04-13', 1, 'e', 5), ('2023-04-13', 2, 'e', 5), ('2023-04-13', 3, 'e', 6);
 insert into user_tags values('2023-04-13', 1, 'a', 1), ('2023-04-13', 1, 'b', 2), ('2023-04-13', 1, 'c', 3), ('2023-04-13', 1, 'd', 4), ('2023-04-13', 1, 'e', 5), ('2023-04-13', 2, 'e', 5), ('2023-04-13', 3, 'e', 6);
 
+ADMIN SET FRONTEND CONFIG ("enable_colocate_mv_index" = "true");
+
 -- bitmap
 select * from user_tags_mv1 [_SYNC_MV_] order by user_id;
 select user_id, count(distinct tag_id) from user_tags group by user_id order by user_id;

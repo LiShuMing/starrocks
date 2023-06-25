@@ -38,6 +38,9 @@ insert into user_tags values('2023-04-13', 1, 'a', 1), ('2023-04-13', 1, 'b', 2)
 insert into user_tags values('2023-04-13', 1, 'a', 1), ('2023-04-13', 1, 'b', 2), ('2023-04-13', 1, 'c', 3), ('2023-04-13', 1, 'd', 4), ('2023-04-13', 1, 'e', 5), ('2023-04-13', 2, 'e', 5), ('2023-04-13', 3, 'e', 6);
 -- result:
 -- !result
+ADMIN SET FRONTEND CONFIG ("enable_colocate_mv_index" = "true");
+-- result:
+-- !result
 select * from user_tags_mv1 [_SYNC_MV_] order by user_id;
 -- result:
 1	2023-04-13	None

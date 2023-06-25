@@ -1853,16 +1853,13 @@ public class CreateMaterializedViewTest {
                 "\"colocate_mv\" = \"true\"\n" +
                 ")\n" +
                 "as select k1, k2 from colocateTable2;";
-        try {
+
+        Assert.assertThrows(AnalysisException.class, () -> {
             StatementBase statementBase = UtFrameUtils.parseStmtWithNewParser(sql, connectContext);
             currentState.createMaterializedView((CreateMaterializedViewStmt) statementBase);
-            Assert.fail();
-        } catch (Exception e) {
-            Assert.assertTrue(e.getMessage().contains("Please ensure table colocateTable2 is in colocate group " +
-                    "if you want to use mv colocate optimization."));
-        } finally {
-            currentState.getColocateTableIndex().clear();
-        }
+        });
+
+        currentState.getColocateTableIndex().clear();
     }
 
     @Test

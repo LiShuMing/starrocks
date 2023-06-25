@@ -1196,9 +1196,24 @@ public class OlapTable extends Table {
         this.colocateGroup = colocateGroup;
     }
 
-    // If all indexes except the basic index are all colocate, we can use colocate mv index optimization.
     public boolean isEnableColocateMVIndex() {
-        return !Strings.isNullOrEmpty(colocateGroup) && indexIdToMeta.values().stream()
+        if (!isOlapTableOrMaterializedView()) {
+            return false;
+        }
+
+        // If the table's colocate group is empty, return false
+        if (Strings.isNullOrEmpty(colocateGroup)) {
+            return false;
+        }
+
+        // If the colocate group is not stable, return false
+        ColocateTableIndex colocateIndex = GlobalStateMgr.getCurrentColocateIndex();
+        if (colocateIndex.isGroupUnstable(colocateIndex.getGroup(getId()))) {
+            return false;
+        }
+
+        // If all indexes except the basic index are all colocate, we can use colocate mv index optimization.
+        return indexIdToMeta.values().stream()
                 .filter(x -> x.getIndexId() != baseIndexId)
                 .allMatch(MaterializedIndexMeta::isColocateMVIndex);
     }

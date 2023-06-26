@@ -240,9 +240,7 @@ public class OlapTableSink extends DataSink {
         tSink.setLocation(createLocation(dstTable));
         tSink.setNodes_info(GlobalStateMgr.getCurrentState().createNodesInfo(clusterId));
         tSink.setPartial_update_mode(this.partialUpdateMode);
-        // TODO: Support colocate mv index optimization even if enableReplicatedStorage is true.
-        if (!enableReplicatedStorage && Config.enable_colocate_mv_index &&
-                dstTable.isEnableColocateMVIndex()) {
+        if (canUseColocateMVIndex()) {
             tSink.setEnable_colocate_mv_index(true);
         }
     }
@@ -490,8 +488,12 @@ public class OlapTableSink extends DataSink {
         for (Long partitionId : partitionIds) {
             Partition partition = table.getPartition(partitionId);
             int quorum = table.getPartitionInfo().getQuorumNum(partition.getId(), table.writeQuorum());
+            // `selectedBackedIds` keeps the selected backendIds for 1th index which will be used to choose the later index's
+            // tablets' replica in colocate mv index optimization.
+            List<Long> selectedBackedIds = Lists.newArrayList();
             for (MaterializedIndex index : partition.getMaterializedIndices(IndexExtState.ALL)) {
-                for (Tablet tablet : index.getTablets()) {
+                for (int idx = 0; idx < index.getTablets().size(); ++idx) {
+                    Tablet tablet = index.getTablets().get(idx);
                     if (table.isCloudNativeTableOrMaterializedView()) {
                         Warehouse warehouse = GlobalStateMgr.getCurrentWarehouseMgr().getDefaultWarehouse();
                         long workerGroupId = warehouse.getAnyAvailableCluster().getWorkerGroupId();
@@ -511,35 +513,21 @@ public class OlapTableSink extends DataSink {
                         }
 
                         List<Replica> replicas = Lists.newArrayList(bePathsMap.keySet());
-
                         if (enableReplicatedStorage) {
-                            int lowUsageIndex = -1;
-                            for (int i = 0; i < replicas.size(); i++) {
-                                Replica replica = replicas.get(i);
-                                if (lowUsageIndex == -1 && !replica.getLastWriteFail()
-                                        && !infoService.getBackend(replica.getBackendId()).getLastWriteFail()) {
-                                    lowUsageIndex = i;
-                                }
-                                if (lowUsageIndex != -1
-                                        && bePrimaryMap.getOrDefault(replica.getBackendId(), (long) 0) < bePrimaryMap
-                                        .getOrDefault(replicas.get(lowUsageIndex).getBackendId(), (long) 0)
-                                        && !replica.getLastWriteFail()
-                                        && !infoService.getBackend(replica.getBackendId()).getLastWriteFail()) {
-                                    lowUsageIndex = i;
-                                }
-                            }
-
+                            int lowUsageIndex = findPrimaryReplica(bePrimaryMap, infoService, selectedBackedIds, idx, replicas);
                             if (lowUsageIndex != -1) {
                                 bePrimaryMap.put(replicas.get(lowUsageIndex).getBackendId(),
                                         bePrimaryMap.getOrDefault(replicas.get(lowUsageIndex).getBackendId(), (long) 0)
                                                 + 1);
                                 // replicas[0] will be the primary replica
                                 Collections.swap(replicas, 0, lowUsageIndex);
+                                selectedBackedIds.add(replicas.get(0).getBackendId());
                             } else {
                                 LOG.warn("Tablet {} replicas {} all has write fail flag", tablet.getId(), replicas);
+                                throw new UserException(InternalErrorCode.REPLICA_FEW_ERR,
+                                        String.format("Tablet %d replicas %s all has write fail flag", tablet.getId(), replicas));
                             }
                         }
-
                         locationParam
                                 .addToTablets(
                                         new TTabletLocation(tablet.getId(), replicas.stream().map(Replica::getBackendId)
@@ -559,6 +547,43 @@ public class OlapTableSink extends DataSink {
             throw new DdlException(st.getErrorMsg());
         }
         return locationParam;
+    }
+
+    private int findPrimaryReplica(Map<Long, Long> bePrimaryMap,
+                                    SystemInfoService infoService,
+                                    List<Long> selectedBackedIds,
+                                    int idx,
+                                    List<Replica> replicas) {
+        if (canUseColocateMVIndex() && !selectedBackedIds.isEmpty()) {
+            // TODO: Check different index's tablet with the same `idx` must be colocate?
+            for (int i = 0; i < replicas.size(); i++) {
+                if (replicas.get(i).getBackendId() == selectedBackedIds.get(idx)) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        int lowUsageIndex = -1;
+        for (int i = 0; i < replicas.size(); i++) {
+            Replica replica = replicas.get(i);
+            if (lowUsageIndex == -1 && !replica.getLastWriteFail()
+                    && !infoService.getBackend(replica.getBackendId()).getLastWriteFail()) {
+                lowUsageIndex = i;
+            }
+            if (lowUsageIndex != -1
+                    && bePrimaryMap.getOrDefault(replica.getBackendId(), (long) 0) < bePrimaryMap
+                    .getOrDefault(replicas.get(lowUsageIndex).getBackendId(), (long) 0)
+                    && !replica.getLastWriteFail()
+                    && !infoService.getBackend(replica.getBackendId()).getLastWriteFail()) {
+                lowUsageIndex = i;
+            }
+        }
+        return lowUsageIndex;
+    }
+
+    private boolean canUseColocateMVIndex() {
+        return Config.enable_colocate_mv_index && dstTable.isEnableColocateMVIndex();
     }
 
     public boolean canUsePipeLine() {

@@ -1206,10 +1206,10 @@ public class OlapTable extends Table {
             return false;
         }
 
-        // If there is only one meta, return false
-        if (indexIdToMeta.size() == 1) {
-            return false;
-        }
+        //        // If there is only one meta, return false
+        //        if (indexIdToMeta.size() == 1) {
+        //            return false;
+        //        }
 
         // If the colocate group is not stable, return false
         ColocateTableIndex colocateIndex = GlobalStateMgr.getCurrentColocateIndex();

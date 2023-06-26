@@ -581,6 +581,33 @@ public class Optimizer {
         return expression;
     }
 
+    private OptExpression extractBestPlanWithMV(PhysicalPropertySet requiredProperty,
+                                                Group rootGroup) {
+        GroupExpression groupExpression = rootGroup.getBestExpression(requiredProperty);
+        if (groupExpression == null) {
+            String msg = "no executable plan for this sql. group: %s. required property: %s";
+            throw new IllegalArgumentException(String.format(msg, rootGroup, requiredProperty));
+        }
+        List<PhysicalPropertySet> inputProperties = groupExpression.getInputProperties(requiredProperty);
+
+        List<OptExpression> childPlans = Lists.newArrayList();
+        for (int i = 0; i < groupExpression.arity(); ++i) {
+            OptExpression childPlan = extractBestPlanWithMV(inputProperties.get(i), groupExpression.inputAt(i));
+            childPlans.add(childPlan);
+        }
+
+        OptExpression expression = OptExpression.create(groupExpression.getOp(),
+                childPlans);
+        // record inputProperties at optExpression, used for planFragment builder to determine join type
+        expression.setRequiredProperties(inputProperties);
+        expression.setStatistics(groupExpression.getGroup().getStatistics());
+        expression.setCost(groupExpression.getCost(requiredProperty));
+
+        // When build plan fragment, we need the output column of logical property
+        expression.setLogicalProperty(rootGroup.getLogicalProperty());
+        return expression;
+    }
+
     private void collectAllScanOperators(Memo memo, TaskContext rootTaskContext) {
         OptExpression tree = memo.getRootGroup().extractLogicalTree();
         List<LogicalOlapScanOperator> list = Lists.newArrayList();

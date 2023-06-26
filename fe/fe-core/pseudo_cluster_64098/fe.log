@@ -1,0 +1,432 @@
+2023-06-26 20:44:09,889 INFO (fe|49) [FrontendOptions.analyzePriorityCidrs():299] configured prior_cidrs value: 127.0.0.1/24
+2023-06-26 20:44:09,890 WARN (fe|49) [FrontendOptions.initAddrUseIp():243] ip address range configured for priority_networks does not include the current IP address
+2023-06-26 20:44:09,891 INFO (fe|49) [FrontendOptions.initAddrUseIp():249] Use IP init local addr, IP: /127.0.0.1
+2023-06-26 20:44:09,970 INFO (fe|49) [NodeMgr.getHelperNodes():647] get helper nodes: [127.0.0.1:9010]
+2023-06-26 20:44:09,985 INFO (fe|49) [NodeMgr.getClusterIdAndRoleOnStartup():251] very first time to start this node. role: FOLLOWER, node name: 127.0.0.1_9010_1687783449983
+2023-06-26 20:44:09,992 INFO (fe|49) [NodeMgr.getClusterIdAndRoleOnStartup():448] Current run_mode is shared_nothing
+2023-06-26 20:44:09,992 INFO (fe|49) [NodeMgr.getClusterIdAndRoleOnStartup():455] Got cluster id: 1918386836, role: FOLLOWER, node name: 127.0.0.1_9010_1687783449983 and run_mode: shared_nothing
+2023-06-26 20:44:10,003 INFO (fe|49) [GlobalStateMgr.loadImage():1422] image does not exist: /Users/lishuming/work/sr_dev/fe/fe-core/pseudo_cluster_64098/starrocks-meta/image/image.0
+2023-06-26 20:44:10,005 WARN (fe|49) [StateChangeExecutor.notifyNewFETypeTransfer():62] notify new FE type transfer: LEADER
+2023-06-26 20:44:10,040 INFO (stateChangeExecutor|55) [StateChangeExecutor.runOneCycle():85] begin to transfer FE type from INIT to LEADER
+2023-06-26 20:44:10,040 INFO (stateChangeExecutor|55) [GlobalStateMgr.replayJournal():2166] skip replay journal because 0 <= 0
+2023-06-26 20:44:10,079 INFO (stateChangeExecutor|55) [GlobalStateMgr.reInitializeNewPrivilegeOnUpgrade():3872] reinitialize privilege info before upgrade
+2023-06-26 20:44:10,080 WARN (stateChangeExecutor|55) [AuthenticationProviderFactory.installPlugin():32] Plugin MYSQL_NATIVE_PASSWORD has already been installed!
+2023-06-26 20:44:10,080 WARN (stateChangeExecutor|55) [AuthenticationProviderFactory.installPlugin():32] Plugin AUTHENTICATION_LDAP_SIMPLE has already been installed!
+2023-06-26 20:44:10,080 WARN (stateChangeExecutor|55) [AuthenticationProviderFactory.installPlugin():32] Plugin AUTHENTICATION_KERBEROS has already been installed!
+2023-06-26 20:44:10,080 WARN (stateChangeExecutor|55) [AuthenticationProviderFactory.installPlugin():32] Plugin AUTHENTICATION_LDAP_SIMPLE_FOR_EXTERNAL has already been installed!
+2023-06-26 20:44:10,080 INFO (stateChangeExecutor|55) [AuthorizationMgr.initBuiltinRoleUnlocked():286] create built-in role root[-1]
+2023-06-26 20:44:10,080 INFO (stateChangeExecutor|55) [AuthorizationMgr.initBuiltinRoleUnlocked():286] create built-in role db_admin[-2]
+2023-06-26 20:44:10,081 INFO (stateChangeExecutor|55) [AuthorizationMgr.initBuiltinRoleUnlocked():286] create built-in role cluster_admin[-3]
+2023-06-26 20:44:10,081 INFO (stateChangeExecutor|55) [AuthorizationMgr.initBuiltinRoleUnlocked():286] create built-in role user_admin[-4]
+2023-06-26 20:44:10,081 INFO (stateChangeExecutor|55) [AuthorizationMgr.initBuiltinRoleUnlocked():286] create built-in role public[-5]
+2023-06-26 20:44:10,083 INFO (stateChangeExecutor|55) [AuthUpgrader.upgradeAsLeader():80] start to upgrade as leader.
+2023-06-26 20:44:10,083 INFO (stateChangeExecutor|55) [AuthUpgrader.upgradeUser():178] ignore root entry : global priv. host: %, user: root, priv: Node_priv Admin_priv , set by resolver: false, domain user ident: null
+2023-06-26 20:44:10,118 INFO (stateChangeExecutor|55) [AuthUpgrader.upgradeAsLeader():84] upgraded as leader successfully.
+2023-06-26 20:44:10,118 INFO (stateChangeExecutor|55) [GlobalStateMgr.transferToLeader():1219] set usingNewPrivilege to true after transfer to leader
+2023-06-26 20:44:10,118 INFO (stateChangeExecutor|55) [GlobalStateMgr.startLeaderOnlyDaemonThreads():1286] checkpointer thread started. thread id is 57
+2023-06-26 20:44:10,138 INFO (stateChangeExecutor|55) [GlobalStateMgr.transferToLeader():1240] leader finished to replay journal, can write now.
+2023-06-26 20:44:10,144 INFO (stateChangeExecutor|55) [StateChangeExecutor.runOneCycle():179] finished to transfer FE type from INIT to LEADER
+2023-06-26 20:44:10,224 INFO (leaderCheckpointer|57) [Checkpoint.runAfterCatalogReady():95] checkpoint imageVersion 0, checkPointVersion 0
+2023-06-26 20:44:10,230 INFO (tablet checker|37) [TabletChecker.doCheck():423] finished to check tablets. isUrgent: true, unhealthy/total/added/in_sched/not_ready: 0/0/0/0/0, cost: 0 ms, in lock time: 0 ms
+2023-06-26 20:44:10,230 INFO (tablet checker|37) [TabletChecker.doCheck():423] finished to check tablets. isUrgent: false, unhealthy/total/added/in_sched/not_ready: 0/0/0/0/0, cost: 0 ms, in lock time: 0 ms
+2023-06-26 20:44:10,234 INFO (tablet checker|37) [TabletChecker.runAfterCatalogReady():210] TStat :
+TStat num of tablet check round: 1 (+1)
+TStat cost of tablet check(ms): 0 (+0)
+TStat num of tablet checked in tablet checker: 0 (+0)
+TStat num of unhealthy tablet checked in tablet checker: 0 (+0)
+TStat num of tablet being added to tablet scheduler: 0 (+0)
+TStat num of tablet schedule round: 0 (+0)
+TStat cost of tablet schedule(ms): 0 (+0)
+TStat num of tablet being scheduled: 0 (+0)
+TStat num of tablet being scheduled succeeded: 0 (+0)
+TStat num of tablet being scheduled failed: 0 (+0)
+TStat num of tablet being scheduled discard: 0 (+0)
+TStat num of tablet priority upgraded: 0 (+0)
+TStat num of clone task: 0 (+0)
+TStat num of clone task succeeded: 0 (+0)
+TStat num of clone task failed: 0 (+0)
+TStat num of clone task timeout: 0 (+0)
+TStat num of replica missing error: 0 (+0)
+TStat num of replica version missing error: 0 (+0)
+TStat num of replica unavailable error: 0 (+0)
+TStat num of replica redundant error: 0 (+0)
+TStat num of replica missing in cluster error: 0 (+0)
+TStat num of balance scheduled: 0 (+0)
+TStat num of colocate replica mismatch: 0 (+0)
+TStat num of colocate replica redundant: 0 (+0)
+TStat num of colocate balancer running round: 0 (+0)
+
+2023-06-26 20:44:10,235 WARN (Routine load task scheduler|43) [RoutineLoadTaskScheduler.process():117] no available be slot to scheduler tasks, wait for 10 seconds to scheduler again, you can set max_routine_load_task_num_per_be bigger in fe.conf, current value is 5
+2023-06-26 20:44:10,237 INFO (colocate group clone checker|65) [ColocateTableBalancer.matchGroups():894] finished to match colocate group. cost: 0 ms, in lock time: 0 ms
+2023-06-26 20:44:10,237 INFO (tablet scheduler|36) [TabletScheduler.updateClusterLoadStatistic():396] update cluster load statistic:
+
+2023-06-26 20:44:10,238 INFO (tablet stat mgr|31) [TabletStatMgr.updateLocalTabletStat():158] finished to get local tablet stat of all backends. cost: 0 ms
+2023-06-26 20:44:10,238 INFO (TaskCleaner|54) [TaskManager.dropTasks():374] drop tasks:[]
+2023-06-26 20:44:10,238 INFO (tablet stat mgr|31) [TabletStatMgr.runAfterCatalogReady():126] finished to update index row num of all databases. cost: 0 ms
+2023-06-26 20:44:10,238 INFO (TaskCleaner|54) [TaskManager.removeExpiredTaskRuns():882] remove run history:[]
+2023-06-26 20:44:10,239 INFO (LoadLabelCleaner|52) [TaskManager.dropTasks():374] drop tasks:[]
+2023-06-26 20:44:10,239 INFO (LoadLabelCleaner|52) [TaskManager.removeExpiredTaskRuns():882] remove run history:[]
+2023-06-26 20:44:10,239 DEBUG (tablet scheduler|36) [TabletScheduler.debugLogPendingTabletsStats():437] pending tablets current count: 0
+LOW priority tablets count: 0
+NORMAL priority tablets count: 0
+HIGH priority tablets count: 0
+VERY_HIGH priority tablets count: 0
+
+2023-06-26 20:44:10,240 DEBUG (tablet scheduler|36) [TabletScheduler.schedulePendingTablets():482] get 0 tablets to schedule
+2023-06-26 20:44:10,735 INFO (main|1) [PseudoCluster.build():432] start create and start backends
+2023-06-26 20:44:10,755 INFO (main|1) [PseudoCluster.build():446] add PseudoBackend 10001 127.0.0.10
+2023-06-26 20:44:10,756 INFO (main|1) [PseudoCluster.build():446] add PseudoBackend 10002 127.0.0.11
+2023-06-26 20:44:10,757 INFO (main|1) [PseudoCluster.build():446] add PseudoBackend 10003 127.0.0.12
+2023-06-26 20:44:10,759 INFO (main|1) [PseudoCluster.build():446] add PseudoBackend 10004 127.0.0.13
+2023-06-26 20:44:11,240 INFO (tablet checker|37) [TabletChecker.doCheck():423] finished to check tablets. isUrgent: true, unhealthy/total/added/in_sched/not_ready: 0/0/0/0/0, cost: 0 ms, in lock time: 0 ms
+2023-06-26 20:44:11,242 INFO (tablet checker|37) [TabletChecker.doCheck():423] finished to check tablets. isUrgent: false, unhealthy/total/added/in_sched/not_ready: 0/0/0/0/0, cost: 0 ms, in lock time: 0 ms
+2023-06-26 20:44:11,243 INFO (tablet checker|37) [TabletChecker.runAfterCatalogReady():210] TStat :
+TStat num of tablet check round: 2 (+1)
+TStat cost of tablet check(ms): 0 (+0)
+TStat num of tablet checked in tablet checker: 0 (+0)
+TStat num of unhealthy tablet checked in tablet checker: 0 (+0)
+TStat num of tablet being added to tablet scheduler: 0 (+0)
+TStat num of tablet schedule round: 1 (+1)
+TStat cost of tablet schedule(ms): 4 (+4)
+TStat num of tablet being scheduled: 0 (+0)
+TStat num of tablet being scheduled succeeded: 0 (+0)
+TStat num of tablet being scheduled failed: 0 (+0)
+TStat num of tablet being scheduled discard: 0 (+0)
+TStat num of tablet priority upgraded: 0 (+0)
+TStat num of clone task: 0 (+0)
+TStat num of clone task succeeded: 0 (+0)
+TStat num of clone task failed: 0 (+0)
+TStat num of clone task timeout: 0 (+0)
+TStat num of replica missing error: 0 (+0)
+TStat num of replica version missing error: 0 (+0)
+TStat num of replica unavailable error: 0 (+0)
+TStat num of replica redundant error: 0 (+0)
+TStat num of replica missing in cluster error: 0 (+0)
+TStat num of balance scheduled: 0 (+0)
+TStat num of colocate replica mismatch: 0 (+0)
+TStat num of colocate replica redundant: 0 (+0)
+TStat num of colocate balancer running round: 0 (+0)
+
+2023-06-26 20:44:11,256 INFO (tablet scheduler|36) [TabletScheduler.updateWorkingSlots():239] add new backend 10001 with slots num: 1
+2023-06-26 20:44:11,256 INFO (tablet scheduler|36) [TabletScheduler.updateWorkingSlots():239] add new backend 10002 with slots num: 1
+2023-06-26 20:44:11,256 INFO (tablet scheduler|36) [TabletScheduler.updateWorkingSlots():239] add new backend 10003 with slots num: 1
+2023-06-26 20:44:11,257 INFO (tablet scheduler|36) [TabletScheduler.updateWorkingSlots():239] add new backend 10004 with slots num: 1
+2023-06-26 20:44:11,257 DEBUG (tablet scheduler|36) [TabletScheduler.debugLogPendingTabletsStats():437] pending tablets current count: 0
+LOW priority tablets count: 0
+NORMAL priority tablets count: 0
+HIGH priority tablets count: 0
+VERY_HIGH priority tablets count: 0
+
+2023-06-26 20:44:11,257 DEBUG (tablet scheduler|36) [TabletScheduler.schedulePendingTablets():482] get 0 tablets to schedule
+2023-06-26 20:44:11,796 INFO (be-10004|84) [PseudoBackend.reportTablets():467] report 0 tablets
+2023-06-26 20:44:11,797 INFO (be-10002|78) [PseudoBackend.reportTablets():467] report 0 tablets
+2023-06-26 20:44:11,796 INFO (ReportHandler|16) [ReportHandler.tabletReport():365] backend[10001] reports 0 tablet(s). report version: 1
+2023-06-26 20:44:11,796 INFO (be-10001|75) [PseudoBackend.reportTablets():467] report 0 tablets
+2023-06-26 20:44:11,798 INFO (be-10003|81) [PseudoBackend.reportTablets():467] report 0 tablets
+2023-06-26 20:44:11,799 INFO (ReportHandler|16) [TabletInvertedIndex.tabletReport():307] finished to do tablet diff with backend[10001]. sync: 0. metaDel: 0. foundValid: 0. foundInvalid: 0. migration: 0. found invalid transactions 0. found republish transactions 0  cost: 2 ms
+2023-06-26 20:44:11,800 INFO (ReportHandler|16) [ReportHandler.tabletReport():365] backend[10004] reports 0 tablet(s). report version: 1
+2023-06-26 20:44:11,800 INFO (ReportHandler|16) [TabletInvertedIndex.tabletReport():307] finished to do tablet diff with backend[10004]. sync: 0. metaDel: 0. foundValid: 0. foundInvalid: 0. migration: 0. found invalid transactions 0. found republish transactions 0  cost: 0 ms
+2023-06-26 20:44:11,801 INFO (ReportHandler|16) [ReportHandler.tabletReport():365] backend[10002] reports 0 tablet(s). report version: 1
+2023-06-26 20:44:11,801 INFO (ReportHandler|16) [TabletInvertedIndex.tabletReport():307] finished to do tablet diff with backend[10002]. sync: 0. metaDel: 0. foundValid: 0. foundInvalid: 0. migration: 0. found invalid transactions 0. found republish transactions 0  cost: 0 ms
+2023-06-26 20:44:11,802 INFO (be-10001|75) [PseudoBackend.reportDisks():500] report 1 disks
+2023-06-26 20:44:11,802 INFO (be-10003|81) [PseudoBackend.reportDisks():500] report 1 disks
+2023-06-26 20:44:11,802 INFO (be-10004|84) [PseudoBackend.reportDisks():500] report 1 disks
+2023-06-26 20:44:11,803 INFO (be-10004|84) [PseudoBackend.reportTasks():529] report 0 tasks
+2023-06-26 20:44:11,803 INFO (be-10002|78) [PseudoBackend.reportDisks():500] report 1 disks
+2023-06-26 20:44:11,803 INFO (be-10002|78) [PseudoBackend.reportTasks():529] report 0 tasks
+2023-06-26 20:44:11,803 INFO (ReportHandler|16) [ReportHandler.tabletReport():365] backend[10003] reports 0 tablet(s). report version: 1
+2023-06-26 20:44:11,803 INFO (ReportHandler|16) [TabletInvertedIndex.tabletReport():307] finished to do tablet diff with backend[10003]. sync: 0. metaDel: 0. foundValid: 0. foundInvalid: 0. migration: 0. found invalid transactions 0. found republish transactions 0  cost: 0 ms
+2023-06-26 20:44:11,804 INFO (be-10001|75) [PseudoBackend.reportTasks():529] report 0 tasks
+2023-06-26 20:44:11,804 INFO (be-10003|81) [PseudoBackend.reportTasks():529] report 0 tasks
+2023-06-26 20:44:12,047 INFO (fe|49) [GlobalStateMgr.waitForReady():1131] wait globalStateMgr to be ready. FE type: LEADER. is ready: true
+2023-06-26 20:44:12,047 INFO (fe|49) [GlobalStateMgr.waitForReady():1116] globalStateMgr is ready. FE type: LEADER
+2023-06-26 20:44:12,119 INFO (fe|49) [Xnio.<clinit>():95] XNIO version 3.7.9.Final
+2023-06-26 20:44:12,180 INFO (fe|49) [NioXnio.<clinit>():60] XNIO NIO Implementation Version 3.7.9.Final
+2023-06-26 20:44:12,236 INFO (fe|49) [NMysqlServer.start():90] Open mysql server success on 64098
+2023-06-26 20:44:12,236 INFO (fe|49) [QeService.start():78] QE service start.
+2023-06-26 20:44:12,248 INFO (tablet checker|37) [TabletChecker.doCheck():423] finished to check tablets. isUrgent: true, unhealthy/total/added/in_sched/not_ready: 0/0/0/0/0, cost: 0 ms, in lock time: 0 ms
+2023-06-26 20:44:12,248 INFO (tablet checker|37) [TabletChecker.doCheck():423] finished to check tablets. isUrgent: false, unhealthy/total/added/in_sched/not_ready: 0/0/0/0/0, cost: 0 ms, in lock time: 0 ms
+2023-06-26 20:44:12,248 INFO (tablet checker|37) [TabletChecker.runAfterCatalogReady():210] TStat :
+TStat num of tablet check round: 3 (+1)
+TStat cost of tablet check(ms): 0 (+0)
+TStat num of tablet checked in tablet checker: 0 (+0)
+TStat num of unhealthy tablet checked in tablet checker: 0 (+0)
+TStat num of tablet being added to tablet scheduler: 0 (+0)
+TStat num of tablet schedule round: 2 (+1)
+TStat cost of tablet schedule(ms): 4 (+0)
+TStat num of tablet being scheduled: 0 (+0)
+TStat num of tablet being scheduled succeeded: 0 (+0)
+TStat num of tablet being scheduled failed: 0 (+0)
+TStat num of tablet being scheduled discard: 0 (+0)
+TStat num of tablet priority upgraded: 0 (+0)
+TStat num of clone task: 0 (+0)
+TStat num of clone task succeeded: 0 (+0)
+TStat num of clone task failed: 0 (+0)
+TStat num of clone task timeout: 0 (+0)
+TStat num of replica missing error: 0 (+0)
+TStat num of replica version missing error: 0 (+0)
+TStat num of replica unavailable error: 0 (+0)
+TStat num of replica redundant error: 0 (+0)
+TStat num of replica missing in cluster error: 0 (+0)
+TStat num of balance scheduled: 0 (+0)
+TStat num of colocate replica mismatch: 0 (+0)
+TStat num of colocate replica redundant: 0 (+0)
+TStat num of colocate balancer running round: 0 (+0)
+
+2023-06-26 20:44:12,262 DEBUG (tablet scheduler|36) [TabletScheduler.debugLogPendingTabletsStats():437] pending tablets current count: 0
+LOW priority tablets count: 0
+NORMAL priority tablets count: 0
+HIGH priority tablets count: 0
+VERY_HIGH priority tablets count: 0
+
+2023-06-26 20:44:12,262 DEBUG (tablet scheduler|36) [TabletScheduler.schedulePendingTablets():482] get 0 tablets to schedule
+2023-06-26 20:44:12,812 INFO (be-10004|84) [PseudoBackend.reportTablets():467] report 0 tablets
+2023-06-26 20:44:12,812 INFO (ReportHandler|16) [ReportHandler.tabletReport():365] backend[10002] reports 0 tablet(s). report version: 2
+2023-06-26 20:44:12,812 INFO (be-10002|78) [PseudoBackend.reportTablets():467] report 0 tablets
+2023-06-26 20:44:12,812 INFO (ReportHandler|16) [TabletInvertedIndex.tabletReport():307] finished to do tablet diff with backend[10002]. sync: 0. metaDel: 0. foundValid: 0. foundInvalid: 0. migration: 0. found invalid transactions 0. found republish transactions 0  cost: 0 ms
+2023-06-26 20:44:12,812 INFO (be-10002|78) [PseudoBackend.reportDisks():500] report 1 disks
+2023-06-26 20:44:12,812 INFO (be-10002|78) [PseudoBackend.reportTasks():529] report 0 tasks
+2023-06-26 20:44:12,812 INFO (ReportHandler|16) [ReportHandler.tabletReport():365] backend[10004] reports 0 tablet(s). report version: 2
+2023-06-26 20:44:12,812 INFO (be-10004|84) [PseudoBackend.reportDisks():500] report 1 disks
+2023-06-26 20:44:12,813 INFO (ReportHandler|16) [TabletInvertedIndex.tabletReport():307] finished to do tablet diff with backend[10004]. sync: 0. metaDel: 0. foundValid: 0. foundInvalid: 0. migration: 0. found invalid transactions 0. found republish transactions 0  cost: 0 ms
+2023-06-26 20:44:12,813 INFO (be-10004|84) [PseudoBackend.reportTasks():529] report 0 tasks
+2023-06-26 20:44:12,814 INFO (be-10001|75) [PseudoBackend.reportTablets():467] report 0 tablets
+2023-06-26 20:44:12,814 INFO (be-10001|75) [PseudoBackend.reportDisks():500] report 1 disks
+2023-06-26 20:44:12,814 INFO (be-10001|75) [PseudoBackend.reportTasks():529] report 0 tasks
+2023-06-26 20:44:12,814 INFO (be-10003|81) [PseudoBackend.reportTablets():467] report 0 tablets
+2023-06-26 20:44:12,814 INFO (ReportHandler|16) [ReportHandler.tabletReport():365] backend[10001] reports 0 tablet(s). report version: 2
+2023-06-26 20:44:12,814 INFO (be-10003|81) [PseudoBackend.reportDisks():500] report 1 disks
+2023-06-26 20:44:12,814 INFO (ReportHandler|16) [TabletInvertedIndex.tabletReport():307] finished to do tablet diff with backend[10001]. sync: 0. metaDel: 0. foundValid: 0. foundInvalid: 0. migration: 0. found invalid transactions 0. found republish transactions 0  cost: 0 ms
+2023-06-26 20:44:12,814 INFO (be-10003|81) [PseudoBackend.reportTasks():529] report 0 tasks
+2023-06-26 20:44:12,815 INFO (ReportHandler|16) [ReportHandler.tabletReport():365] backend[10003] reports 0 tablet(s). report version: 2
+2023-06-26 20:44:12,815 INFO (ReportHandler|16) [TabletInvertedIndex.tabletReport():307] finished to do tablet diff with backend[10003]. sync: 0. metaDel: 0. foundValid: 0. foundInvalid: 0. migration: 0. found invalid transactions 0. found republish transactions 0  cost: 0 ms
+2023-06-26 20:44:12,869 INFO (starrocks-mysql-nio I/O-2|90) [AcceptListener.handleEvent():71] Connection established. remote=/127.0.0.1:64108
+2023-06-26 20:44:13,251 INFO (tablet checker|37) [TabletChecker.doCheck():423] finished to check tablets. isUrgent: true, unhealthy/total/added/in_sched/not_ready: 0/0/0/0/0, cost: 0 ms, in lock time: 0 ms
+2023-06-26 20:44:13,251 INFO (tablet checker|37) [TabletChecker.doCheck():423] finished to check tablets. isUrgent: false, unhealthy/total/added/in_sched/not_ready: 0/0/0/0/0, cost: 0 ms, in lock time: 0 ms
+2023-06-26 20:44:13,251 INFO (tablet checker|37) [TabletChecker.runAfterCatalogReady():210] TStat :
+TStat num of tablet check round: 4 (+1)
+TStat cost of tablet check(ms): 0 (+0)
+TStat num of tablet checked in tablet checker: 0 (+0)
+TStat num of unhealthy tablet checked in tablet checker: 0 (+0)
+TStat num of tablet being added to tablet scheduler: 0 (+0)
+TStat num of tablet schedule round: 3 (+1)
+TStat cost of tablet schedule(ms): 4 (+0)
+TStat num of tablet being scheduled: 0 (+0)
+TStat num of tablet being scheduled succeeded: 0 (+0)
+TStat num of tablet being scheduled failed: 0 (+0)
+TStat num of tablet being scheduled discard: 0 (+0)
+TStat num of tablet priority upgraded: 0 (+0)
+TStat num of clone task: 0 (+0)
+TStat num of clone task succeeded: 0 (+0)
+TStat num of clone task failed: 0 (+0)
+TStat num of clone task timeout: 0 (+0)
+TStat num of replica missing error: 0 (+0)
+TStat num of replica version missing error: 0 (+0)
+TStat num of replica unavailable error: 0 (+0)
+TStat num of replica redundant error: 0 (+0)
+TStat num of replica missing in cluster error: 0 (+0)
+TStat num of balance scheduled: 0 (+0)
+TStat num of colocate replica mismatch: 0 (+0)
+TStat num of colocate replica redundant: 0 (+0)
+TStat num of colocate balancer running round: 0 (+0)
+
+2023-06-26 20:44:13,268 DEBUG (tablet scheduler|36) [TabletScheduler.debugLogPendingTabletsStats():437] pending tablets current count: 0
+LOW priority tablets count: 0
+NORMAL priority tablets count: 0
+HIGH priority tablets count: 0
+VERY_HIGH priority tablets count: 0
+
+2023-06-26 20:44:13,268 DEBUG (tablet scheduler|36) [TabletScheduler.schedulePendingTablets():482] get 0 tablets to schedule
+2023-06-26 20:44:13,818 INFO (be-10004|84) [PseudoBackend.reportTablets():467] report 0 tablets
+2023-06-26 20:44:13,818 INFO (be-10004|84) [PseudoBackend.reportDisks():500] report 1 disks
+2023-06-26 20:44:13,818 INFO (be-10004|84) [PseudoBackend.reportTasks():529] report 0 tasks
+2023-06-26 20:44:13,819 INFO (be-10002|78) [PseudoBackend.reportTablets():467] report 0 tablets
+2023-06-26 20:44:13,819 INFO (be-10002|78) [PseudoBackend.reportDisks():500] report 1 disks
+2023-06-26 20:44:13,819 INFO (be-10002|78) [PseudoBackend.reportTasks():529] report 0 tasks
+2023-06-26 20:44:13,818 INFO (ReportHandler|16) [ReportHandler.tabletReport():365] backend[10004] reports 0 tablet(s). report version: 3
+2023-06-26 20:44:13,819 INFO (ReportHandler|16) [TabletInvertedIndex.tabletReport():307] finished to do tablet diff with backend[10004]. sync: 0. metaDel: 0. foundValid: 0. foundInvalid: 0. migration: 0. found invalid transactions 0. found republish transactions 0  cost: 0 ms
+2023-06-26 20:44:13,820 INFO (ReportHandler|16) [ReportHandler.tabletReport():365] backend[10002] reports 0 tablet(s). report version: 3
+2023-06-26 20:44:13,820 INFO (ReportHandler|16) [TabletInvertedIndex.tabletReport():307] finished to do tablet diff with backend[10002]. sync: 0. metaDel: 0. foundValid: 0. foundInvalid: 0. migration: 0. found invalid transactions 0. found republish transactions 0  cost: 0 ms
+2023-06-26 20:44:13,823 INFO (be-10003|81) [PseudoBackend.reportTablets():467] report 0 tablets
+2023-06-26 20:44:13,823 INFO (be-10003|81) [PseudoBackend.reportDisks():500] report 1 disks
+2023-06-26 20:44:13,823 INFO (ReportHandler|16) [ReportHandler.tabletReport():365] backend[10001] reports 0 tablet(s). report version: 3
+2023-06-26 20:44:13,824 INFO (be-10003|81) [PseudoBackend.reportTasks():529] report 0 tasks
+2023-06-26 20:44:13,819 INFO (be-10001|75) [PseudoBackend.reportTablets():467] report 0 tablets
+2023-06-26 20:44:13,824 INFO (ReportHandler|16) [TabletInvertedIndex.tabletReport():307] finished to do tablet diff with backend[10001]. sync: 0. metaDel: 0. foundValid: 0. foundInvalid: 0. migration: 0. found invalid transactions 0. found republish transactions 0  cost: 0 ms
+2023-06-26 20:44:13,824 INFO (be-10001|75) [PseudoBackend.reportDisks():500] report 1 disks
+2023-06-26 20:44:13,824 INFO (ReportHandler|16) [ReportHandler.tabletReport():365] backend[10003] reports 0 tablet(s). report version: 3
+2023-06-26 20:44:13,824 INFO (be-10001|75) [PseudoBackend.reportTasks():529] report 0 tasks
+2023-06-26 20:44:13,824 INFO (ReportHandler|16) [TabletInvertedIndex.tabletReport():307] finished to do tablet diff with backend[10003]. sync: 0. metaDel: 0. foundValid: 0. foundInvalid: 0. migration: 0. found invalid transactions 0. found republish transactions 0  cost: 0 ms
+2023-06-26 20:44:14,033 INFO (starrocks-mysql-nio-pool-1|96) [QeProcessorImpl.registerQuery():95] register query id = 2736ac56-141f-11ee-8566-966412248c1c
+2023-06-26 20:44:14,234 INFO (PBackendService-10001|74) [PseudoBackend.execBatchPlanFragment():1223] query 2736ac56-141f-11ee-8566-966412248c1c fragment 2736ac56-141f-11ee-8566-966412248c1d has RESULT_SINK
+2023-06-26 20:44:14,234 INFO (PBackendService-10001|74) [PseudoBackend.execBatchPlanFragment():1227] exec_batch_plan_fragment query: 2736ac56-141f-11ee-8566-966412248c1c fragment: 2736ac56-141f-11ee-8566-966412248c1d
+2023-06-26 20:44:14,245 INFO (starrocks-mysql-nio-pool-1|96) [QeProcessorImpl.unregisterQuery():105] deregister query id 2736ac56-141f-11ee-8566-966412248c1c
+2023-06-26 20:44:14,251 INFO (starrocks-mysql-nio-pool-1|96) [ResourceGroupMetricMgr.createQeuryResourceGroupMetrics():95] Add query_resource_group metric, resource group name is default_wg
+2023-06-26 20:44:14,251 INFO (starrocks-mysql-nio-pool-1|96) [ResourceGroupMetricMgr$QueryResourceGroupLatencyMetrics.<init>():150] Add query_resource_group_latency metric, resource group name is default_wg
+2023-06-26 20:44:14,252 INFO (starrocks-mysql-nio-pool-1|96) [ResourceGroupMetricMgr$QueryResourceGroupLatencyMetrics.<init>():150] Add query_resource_group_latency metric, resource group name is default_wg
+2023-06-26 20:44:14,252 INFO (starrocks-mysql-nio-pool-1|96) [ResourceGroupMetricMgr$QueryResourceGroupLatencyMetrics.<init>():150] Add query_resource_group_latency metric, resource group name is default_wg
+2023-06-26 20:44:14,252 INFO (starrocks-mysql-nio-pool-1|96) [ResourceGroupMetricMgr$QueryResourceGroupLatencyMetrics.<init>():150] Add query_resource_group_latency metric, resource group name is default_wg
+2023-06-26 20:44:14,252 INFO (starrocks-mysql-nio-pool-1|96) [ResourceGroupMetricMgr$QueryResourceGroupLatencyMetrics.<init>():150] Add query_resource_group_latency metric, resource group name is default_wg
+2023-06-26 20:44:14,252 INFO (starrocks-mysql-nio-pool-1|96) [ResourceGroupMetricMgr$QueryResourceGroupLatencyMetrics.<init>():150] Add query_resource_group_latency metric, resource group name is default_wg
+2023-06-26 20:44:14,256 INFO (tablet checker|37) [TabletChecker.doCheck():423] finished to check tablets. isUrgent: true, unhealthy/total/added/in_sched/not_ready: 0/0/0/0/0, cost: 0 ms, in lock time: 0 ms
+2023-06-26 20:44:14,257 INFO (tablet checker|37) [TabletChecker.doCheck():423] finished to check tablets. isUrgent: false, unhealthy/total/added/in_sched/not_ready: 0/0/0/0/0, cost: 0 ms, in lock time: 0 ms
+2023-06-26 20:44:14,262 INFO (tablet checker|37) [TabletChecker.runAfterCatalogReady():210] TStat :
+TStat num of tablet check round: 5 (+1)
+TStat cost of tablet check(ms): 0 (+0)
+TStat num of tablet checked in tablet checker: 0 (+0)
+TStat num of unhealthy tablet checked in tablet checker: 0 (+0)
+TStat num of tablet being added to tablet scheduler: 0 (+0)
+TStat num of tablet schedule round: 4 (+1)
+TStat cost of tablet schedule(ms): 4 (+0)
+TStat num of tablet being scheduled: 0 (+0)
+TStat num of tablet being scheduled succeeded: 0 (+0)
+TStat num of tablet being scheduled failed: 0 (+0)
+TStat num of tablet being scheduled discard: 0 (+0)
+TStat num of tablet priority upgraded: 0 (+0)
+TStat num of clone task: 0 (+0)
+TStat num of clone task succeeded: 0 (+0)
+TStat num of clone task failed: 0 (+0)
+TStat num of clone task timeout: 0 (+0)
+TStat num of replica missing error: 0 (+0)
+TStat num of replica version missing error: 0 (+0)
+TStat num of replica unavailable error: 0 (+0)
+TStat num of replica redundant error: 0 (+0)
+TStat num of replica missing in cluster error: 0 (+0)
+TStat num of balance scheduled: 0 (+0)
+TStat num of colocate replica mismatch: 0 (+0)
+TStat num of colocate replica redundant: 0 (+0)
+TStat num of colocate balancer running round: 0 (+0)
+
+2023-06-26 20:44:14,411 INFO (starrocks-mysql-nio I/O-4|92) [AcceptListener.handleEvent():71] Connection established. remote=/127.0.0.1:64109
+2023-06-26 20:44:14,423 INFO (starrocks-mysql-nio-pool-1|96) [QeProcessorImpl.registerQuery():95] register query id = 2815e8cb-141f-11ee-8566-966412248c1c
+2023-06-26 20:44:14,428 INFO (PBackendService-10002|77) [PseudoBackend.execBatchPlanFragment():1223] query 2815e8cb-141f-11ee-8566-966412248c1c fragment 2815e8cb-141f-11ee-8566-966412248c1d has RESULT_SINK
+2023-06-26 20:44:14,428 INFO (PBackendService-10002|77) [PseudoBackend.execBatchPlanFragment():1227] exec_batch_plan_fragment query: 2815e8cb-141f-11ee-8566-966412248c1c fragment: 2815e8cb-141f-11ee-8566-966412248c1d
+2023-06-26 20:44:14,444 INFO (starrocks-mysql-nio-pool-1|96) [QeProcessorImpl.unregisterQuery():105] deregister query id 2815e8cb-141f-11ee-8566-966412248c1c
+2023-06-26 20:44:14,589 INFO (starrocks-mysql-nio-pool-1|96) [LocalMetastore.createDb():397] createDb dbName = test, id = 10004
+2023-06-26 20:44:14,648 INFO (starrocks-mysql-nio-pool-1|96) [Database.checkDataSizeQuota():439] database[test] data quota: left bytes: 8388608.000 TB / total: 8388608.000 TB
+2023-06-26 20:44:14,648 INFO (starrocks-mysql-nio-pool-1|96) [Database.checkReplicaQuota():450] database[test] replica quota: left number: 9223372036854775807 / total: 9223372036854775807
+2023-06-26 20:44:14,842 INFO (be-10001|75) [PseudoBackend.reportTablets():467] report 0 tablets
+2023-06-26 20:44:14,842 INFO (be-10002|78) [PseudoBackend.reportTablets():467] report 0 tablets
+2023-06-26 20:44:14,842 INFO (ReportHandler|16) [ReportHandler.tabletReport():365] backend[10001] reports 0 tablet(s). report version: 4
+2023-06-26 20:44:14,842 INFO (be-10002|78) [PseudoBackend.reportDisks():500] report 1 disks
+2023-06-26 20:44:14,842 INFO (be-10002|78) [PseudoBackend.reportTasks():529] report 0 tasks
+2023-06-26 20:44:14,842 INFO (be-10003|81) [PseudoBackend.reportTablets():467] report 0 tablets
+2023-06-26 20:44:14,842 INFO (be-10001|75) [PseudoBackend.reportDisks():500] report 1 disks
+2023-06-26 20:44:14,842 INFO (be-10004|84) [PseudoBackend.reportTablets():467] report 0 tablets
+2023-06-26 20:44:14,843 INFO (be-10003|81) [PseudoBackend.reportDisks():500] report 1 disks
+2023-06-26 20:44:14,843 INFO (be-10004|84) [PseudoBackend.reportDisks():500] report 1 disks
+2023-06-26 20:44:14,843 INFO (be-10004|84) [PseudoBackend.reportTasks():529] report 0 tasks
+2023-06-26 20:44:14,843 INFO (be-10001|75) [PseudoBackend.reportTasks():529] report 0 tasks
+2023-06-26 20:44:14,843 INFO (be-10003|81) [PseudoBackend.reportTasks():529] report 0 tasks
+2023-06-26 20:44:14,847 INFO (ReportHandler|16) [TabletInvertedIndex.tabletReport():307] finished to do tablet diff with backend[10001]. sync: 0. metaDel: 3. foundValid: 0. foundInvalid: 0. migration: 0. found invalid transactions 0. found republish transactions 0  cost: 5 ms
+2023-06-26 20:44:14,849 INFO (ReportHandler|16) [ReportHandler.deleteFromMeta():854] delete 0 replica(s) from globalStateMgr in db[10004]
+2023-06-26 20:44:14,851 INFO (ReportHandler|16) [ReportHandler.tabletReport():365] backend[10002] reports 0 tablet(s). report version: 4
+2023-06-26 20:44:14,851 INFO (ReportHandler|16) [TabletInvertedIndex.tabletReport():307] finished to do tablet diff with backend[10002]. sync: 0. metaDel: 2. foundValid: 0. foundInvalid: 0. migration: 0. found invalid transactions 0. found republish transactions 0  cost: 0 ms
+2023-06-26 20:44:14,851 INFO (ReportHandler|16) [ReportHandler.deleteFromMeta():854] delete 0 replica(s) from globalStateMgr in db[10004]
+2023-06-26 20:44:14,853 INFO (ReportHandler|16) [ReportHandler.tabletReport():365] backend[10004] reports 0 tablet(s). report version: 4
+2023-06-26 20:44:14,853 INFO (ReportHandler|16) [TabletInvertedIndex.tabletReport():307] finished to do tablet diff with backend[10004]. sync: 0. metaDel: 2. foundValid: 0. foundInvalid: 0. migration: 0. found invalid transactions 0. found republish transactions 0  cost: 0 ms
+2023-06-26 20:44:14,853 INFO (ReportHandler|16) [ReportHandler.deleteFromMeta():854] delete 0 replica(s) from globalStateMgr in db[10004]
+2023-06-26 20:44:14,853 INFO (ReportHandler|16) [ReportHandler.tabletReport():365] backend[10003] reports 0 tablet(s). report version: 4
+2023-06-26 20:44:14,853 INFO (ReportHandler|16) [TabletInvertedIndex.tabletReport():307] finished to do tablet diff with backend[10003]. sync: 0. metaDel: 2. foundValid: 0. foundInvalid: 0. migration: 0. found invalid transactions 0. found republish transactions 0  cost: 0 ms
+2023-06-26 20:44:14,854 INFO (ReportHandler|16) [ReportHandler.deleteFromMeta():854] delete 0 replica(s) from globalStateMgr in db[10004]
+2023-06-26 20:44:14,922 INFO (agent-task-pool-5|94) [AgentBatchTask.run():196] submit_tasks done
+2023-06-26 20:44:14,924 INFO (agent-task-pool-0|72) [AgentBatchTask.run():196] submit_tasks done
+2023-06-26 20:44:14,923 INFO (agent-task-pool-3|87) [AgentBatchTask.run():196] submit_tasks done
+2023-06-26 20:44:14,925 INFO (agent-task-pool-2|86) [AgentBatchTask.run():196] submit_tasks done
+2023-06-26 20:44:14,934 INFO (backend-worker-10004|82) [BeTabletManager.createTablet():63] created tablet 10009 
+2023-06-26 20:44:14,934 INFO (backend-worker-10001|73) [BeTabletManager.createTablet():63] created tablet 10009 
+2023-06-26 20:44:14,934 INFO (backend-worker-10002|76) [BeTabletManager.createTablet():63] created tablet 10009 
+2023-06-26 20:44:14,934 INFO (backend-worker-10003|79) [BeTabletManager.createTablet():63] created tablet 10013 
+2023-06-26 20:44:14,942 INFO (backend-worker-10003|79) [BeTabletManager.createTablet():63] created tablet 10017 
+2023-06-26 20:44:14,942 INFO (backend-worker-10001|73) [BeTabletManager.createTablet():63] created tablet 10013 
+2023-06-26 20:44:14,942 INFO (backend-worker-10004|82) [BeTabletManager.createTablet():63] created tablet 10013 
+2023-06-26 20:44:14,942 INFO (backend-worker-10002|76) [BeTabletManager.createTablet():63] created tablet 10017 
+2023-06-26 20:44:14,943 INFO (backend-worker-10001|73) [BeTabletManager.createTablet():63] created tablet 10017 
+2023-06-26 20:44:15,039 INFO (starrocks-mysql-nio-pool-1|96) [OlapTableFactory.createTable():621] Successfully create table[test_0;10006]
+2023-06-26 20:44:15,093 INFO (starrocks-mysql-nio-pool-1|96) [DatabaseTransactionMgr.beginTransaction():325] begin transaction: txn_id: 2 with label insert_28780502-141f-11ee-8566-966412248c1c from coordinator FE: 127.0.0.1, listner id: -1
+2023-06-26 20:44:15,224 WARN (starrocks-mysql-nio-pool-1|96) [StmtExecutor.handleDMLStmt():1731] failed to handle stmt [insert into test.test_0 values (1,"1", 1), (2,"2", 2), (3,"3", 3)] label: insert_28780502-141f-11ee-8566-966412248c1c
+java.lang.IndexOutOfBoundsException: Index 1 out of bounds for length 1
+	at jdk.internal.util.Preconditions.outOfBounds(Preconditions.java:64) ~[?:?]
+	at jdk.internal.util.Preconditions.outOfBoundsCheckIndex(Preconditions.java:70) ~[?:?]
+	at jdk.internal.util.Preconditions.checkIndex(Preconditions.java:248) ~[?:?]
+	at java.util.Objects.checkIndex(Objects.java:372) ~[?:?]
+	at java.util.ArrayList.get(ArrayList.java:459) ~[?:?]
+	at com.starrocks.planner.OlapTableSink.findPrimaryReplica(OlapTableSink.java:560) ~[classes/:?]
+	at com.starrocks.planner.OlapTableSink.createLocation(OlapTableSink.java:517) ~[classes/:?]
+	at com.starrocks.planner.OlapTableSink.complete(OlapTableSink.java:240) ~[classes/:?]
+	at com.starrocks.qe.StmtExecutor.handleDMLStmt(StmtExecutor.java:1526) ~[classes/:?]
+	at com.starrocks.qe.StmtExecutor.handleDMLStmtWithProfile(StmtExecutor.java:1389) ~[classes/:?]
+	at com.starrocks.qe.StmtExecutor.execute(StmtExecutor.java:567) ~[classes/:?]
+	at com.starrocks.qe.ConnectProcessor.handleQuery(ConnectProcessor.java:359) ~[classes/:?]
+	at com.starrocks.qe.ConnectProcessor.dispatch(ConnectProcessor.java:473) ~[classes/:?]
+	at com.starrocks.qe.ConnectProcessor.processOnce(ConnectProcessor.java:739) ~[classes/:?]
+	at com.starrocks.mysql.nio.ReadListener.lambda$handleEvent$0(ReadListener.java:69) ~[classes/:?]
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128) ~[?:?]
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628) ~[?:?]
+	at java.lang.Thread.run(Thread.java:834) ~[?:?]
+2023-06-26 20:44:15,237 INFO (starrocks-mysql-nio-pool-1|96) [DatabaseTransactionMgr.abortTransaction():1290] transaction:[TransactionState. txn_id: 2, label: insert_28780502-141f-11ee-8566-966412248c1c, db id: 10004, table id list: 10006, callback id: -1, coordinator: FE: 127.0.0.1, transaction status: ABORTED, error replicas num: 0, replica ids: , prepare time: 1687783455171, commit time: -1, finish time: 1687783455237, total cost: 66ms, reason: Index 1 out of bounds for length 1] successfully rollback
+2023-06-26 20:44:15,246 WARN (starrocks-mysql-nio-pool-1|96) [StmtExecutor.handleDMLStmtWithProfile():1395] DML statement(insert into test.test_0 values (1,"1", 1), (2,"2", 2), (3,"3", 3)) process failed.
+com.starrocks.common.UserException: Index 1 out of bounds for length 1
+	at com.starrocks.qe.StmtExecutor.handleDMLStmt(StmtExecutor.java:1775) ~[classes/:?]
+	at com.starrocks.qe.StmtExecutor.handleDMLStmtWithProfile(StmtExecutor.java:1389) ~[classes/:?]
+	at com.starrocks.qe.StmtExecutor.execute(StmtExecutor.java:567) ~[classes/:?]
+	at com.starrocks.qe.ConnectProcessor.handleQuery(ConnectProcessor.java:359) ~[classes/:?]
+	at com.starrocks.qe.ConnectProcessor.dispatch(ConnectProcessor.java:473) ~[classes/:?]
+	at com.starrocks.qe.ConnectProcessor.processOnce(ConnectProcessor.java:739) ~[classes/:?]
+	at com.starrocks.mysql.nio.ReadListener.lambda$handleEvent$0(ReadListener.java:69) ~[classes/:?]
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128) ~[?:?]
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628) ~[?:?]
+	at java.lang.Thread.run(Thread.java:834) ~[?:?]
+2023-06-26 20:44:15,246 INFO (starrocks-mysql-nio-pool-1|96) [StmtExecutor.execute():610] execute Exception, sql: insert into test.test_0 values (1,"1", 1), (2,"2", 2), (3,"3", 3), error: Index 1 out of bounds for length 1
+2023-06-26 20:44:15,269 INFO (tablet checker|37) [TabletChecker.doCheck():423] finished to check tablets. isUrgent: true, unhealthy/total/added/in_sched/not_ready: 0/0/0/0/0, cost: 1 ms, in lock time: 1 ms
+2023-06-26 20:44:15,270 INFO (tablet checker|37) [TabletChecker.doCheck():423] finished to check tablets. isUrgent: false, unhealthy/total/added/in_sched/not_ready: 0/0/0/0/0, cost: 0 ms, in lock time: 0 ms
+2023-06-26 20:44:15,272 INFO (tablet checker|37) [TabletChecker.runAfterCatalogReady():210] TStat :
+TStat num of tablet check round: 6 (+1)
+TStat cost of tablet check(ms): 1 (+1)
+TStat num of tablet checked in tablet checker: 0 (+0)
+TStat num of unhealthy tablet checked in tablet checker: 0 (+0)
+TStat num of tablet being added to tablet scheduler: 0 (+0)
+TStat num of tablet schedule round: 4 (+0)
+TStat cost of tablet schedule(ms): 4 (+0)
+TStat num of tablet being scheduled: 0 (+0)
+TStat num of tablet being scheduled succeeded: 0 (+0)
+TStat num of tablet being scheduled failed: 0 (+0)
+TStat num of tablet being scheduled discard: 0 (+0)
+TStat num of tablet priority upgraded: 0 (+0)
+TStat num of clone task: 0 (+0)
+TStat num of clone task succeeded: 0 (+0)
+TStat num of clone task failed: 0 (+0)
+TStat num of clone task timeout: 0 (+0)
+TStat num of replica missing error: 0 (+0)
+TStat num of replica version missing error: 0 (+0)
+TStat num of replica unavailable error: 0 (+0)
+TStat num of replica redundant error: 0 (+0)
+TStat num of replica missing in cluster error: 0 (+0)
+TStat num of balance scheduled: 0 (+0)
+TStat num of colocate replica mismatch: 0 (+0)
+TStat num of colocate replica redundant: 0 (+0)
+TStat num of colocate balancer running round: 0 (+0)
+
+2023-06-26 20:44:15,274 DEBUG (tablet scheduler|36) [TabletScheduler.debugLogPendingTabletsStats():437] pending tablets current count: 0
+LOW priority tablets count: 0
+NORMAL priority tablets count: 0
+HIGH priority tablets count: 0
+VERY_HIGH priority tablets count: 0
+
+2023-06-26 20:44:15,274 DEBUG (tablet scheduler|36) [TabletScheduler.schedulePendingTablets():482] get 0 tablets to schedule
+2023-06-26 20:44:15,305 INFO (starrocks-mysql-nio-pool-1|96) [Database.unprotectDropTable():584] finished dropping table[test_0] in db[test], tableId: 10006
+2023-06-26 20:44:15,307 INFO (starrocks-mysql-nio-pool-1|96) [TaskManager.dropTasks():374] drop tasks:[]
+2023-06-26 20:44:15,308 INFO (starrocks-mysql-nio-pool-1|96) [LocalMetastore.dropDb():494] finish drop database[test], id: 10004, is force : true
+2023-06-26 20:44:15,310 INFO (agent-task-pool-2|86) [AgentBatchTask.run():196] submit_tasks done
+2023-06-26 20:44:15,310 INFO (agent-task-pool-5|94) [AgentBatchTask.run():196] submit_tasks done
+2023-06-26 20:44:15,310 INFO (agent-task-pool-3|87) [AgentBatchTask.run():196] submit_tasks done
+2023-06-26 20:44:15,400 INFO (backend-worker-10002|76) [BeTabletManager.dropTablet():80] Dropped tablet 10009 force:true
+2023-06-26 20:44:15,402 INFO (backend-worker-10002|76) [BeTabletManager.dropTablet():80] Dropped tablet 10017 force:true
+2023-06-26 20:44:15,310 INFO (backend-worker-10003|79) [BeTabletManager.dropTablet():80] Dropped tablet 10013 force:true
+2023-06-26 20:44:15,310 INFO (backend-worker-10001|73) [BeTabletManager.dropTablet():80] Dropped tablet 10009 force:true
+2023-06-26 20:44:15,402 INFO (backend-worker-10001|73) [BeTabletManager.dropTablet():80] Dropped tablet 10013 force:true
+2023-06-26 20:44:15,402 INFO (backend-worker-10003|79) [BeTabletManager.dropTablet():80] Dropped tablet 10017 force:true
+2023-06-26 20:44:15,402 INFO (backend-worker-10001|73) [BeTabletManager.dropTablet():80] Dropped tablet 10017 force:true
+2023-06-26 20:44:15,310 INFO (agent-task-pool-0|72) [AgentBatchTask.run():196] submit_tasks done
+2023-06-26 20:44:15,402 INFO (backend-worker-10004|82) [BeTabletManager.dropTablet():80] Dropped tablet 10009 force:true
+2023-06-26 20:44:15,403 INFO (backend-worker-10004|82) [BeTabletManager.dropTablet():80] Dropped tablet 10013 force:true

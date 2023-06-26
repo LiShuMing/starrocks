@@ -1,0 +1,39 @@
+2023-06-26 20:44:09,890 WARN (fe|49) [FrontendOptions.initAddrUseIp():243] ip address range configured for priority_networks does not include the current IP address
+2023-06-26 20:44:10,005 WARN (fe|49) [StateChangeExecutor.notifyNewFETypeTransfer():62] notify new FE type transfer: LEADER
+2023-06-26 20:44:10,080 WARN (stateChangeExecutor|55) [AuthenticationProviderFactory.installPlugin():32] Plugin MYSQL_NATIVE_PASSWORD has already been installed!
+2023-06-26 20:44:10,080 WARN (stateChangeExecutor|55) [AuthenticationProviderFactory.installPlugin():32] Plugin AUTHENTICATION_LDAP_SIMPLE has already been installed!
+2023-06-26 20:44:10,080 WARN (stateChangeExecutor|55) [AuthenticationProviderFactory.installPlugin():32] Plugin AUTHENTICATION_KERBEROS has already been installed!
+2023-06-26 20:44:10,080 WARN (stateChangeExecutor|55) [AuthenticationProviderFactory.installPlugin():32] Plugin AUTHENTICATION_LDAP_SIMPLE_FOR_EXTERNAL has already been installed!
+2023-06-26 20:44:10,235 WARN (Routine load task scheduler|43) [RoutineLoadTaskScheduler.process():117] no available be slot to scheduler tasks, wait for 10 seconds to scheduler again, you can set max_routine_load_task_num_per_be bigger in fe.conf, current value is 5
+2023-06-26 20:44:15,224 WARN (starrocks-mysql-nio-pool-1|96) [StmtExecutor.handleDMLStmt():1731] failed to handle stmt [insert into test.test_0 values (1,"1", 1), (2,"2", 2), (3,"3", 3)] label: insert_28780502-141f-11ee-8566-966412248c1c
+java.lang.IndexOutOfBoundsException: Index 1 out of bounds for length 1
+	at jdk.internal.util.Preconditions.outOfBounds(Preconditions.java:64) ~[?:?]
+	at jdk.internal.util.Preconditions.outOfBoundsCheckIndex(Preconditions.java:70) ~[?:?]
+	at jdk.internal.util.Preconditions.checkIndex(Preconditions.java:248) ~[?:?]
+	at java.util.Objects.checkIndex(Objects.java:372) ~[?:?]
+	at java.util.ArrayList.get(ArrayList.java:459) ~[?:?]
+	at com.starrocks.planner.OlapTableSink.findPrimaryReplica(OlapTableSink.java:560) ~[classes/:?]
+	at com.starrocks.planner.OlapTableSink.createLocation(OlapTableSink.java:517) ~[classes/:?]
+	at com.starrocks.planner.OlapTableSink.complete(OlapTableSink.java:240) ~[classes/:?]
+	at com.starrocks.qe.StmtExecutor.handleDMLStmt(StmtExecutor.java:1526) ~[classes/:?]
+	at com.starrocks.qe.StmtExecutor.handleDMLStmtWithProfile(StmtExecutor.java:1389) ~[classes/:?]
+	at com.starrocks.qe.StmtExecutor.execute(StmtExecutor.java:567) ~[classes/:?]
+	at com.starrocks.qe.ConnectProcessor.handleQuery(ConnectProcessor.java:359) ~[classes/:?]
+	at com.starrocks.qe.ConnectProcessor.dispatch(ConnectProcessor.java:473) ~[classes/:?]
+	at com.starrocks.qe.ConnectProcessor.processOnce(ConnectProcessor.java:739) ~[classes/:?]
+	at com.starrocks.mysql.nio.ReadListener.lambda$handleEvent$0(ReadListener.java:69) ~[classes/:?]
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128) ~[?:?]
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628) ~[?:?]
+	at java.lang.Thread.run(Thread.java:834) ~[?:?]
+2023-06-26 20:44:15,246 WARN (starrocks-mysql-nio-pool-1|96) [StmtExecutor.handleDMLStmtWithProfile():1395] DML statement(insert into test.test_0 values (1,"1", 1), (2,"2", 2), (3,"3", 3)) process failed.
+com.starrocks.common.UserException: Index 1 out of bounds for length 1
+	at com.starrocks.qe.StmtExecutor.handleDMLStmt(StmtExecutor.java:1775) ~[classes/:?]
+	at com.starrocks.qe.StmtExecutor.handleDMLStmtWithProfile(StmtExecutor.java:1389) ~[classes/:?]
+	at com.starrocks.qe.StmtExecutor.execute(StmtExecutor.java:567) ~[classes/:?]
+	at com.starrocks.qe.ConnectProcessor.handleQuery(ConnectProcessor.java:359) ~[classes/:?]
+	at com.starrocks.qe.ConnectProcessor.dispatch(ConnectProcessor.java:473) ~[classes/:?]
+	at com.starrocks.qe.ConnectProcessor.processOnce(ConnectProcessor.java:739) ~[classes/:?]
+	at com.starrocks.mysql.nio.ReadListener.lambda$handleEvent$0(ReadListener.java:69) ~[classes/:?]
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128) ~[?:?]
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628) ~[?:?]
+	at java.lang.Thread.run(Thread.java:834) ~[?:?]

@@ -19,6 +19,7 @@ import com.google.common.collect.Lists;
 import com.starrocks.qe.SessionVariable;
 import com.starrocks.sql.optimizer.base.OutputPropertyGroup;
 import com.starrocks.sql.optimizer.base.PhysicalPropertySet;
+import com.starrocks.sql.optimizer.cost.CostModel;
 import com.starrocks.sql.optimizer.operator.Operator;
 import com.starrocks.sql.optimizer.operator.physical.PhysicalScanOperator;
 
@@ -27,22 +28,28 @@ import java.util.List;
 import java.util.Set;
 
 public class MVOptimizer {
+
     public MVOptimizer() {
     }
 
     class PathContext {
         private long arity;
         private long numEos;
-        private final Set<Integer> mvPath;
-        public PathContext(long arity, long numEos) {
+        private double totalCost = 0;
+        private final Set<Integer> mvGroupPath;
+        private final Set<GroupExpression> mvGroupExpressionPath;
+        public PathContext(long arity, long numEos, double totalCost) {
             this.arity = arity;
             this.numEos = numEos;
-            this.mvPath = Sets.newHashSet();
+            this.totalCost = totalCost;
+            this.mvGroupPath = Sets.newHashSet();
         }
         public PathContext(PathContext context) {
             this.arity = context.arity;
             this.numEos = context.numEos;
-            this.mvPath = new HashSet<>(context.mvPath);
+            this.totalCost = context.totalCost;
+            this.mvGroupPath = new HashSet<>(context.getMvGroupPath());
+            this.mvGroupExpressionPath = new HashSet<>(context.getMvGroupExpressionPath());
         }
         public void incEos() {
             ++numEos;
@@ -53,8 +60,21 @@ public class MVOptimizer {
         public boolean isEos() {
             return numEos == arity;
         }
-        public void addPath(int groupId) {
-            this.mvPath.add(groupId);
+        public void addMVPath(int groupId, GroupExpression groupExpression) {
+            this.mvGroupPath.add(groupId);
+            this.mvGroupExpressionPath.add(groupExpression);
+        }
+        public Set<Integer> getMvGroupPath() {
+            return this.mvGroupPath;
+        }
+        public Set<GroupExpression> getMvGroupExpressionPath() {
+            return this.mvGroupExpressionPath;
+        }
+        public double getTotalCost() {
+            return totalCost;
+        }
+        public void addCost(double cost) {
+            this.totalCost += cost;
         }
     }
 
@@ -85,22 +105,23 @@ public class MVOptimizer {
         } else {
             // NOTE: now we use a simple policy to choose the path
             Set<Integer> groupIds = Sets.newHashSet();
-            List<Set<Integer>> mvPaths = Lists.newArrayList();
-            PathContext context = new PathContext(1, 0);
+            List<PathContext> mvPaths = Lists.newArrayList();
+            PathContext context = new PathContext(1, 0, 0);
             for (PhysicalPropertySet outputProperty : outputProperties) {
-                if (findShortestPath(rootGroup, outputProperty, context, groupIds, mvPaths)) {
+                if (findMVPath(rootGroup, outputProperty, context, mvPaths)) {
                     hasMVPlan = true;
                 }
             }
             if (mvPaths.isEmpty()) {
                 hasMVPlan = false;
             } else {
-                mvPath = mvPaths.get(0);
+                PathContext pathContext = mvPaths.get(0);
                 for (int i = 0; i < mvPaths.size(); i++) {
-                    if (mvPaths.get(i).size() < mvPath.size()) {
-                        mvPath = mvPaths.get(i);
+                    if (mvPaths.get(i).getTotalCost() < pathContext.getTotalCost()) {
+                        pathContext = mvPaths.get(i);
                     }
                 }
+                mvPath = pathContext.getMvPath();
             }
         }
 
@@ -215,25 +236,25 @@ public class MVOptimizer {
     }
 
 
-    private boolean findShortestPath(Group group,
-                                     PhysicalPropertySet outputProperty,
-                                     PathContext context,
-                                     List<PathContext> mvPaths) {
+    private boolean findMVPath(Group group,
+                               PhysicalPropertySet outputProperty,
+                               PathContext context,
+                               List<PathContext> mvPaths) {
         for (GroupExpression groupExpression : group.getSatisfyOutputPropertyGroupExpressions(outputProperty)) {
             PathContext newContext = new PathContext(context);
-            Set<Integer> newGroupIds = new HashSet<>(groupIds);
-
-            newGroupIds.add(group.getId());
+            newContext.addCost(CostModel.calculateCost(groupExpression));
             if (groupExpression.getInputs().isEmpty()) {
                 if (containMaterializedView(groupExpression.getOp())) {
                     newContext.incEos();
+                    newContext.addMVPath(group.getId(), groupExpression);
                     if (newContext.isEos()) {
-                        mvPaths.add(newGroupIds);
+                        mvPaths.add(newContext);
                     }
                     return true;
                 }
             } else if (groupExpression.hasValidSubPlan()) {
-                if (findShortestPath(groupExpression, outputProperty, newContext, newGroupIds, mvPaths)) {
+                if (findMVPath(groupExpression, outputProperty, newContext, mvPaths)) {
+                    newContext.addMVPath(group.getId(), groupExpression);
                     return true;
                 }
             }
@@ -241,19 +262,17 @@ public class MVOptimizer {
         return false;
     }
 
-    private boolean findShortestPath(GroupExpression groupExpression,
-                                     PhysicalPropertySet outputProperty,
-                                     PathContext context,
-                                     Set<Integer> groupIds,
-                                     List<Set<Integer>> mvPaths) {
+    private boolean findMVPath(GroupExpression groupExpression,
+                               PhysicalPropertySet outputProperty,
+                               PathContext context,
+                               List<PathContext> mvPaths) {
         for (OutputPropertyGroup outputPropertyGroup : groupExpression.getChildrenOutputProperties(outputProperty)) {
             List<PhysicalPropertySet> childrenOutputProperties = outputPropertyGroup.getChildrenOutputProperties();
             PathContext newPathContext = new PathContext(context);
             newPathContext.incArity(groupExpression.arity());
-            Set<Integer> newGroupIds = new HashSet<>(groupIds);
             for (int childIndex = 0; childIndex < groupExpression.arity(); ++childIndex) {
-                if (findShortestPath(groupExpression.inputAt(childIndex),
-                        childrenOutputProperties.get(childIndex), newPathContext, newGroupIds, mvPaths)) {
+                if (findMVPath(groupExpression.inputAt(childIndex),
+                        childrenOutputProperties.get(childIndex), newPathContext, mvPaths)) {
                     return true;
                 }
             }

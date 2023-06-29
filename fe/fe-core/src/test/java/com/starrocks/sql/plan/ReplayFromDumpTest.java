@@ -890,4 +890,16 @@ public class ReplayFromDumpTest {
         System.out.println(replayPair.second);
         Assert.assertTrue(replayPair.second.contains("table: mv1, rollup: mv1"));
     }
+
+    @Test
+    public void testMV_JoinAgg3() throws Exception {
+        FeConstants.isReplayFromQueryDump = true;
+        connectContext.getSessionVariable().setMaterializedViewRewriteMode("force");
+        Pair<QueryDumpInfo, String> replayPair =
+                getPlanFragment(getDumpInfoFromFile("query_dump/materialized-view/join_agg3"),
+                        connectContext.getSessionVariable(), TExplainLevel.NORMAL);
+        System.out.println(replayPair.second);
+        Assert.assertTrue(replayPair.second.contains("table: mv1, rollup: mv1"));
+        FeConstants.isReplayFromQueryDump = false;
+    }
 }

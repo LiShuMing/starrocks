@@ -86,7 +86,7 @@ public class MVOptimizer {
         List<PathContext> mvPaths = Lists.newArrayList();
         PathContext context = new PathContext();
         for (PhysicalPropertySet outputProperty : outputProperties) {
-            if (findMVPath(rootGroup, outputProperty, context, mvPaths)) {
+            if (findMVPath(rootGroup, outputProperty, context, mvPaths, true)) {
                 hasMVPlan = true;
             }
         }
@@ -204,22 +204,29 @@ public class MVOptimizer {
     private boolean findMVPath(Group group,
                                PhysicalPropertySet outputProperty,
                                PathContext context,
-                               List<PathContext> mvPaths) {
+                               List<PathContext> mvPaths,
+                               boolean isRootGroup) {
         Set<GroupExpression> groupExpressions = group.getSatisfyOutputPropertyGroupExpressions(outputProperty);
         for (GroupExpression groupExpression : groupExpressions) {
             PathContext newContext = new PathContext(context);
             newContext.addCost(CostModel.calculateCost(groupExpression));
+            boolean foundMV = false;
             if (groupExpression.getInputs().isEmpty()) {
                 if (containMaterializedView(groupExpression.getOp())) {
-                    newContext.addMVPath(groupExpression);
-                    mvPaths.add(newContext);
-                    return true;
+                    foundMV = true;
                 }
             } else if (groupExpression.hasValidSubPlan()) {
                 if (findMVPath(groupExpression, outputProperty, newContext, mvPaths)) {
-                    newContext.addMVPath(groupExpression);
-                    return true;
+                    foundMV = true;
                 }
+            }
+
+            if (foundMV) {
+                newContext.addMVPath(groupExpression);
+                if (isRootGroup) {
+                    mvPaths.add(newContext);
+                }
+                return true;
             }
         }
         return false;
@@ -232,12 +239,16 @@ public class MVOptimizer {
         for (OutputPropertyGroup outputPropertyGroup : groupExpression.getChildrenOutputProperties(outputProperty)) {
             List<PhysicalPropertySet> childrenOutputProperties = outputPropertyGroup.getChildrenOutputProperties();
             PathContext newPathContext = new PathContext(context);
+            boolean foundMV = false;
             for (int childIndex = 0; childIndex < groupExpression.arity(); ++childIndex) {
                 if (findMVPath(groupExpression.inputAt(childIndex),
-                        childrenOutputProperties.get(childIndex), newPathContext, mvPaths)) {
+                        childrenOutputProperties.get(childIndex), newPathContext, mvPaths, false)) {
                     context.addMVPath(groupExpression);
-                    return true;
+                    foundMV = true;
                 }
+            }
+            if (foundMV) {
+                return true;
             }
         }
         return false;

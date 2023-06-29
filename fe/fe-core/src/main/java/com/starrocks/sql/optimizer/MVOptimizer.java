@@ -43,6 +43,7 @@ public class MVOptimizer {
             this.numEos = numEos;
             this.totalCost = totalCost;
             this.mvGroupPath = Sets.newHashSet();
+            this.mvGroupExpressionPath = Sets.newHashSet();
         }
         public PathContext(PathContext context) {
             this.arity = context.arity;
@@ -93,42 +94,31 @@ public class MVOptimizer {
 
         boolean hasMVPlan = false;
 
-        // `mvPaths` keep group ids that pass from root group to leaf groups.
-        Set<Integer> mvPath = Sets.newHashSet();
-        if (false) {
-            for (PhysicalPropertySet outputProperty : outputProperties) {
-                if (containMaterializedView(rootGroup, outputProperty, mvPath)) {
-                    hasMVPlan = true;
-                    break;
-                }
+
+        // NOTE: now we use a simple policy to choose the path
+        PathContext pathContext = null;
+        List<PathContext> mvPaths = Lists.newArrayList();
+        PathContext context = new PathContext(1, 0, 0);
+        for (PhysicalPropertySet outputProperty : outputProperties) {
+            if (findMVPath(rootGroup, outputProperty, context, mvPaths)) {
+                hasMVPlan = true;
             }
+        }
+        if (mvPaths.isEmpty()) {
+            hasMVPlan = false;
         } else {
-            // NOTE: now we use a simple policy to choose the path
-            Set<Integer> groupIds = Sets.newHashSet();
-            List<PathContext> mvPaths = Lists.newArrayList();
-            PathContext context = new PathContext(1, 0, 0);
-            for (PhysicalPropertySet outputProperty : outputProperties) {
-                if (findMVPath(rootGroup, outputProperty, context, mvPaths)) {
-                    hasMVPlan = true;
+            pathContext = mvPaths.get(0);
+            for (int i = 0; i < mvPaths.size(); i++) {
+                if (mvPaths.get(i).getTotalCost() < pathContext.getTotalCost()) {
+                    pathContext = mvPaths.get(i);
                 }
-            }
-            if (mvPaths.isEmpty()) {
-                hasMVPlan = false;
-            } else {
-                PathContext pathContext = mvPaths.get(0);
-                for (int i = 0; i < mvPaths.size(); i++) {
-                    if (mvPaths.get(i).getTotalCost() < pathContext.getTotalCost()) {
-                        pathContext = mvPaths.get(i);
-                    }
-                }
-                mvPath = pathContext.getMvPath();
             }
         }
 
         // If there is no plans containing mv, handle it for different mode:
         // - force          : return the lowest cost plan:
         // - force_or_error : throw exception if no plans even in `force` mode
-        if (!hasMVPlan) {
+        if (!hasMVPlan || pathContext == null) {
             if (mvRewriteMode.equalsIgnoreCase(SessionVariable.REWRITE_MODE_FORCE_OR_ERROR)) {
                 throw new IllegalArgumentException("no executable plan with materialized view for this sql in `force_or_error` " +
                         "mode.");
@@ -139,8 +129,8 @@ public class MVOptimizer {
 
         OptExpression forceResult = null;
         for (PhysicalPropertySet outputProperty : outputProperties) {
-            forceResult = extractBestPlanWithMVImpl(outputProperty, rootGroup, mvPath);
-            if (forceResult != null && containMaterializedView(forceResult)) {
+            forceResult = extractBestPlanWithMVImpl(outputProperty, rootGroup, pathContext);
+            if (forceResult != null) {
                 break;
             }
         }
@@ -183,43 +173,30 @@ public class MVOptimizer {
 
     private OptExpression extractBestPlanWithMVImpl(PhysicalPropertySet requiredProperty,
                                                     Group group,
-                                                    Set<Integer> groupIds) {
-        if (!groupIds.contains(group.getId())) {
+                                                    PathContext pathContext) {
+        if (!pathContext.getMvGroupPath().contains(group.getId())) {
             return extractBestPlan(requiredProperty, group);
         }
         Set<GroupExpression> groupExpressions = group.getSatisfyOutputPropertyGroupExpressions(requiredProperty);
 
         // Choose group expression which its child's group is in the `groupIds`
         GroupExpression mvGroupExpression = null;
-        if (groupExpressions.size() == 1) {
-            mvGroupExpression = groupExpressions.iterator().next();
-        } else {
-            for (GroupExpression groupExpression : groupExpressions) {
-                if (groupExpression.arity() == 0) {
-                    if (containMaterializedView(groupExpression.getOp())) {
-                        mvGroupExpression = groupExpression;
-                        break;
-                    }
-                } else {
-                    // TODO: this is a very simple policy: choose 1th group expression which its child contains
-                    // the plan with mv.
-                    for (int i = 0; i < groupExpression.arity(); ++i) {
-                        if (groupIds.contains(groupExpression.getGroup().getId())) {
-                            mvGroupExpression = groupExpression;
-                            break;
-                        }
-                    }
-                }
+        for (GroupExpression groupExpression : groupExpressions) {
+            if (pathContext.getMvGroupExpressionPath().contains(groupExpression)) {
+                mvGroupExpression = groupExpression;
+                break;
             }
         }
         if (mvGroupExpression == null) {
-            String msg = "no executable plan with materialized view for this sql. group: %s. required property: %s";
-            throw new IllegalArgumentException(String.format(msg, group, requiredProperty));
+            return null;
         }
         List<PhysicalPropertySet> inputProperties = mvGroupExpression.getInputProperties(requiredProperty);
         List<OptExpression> childPlans = Lists.newArrayList();
         for (int i = 0; i < mvGroupExpression.arity(); ++i) {
-            OptExpression childPlan = extractBestPlanWithMVImpl(inputProperties.get(i), mvGroupExpression.inputAt(i), groupIds);
+            OptExpression childPlan = extractBestPlanWithMVImpl(inputProperties.get(i), mvGroupExpression.inputAt(i), pathContext);
+            if (childPlan == null) {
+                return null;
+            }
             childPlans.add(childPlan);
         }
 
@@ -280,38 +257,38 @@ public class MVOptimizer {
         return false;
     }
 
-    private boolean containMaterializedView(Group group,
-                                            PhysicalPropertySet outputProperty,
-                                            Set<Integer> groupIds) {
-        for (GroupExpression groupExpression : group.getSatisfyOutputPropertyGroupExpressions(outputProperty)) {
-            if (groupExpression.getInputs().isEmpty()) {
-                if (containMaterializedView(groupExpression.getOp())) {
-                    groupIds.add(group.getId());
-                    return true;
-                }
-            } else if (groupExpression.hasValidSubPlan()) {
-                if (containMaterializedView(groupExpression, outputProperty, groupIds)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private boolean containMaterializedView(GroupExpression groupExpression,
-                                            PhysicalPropertySet outputProperty,
-                                            Set<Integer> groupIds) {
-        for (OutputPropertyGroup outputPropertyGroup : groupExpression.getChildrenOutputProperties(outputProperty)) {
-            List<PhysicalPropertySet> childrenOutputProperties = outputPropertyGroup.getChildrenOutputProperties();
-            for (int childIndex = 0; childIndex < groupExpression.arity(); ++childIndex) {
-                if (containMaterializedView(groupExpression.inputAt(childIndex),
-                        childrenOutputProperties.get(childIndex), groupIds)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
+//    private boolean containMaterializedView(Group group,
+//                                            PhysicalPropertySet outputProperty,
+//                                            Set<Integer> groupIds) {
+//        for (GroupExpression groupExpression : group.getSatisfyOutputPropertyGroupExpressions(outputProperty)) {
+//            if (groupExpression.getInputs().isEmpty()) {
+//                if (containMaterializedView(groupExpression.getOp())) {
+//                    groupIds.add(group.getId());
+//                    return true;
+//                }
+//            } else if (groupExpression.hasValidSubPlan()) {
+//                if (containMaterializedView(groupExpression, outputProperty, groupIds)) {
+//                    return true;
+//                }
+//            }
+//        }
+//        return false;
+//    }
+//
+//    private boolean containMaterializedView(GroupExpression groupExpression,
+//                                            PhysicalPropertySet outputProperty,
+//                                            Set<Integer> groupIds) {
+//        for (OutputPropertyGroup outputPropertyGroup : groupExpression.getChildrenOutputProperties(outputProperty)) {
+//            List<PhysicalPropertySet> childrenOutputProperties = outputPropertyGroup.getChildrenOutputProperties();
+//            for (int childIndex = 0; childIndex < groupExpression.arity(); ++childIndex) {
+//                if (containMaterializedView(groupExpression.inputAt(childIndex),
+//                        childrenOutputProperties.get(childIndex), groupIds)) {
+//                    return true;
+//                }
+//            }
+//        }
+//        return false;
+//    }
 
     private boolean containMaterializedView(Operator op) {
          if (op instanceof PhysicalScanOperator) {

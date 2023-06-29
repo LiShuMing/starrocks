@@ -174,12 +174,15 @@ public class Optimizer {
         }
 
         OptExpression result;
-        if (!connectContext.getSessionVariable().isSetUseNthExecPlan()) {
-            result = extractBestPlan(requiredProperty, memo.getRootGroup());
-        } else {
+        if (connectContext.getSessionVariable().isSetUseNthExecPlan()) {
             // extract the nth execution plan
             int nthExecPlan = connectContext.getSessionVariable().getUseNthExecPlan();
             result = EnumeratePlan.extractNthPlan(requiredProperty, memo.getRootGroup(), nthExecPlan);
+        } else if (connectContext.getSessionVariable().isEnableMaterializedViewForceRewrite()) {
+            String mvRewriteMode = connectContext.getSessionVariable().getMaterializedViewRewriteMode();
+            result = new MVOptimizer().extractBestPlanWithMV(requiredProperty, memo.getRootGroup(), mvRewriteMode);
+        } else {
+            result = extractBestPlan(requiredProperty, memo.getRootGroup());
         }
         OptimizerTraceUtil.logOptExpression(connectContext, "after extract best plan:\n%s", result);
 
@@ -371,6 +374,9 @@ public class Optimizer {
     private boolean isEnableSingleTableMVRewrite(TaskContext rootTaskContext,
                                                  SessionVariable sessionVariable,
                                                  OptExpression queryPlan) {
+        if (sessionVariable.isEnableMaterializedViewDisableRewrite()) {
+            return false;
+        }
         // if disable single mv rewrite, return false.
         if (optimizerConfig.isRuleSetTypeDisable(RuleSetType.SINGLE_TABLE_MV_REWRITE)) {
             return false;
@@ -505,6 +511,10 @@ public class Optimizer {
     }
 
     private boolean isEnableMultiTableRewrite(ConnectContext connectContext, OptExpression queryPlan) {
+        if (connectContext.getSessionVariable().isEnableMaterializedViewDisableRewrite()) {
+            return false;
+        }
+
         if (context.getCandidateMvs().isEmpty()) {
             return false;
         }

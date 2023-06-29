@@ -873,4 +873,21 @@ public class ReplayFromDumpTest {
         Assert.assertEquals(new CTEProperty(1), expression.getLogicalProperty().getUsedCTEs());
         Assert.assertEquals(4, result.second.getCteProduceFragments().size());
     }
+
+    @Test
+    public void testMV_JoinAgg1() throws Exception {
+        connectContext.getSessionVariable().setMaterializedViewRewriteMode("force");
+        String jsonStr = getDumpInfoFromFile("query_dump/materialized-view/join_agg1");
+        Pair<QueryDumpInfo, String> replayPair = getCostPlanFragment(jsonStr, connectContext.getSessionVariable());
+        Assert.assertTrue(replayPair.second.contains("table: mv1, rollup: mv1"));
+    }
+
+    @Test
+    public void testMV_JoinAgg2() throws Exception {
+        connectContext.getSessionVariable().setMaterializedViewRewriteMode("force");
+        String jsonStr = getDumpInfoFromFile("query_dump/materialized-view/join_agg2");
+        Pair<QueryDumpInfo, String> replayPair = getCostPlanFragment(jsonStr, connectContext.getSessionVariable());
+        System.out.println(replayPair.second);
+        Assert.assertTrue(replayPair.second.contains("table: mv1, rollup: mv1"));
+    }
 }

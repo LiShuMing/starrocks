@@ -2690,4 +2690,63 @@ public class MvRewriteOptimizationTest {
             starRocksAssert.dropMaterializedView("partial_mv_13");
         }
     }
+
+    @Test
+    public void testForceRewrite() throws Exception {
+        starRocksAssert.withTable(" CREATE TABLE tt1(\n" +
+                "t1_id INT not null,\n" +
+                "t1_t2_id INT not null,\n" +
+                "t1_t3_id INT not null,\n" +
+                "t1_name varchar(20) not null,\n" +
+                "t1_age INT not null\n" +
+                ")\n" +
+                "DUPLICATE KEY(t1_id)\n" +
+                "DISTRIBUTED BY HASH(t1_id)\n" +
+                " PROPERTIES (\n" +
+                "\"replication_num\" = \"1\"\n" +
+                ")" +
+                ";");
+        starRocksAssert.withTable("CREATE TABLE tt2(\n" +
+                "t2_id INT,\n" +
+                "t2_name varchar(20) not null\n" +
+                ")\n" +
+                "DUPLICATE KEY(t2_id)\n" +
+                "DISTRIBUTED BY HASH(t2_id)\n" +
+                "PROPERTIES (\n" +
+                "\"replication_num\" = \"1\"\n" +
+                ");");
+        starRocksAssert.withTable("CREATE TABLE tt3(\n" +
+                "t3_id INT not null,\n" +
+                "t3_name varchar(20) not null\n" +
+                ")\n" +
+                "DUPLICATE KEY(t3_id)\n" +
+                "DISTRIBUTED BY HASH(t3_id) \n" +
+                "PROPERTIES (\n" +
+                "\"replication_num\" = \"1\"\n" +
+                ");");
+        cluster.runSql("test", " INSERT INTO tt1 VALUES (1,1,1,\"jack\",18), (2,2,2,\"nacy\",18);");
+        cluster.runSql("test",  "INSERT INTO tt2 VALUES (1,\"beijing\"), (2,\"tianjin\");");
+        cluster.runSql("test",  "INSERT INTO tt3 VALUES (1,\"wuhan\"), (2,\"shanghai\");");
+
+        createAndRefreshMv("test", "mv1", " CREATE MATERIALIZED VIEW mv1\n" +
+                "DISTRIBUTED BY HASH(t1_id) BUCKETS 48\n" +
+                "REFRESH MANUAL\n" +
+                "PROPERTIES (\n" +
+                "   \"replication_num\" = \"1\", \n" +
+                "   \"unique_constraints\" = \"tt2.t2_id;tt3.t3_id\",\n" +
+                "   \"foreign_key_constraints\" = \"tt1(t1_t2_id) REFERENCES tt2(t2_id);" +
+                "tt1(t1_t3_id) REFERENCES tt3(t3_id);\"\n" +
+                ")\n" +
+                " AS\n" +
+                "SELECT tt1.t1_id, bitmap_union(to_bitmap(tt1.t1_age)), hll_union(hll_hash(tt1.t1_age)), " +
+                "   percentile_union(percentile_hash(tt1.t1_age)) " +
+                "FROM tt1\n" +
+                "INNER JOIN tt2 ON tt1.t1_t2_id=tt2.t2_id\n" +
+                "INNER JOIN tt3 ON tt1.t1_t3_id=tt3.t3_id group by tt1.t1_id;");
+        String query = "SELECT tt1.t1_id, count(distinct tt1.t1_age) FROM " +
+                "tt1 INNER JOIN tt2 ON tt1.t1_t2_id=tt2.t2_id " +
+                "INNER JOIN tt3 ON tt1.t1_t3_id=tt3.t3_id group by tt1.t1_id";
+        String plan = getFragmentPlan(query);
+        PlanTestBase.assertContains(plan, "mv1");
+    }
 }

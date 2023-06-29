@@ -692,7 +692,6 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
     }
 
     @Test
-    @Ignore
     // TODO: Remove const group by keys
     public void testAggregateWithContGroupByKey() {
         testRewriteOK("select empid, floor(cast('1997-01-20 12:34:56' as DATETIME)), "
@@ -873,8 +872,6 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
     }
 
     @Test
-    @Ignore
-    // TODO: Remove const group by keys
     public void testAggregateMaterializationAggregateFuncsWithConstGroupByKeys() {
         testRewriteOK("select empid, floor(cast('1997-01-20 12:34:56' as DATETIME)), "
                         + "count(*) + 1 as c, sum(empid) as s\n"
@@ -947,78 +944,6 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
 
 
     // TODO: Don't support group by position.
-    @Ignore
-    public void testAggregateMaterializationAggregateFuncs20() {
-        testRewriteOK("select 11 as empno, 22 as sal, count(*) from emps group by 11",
-                "select * from\n"
-                        + "(select 11 as empno, 22 as sal, count(*)\n"
-                        + "from emps group by 11, 22 ) tmp\n"
-                        + "where sal = 33");
-    }
-
-    @Test
-    public void testJoinAggregateMaterializationNoAggregateFuncs1() {
-        // If agg push down is open, cannot rewrite.
-        testRewriteOK("select empid, depts.deptno from emps\n"
-                        + "join depts using (deptno) where depts.deptno > 10\n"
-                        + "group by empid, depts.deptno",
-                "select empid from emps\n"
-                        + "join depts using (deptno) where depts.deptno > 20\n"
-                        + "group by empid, depts.deptno");
-    }
-
-    @Test
-    public void testJoinAggregateMaterializationNoAggregateFuncs2() {
-        testRewriteOK("select depts.deptno, empid from depts\n"
-                        + "join emps using (deptno) where depts.deptno > 10\n"
-                        + "group by empid, depts.deptno",
-                "select empid from emps\n"
-                        + "join depts using (deptno) where depts.deptno > 20\n"
-                        + "group by empid, depts.deptno");
-    }
-
-    @Test
-    public void testJoinAggregateMaterializationNoAggregateFuncs3() {
-        // It does not match, Project on top of query
-        testRewriteFail("select empid from emps\n"
-                        + "join depts using (deptno) where depts.deptno > 10\n"
-                        + "group by empid, depts.deptno",
-                "select empid from emps\n"
-                        + "join depts using (deptno) where depts.deptno > 20\n"
-                        + "group by empid, depts.deptno");
-    }
-
-    @Test
-    public void testJoinAggregateMaterializationNoAggregateFuncs4() {
-        testRewriteOK("select empid, depts.deptno from emps\n"
-                        + "join depts using (deptno) where emps.deptno > 10\n"
-                        + "group by empid, depts.deptno",
-                "select empid from emps\n"
-                        + "join depts using (deptno) where depts.deptno > 20\n"
-                        + "group by empid, depts.deptno");
-    }
-
-    @Test
-    public void testJoinAggregateMaterializationNoAggregateFuncs5() {
-        testRewriteOK("select depts.deptno, emps.empid from depts\n"
-                        + "join emps using (deptno) where emps.empid > 10\n"
-                        + "group by depts.deptno, emps.empid",
-                "select depts.deptno from depts\n"
-                        + "join emps using (deptno) where emps.empid > 15\n"
-                        + "group by depts.deptno, emps.empid");
-    }
-
-    @Test
-    public void testJoinAggregateMaterializationNoAggregateFuncs6() {
-        testRewriteOK("select depts.deptno, emps.empid from depts\n"
-                        + "join emps using (deptno) where emps.empid > 10\n"
-                        + "group by depts.deptno, emps.empid",
-                "select depts.deptno from depts\n"
-                        + "join emps using (deptno) where emps.empid > 15\n"
-                        + "group by depts.deptno");
-    }
-
-    @Test
     @Ignore
     // TODO: union all support
     public void testJoinAggregateMaterializationNoAggregateFuncs7() {
@@ -1096,8 +1021,6 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
 
 
     @Test
-    @Ignore
-    // TODO: This test relies on FK-UK relationship
     public void testJoinAggregateMaterializationAggregateFuncs1() {
         testRewriteOK("select empid, depts.deptno, count(*) as c, sum(empid) as s\n"
                         + "from emps join depts using (deptno)\n"
@@ -1106,7 +1029,6 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
     }
 
     @Test
-    @Ignore
     public void testJoinAggregateMaterializationAggregateFuncs2() {
         testRewriteOK("select empid, emps.deptno, count(*) as c, sum(empid) as s\n"
                         + "from emps join depts using (deptno)\n"
@@ -1116,9 +1038,7 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
                         + "group by depts.deptno");
     }
 
-    @Ignore
     @Test
-    // TODO: This test relies on FK-UK relationship
     public void testJoinAggregateMaterializationAggregateFuncs3() {
         testRewriteOK("select empid, depts.deptno, count(*) as c, sum(empid) as s\n"
                         + "from emps join depts using (deptno)\n"
@@ -1522,7 +1442,6 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
 
     @Test
     public void testInnerJoinViewDelta() {
-        connectContext.getSessionVariable().setOptimizerExecuteTimeout(300000000);
         String mv = "SELECT" +
                 " `l`.`LO_ORDERKEY` as col1, `l`.`LO_ORDERDATE`, `l`.`LO_LINENUMBER`, `l`.`LO_CUSTKEY`, `l`.`LO_PARTKEY`," +
                 " `l`.`LO_SUPPKEY`, `l`.`LO_ORDERPRIORITY`, `l`.`LO_SHIPPRIORITY`, `l`.`LO_QUANTITY`," +
@@ -2475,6 +2394,7 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
             testRewriteFail(mv, query);
         }
     }
+
     @Test
     public void testRewriteAvg1() {
         String mv1 = "select user_id, avg(tag_id) from user_tags group by user_id;";
@@ -3502,5 +3422,61 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
                             + "right anti join emps on (emps.deptno = depts.deptno)\n"
                             + "where emps.empid > 10");
         }
+    }
+
+    @Test
+    public void testForceRewrite() throws Exception {
+        starRocksAssert.withTable(" CREATE TABLE tt1(\n" +
+                "t1_id INT not null,\n" +
+                "t1_t2_id INT not null,\n" +
+                "t1_t3_id INT not null,\n" +
+                "t1_name varchar(20) not null,\n" +
+                "t1_age INT not null\n" +
+                ")\n" +
+                "DUPLICATE KEY(t1_id)\n" +
+                "DISTRIBUTED BY HASH(t1_id)\n" +
+                " PROPERTIES (\n" +
+                "\"replication_num\" = \"1\"\n" +
+                ")" +
+                ";");
+
+        starRocksAssert.withTable("CREATE TABLE tt2(\n" +
+                "t2_id INT,\n" +
+                "t2_name varchar(20) not null\n" +
+                ")\n" +
+                "DUPLICATE KEY(t2_id)\n" +
+                "DISTRIBUTED BY HASH(t2_id)\n" +
+                "PROPERTIES (\n" +
+                "\"replication_num\" = \"1\"\n" +
+                ");");
+
+        starRocksAssert.withTable("CREATE TABLE tt3(\n" +
+                "t3_id INT not null,\n" +
+                "t3_name varchar(20) not null\n" +
+                ")\n" +
+                "DUPLICATE KEY(t3_id)\n" +
+                "DISTRIBUTED BY HASH(t3_id) \n" +
+                "PROPERTIES (\n" +
+                "\"replication_num\" = \"1\"\n" +
+                ");");
+        starRocksAssert.withMaterializedView(" CREATE MATERIALIZED VIEW mv1\n" +
+                "DISTRIBUTED BY HASH(t1_id) BUCKETS 48\n" +
+                "REFRESH MANUAL\n" +
+                "PROPERTIES (\n" +
+                "   \"replication_num\" = \"1\", \n" +
+                "   \"unique_constraints\" = \"tt2.t2_id;tt3.t3_id\",\n" +
+                "   \"foreign_key_constraints\" = \"tt1(t1_t2_id) REFERENCES tt2(t2_id);" +
+                "tt1(t1_t3_id) REFERENCES tt3(t3_id);\"\n" +
+                ")\n" +
+                " AS\n" +
+                "SELECT tt1.t1_id, bitmap_union(to_bitmap(tt1.t1_age)), hll_union(hll_hash(tt1.t1_age)), " +
+                "   percentile_union(percentile_hash(tt1.t1_age)) " +
+                "FROM tt1\n" +
+                "INNER JOIN tt2 ON tt1.t1_t2_id=tt2.t2_id\n" +
+                "INNER JOIN tt3 ON tt1.t1_t3_id=tt3.t3_id group by tt1.t1_id;");
+        sql("SELECT tt1.t1_id, count(distinct tt1.t1_age) FROM " +
+                "tt1 INNER JOIN tt2 ON tt1.t1_t2_id=tt2.t2_id " +
+                "INNER JOIN tt3 ON tt1.t1_t3_id=tt3.t3_id group by tt1.t1_id")
+                .match("mv1");
     }
 }

@@ -625,7 +625,6 @@ public class MaterializedViewRewriter {
                     rewrittenExpression.getOp().setLimit(rewriteContext.getQueryExpression().getOp().getLimit());
                 }
                 logMVRewrite(mvRewriteContext, "Rewrite Succeed:\n Original Expression:\n %s,\nNew Expression:\n %s",
-                        relationIdMappings.size(),
                         queryExpression.explain(),
                         rewrittenExpression.explain());
                 return rewrittenExpression;

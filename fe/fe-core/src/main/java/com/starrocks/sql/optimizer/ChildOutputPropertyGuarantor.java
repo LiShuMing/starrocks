@@ -237,7 +237,8 @@ public class ChildOutputPropertyGuarantor extends PropertyDeriverBase<Void, Expr
                     childCosts);
             childGroup.setBestExpression(enforcer, childCosts, newOutputProperty);
 
-            if (ConnectContext.get().getSessionVariable().isSetUseNthExecPlan()) {
+            if (ConnectContext.get().getSessionVariable().isSetUseNthExecPlan() ||
+                    ConnectContext.get().getSessionVariable().isEnableMaterializedViewForceRewrite()) {
                 enforcer.addValidOutputPropertyGroup(newOutputProperty, Lists.newArrayList(childOutputProperty));
                 enforcer.getGroup().addSatisfyOutputPropertyGroupExpression(newOutputProperty, enforcer);
             }
@@ -276,7 +277,8 @@ public class ChildOutputPropertyGuarantor extends PropertyDeriverBase<Void, Expr
         enforcer.updatePropertyWithCost(newOutputProperty, Lists.newArrayList(oldOutputProperty), childCost);
         childGroup.setBestExpression(enforcer, childCost, newOutputProperty);
 
-        if (ConnectContext.get().getSessionVariable().isSetUseNthExecPlan()) {
+        if (ConnectContext.get().getSessionVariable().isSetUseNthExecPlan() ||
+                ConnectContext.get().getSessionVariable().isEnableMaterializedViewForceRewrite()) {
             enforcer.addValidOutputPropertyGroup(newOutputProperty, Lists.newArrayList(oldOutputProperty));
             enforcer.getGroup().addSatisfyOutputPropertyGroupExpression(newOutputProperty, enforcer);
         }

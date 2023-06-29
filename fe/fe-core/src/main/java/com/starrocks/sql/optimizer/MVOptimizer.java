@@ -211,7 +211,6 @@ public class MVOptimizer {
         return  expression;
     }
 
-
     private boolean findMVPath(Group group,
                                PhysicalPropertySet outputProperty,
                                PathContext context,

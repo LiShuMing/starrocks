@@ -69,6 +69,7 @@ import com.starrocks.sql.optimizer.operator.logical.LogicalOlapScanOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalProjectOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalScanOperator;
+import com.starrocks.sql.optimizer.operator.physical.PhysicalScanOperator;
 import com.starrocks.sql.optimizer.operator.scalar.BinaryPredicateOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.CompoundPredicateOperator;
@@ -885,5 +886,27 @@ public class MvUtils {
             return "";
         }
         return o.toString();
+    }
+
+    public static boolean containMaterializedView(Operator op) {
+        if (op instanceof PhysicalScanOperator) {
+            PhysicalScanOperator scanOperator = (PhysicalScanOperator) op;
+            if (scanOperator.getTable().isMaterializedView()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static boolean containMaterializedView(OptExpression optExpression) {
+        if (containMaterializedView(optExpression.getOp())) {
+            return true;
+        }
+        for (OptExpression child : optExpression.getInputs()) {
+            if (containMaterializedView(child.getOp())) {
+                return true;
+            }
+        }
+        return false;
     }
 }

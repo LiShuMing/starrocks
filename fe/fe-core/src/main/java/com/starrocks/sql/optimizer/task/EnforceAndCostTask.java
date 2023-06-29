@@ -107,6 +107,16 @@ public class EnforceAndCostTask extends OptimizerTask implements Cloneable {
                 "\n curTotalCost " + curTotalCost;
     }
 
+    private boolean isCurCostGreaterThanUpperBound() {
+        if (ConnectContext.get().getSessionVariable().isEnableMaterializedViewForceRewrite()) {
+            return false;
+        }
+        if (curTotalCost > context.getUpperBoundCost()) {
+            return true;
+        }
+        return false;
+    }
+
     // 1. Get required properties according to node for children nodes.
     // 2. Get best child group expression, it will optimize the children group from the top down
     // 3. Get node output property with children output properties, it will add enforcer for children if children output
@@ -173,7 +183,7 @@ public class EnforceAndCostTask extends OptimizerTask implements Cloneable {
                 }
 
                 curTotalCost += childBestExpr.getCost(childRequiredProperty);
-                if (curTotalCost > context.getUpperBoundCost()) {
+                if (isCurCostGreaterThanUpperBound()) {
                     break;
                 }
             }
@@ -190,7 +200,7 @@ public class EnforceAndCostTask extends OptimizerTask implements Cloneable {
                         curTotalCost);
                 curTotalCost = childOutputPropertyGuarantor.enforceLegalChildOutputProperty();
 
-                if (curTotalCost > context.getUpperBoundCost()) {
+                if (isCurCostGreaterThanUpperBound()) {
                     break;
                 }
 
@@ -407,11 +417,24 @@ public class EnforceAndCostTask extends OptimizerTask implements Cloneable {
         return true;
     }
 
+    private boolean isUpdateSatisfyRequiredProperty(GroupExpression groupExpression,
+                                                    PhysicalPropertySet requiredProperty,
+                                                    List<PhysicalPropertySet> childrenOutputProperties,
+                                                    double curTotalCost) {
+        if (groupExpression.updatePropertyWithCost(requiredProperty, childrenOutputProperties, curTotalCost)) {
+            return true;
+        }
+        if (ConnectContext.get().getSessionVariable().isEnableMaterializedViewForceRewrite()) {
+            return true;
+        }
+        return false;
+    }
+
     private void setPropertyWithCost(GroupExpression groupExpression,
                                      PhysicalPropertySet outputProperty,
                                      PhysicalPropertySet requiredProperty,
                                      List<PhysicalPropertySet> childrenOutputProperties) {
-        if (groupExpression.updatePropertyWithCost(requiredProperty, childrenOutputProperties, curTotalCost)) {
+        if (isUpdateSatisfyRequiredProperty(groupExpression, requiredProperty, childrenOutputProperties, curTotalCost)) {
             // Each group expression need to record the outputProperty satisfy what requiredProperty,
             // because group expression can generate multi outputProperty. eg. Join may have shuffle local
             // and shuffle join two types outputProperty.
@@ -520,7 +543,7 @@ public class EnforceAndCostTask extends OptimizerTask implements Cloneable {
         context.getOptimizerContext().getMemo().
                 insertEnforceExpression(enforcer, groupExpression.getGroup());
 
-        if (enforcer.updatePropertyWithCost(newOutputProperty, Lists.newArrayList(oldOutputProperty), curTotalCost)) {
+        if (isUpdateSatisfyRequiredProperty(enforcer, newOutputProperty, Lists.newArrayList(oldOutputProperty), curTotalCost)) {
             enforcer.setOutputPropertySatisfyRequiredProperty(newOutputProperty, newOutputProperty);
         }
         groupExpression.getGroup().setBestExpression(enforcer, curTotalCost, newOutputProperty);
@@ -538,7 +561,7 @@ public class EnforceAndCostTask extends OptimizerTask implements Cloneable {
         // the other value remains unchanged, which will affect subsequent processing.
         PhysicalPropertySet newOutputProperty = groupExpression.getGroup().updateOutputPropertySet(enforcer, curTotalCost,
                 requiredPropertySet);
-        if (enforcer.updatePropertyWithCost(newOutputProperty, Lists.newArrayList(oldOutputProperty), curTotalCost)) {
+        if (isUpdateSatisfyRequiredProperty(enforcer, newOutputProperty, Lists.newArrayList(oldOutputProperty), curTotalCost)) {
             enforcer.setOutputPropertySatisfyRequiredProperty(newOutputProperty, newOutputProperty);
         }
         return newOutputProperty;

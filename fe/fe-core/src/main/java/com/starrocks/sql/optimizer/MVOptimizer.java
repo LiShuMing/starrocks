@@ -82,7 +82,6 @@ public class MVOptimizer {
     public OptExpression extractBestPlanWithMV(PhysicalPropertySet requiredProperty,
                                                Group rootGroup,
                                                String mvRewriteMode) {
-
         OptExpression result = extractBestPlan(requiredProperty, rootGroup);
         // If the lowest cost plan contains mv, return it directly.
         if (containMaterializedView(result)) {

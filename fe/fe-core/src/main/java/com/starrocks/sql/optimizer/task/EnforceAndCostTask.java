@@ -422,7 +422,8 @@ public class EnforceAndCostTask extends OptimizerTask implements Cloneable {
 
     private void recordPlanEnumInfo(GroupExpression groupExpression, PhysicalPropertySet outputProperty,
                                     List<PhysicalPropertySet> childrenOutputProperties) {
-        if (ConnectContext.get().getSessionVariable().isSetUseNthExecPlan()) {
+        if (ConnectContext.get().getSessionVariable().isSetUseNthExecPlan() ||
+                ConnectContext.get().getSessionVariable().isEnableMaterializedViewForceRewrite()) {
             // record the output/input properties when child group could satisfy this group expression required property
             groupExpression.addValidOutputPropertyGroup(outputProperty, childrenOutputProperties);
             groupExpression.getGroup().addSatisfyOutputPropertyGroupExpression(outputProperty, groupExpression);

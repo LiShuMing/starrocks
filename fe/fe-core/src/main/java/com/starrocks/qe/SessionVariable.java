@@ -356,6 +356,7 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
     public static final String ENABLE_MATERIALIZED_VIEW_REWRITE = "enable_materialized_view_rewrite";
     public static final String ENABLE_MATERIALIZED_VIEW_UNION_REWRITE = "enable_materialized_view_union_rewrite";
 
+    public static final String REWRITE_MODE_DISABLE = "disable";
     public static final String REWRITE_MODE_FORCE = "force";
     public static final String REWRITE_MODE_FORCE_OR_ERROR = "force_or_error";
     public static final String MATERIALIZED_VIEW_REWRITE_MODE = "materialized_view_rewrite_mode";
@@ -1773,6 +1774,11 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
         this.materializedViewRewriteMode = materializedViewRewriteMode;
     }
 
+    public boolean isEnableMaterializedViewDisableRewrite() {
+        return materializedViewRewriteMode != null &&
+                materializedViewRewriteMode.equalsIgnoreCase(REWRITE_MODE_DISABLE);
+    }
+
     public boolean isEnableMaterializedViewForceRewrite() {
         return materializedViewRewriteMode != null &&
                 (materializedViewRewriteMode.equalsIgnoreCase(REWRITE_MODE_FORCE)  ||
@@ -1780,7 +1786,7 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
     }
 
     public boolean isSetUseNthExecPlan() {
-        return useNthExecPlan > 0 || isEnableMaterializedViewForceRewrite();
+        return useNthExecPlan > 0;
     }
 
     public int getUseNthExecPlan() {

@@ -94,7 +94,6 @@ public class MVOptimizer {
 
         boolean hasMVPlan = false;
 
-
         // NOTE: now we use a simple policy to choose the path
         PathContext pathContext = null;
         List<PathContext> mvPaths = Lists.newArrayList();
@@ -256,39 +255,6 @@ public class MVOptimizer {
         }
         return false;
     }
-
-//    private boolean containMaterializedView(Group group,
-//                                            PhysicalPropertySet outputProperty,
-//                                            Set<Integer> groupIds) {
-//        for (GroupExpression groupExpression : group.getSatisfyOutputPropertyGroupExpressions(outputProperty)) {
-//            if (groupExpression.getInputs().isEmpty()) {
-//                if (containMaterializedView(groupExpression.getOp())) {
-//                    groupIds.add(group.getId());
-//                    return true;
-//                }
-//            } else if (groupExpression.hasValidSubPlan()) {
-//                if (containMaterializedView(groupExpression, outputProperty, groupIds)) {
-//                    return true;
-//                }
-//            }
-//        }
-//        return false;
-//    }
-//
-//    private boolean containMaterializedView(GroupExpression groupExpression,
-//                                            PhysicalPropertySet outputProperty,
-//                                            Set<Integer> groupIds) {
-//        for (OutputPropertyGroup outputPropertyGroup : groupExpression.getChildrenOutputProperties(outputProperty)) {
-//            List<PhysicalPropertySet> childrenOutputProperties = outputPropertyGroup.getChildrenOutputProperties();
-//            for (int childIndex = 0; childIndex < groupExpression.arity(); ++childIndex) {
-//                if (containMaterializedView(groupExpression.inputAt(childIndex),
-//                        childrenOutputProperties.get(childIndex), groupIds)) {
-//                    return true;
-//                }
-//            }
-//        }
-//        return false;
-//    }
 
     private boolean containMaterializedView(Operator op) {
          if (op instanceof PhysicalScanOperator) {

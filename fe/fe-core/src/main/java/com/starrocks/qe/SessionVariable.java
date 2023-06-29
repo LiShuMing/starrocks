@@ -355,6 +355,7 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
     public static final String NESTED_MV_REWRITE_MAX_LEVEL = "nested_mv_rewrite_max_level";
     public static final String ENABLE_MATERIALIZED_VIEW_REWRITE = "enable_materialized_view_rewrite";
     public static final String ENABLE_MATERIALIZED_VIEW_UNION_REWRITE = "enable_materialized_view_union_rewrite";
+    public static final String ENABLE_MATERIALIZED_VIEW_FORCE_REWRITE = "enable_materialized_view_force_rewrite";
 
     public static final String ENABLE_SYNC_MATERIALIZED_VIEW_REWRITE = "enable_sync_materialized_view_rewrite";
     public static final String ENABLE_RULE_BASED_MATERIALIZED_VIEW_REWRITE =
@@ -1049,6 +1050,9 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
 
     @VarAttr(name = ENABLE_MATERIALIZED_VIEW_VIEW_DELTA_REWRITE)
     private boolean enableMaterializedViewViewDeltaRewrite = true;
+
+    @VarAttr(name = ENABLE_MATERIALIZED_VIEW_FORCE_REWRITE)
+    private boolean enableMaterializedViewForceRewrite = false;
 
     //  Whether to enable view delta compensation for single table,
     //  - try to rewrite single table query into candidate view-delta mvs if enabled which will choose
@@ -1758,7 +1762,7 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
     }
 
     public boolean isSetUseNthExecPlan() {
-        return useNthExecPlan > 0;
+        return useNthExecPlan > 0 || enableMaterializedViewForceRewrite;
     }
 
     public int getUseNthExecPlan() {
@@ -2030,6 +2034,14 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
 
     public void setEnableMaterializedViewViewDeltaRewrite(boolean enableMaterializedViewViewDeltaRewrite) {
         this.enableMaterializedViewViewDeltaRewrite = enableMaterializedViewViewDeltaRewrite;
+    }
+
+    public boolean isEnableMaterializedViewForceRewrite() {
+        return enableMaterializedViewForceRewrite;
+    }
+
+    public void setEnableMaterializedViewForceRewrite(boolean enableMaterializedViewForceRewrite) {
+        this.enableMaterializedViewForceRewrite = enableMaterializedViewForceRewrite;
     }
 
     public boolean isEnableMaterializedViewSingleTableViewDeltaRewrite() {

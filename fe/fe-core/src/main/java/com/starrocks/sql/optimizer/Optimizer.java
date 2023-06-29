@@ -175,11 +175,14 @@ public class Optimizer {
 
         OptExpression result;
         if (connectContext.getSessionVariable().isSetUseNthExecPlan()) {
-            // extract the nth execution plan
-            int nthExecPlan = connectContext.getSessionVariable().getUseNthExecPlan();
-            result = EnumeratePlan.extractNthPlan(requiredProperty, memo.getRootGroup(), nthExecPlan);
-        } else if (connectContext.getSessionVariable().isEnableMaterializedViewForceRewrite()) {
-            result = new MVOptimizer().extractBestPlanWithMV(requiredProperty, memo.getRootGroup());
+            if (connectContext.getSessionVariable().isEnableMaterializedViewForceRewrite()) {
+                String mvRewriteMode = connectContext.getSessionVariable().getMaterializedViewRewriteMode();
+                result = new MVOptimizer().extractBestPlanWithMV(requiredProperty, memo.getRootGroup(), mvRewriteMode);
+            } else {
+                // extract the nth execution plan
+                int nthExecPlan = connectContext.getSessionVariable().getUseNthExecPlan();
+                result = EnumeratePlan.extractNthPlan(requiredProperty, memo.getRootGroup(), nthExecPlan);
+            }
         } else {
             result = extractBestPlan(requiredProperty, memo.getRootGroup());
         }

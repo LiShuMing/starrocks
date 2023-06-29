@@ -16,29 +16,61 @@ package com.starrocks.sql.optimizer;
 
 import com.google.api.client.util.Sets;
 import com.google.common.collect.Lists;
+import com.starrocks.qe.SessionVariable;
 import com.starrocks.sql.optimizer.base.OutputPropertyGroup;
 import com.starrocks.sql.optimizer.base.PhysicalPropertySet;
 import com.starrocks.sql.optimizer.operator.Operator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalScanOperator;
+import com.starrocks.sql.optimizer.operator.physical.PhysicalScanOperator;
 
 import java.util.List;
 import java.util.Set;
 
-/**
- * Optimizer's entrance class
- */
 public class MVOptimizer {
-
     public MVOptimizer() {
     }
 
     public OptExpression extractBestPlanWithMV(PhysicalPropertySet requiredProperty,
-                                               Group rootGroup) {
-        Set<Integer> groupIds = Sets.newHashSet();
-        if (!containMaterializedView(rootGroup, requiredProperty, groupIds)) {
-            return null;
+                                               Group rootGroup,
+                                               String mvRewriteMode) {
+
+        OptExpression result = extractBestPlan(requiredProperty, rootGroup);
+        if (containMaterializedView(result)) {
+            return result;
         }
-        return extractBestPlanWithMVImpl(requiredProperty, rootGroup, groupIds);
+
+        Set<Integer> groupIds = Sets.newHashSet();
+        List<PhysicalPropertySet> outputProperties =
+                rootGroup.getSatisfyRequiredPropertyGroupExpressions(requiredProperty);
+
+        boolean hasMVPlan = false;
+        for (PhysicalPropertySet outputProperty : outputProperties) {
+            if (containMaterializedView(rootGroup, outputProperty, groupIds)) {
+                hasMVPlan = true;
+                break;
+            }
+        }
+        if (!hasMVPlan) {
+            if (mvRewriteMode.equalsIgnoreCase(SessionVariable.REWRITE_MODE_FORCE_OR_ERROR)) {
+                throw new IllegalArgumentException("no executable plan with materialized view for this sql in `force_or_error` " +
+                        "mode.");
+            } else {
+                return result;
+            }
+        }
+        OptExpression forceResult = null;
+        for (PhysicalPropertySet outputProperty : outputProperties) {
+            forceResult = extractBestPlanWithMVImpl(outputProperty, rootGroup, groupIds);
+            if (forceResult != null && containMaterializedView(forceResult)) {
+                break;
+            }
+        }
+        if (forceResult == null || !containMaterializedView(forceResult)) {
+            throw new IllegalArgumentException(String.format("no executable plan with materialized view for this sql in `%s` " +
+                            "mode.",
+                    mvRewriteMode));
+        }
+        return forceResult;
     }
 
     private OptExpression extractBestPlan(PhysicalPropertySet requiredProperty,
@@ -71,7 +103,7 @@ public class MVOptimizer {
     private OptExpression extractBestPlanWithMVImpl(PhysicalPropertySet requiredProperty,
                                                     Group group,
                                                     Set<Integer> groupIds) {
-        if (groupIds.contains(group.getId())) {
+        if (!groupIds.contains(group.getId())) {
             return extractBestPlan(requiredProperty, group);
         }
         Set<GroupExpression> groupExpressions = group.getSatisfyOutputPropertyGroupExpressions(requiredProperty);
@@ -98,7 +130,7 @@ public class MVOptimizer {
             }
         }
         if (mvGroupExpression == null) {
-            String msg = "no executable plan for this sql. group: %s. required property: %s";
+            String msg = "no executable plan with materialized view for this sql. group: %s. required property: %s";
             throw new IllegalArgumentException(String.format(msg, group, requiredProperty));
         }
         List<PhysicalPropertySet> inputProperties = mvGroupExpression.getInputProperties(requiredProperty);
@@ -155,6 +187,23 @@ public class MVOptimizer {
         if (op instanceof LogicalScanOperator) {
             LogicalScanOperator scanOperator = (LogicalScanOperator) op;
             if (scanOperator.getTable().isMaterializedView()) {
+                return true;
+            }
+        } else if (op instanceof PhysicalScanOperator) {
+            PhysicalScanOperator scanOperator = (PhysicalScanOperator) op;
+            if (scanOperator.getTable().isMaterializedView()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean containMaterializedView(OptExpression optExpression) {
+        if (containMaterializedView(optExpression.getOp())) {
+            return true;
+        }
+        for (OptExpression child : optExpression.getInputs()) {
+            if (containMaterializedView(child.getOp())) {
                 return true;
             }
         }

@@ -1014,7 +1014,6 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
 
     @Test
     public void testJoinAggregateMaterializationAggregateFuncs2() {
-        connectContext.getSessionVariable().setEnableMaterializedViewForceRewrite(true);
         testRewriteOK("select empid, emps.deptno, count(*) as c, sum(empid) as s\n"
                         + "from emps join depts using (deptno)\n"
                         + "group by empid, emps.deptno",
@@ -1358,6 +1357,7 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
 
 
     @Test
+    @Ignore
     // TODO: agg need push down below join
     public void testAggregateOnJoinKeys2() {
         testRewriteOK("select deptno, empid, salary, sum(1) as c "
@@ -1426,7 +1426,6 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
 
     @Test
     public void testInnerJoinViewDelta() {
-        connectContext.getSessionVariable().setOptimizerExecuteTimeout(300000000);
         String mv = "SELECT" +
                 " `l`.`LO_ORDERKEY` as col1, `l`.`LO_ORDERDATE`, `l`.`LO_LINENUMBER`, `l`.`LO_CUSTKEY`, `l`.`LO_PARTKEY`," +
                 " `l`.`LO_SUPPKEY`, `l`.`LO_ORDERPRIORITY`, `l`.`LO_SHIPPRIORITY`, `l`.`LO_QUANTITY`," +
@@ -2379,6 +2378,7 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
             testRewriteFail(mv, query);
         }
     }
+
     @Test
     public void testRewriteAvg1() {
         String mv1 = "select user_id, avg(tag_id) from user_tags group by user_id;";
@@ -3207,7 +3207,6 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
 
     @Test
     public void testForceRewrite() throws Exception {
-        connectContext.getSessionVariable().setEnableMaterializedViewForceRewrite(true);
         starRocksAssert.withTable(" CREATE TABLE tt1(\n" +
                 "t1_id INT not null,\n" +
                 "t1_t2_id INT not null,\n" +

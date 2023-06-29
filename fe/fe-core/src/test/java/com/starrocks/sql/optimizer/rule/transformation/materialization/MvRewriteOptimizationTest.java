@@ -2694,7 +2694,6 @@ public class MvRewriteOptimizationTest {
 
     @Test
     public void testForceRewrite() throws Exception {
-//        connectContext.getSessionVariable().setEnableMaterializedViewForceRewrite(true);
         starRocksAssert.withTable(" CREATE TABLE tt1(\n" +
                 "t1_id INT not null,\n" +
                 "t1_t2_id INT not null,\n" +

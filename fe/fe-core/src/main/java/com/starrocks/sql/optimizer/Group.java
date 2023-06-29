@@ -183,6 +183,9 @@ public class Group {
 
     public Set<GroupExpression> getSatisfyOutputPropertyGroupExpressions(PhysicalPropertySet outputProperty) {
         Set<GroupExpression> groupExpressions = Sets.newLinkedHashSet();
+        if (!satisfyOutputPropertyGroupExpressions.containsKey(outputProperty)) {
+            System.out.println(outputProperty);
+        }
         Preconditions.checkState(satisfyOutputPropertyGroupExpressions.containsKey(outputProperty));
         groupExpressions.addAll(satisfyOutputPropertyGroupExpressions.get(outputProperty));
         return groupExpressions;

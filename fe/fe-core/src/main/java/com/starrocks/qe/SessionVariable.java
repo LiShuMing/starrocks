@@ -355,7 +355,10 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
     public static final String NESTED_MV_REWRITE_MAX_LEVEL = "nested_mv_rewrite_max_level";
     public static final String ENABLE_MATERIALIZED_VIEW_REWRITE = "enable_materialized_view_rewrite";
     public static final String ENABLE_MATERIALIZED_VIEW_UNION_REWRITE = "enable_materialized_view_union_rewrite";
-    public static final String ENABLE_MATERIALIZED_VIEW_FORCE_REWRITE = "enable_materialized_view_force_rewrite";
+
+    public static final String REWRITE_MODE_FORCE = "force";
+    public static final String REWRITE_MODE_FORCE_OR_ERROR = "force_or_error";
+    public static final String MATERIALIZED_VIEW_REWRITE_MODE = "materialized_view_rewrite_mode";
 
     public static final String ENABLE_SYNC_MATERIALIZED_VIEW_REWRITE = "enable_sync_materialized_view_rewrite";
     public static final String ENABLE_RULE_BASED_MATERIALIZED_VIEW_REWRITE =
@@ -1051,8 +1054,9 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
     @VarAttr(name = ENABLE_MATERIALIZED_VIEW_VIEW_DELTA_REWRITE)
     private boolean enableMaterializedViewViewDeltaRewrite = true;
 
-    @VarAttr(name = ENABLE_MATERIALIZED_VIEW_FORCE_REWRITE)
-    private boolean enableMaterializedViewForceRewrite = false;
+    // Support: disable/default/force/force_or_throw
+    @VarAttr(name = MATERIALIZED_VIEW_REWRITE_MODE)
+    private String materializedViewRewriteMode = "default";
 
     //  Whether to enable view delta compensation for single table,
     //  - try to rewrite single table query into candidate view-delta mvs if enabled which will choose
@@ -1761,8 +1765,22 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
         return false;
     }
 
+    public String getMaterializedViewRewriteMode() {
+        return materializedViewRewriteMode;
+    }
+
+    public void setMaterializedViewRewriteMode(String materializedViewRewriteMode) {
+        this.materializedViewRewriteMode = materializedViewRewriteMode;
+    }
+
+    public boolean isEnableMaterializedViewForceRewrite() {
+        return materializedViewRewriteMode != null &&
+                (materializedViewRewriteMode.equalsIgnoreCase(REWRITE_MODE_FORCE)  ||
+                        materializedViewRewriteMode.equalsIgnoreCase(REWRITE_MODE_FORCE_OR_ERROR));
+    }
+
     public boolean isSetUseNthExecPlan() {
-        return useNthExecPlan > 0 || enableMaterializedViewForceRewrite;
+        return useNthExecPlan > 0 || isEnableMaterializedViewForceRewrite();
     }
 
     public int getUseNthExecPlan() {
@@ -1771,10 +1789,6 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
 
     public void setUseNthExecPlan(int nthExecPlan) {
         this.useNthExecPlan = nthExecPlan;
-    }
-
-    public void setEnableReplicationJoin(boolean enableReplicationJoin) {
-
     }
 
     public boolean isUseCorrelatedJoinEstimate() {
@@ -2012,6 +2026,9 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
         this.enableSyncMaterializedViewRewrite = enableSyncMaterializedViewRewrite;
     }
 
+    public void setEnableReplicationJoin(boolean enableReplicationJoin) {
+    }
+
     // 1 means the mvs directly based on base table
     public void setNestedMvRewriteMaxLevel(int nestedMvRewriteMaxLevel) {
         if (nestedMvRewriteMaxLevel <= 0) {
@@ -2034,14 +2051,6 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
 
     public void setEnableMaterializedViewViewDeltaRewrite(boolean enableMaterializedViewViewDeltaRewrite) {
         this.enableMaterializedViewViewDeltaRewrite = enableMaterializedViewViewDeltaRewrite;
-    }
-
-    public boolean isEnableMaterializedViewForceRewrite() {
-        return enableMaterializedViewForceRewrite;
-    }
-
-    public void setEnableMaterializedViewForceRewrite(boolean enableMaterializedViewForceRewrite) {
-        this.enableMaterializedViewForceRewrite = enableMaterializedViewForceRewrite;
     }
 
     public boolean isEnableMaterializedViewSingleTableViewDeltaRewrite() {

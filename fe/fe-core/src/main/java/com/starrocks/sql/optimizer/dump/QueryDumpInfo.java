@@ -32,12 +32,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 public class QueryDumpInfo implements DumpInfo {
     private String originStmt = "";
     private final Set<Resource> resourceSet = new HashSet<>();
     // tableId-><dbName, table>
-    private final Map<Long, Pair<String, Table>> tableMap = new HashMap<>();
+    private final Map<Long, Pair<String, Table>> tableMap = new TreeMap<>();
     // resourceName->dbName->tableName->externalTable
     private final Map<String, Map<String, Map<String, HiveMetaStoreTableDumpInfo>>> hmsTableMap = new HashMap<>();
     // viewId-><dbName, view>

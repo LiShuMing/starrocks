@@ -876,7 +876,7 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
         List<String> colDef = Lists.newArrayList();
         for (Column column : getBaseSchema()) {
             StringBuilder colSb = new StringBuilder();
-            colSb.append(column.getName());
+            colSb.append(column.toSql());
             if (!Strings.isNullOrEmpty(column.getComment())) {
                 colSb.append(" COMMENT ").append("\"").append(column.getDisplayComment()).append("\"");
             }

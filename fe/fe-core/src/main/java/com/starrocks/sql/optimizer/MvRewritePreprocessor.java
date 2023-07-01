@@ -264,9 +264,18 @@ public class MvRewritePreprocessor {
         // Add mv info into dump info
         if (connectContext.isQueryDump()) {
             String dbName = connectContext.getGlobalStateMgr().getDb(mv.getDbId()).getFullName();
+
+            connectContext.getSessionVariable().setEnableMaterializedViewRewrite(false);
             // build mv query logical plan
             MaterializedViewOptimizer mvOptimizer = new MaterializedViewOptimizer();
             OptimizerConfig optimizerConfig = new OptimizerConfig(OptimizerConfig.OptimizerAlgorithm.COST_BASED);
+            optimizerConfig.disableRuleSet(RuleSetType.PARTITION_PRUNE);
+            optimizerConfig.disableRuleSet(RuleSetType.SINGLE_TABLE_MV_REWRITE);
+            optimizerConfig.disableRule(RuleType.TF_REWRITE_GROUP_BY_COUNT_DISTINCT);
+            // For sync mv, no rewrite query by original sync mv rule to avoid useless rewrite.
+            if (mv.getRefreshScheme().isSync()) {
+                optimizerConfig.disableRule(RuleType.TF_MATERIALIZED_VIEW);
+            }
             mvOptimizer.optimize(mv, connectContext, optimizerConfig);
             connectContext.getDumpInfo().addTable(dbName, mv);
         }

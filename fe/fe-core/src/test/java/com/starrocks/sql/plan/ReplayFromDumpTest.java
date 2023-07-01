@@ -895,6 +895,7 @@ public class ReplayFromDumpTest {
     public void testMV_JoinAgg3() throws Exception {
         FeConstants.isReplayFromQueryDump = true;
         connectContext.getSessionVariable().setMaterializedViewRewriteMode("force");
+        connectContext.getSessionVariable().setEnableOptimizerTraceLog(true);
         Pair<QueryDumpInfo, String> replayPair =
                 getPlanFragment(getDumpInfoFromFile("query_dump/materialized-view/join_agg3"),
                         connectContext.getSessionVariable(), TExplainLevel.NORMAL);

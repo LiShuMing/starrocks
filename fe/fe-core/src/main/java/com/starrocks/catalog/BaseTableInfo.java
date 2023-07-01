@@ -18,6 +18,7 @@ package com.starrocks.catalog;
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
 import com.google.gson.annotations.SerializedName;
+import com.starrocks.common.FeConstants;
 import com.starrocks.server.GlobalStateMgr;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

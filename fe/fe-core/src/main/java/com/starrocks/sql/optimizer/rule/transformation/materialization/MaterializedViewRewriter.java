@@ -38,6 +38,7 @@ import com.starrocks.catalog.OlapTable;
 import com.starrocks.catalog.PartitionInfo;
 import com.starrocks.catalog.Table;
 import com.starrocks.catalog.UniqueConstraint;
+import com.starrocks.common.FeConstants;
 import com.starrocks.common.Pair;
 import com.starrocks.sql.common.PermutationGenerator;
 import com.starrocks.sql.optimizer.ExpressionContext;
@@ -675,10 +676,16 @@ public class MaterializedViewRewriter {
             List<ForeignKeyConstraint> mvForeignKeyConstraints = Lists.newArrayList();
             if (materializedView.getForeignKeyConstraints() != null) {
                 // add ForeignKeyConstraint from mv
-                materializedView.getForeignKeyConstraints().stream().filter(foreignKeyConstraint ->
-                        foreignKeyConstraint.getChildTableInfo() != null &&
-                                foreignKeyConstraint.getChildTableInfo().getTable().equals(mvChildTable)).
-                        forEach(mvForeignKeyConstraints::add);
+                materializedView.getForeignKeyConstraints().stream().filter(foreignKeyConstraint -> {
+                    if (foreignKeyConstraint.getChildTableInfo() == null) {
+                        return false;
+                    }
+                    Table table = foreignKeyConstraint.getChildTableInfo().getTable();
+                    if (table == null) {
+                        return false;
+                    }
+                    return table.equals(mvChildTable);
+                }).forEach(mvForeignKeyConstraints::add);
             }
 
             if (foreignKeyConstraints == null) {

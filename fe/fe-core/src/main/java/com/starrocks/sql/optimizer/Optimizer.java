@@ -189,14 +189,20 @@ public class Optimizer {
         }
 
         OptExpression result;
-        if (!connectContext.getSessionVariable().isSetUseNthExecPlan()) {
-            result = extractBestPlan(requiredProperty, memo.getRootGroup());
-        } else {
+        if (connectContext.getSessionVariable().isSetUseNthExecPlan()) {
             // extract the nth execution plan
             int nthExecPlan = connectContext.getSessionVariable().getUseNthExecPlan();
             result = EnumeratePlan.extractNthPlan(requiredProperty, memo.getRootGroup(), nthExecPlan);
+        } else {
+            result = extractBestPlan(requiredProperty, memo.getRootGroup());
         }
         OptimizerTraceUtil.logOptExpression(connectContext, "after extract best plan:\n%s", result);
+
+        if (connectContext.getSessionVariable().isEnableMaterializedViewForceRewriteOrError() &&
+                !MvUtils.containMaterializedView(result))  {
+            throw new IllegalArgumentException("no executable plan with materialized view for this sql in " +
+                    SessionVariable.REWRITE_MODE_FORCE_OR_ERROR + " mode.");
+        }
 
         // set costs audio log before physicalRuleRewrite
         // statistics won't set correctly after physicalRuleRewrite.
@@ -417,6 +423,9 @@ public class Optimizer {
     private boolean isEnableSingleTableMVRewrite(TaskContext rootTaskContext,
                                                  SessionVariable sessionVariable,
                                                  OptExpression queryPlan) {
+        if (sessionVariable.isEnableMaterializedViewDisableRewrite()) {
+            return false;
+        }
         // if disable single mv rewrite, return false.
         if (optimizerConfig.isRuleSetTypeDisable(RuleSetType.SINGLE_TABLE_MV_REWRITE)) {
             return false;
@@ -556,6 +565,10 @@ public class Optimizer {
     }
 
     private boolean isEnableMultiTableRewrite(ConnectContext connectContext, OptExpression queryPlan) {
+        if (connectContext.getSessionVariable().isEnableMaterializedViewDisableRewrite()) {
+            return false;
+        }
+
         if (context.getCandidateMvs().isEmpty()) {
             return false;
         }

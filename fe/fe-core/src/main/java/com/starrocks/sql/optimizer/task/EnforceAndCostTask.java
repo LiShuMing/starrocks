@@ -20,6 +20,7 @@ import com.starrocks.analysis.JoinOperator;
 import com.starrocks.qe.ConnectContext;
 import com.starrocks.qe.SessionVariable;
 import com.starrocks.sql.optimizer.ChildOutputPropertyGuarantor;
+import com.starrocks.sql.optimizer.GECost;
 import com.starrocks.sql.optimizer.Group;
 import com.starrocks.sql.optimizer.GroupExpression;
 import com.starrocks.sql.optimizer.JoinHelper;
@@ -107,6 +108,17 @@ public class EnforceAndCostTask extends OptimizerTask implements Cloneable {
                 "\n curTotalCost " + curTotalCost;
     }
 
+    private boolean isCurCostGreaterThanUpperBound(GroupExpression groupExpression) {
+        if (ConnectContext.get().getSessionVariable().isEnableMaterializedViewForceRewrite() &&
+                groupExpression.hasRewrittenByMV()) {
+            return false;
+        }
+        if (curTotalCost > context.getUpperBoundCost()) {
+            return true;
+        }
+        return false;
+    }
+
     // 1. Get required properties according to node for children nodes.
     // 2. Get best child group expression, it will optimize the children group from the top down
     // 3. Get node output property with children output properties, it will add enforcer for children if children output
@@ -173,7 +185,7 @@ public class EnforceAndCostTask extends OptimizerTask implements Cloneable {
                 }
 
                 curTotalCost += childBestExpr.getCost(childRequiredProperty);
-                if (curTotalCost > context.getUpperBoundCost()) {
+                if (isCurCostGreaterThanUpperBound(groupExpression)) {
                     break;
                 }
             }
@@ -190,7 +202,7 @@ public class EnforceAndCostTask extends OptimizerTask implements Cloneable {
                         curTotalCost);
                 curTotalCost = childOutputPropertyGuarantor.enforceLegalChildOutputProperty();
 
-                if (curTotalCost > context.getUpperBoundCost()) {
+                if (isCurCostGreaterThanUpperBound(groupExpression)) {
                     break;
                 }
 
@@ -407,17 +419,27 @@ public class EnforceAndCostTask extends OptimizerTask implements Cloneable {
         return true;
     }
 
+    private boolean isUpdateSatisfyRequiredProperty(GroupExpression groupExpression,
+                                                    PhysicalPropertySet requiredProperty,
+                                                    List<PhysicalPropertySet> childrenOutputProperties,
+                                                    double curTotalCost) {
+        if (groupExpression.updatePropertyWithCost(requiredProperty, childrenOutputProperties, curTotalCost)) {
+            return true;
+        }
+        return false;
+    }
+
     private void setPropertyWithCost(GroupExpression groupExpression,
                                      PhysicalPropertySet outputProperty,
                                      PhysicalPropertySet requiredProperty,
                                      List<PhysicalPropertySet> childrenOutputProperties) {
-        if (groupExpression.updatePropertyWithCost(requiredProperty, childrenOutputProperties, curTotalCost)) {
+        if (isUpdateSatisfyRequiredProperty(groupExpression, requiredProperty, childrenOutputProperties, curTotalCost)) {
             // Each group expression need to record the outputProperty satisfy what requiredProperty,
             // because group expression can generate multi outputProperty. eg. Join may have shuffle local
             // and shuffle join two types outputProperty.
             groupExpression.setOutputPropertySatisfyRequiredProperty(outputProperty, requiredProperty);
         }
-        this.groupExpression.getGroup().setBestExpression(groupExpression, curTotalCost, requiredProperty);
+        this.groupExpression.getGroup().setBestExpression(new GECost(groupExpression, curTotalCost), requiredProperty);
     }
 
     private void recordPlanEnumInfo(GroupExpression groupExpression, PhysicalPropertySet outputProperty,
@@ -478,7 +500,7 @@ public class EnforceAndCostTask extends OptimizerTask implements Cloneable {
         requiredPropertySet.setDistributionProperty(context.getRequiredProperty()
                 .getDistributionProperty().getNullStrictProperty());
         GroupExpression enforcer = requiredPropertySet.getDistributionProperty()
-                .appendEnforcers(groupExpression.getGroup());
+                .appendEnforcers(groupExpression);
 
         PhysicalPropertySet newOutputProperty = updateCostAndOutputPropertySet(enforcer, oldOutputProperty, requiredPropertySet);
         recordPlanEnumInfo(enforcer, newOutputProperty, Lists.newArrayList(oldOutputProperty));
@@ -490,7 +512,7 @@ public class EnforceAndCostTask extends OptimizerTask implements Cloneable {
         PhysicalPropertySet newOutputProperty = oldOutputProperty.copy();
         newOutputProperty.setSortProperty(context.getRequiredProperty().getSortProperty());
         GroupExpression enforcer =
-                context.getRequiredProperty().getSortProperty().appendEnforcers(groupExpression.getGroup());
+                context.getRequiredProperty().getSortProperty().appendEnforcers(groupExpression);
 
         updateCostWithEnforcer(enforcer, oldOutputProperty, newOutputProperty);
         recordPlanEnumInfo(enforcer, newOutputProperty, Lists.newArrayList(oldOutputProperty));
@@ -519,10 +541,10 @@ public class EnforceAndCostTask extends OptimizerTask implements Cloneable {
         context.getOptimizerContext().getMemo().
                 insertEnforceExpression(enforcer, groupExpression.getGroup());
 
-        if (enforcer.updatePropertyWithCost(newOutputProperty, Lists.newArrayList(oldOutputProperty), curTotalCost)) {
+        if (isUpdateSatisfyRequiredProperty(enforcer, newOutputProperty, Lists.newArrayList(oldOutputProperty), curTotalCost)) {
             enforcer.setOutputPropertySatisfyRequiredProperty(newOutputProperty, newOutputProperty);
         }
-        groupExpression.getGroup().setBestExpression(enforcer, curTotalCost, newOutputProperty);
+        groupExpression.getGroup().setBestExpression(new GECost(enforcer, curTotalCost), newOutputProperty);
     }
 
     // need to return the same out
@@ -535,9 +557,9 @@ public class EnforceAndCostTask extends OptimizerTask implements Cloneable {
         // output propertySet object, or the distributionDesc object in requirementProperty and
         // PhysicalDistributionOperator are two different objects. When clearing redundant shuffle columns,
         // the other value remains unchanged, which will affect subsequent processing.
-        PhysicalPropertySet newOutputProperty = groupExpression.getGroup().updateOutputPropertySet(enforcer, curTotalCost,
-                requiredPropertySet);
-        if (enforcer.updatePropertyWithCost(newOutputProperty, Lists.newArrayList(oldOutputProperty), curTotalCost)) {
+        PhysicalPropertySet newOutputProperty = groupExpression.getGroup().updateOutputPropertySet(
+                new GECost(enforcer, curTotalCost), requiredPropertySet);
+        if (isUpdateSatisfyRequiredProperty(enforcer, newOutputProperty, Lists.newArrayList(oldOutputProperty), curTotalCost)) {
             enforcer.setOutputPropertySatisfyRequiredProperty(newOutputProperty, newOutputProperty);
         }
         return newOutputProperty;

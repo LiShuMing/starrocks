@@ -15,13 +15,12 @@
 
 package com.starrocks.sql.optimizer.base;
 
-import com.starrocks.sql.optimizer.Group;
 import com.starrocks.sql.optimizer.GroupExpression;
 
 // The required physical property
 public interface PhysicalProperty extends Property {
     boolean isSatisfy(PhysicalProperty other);
 
-    // append enforcers to the child
-    GroupExpression appendEnforcers(Group child);
+    // Append enforcers to original group expression
+    GroupExpression appendEnforcers(GroupExpression originGroupExpression);
 }

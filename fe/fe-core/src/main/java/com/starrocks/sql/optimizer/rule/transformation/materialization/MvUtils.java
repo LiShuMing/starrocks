@@ -69,6 +69,7 @@ import com.starrocks.sql.optimizer.operator.logical.LogicalOlapScanOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalProjectOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalScanOperator;
+import com.starrocks.sql.optimizer.operator.physical.PhysicalScanOperator;
 import com.starrocks.sql.optimizer.operator.scalar.BinaryPredicateOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.CompoundPredicateOperator;
@@ -891,5 +892,35 @@ public class MvUtils {
 
     public static boolean isSupportViewDelta(JoinOperator joinOperator) {
         return  joinOperator.isLeftOuterJoin() || joinOperator.isInnerJoin();
+    }
+
+    public static boolean containMaterializedView(Operator op) {
+        if (op == null) {
+            return false;
+        }
+
+        if (op instanceof PhysicalScanOperator) {
+            PhysicalScanOperator scanOperator = (PhysicalScanOperator) op;
+            if (scanOperator.getTable().isMaterializedView()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static boolean containMaterializedView(OptExpression optExpression) {
+        if (optExpression == null) {
+            return false;
+        }
+        if (containMaterializedView(optExpression.getOp())) {
+            return true;
+        }
+        for (OptExpression child : optExpression.getInputs()) {
+            if (containMaterializedView(child)) {
+                return true;
+            }
+        }
+        return false;
+>>>>>>> c54c143412 (Support mv_rewrite_mode to rewrite mv even if MV's cost is higher than original query)
     }
 }

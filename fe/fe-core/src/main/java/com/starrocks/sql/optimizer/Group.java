@@ -19,7 +19,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.starrocks.common.Pair;
 import com.starrocks.sql.optimizer.base.LogicalProperty;
 import com.starrocks.sql.optimizer.base.PhysicalPropertySet;
 import com.starrocks.sql.optimizer.statistics.Statistics;
@@ -57,7 +56,7 @@ public class Group {
     // mv id -> Statistics
     private final Map<Long, Statistics> mvStatistics;
 
-    private final Map<PhysicalPropertySet, Pair<Double, GroupExpression>> lowestCostExpressions;
+    private final Map<PhysicalPropertySet, GECost> lowestCostExpressions;
     // GroupExpressions in this Group which could satisfy the required property.
     private final Map<PhysicalPropertySet, Set<GroupExpression>> satisfyOutputPropertyGroupExpressions;
 
@@ -130,12 +129,11 @@ public class Group {
         return -1000;
     }
 
-    public PhysicalPropertySet updateOutputPropertySet(GroupExpression expression, double cost,
-                                                       PhysicalPropertySet requiredPropertySet) {
-        for (Map.Entry<PhysicalPropertySet, Pair<Double, GroupExpression>> entry : lowestCostExpressions.entrySet()) {
+    public PhysicalPropertySet updateOutputPropertySet(GECost geCost, PhysicalPropertySet requiredPropertySet) {
+        for (Map.Entry<PhysicalPropertySet, GECost> entry : lowestCostExpressions.entrySet()) {
             if (entry.getKey().equals(requiredPropertySet)) {
-                if (entry.getValue().first > cost) {
-                    lowestCostExpressions.put(requiredPropertySet, new Pair<>(cost, expression));
+                if (entry.getValue().compareTo(geCost) > 0) {
+                    lowestCostExpressions.put(requiredPropertySet, geCost);
                     return requiredPropertySet;
                 } else {
                     // already has an enforcer, we should use the origin one.
@@ -143,30 +141,30 @@ public class Group {
                 }
             }
         }
-        lowestCostExpressions.put(requiredPropertySet, new Pair<>(cost, expression));
+        lowestCostExpressions.put(requiredPropertySet, geCost);
         return requiredPropertySet;
     }
 
-    public void setBestExpression(GroupExpression expression, double cost, PhysicalPropertySet physicalPropertySet) {
+    public void setBestExpression(GECost geCost, PhysicalPropertySet physicalPropertySet) {
         if (lowestCostExpressions.containsKey(physicalPropertySet)) {
-            if (lowestCostExpressions.get(physicalPropertySet).first > cost) {
-                lowestCostExpressions.put(physicalPropertySet, new Pair<>(cost, expression));
+            if (lowestCostExpressions.get(physicalPropertySet).compareTo(geCost) > 0) {
+                lowestCostExpressions.put(physicalPropertySet, geCost);
             }
         } else {
-            lowestCostExpressions.put(physicalPropertySet, new Pair<>(cost, expression));
+            lowestCostExpressions.put(physicalPropertySet, geCost);
         }
     }
 
-    public void setBestExpressionWithStatistics(GroupExpression expression, double cost,
+    public void setBestExpressionWithStatistics(GECost geCost,
                                                 PhysicalPropertySet physicalPropertySet,
                                                 Statistics newStatistics) {
         if (lowestCostExpressions.containsKey(physicalPropertySet)) {
-            if (lowestCostExpressions.get(physicalPropertySet).first > cost) {
-                lowestCostExpressions.put(physicalPropertySet, new Pair<>(cost, expression));
+            if (lowestCostExpressions.get(physicalPropertySet).compareTo(geCost) > 0) {
+                lowestCostExpressions.put(physicalPropertySet, geCost);
                 statistics = newStatistics;
             }
         } else {
-            lowestCostExpressions.put(physicalPropertySet, new Pair<>(cost, expression));
+            lowestCostExpressions.put(physicalPropertySet, geCost);
             statistics = newStatistics;
         }
     }
@@ -204,69 +202,45 @@ public class Group {
 
     public void replaceBestExpressionProperty(PhysicalPropertySet oldProperty, PhysicalPropertySet newProperty,
                                               double cost) {
-        Pair<Double, GroupExpression> lowestExpression = lowestCostExpressions.get(oldProperty);
-        lowestExpression.second
-                .updatePropertyWithCost(newProperty, lowestExpression.second.getInputProperties(oldProperty), cost);
+        GECost lowestExpression = lowestCostExpressions.get(oldProperty);
+        GroupExpression groupExpression = lowestExpression.getGroupExpression();
+        groupExpression.updatePropertyWithCost(newProperty, groupExpression.getInputProperties(oldProperty), cost);
         lowestCostExpressions.remove(oldProperty);
 
         lowestCostExpressions.put(newProperty, lowestExpression);
     }
 
     public void replaceBestExpression(GroupExpression oldGroupExpression, GroupExpression newGroupExpression) {
-        Map<PhysicalPropertySet, Pair<Double, GroupExpression>> needReplaceBestExpressions = Maps.newHashMap();
-        for (Iterator<Map.Entry<PhysicalPropertySet, Pair<Double, GroupExpression>>> iterator =
+        Map<PhysicalPropertySet, GECost> needReplaceBestExpressions = Maps.newHashMap();
+        for (Iterator<Map.Entry<PhysicalPropertySet, GECost>> iterator =
                 lowestCostExpressions.entrySet().iterator(); iterator.hasNext(); ) {
-            Map.Entry<PhysicalPropertySet, Pair<Double, GroupExpression>> entry = iterator.next();
-            Pair<Double, GroupExpression> pair = entry.getValue();
-            if (pair.second.equals(oldGroupExpression)) {
-                needReplaceBestExpressions.put(entry.getKey(), new Pair<>(pair.first, newGroupExpression));
+            Map.Entry<PhysicalPropertySet, GECost> entry = iterator.next();
+            GECost geCost = entry.getValue();
+            if (geCost.getGroupExpression().equals(oldGroupExpression)) {
+                needReplaceBestExpressions.put(entry.getKey(), new GECost(newGroupExpression, geCost.getCost()));
                 iterator.remove();
             }
         }
         lowestCostExpressions.putAll(needReplaceBestExpressions);
     }
 
-    public void deleteBestExpression(GroupExpression groupExpression) {
-        for (Iterator<Map.Entry<PhysicalPropertySet, Pair<Double, GroupExpression>>> iterator =
-                lowestCostExpressions.entrySet().iterator(); iterator.hasNext(); ) {
-            Map.Entry<PhysicalPropertySet, Pair<Double, GroupExpression>> entry = iterator.next();
-            Pair<Double, GroupExpression> pair = entry.getValue();
-            GroupExpression bestExpression = pair.second;
-            if (bestExpression.equals(groupExpression)) {
-                iterator.remove();
-            }
-        }
-
-        // we need to delete the enforcer whose input property is satisfied by the deleted group expression.
-        for (Iterator<Map.Entry<PhysicalPropertySet, Pair<Double, GroupExpression>>> iterator =
-                lowestCostExpressions.entrySet().iterator(); iterator.hasNext(); ) {
-            Map.Entry<PhysicalPropertySet, Pair<Double, GroupExpression>> entry = iterator.next();
-            PhysicalPropertySet requiredProperty = entry.getKey();
-            Pair<Double, GroupExpression> pair = entry.getValue();
-            GroupExpression bestExpression = pair.second;
-            // enforcer's child group is same with itself.
-            if (bestExpression.arity() == 1 && bestExpression.inputAt(0) == bestExpression.getGroup()) {
-                // the enforcer need to be deleted when its input property can not be satisfied by the group
-                if (!lowestCostExpressions.keySet().containsAll(bestExpression.getInputProperties(requiredProperty))) {
-                    iterator.remove();
-                }
-            }
-        }
-    }
-
     public GroupExpression getBestExpression(PhysicalPropertySet physicalPropertySet) {
         if (hasBestExpression(physicalPropertySet)) {
-            return lowestCostExpressions.get(physicalPropertySet).second;
+            return lowestCostExpressions.get(physicalPropertySet).getGroupExpression();
         }
         return null;
     }
 
-    public Collection<Pair<Double, GroupExpression>> getAllBestExpressionWithCost() {
+    public Collection<GECost> getAllBestExpressionWithCost() {
         return lowestCostExpressions.values();
     }
 
     public boolean hasBestExpression(PhysicalPropertySet physicalPropertySet) {
         return lowestCostExpressions.containsKey(physicalPropertySet);
+    }
+
+    public boolean hasRewrittenByMV() {
+        return lowestCostExpressions.values().stream().anyMatch(x -> x.getGroupExpression().hasRewrittenByMV());
     }
 
     public LogicalProperty getLogicalProperty() {
@@ -284,13 +258,13 @@ public class Group {
         physicalExpressions.addAll(other.getPhysicalExpressions());
         other.logicalExpressions.clear();
         other.physicalExpressions.clear();
-        for (Map.Entry<PhysicalPropertySet, Pair<Double, GroupExpression>> entry : other.lowestCostExpressions
+        for (Map.Entry<PhysicalPropertySet, GECost> entry : other.lowestCostExpressions
                 .entrySet()) {
-            GroupExpression bestGroupExpression = entry.getValue().second;
+            GroupExpression bestGroupExpression = entry.getValue().getGroupExpression();
             // change the enforcer itself group and child group to dst group if enforcer's group is other.
             updateEnforcerGroup(bestGroupExpression, other);
-            setBestExpressionWithStatistics(bestGroupExpression, entry.getValue().first, entry.getKey(),
-                    other.statistics);
+            setBestExpressionWithStatistics(new GECost(bestGroupExpression, entry.getValue().getCost()),
+                    entry.getKey(), other.statistics);
         }
         // If statistics is null, use other statistics
         if (statistics == null) {

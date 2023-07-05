@@ -16,7 +16,6 @@
 package com.starrocks.sql.optimizer.base;
 
 import com.google.common.collect.Lists;
-import com.starrocks.sql.optimizer.Group;
 import com.starrocks.sql.optimizer.GroupExpression;
 import com.starrocks.sql.optimizer.operator.physical.PhysicalDistributionOperator;
 
@@ -83,8 +82,11 @@ public class DistributionProperty implements PhysicalProperty {
         return spec.isSatisfy(otherSpec);
     }
 
-    public GroupExpression appendEnforcers(Group child) {
-        return new GroupExpression(new PhysicalDistributionOperator(spec), Lists.newArrayList(child));
+    public GroupExpression appendEnforcers(GroupExpression originGroupExpression) {
+        GroupExpression newGroupExpression = new GroupExpression(new PhysicalDistributionOperator(spec),
+                Lists.newArrayList(originGroupExpression.getGroup()));
+        newGroupExpression.setHasRewrittenByMV(originGroupExpression.hasRewrittenByMV());
+        return newGroupExpression;
     }
 
     public DistributionProperty getNullStrictProperty() {

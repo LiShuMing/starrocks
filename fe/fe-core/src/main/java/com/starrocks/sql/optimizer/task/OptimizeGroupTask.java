@@ -15,6 +15,7 @@
 
 package com.starrocks.sql.optimizer.task;
 
+import com.starrocks.qe.ConnectContext;
 import com.starrocks.sql.optimizer.Group;
 
 /**
@@ -39,12 +40,24 @@ public class OptimizeGroupTask extends OptimizerTask {
         return "OptimizeGroupTask for group " + group;
     }
 
-    @Override
-    public void execute() {
+    private boolean needExecute() {
+        if (ConnectContext.get().getSessionVariable().isEnableMaterializedViewForceRewrite() &&
+                group.hasRewrittenByMV()) {
+            return true;
+        }
+
         // 1 Group Cost LB > Context Cost UB
         // 2 Group has optimized given the context
         if (group.getCostLowerBound() >= context.getUpperBoundCost() ||
                 group.hasBestExpression(context.getRequiredProperty())) {
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    public void execute() {
+        if (!needExecute()) {
             return;
         }
 

@@ -19,7 +19,6 @@ import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
-import com.starrocks.sql.optimizer.Group;
 import com.starrocks.sql.optimizer.GroupExpression;
 
 import java.util.Set;
@@ -68,7 +67,7 @@ public class CTEProperty implements PhysicalProperty {
     }
 
     @Override
-    public GroupExpression appendEnforcers(Group child) {
+    public GroupExpression appendEnforcers(GroupExpression originGroupExpression) {
         Preconditions.checkState(false, "It's impassible enforce CTE property");
         return null;
     }

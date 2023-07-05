@@ -56,6 +56,8 @@ public class OptExpression {
     // MV Operator property, inferred from best plan
     private MVOperatorProperty mvOperatorProperty;
 
+    private boolean hasRewrittenByMV = false;
+
     public OptExpression(Operator op) {
         this.op = op;
         this.inputs = Lists.newArrayList();
@@ -205,5 +207,13 @@ public class OptExpression {
             sb.append(input.explain(childHeadlinePrefix, childDetailPrefix));
         }
         return sb.toString();
+    }
+
+    public boolean hasRewrittenByMV() {
+        return hasRewrittenByMV;
+    }
+
+    public void setHasRewrittenByMV(boolean hasRewrittenByMV) {
+        this.hasRewrittenByMV = hasRewrittenByMV;
     }
 }

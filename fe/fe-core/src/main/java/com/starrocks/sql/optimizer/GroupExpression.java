@@ -63,6 +63,7 @@ public class GroupExpression {
     private final Map<OutputPropertyGroup, Integer> propertiesPlanCountMap;
 
     private boolean isUnused = false;
+    private boolean hasRewrittenByMV = false;
 
     public GroupExpression(Operator op, List<Group> inputs) {
         this.op = op;
@@ -127,6 +128,14 @@ public class GroupExpression {
 
     public boolean hasRuleExplored(Rule rule) {
         return ruleMasks.get(rule.type().ordinal());
+    }
+
+    public boolean hasRewrittenByMV() {
+        return this.hasRewrittenByMV;
+    }
+
+    public void setHasRewrittenByMV(boolean hasRewrittenByMV) {
+        this.hasRewrittenByMV = hasRewrittenByMV;
     }
 
     public PhysicalPropertySet getOutputProperty(PhysicalPropertySet requiredPropertySet) {
@@ -227,14 +236,6 @@ public class GroupExpression {
         return false;
     }
 
-    // use other Group Expression to update the lowestCostTable
-    public void updatePropertyWithCost(GroupExpression other) {
-        for (Map.Entry<PhysicalPropertySet, Pair<Double, List<PhysicalPropertySet>>> entry : other.lowestCostTable
-                .entrySet()) {
-            updatePropertyWithCost(entry.getKey(), entry.getValue().second, entry.getValue().first);
-        }
-    }
-
     // merge other group expression state to this group expression
     public void mergeGroupExpression(GroupExpression other) {
         // 1. low Cost Table
@@ -269,7 +270,7 @@ public class GroupExpression {
 
     @Override
     public int hashCode() {
-        return Objects.hash(op, inputs);
+        return Objects.hash(op, inputs, hasRewrittenByMV);
     }
 
     @Override
@@ -285,6 +286,9 @@ public class GroupExpression {
             return false;
         }
         if (arity() != rhs.arity()) {
+            return false;
+        }
+        if (hasRewrittenByMV != rhs.hasRewrittenByMV) {
             return false;
         }
         for (int i = 0; i < arity(); ++i) {

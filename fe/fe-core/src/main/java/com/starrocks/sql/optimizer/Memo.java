@@ -19,6 +19,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.starrocks.common.Pair;
+import com.starrocks.qe.ConnectContext;
+import com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -144,6 +146,13 @@ public class Memo {
         }
 
         GroupExpression groupExpression = new GroupExpression(expression.getOp(), inputs);
+        if (ConnectContext.get() != null &&
+                ConnectContext.get().getSessionVariable().isEnableMaterializedViewForceRewrite()) {
+            // TODO: `hasRewrittenByMV` should be transformed with optExpression.
+            if (expression.hasRewrittenByMV() || MvUtils.containMaterializedView(expression)) {
+                groupExpression.setHasRewrittenByMV(true);
+            }
+        }
         Pair<Boolean, GroupExpression> result = insertGroupExpression(groupExpression, targetGroup);
         if (result.first && targetGroup == null) {
             // For new group, we need drive property from expression

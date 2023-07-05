@@ -229,13 +229,13 @@ public class ChildOutputPropertyGuarantor extends PropertyDeriverBase<Void, Expr
         newOutputProperty.setDistributionProperty(newDistributionProperty);
 
         if (child.getOp() instanceof PhysicalDistributionOperator) {
-            GroupExpression enforcer = newDistributionProperty.appendEnforcers(childGroup);
+            GroupExpression enforcer = newDistributionProperty.appendEnforcers(child);
             enforcer.setOutputPropertySatisfyRequiredProperty(newOutputProperty, newOutputProperty);
             context.getMemo().insertEnforceExpression(enforcer, childGroup);
 
             enforcer.updatePropertyWithCost(newOutputProperty, child.getInputProperties(childOutputProperty),
                     childCosts);
-            childGroup.setBestExpression(enforcer, childCosts, newOutputProperty);
+            childGroup.setBestExpression(new GECost(enforcer, childCosts), newOutputProperty);
 
             if (ConnectContext.get().getSessionVariable().isSetUseNthExecPlan()) {
                 enforcer.addValidOutputPropertyGroup(newOutputProperty, Lists.newArrayList(childOutputProperty));
@@ -244,22 +244,11 @@ public class ChildOutputPropertyGuarantor extends PropertyDeriverBase<Void, Expr
             return new Pair<>(enforcer, newOutputProperty);
         } else {
             // add physical distribution operator
-            GroupExpression enforcer = newDistributionProperty.appendEnforcers(childGroup);
+            GroupExpression enforcer = newDistributionProperty.appendEnforcers(child);
             enforcer.setOutputPropertySatisfyRequiredProperty(newOutputProperty, newOutputProperty);
             updateChildCostWithEnforcer(enforcer, childOutputProperty, newOutputProperty, childCosts, childGroup);
             return new Pair<>(enforcer, newOutputProperty);
         }
-    }
-
-    private GroupExpression addChildEnforcer(PhysicalPropertySet oldOutputProperty,
-                                             DistributionProperty newDistributionProperty,
-                                             double childCost, Group childGroup) {
-        PhysicalPropertySet newOutputProperty = new PhysicalPropertySet(newDistributionProperty);
-        GroupExpression enforcer = newDistributionProperty.appendEnforcers(childGroup);
-
-        enforcer.setOutputPropertySatisfyRequiredProperty(newOutputProperty, newOutputProperty);
-        updateChildCostWithEnforcer(enforcer, oldOutputProperty, newOutputProperty, childCost, childGroup);
-        return enforcer;
     }
 
     private void updateChildCostWithEnforcer(GroupExpression enforcer,
@@ -274,7 +263,7 @@ public class ChildOutputPropertyGuarantor extends PropertyDeriverBase<Void, Expr
         curTotalCost += childCost;
 
         enforcer.updatePropertyWithCost(newOutputProperty, Lists.newArrayList(oldOutputProperty), childCost);
-        childGroup.setBestExpression(enforcer, childCost, newOutputProperty);
+        childGroup.setBestExpression(new GECost(enforcer, childCost), newOutputProperty);
 
         if (ConnectContext.get().getSessionVariable().isSetUseNthExecPlan()) {
             enforcer.addValidOutputPropertyGroup(newOutputProperty, Lists.newArrayList(oldOutputProperty));

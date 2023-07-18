@@ -218,7 +218,7 @@ public class OptimizerTest {
         OptExpression expr = optimizer.optimize(connectContext, logicalPlan.getRoot(), new PhysicalPropertySet(),
                 new ColumnRefSet(logicalPlan.getOutputColumn()), columnRefFactory);
         Assert.assertNotNull(expr);
-        Assert.assertEquals(2, optimizer.getContext().getCandidateMvs().size());
+        Assert.assertEquals(2, optimizer.getContext().getValidCandidateMvs().size());
 
         starRocksAssert.dropMaterializedView("mv_1");
         starRocksAssert.dropMaterializedView("mv_2");
@@ -263,8 +263,8 @@ public class OptimizerTest {
             OptExpression expr = optimizer.optimize(connectContext, logicalPlan.getRoot(), new PhysicalPropertySet(),
                     new ColumnRefSet(logicalPlan.getOutputColumn()), columnRefFactory);
             Assert.assertNotNull(expr);
-            Assert.assertEquals(1, optimizer.getContext().getCandidateMvs().size());
-            MaterializationContext materializationContext = optimizer.getContext().getCandidateMvs().iterator().next();
+            Assert.assertEquals(1, optimizer.getContext().getValidCandidateMvs().size());
+            MaterializationContext materializationContext = optimizer.getContext().getValidCandidateMvs().iterator().next();
             Assert.assertEquals("mv_4", materializationContext.getMv().getName());
 
             MaterializedView mv = getMv("test", "mv_4");
@@ -283,7 +283,8 @@ public class OptimizerTest {
             OptExpression expr2 = optimizer2.optimize(connectContext, logicalPlan.getRoot(), new PhysicalPropertySet(),
                     new ColumnRefSet(logicalPlan.getOutputColumn()), columnRefFactory);
             Assert.assertNotNull(expr2);
-            MaterializationContext materializationContext2 = optimizer2.getContext().getCandidateMvs().iterator().next();
+                MaterializationContext materializationContext2 = optimizer2.getContext()
+                        .getValidCandidateMvs().iterator().next();
             Assert.assertEquals("mv_4", materializationContext2.getMv().getName());
             ScalarOperator scalarOperator2  = materializationContext2.getMvPartialPartitionPredicate();
             if (scalarOperator2 != null) {
@@ -312,7 +313,8 @@ public class OptimizerTest {
             OptExpression expr3 = optimizer3.optimize(connectContext, logicalPlan.getRoot(), new PhysicalPropertySet(),
                     new ColumnRefSet(logicalPlan.getOutputColumn()), columnRefFactory);
             Assert.assertNotNull(expr3);
-            MaterializationContext materializationContext3 = optimizer3.getContext().getCandidateMvs().iterator().next();
+            MaterializationContext materializationContext3 = optimizer3.getContext()
+                    .getValidCandidateMvs().iterator().next();
             Assert.assertEquals("mv_5", materializationContext3.getMv().getName());
             List<OptExpression> scanExpr3 = MvUtils.collectScanExprs(materializationContext3.getMvExpression());
             Assert.assertEquals(1, scanExpr3.size());

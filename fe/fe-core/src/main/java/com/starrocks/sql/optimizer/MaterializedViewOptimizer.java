@@ -36,7 +36,7 @@ public class MaterializedViewOptimizer {
         }
         OptExpression mvPlan = plans.first;
         if (!MvUtils.isValidMVPlan(mvPlan)) {
-            return new MVRewriteContextCache();
+            return new MVRewriteContextCache(mvPlan);
         }
         MVRewriteContextCache mvRewriteContext =
                 new MVRewriteContextCache(mvPlan, plans.second.getOutputColumn(), columnRefFactory);

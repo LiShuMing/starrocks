@@ -69,7 +69,7 @@ public abstract class BaseMaterializedViewRewriteRule extends TransformationRule
 
     @Override
     public boolean check(OptExpression input, OptimizerContext context) {
-        return !context.getCandidateMvs().isEmpty() && checkOlapScanWithoutTabletOrPartitionHints(input);
+        return !context.getValidCandidateMvs().isEmpty() && checkOlapScanWithoutTabletOrPartitionHints(input);
     }
 
     @Override
@@ -77,13 +77,13 @@ public abstract class BaseMaterializedViewRewriteRule extends TransformationRule
         List<MaterializationContext> mvCandidateContexts = Lists.newArrayList();
         if (queryExpression.getGroupExpression() != null) {
             int currentRootGroupId = queryExpression.getGroupExpression().getGroup().getId();
-            for (MaterializationContext mvContext : context.getCandidateMvs()) {
+            for (MaterializationContext mvContext : context.getValidCandidateMvs()) {
                 if (!mvContext.isMatchedGroup(currentRootGroupId)) {
                     mvCandidateContexts.add(mvContext);
                 }
             }
         } else {
-            mvCandidateContexts = context.getCandidateMvs();
+            mvCandidateContexts = context.getValidCandidateMvs();
         }
 
         List<OptExpression> results = Lists.newArrayList();

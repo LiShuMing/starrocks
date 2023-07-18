@@ -29,6 +29,7 @@ import com.starrocks.sql.optimizer.task.TaskContext;
 import com.starrocks.sql.optimizer.task.TaskScheduler;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class OptimizerContext {
     private final Memo memo;
@@ -138,7 +139,12 @@ public class OptimizerContext {
         return optimizerConfig;
     }
 
-    public List<MaterializationContext> getCandidateMvs() {
+    public List<MaterializationContext> getValidCandidateMvs() {
+        return candidateMvs.stream().filter(MaterializationContext::isValidPlan)
+                .collect(Collectors.toList());
+    }
+
+    public List<MaterializationContext> getAllCandidateMvs() {
         return candidateMvs;
     }
 

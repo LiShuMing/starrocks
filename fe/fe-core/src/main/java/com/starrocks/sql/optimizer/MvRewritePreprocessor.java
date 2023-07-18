@@ -201,7 +201,7 @@ public class MvRewritePreprocessor {
         // all base table related mvs
         List<String> relatedMvNames = relatedMvs.stream().map(mv -> mv.getName()).collect(Collectors.toList());
         // all mvs that match SPJG pattern and can ben used to try mv rewrite
-        List<String> candidateMvNames = context.getCandidateMvs().stream()
+        List<String> candidateMvNames = context.getAllCandidateMvs().stream()
                 .map(materializationContext -> materializationContext.getMv().getName()).collect(Collectors.toList());
 
         logMVPrepare(connectContext, "RelatedMVs: %s, CandidateMVs: %s", relatedMvNames, candidateMvNames);
@@ -231,7 +231,8 @@ public class MvRewritePreprocessor {
             mvRewriteContextCache = mvOptimizer.optimize(mv, connectContext, optimizerConfig);
             mv.setPlanContext(mvRewriteContextCache);
         }
-        if (!mvRewriteContextCache.isValidMvPlan()) {
+        if (!connectContext.getSessionVariable().isEnableMaterializedViewTextMatchRewrite() &&
+                !mvRewriteContextCache.isValidMvPlan()) {
             logMVPrepare(connectContext, mv, "MV plan is not valid: %s, plan:\n %s",
                     mv.getName(), mvRewriteContextCache.getLogicalPlan().explain());
             return;
@@ -265,6 +266,13 @@ public class MvRewritePreprocessor {
                         "to be refreshed:%s", mv.getName(), partitionNamesToRefresh);
                 return;
             }
+        }
+        if (connectContext.getSessionVariable().isEnableMaterializedViewTextMatchRewrite() &&
+                !mvRewriteContextCache.isValidMvPlan()) {
+            logMVPrepare(connectContext, mv, "MV plan is not valid: %s, plan:\n %s",
+                    mv.getName(), mvRewriteContextCache.getLogicalPlan().explain());
+            context.addCandidateMvs(new MaterializationContext(context, mv, mvPlan));
+            return;
         }
 
         // Add mv info into dump info

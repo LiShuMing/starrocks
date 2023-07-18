@@ -3512,4 +3512,12 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
                             + "where emps.empid > 10");
         }
     }
+
+    @Test
+    public void testTextMatchRewrite1() {
+        String mv = "select user_id, time, bitmap_union(to_bitmap(tag_id)) from user_tags group by user_id, time order by " +
+                "user_id, time;";
+        testRewriteOK(mv, "select user_id, time, bitmap_union(to_bitmap(tag_id)) from user_tags group by user_id, time order by" +
+                " user_id, time;");
+    }
 }

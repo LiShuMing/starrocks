@@ -116,7 +116,7 @@ public class StatementPlanner {
         resultSinkType = queryStmt.hasOutFileClause() ? TResultSinkType.FILE : resultSinkType;
         ExecPlan plan;
         if (!isOnlyOlapTable) {
-            plan = createQueryPlan(queryStmt.getQueryRelation(), session, resultSinkType);
+            plan = createQueryPlan(queryStmt, session, resultSinkType);
         } else {
             plan = createQueryPlanWithReTry(queryStmt, session, resultSinkType);
         }
@@ -124,10 +124,11 @@ public class StatementPlanner {
         return plan;
     }
 
-    private static ExecPlan createQueryPlan(Relation relation,
+    private static ExecPlan createQueryPlan(StatementBase stmt,
                                             ConnectContext session,
                                             TResultSinkType resultSinkType) {
-        QueryRelation query = (QueryRelation) relation;
+        QueryStatement queryStmt =(QueryStatement) stmt;
+        QueryRelation query = (QueryRelation) queryStmt.getQueryRelation();
         List<String> colNames = query.getColumnOutputNames();
         //1. Build Logical plan
         ColumnRefFactory columnRefFactory = new ColumnRefFactory();
@@ -140,7 +141,7 @@ public class StatementPlanner {
         OptExpression optimizedPlan;
         try (PlannerProfile.ScopedTimer ignored = PlannerProfile.getScopedTimer("Optimizer")) {
             //2. Optimize logical plan and build physical plan
-            Optimizer optimizer = new Optimizer();
+            Optimizer optimizer = new Optimizer(stmt);
             optimizedPlan = optimizer.optimize(
                     session,
                     logicalPlan.getRoot(),
@@ -214,7 +215,7 @@ public class StatementPlanner {
             OptExpression optimizedPlan;
             try (PlannerProfile.ScopedTimer ignored = PlannerProfile.getScopedTimer("Optimizer")) {
                 //2. Optimize logical plan and build physical plan
-                Optimizer optimizer = new Optimizer();
+                Optimizer optimizer = new Optimizer(queryStmt);
                 optimizedPlan = optimizer.optimize(
                         session,
                         logicalPlan.getRoot(),

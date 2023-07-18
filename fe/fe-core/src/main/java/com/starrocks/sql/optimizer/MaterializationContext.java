@@ -62,6 +62,25 @@ public class MaterializationContext {
     // in Optimizer Transformation phase but not be really used.
     private long mvUsedCount = 0;
 
+    private final boolean isValidPlan;
+
+    public MaterializationContext(OptimizerContext optimizerContext,
+                                  MaterializedView mv,
+                                  OptExpression mvExpression) {
+        this.optimizerContext = optimizerContext;
+        this.mv = mv;
+        this.mvExpression = mvExpression;
+        this.queryRefFactory = null;
+        this.mvColumnRefFactory = null;
+        this.mvPartitionNamesToRefresh = null;
+        this.baseTables = null;
+        this.originQueryColumns = null;
+        this.intersectingTables = null;
+        this.matchedGroups = Lists.newArrayList();
+        this.mvPartialPartitionPredicate = null;
+        this.isValidPlan = false;
+    }
+
     public MaterializationContext(OptimizerContext optimizerContext,
                                   MaterializedView mv,
                                   OptExpression mvExpression,
@@ -83,6 +102,7 @@ public class MaterializationContext {
         this.intersectingTables = intersectingTables;
         this.matchedGroups = Lists.newArrayList();
         this.mvPartialPartitionPredicate = mvPartialPartitionPredicate;
+        this.isValidPlan = true;
     }
 
     public MaterializedView getMv() {
@@ -159,5 +179,9 @@ public class MaterializationContext {
 
     public void updateMVUsedCount() {
         this.mvUsedCount += 1;
+    }
+
+    public boolean isValidPlan() {
+        return isValidPlan;
     }
 }

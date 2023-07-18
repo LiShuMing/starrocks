@@ -23,6 +23,7 @@ import com.starrocks.qe.ConnectContext;
 import com.starrocks.qe.SessionVariable;
 import com.starrocks.sql.Explain;
 import com.starrocks.sql.PlannerProfile;
+import com.starrocks.sql.ast.StatementBase;
 import com.starrocks.sql.optimizer.base.ColumnRefFactory;
 import com.starrocks.sql.optimizer.base.ColumnRefSet;
 import com.starrocks.sql.optimizer.base.PhysicalPropertySet;
@@ -53,6 +54,7 @@ import com.starrocks.sql.optimizer.rule.transformation.SemiReorderRule;
 import com.starrocks.sql.optimizer.rule.transformation.SeparateProjectRule;
 import com.starrocks.sql.optimizer.rule.transformation.SplitScanORToUnionRule;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils;
+import com.starrocks.sql.optimizer.rule.transformation.materialization.rule.TextMatchRewriteRule;
 import com.starrocks.sql.optimizer.rule.transformation.pruner.CboTablePruneRule;
 import com.starrocks.sql.optimizer.rule.transformation.pruner.PrimaryKeyUpdateTableRule;
 import com.starrocks.sql.optimizer.rule.transformation.pruner.RboTablePruneRule;
@@ -92,10 +94,15 @@ public class Optimizer {
     private static final Logger LOG = LogManager.getLogger(Optimizer.class);
     private OptimizerContext context;
     private final OptimizerConfig optimizerConfig;
+    private StatementBase stmt;
 
     private long updateTableId = -1;
     public Optimizer() {
         this(OptimizerConfig.defaultConfig());
+    }
+    public Optimizer(StatementBase stmt) {
+        this(OptimizerConfig.defaultConfig());
+        this.stmt = stmt;
     }
 
     public Optimizer(OptimizerConfig config) {
@@ -118,6 +125,10 @@ public class Optimizer {
                                   ColumnRefFactory columnRefFactory) {
         prepare(connectContext, logicOperatorTree, columnRefFactory);
         context.setUpdateTableId(updateTableId);
+
+        logicOperatorTree = new TextMatchRewriteRule().transform(logicOperatorTree,
+                connectContext, context, stmt, columnRefFactory);
+
         if (optimizerConfig.isRuleBased()) {
             return optimizeByRule(connectContext, logicOperatorTree, requiredProperty, requiredColumns);
         } else {
@@ -248,7 +259,7 @@ public class Optimizer {
                 }
             }
             OptimizerTraceUtil.logMVPrepare(connectContext, "There are %d candidate MVs after prepare phase",
-                    context.getCandidateMvs().size());
+                    context.getValidCandidateMvs().size());
         }
     }
 
@@ -280,6 +291,7 @@ public class Optimizer {
     private OptExpression logicalRuleRewrite(ConnectContext connectContext,
                                              OptExpression tree,
                                              TaskContext rootTaskContext) {
+
         tree = OptExpression.create(new LogicalTreeAnchorOperator(), tree);
         ColumnRefSet requiredColumns = rootTaskContext.getRequiredColumns().clone();
         deriveLogicalProperty(tree);
@@ -426,7 +438,7 @@ public class Optimizer {
             return false;
         }
         // if mv candidates are empty, return false.
-        if (rootTaskContext.getOptimizerContext().getCandidateMvs().isEmpty()) {
+        if (rootTaskContext.getOptimizerContext().getValidCandidateMvs().isEmpty()) {
             return false;
         }
         // If query only has one table use single table rewrite, view delta only rewrites multi-tables query.
@@ -437,7 +449,7 @@ public class Optimizer {
         // If view delta is enabled and there are multi-table mvs, return false.
         // if mv has multi table sources, we will process it in memo to support view delta join rewrite
         if (sessionVariable.isEnableMaterializedViewViewDeltaRewrite() &&
-                rootTaskContext.getOptimizerContext().getCandidateMvs()
+                rootTaskContext.getOptimizerContext().getValidCandidateMvs()
                         .stream().anyMatch(MaterializationContext::hasMultiTables)) {
             return false;
         }
@@ -543,7 +555,7 @@ public class Optimizer {
 
         if (isEnableMultiTableRewrite(connectContext, tree)) {
             if (sessionVariable.isEnableMaterializedViewViewDeltaRewrite() &&
-                    rootTaskContext.getOptimizerContext().getCandidateMvs()
+                    rootTaskContext.getOptimizerContext().getAllCandidateMvs()
                             .stream().anyMatch(MaterializationContext::hasMultiTables)) {
                 context.getRuleSet().addSingleTableMvRewriteRule();
             }
@@ -555,7 +567,7 @@ public class Optimizer {
     }
 
     private boolean isEnableMultiTableRewrite(ConnectContext connectContext, OptExpression queryPlan) {
-        if (context.getCandidateMvs().isEmpty()) {
+        if (context.getValidCandidateMvs().isEmpty()) {
             return false;
         }
 

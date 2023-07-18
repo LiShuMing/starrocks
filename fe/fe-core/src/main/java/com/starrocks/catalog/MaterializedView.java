@@ -65,6 +65,7 @@ import com.starrocks.sql.optimizer.OptExpression;
 import com.starrocks.sql.optimizer.Utils;
 import com.starrocks.sql.optimizer.base.ColumnRefFactory;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
+import com.starrocks.sql.optimizer.transformer.LogicalPlan;
 import com.starrocks.sql.parser.SqlParser;
 import com.starrocks.sql.plan.ExecPlan;
 import com.starrocks.statistic.StatsConstants;
@@ -363,8 +364,8 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
         // because we will not use other fields
         private boolean isValidMvPlan;
 
-        public MVRewriteContextCache() {
-            this.logicalPlan = null;
+        public MVRewriteContextCache(OptExpression logicalPlan) {
+            this.logicalPlan = logicalPlan;
             this.outputColumns = null;
             this.refFactory = null;
             this.isValidMvPlan = false;

@@ -220,6 +220,7 @@ public class StmtExecutor {
     // this constructor is mainly for proxy
     public StmtExecutor(ConnectContext context, OriginStatement originStmt, boolean isProxy) {
         this.context = context;
+        this.context.setExecutor(this);
         this.originStmt = originStmt;
         this.serializer = context.getSerializer();
         this.isProxy = isProxy;

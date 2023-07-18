@@ -363,6 +363,7 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
     public static final String NESTED_MV_REWRITE_MAX_LEVEL = "nested_mv_rewrite_max_level";
     public static final String ENABLE_MATERIALIZED_VIEW_REWRITE = "enable_materialized_view_rewrite";
     public static final String ENABLE_MATERIALIZED_VIEW_UNION_REWRITE = "enable_materialized_view_union_rewrite";
+    public static final String ENABLE_MATERIALIZED_VIEW_TEXT_MATCH_REWRITE = "enable_materialized_view_text_match_rewrite";
 
     public static final String ENABLE_SYNC_MATERIALIZED_VIEW_REWRITE = "enable_sync_materialized_view_rewrite";
     public static final String ENABLE_RULE_BASED_MATERIALIZED_VIEW_REWRITE =
@@ -1068,6 +1069,9 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
 
     @VarAttr(name = ENABLE_RULE_BASED_MATERIALIZED_VIEW_REWRITE)
     private boolean enableRuleBasedMaterializedViewRewrite = true;
+
+    @VarAttr(name = ENABLE_MATERIALIZED_VIEW_TEXT_MATCH_REWRITE)
+    private boolean enableMaterializedViewTextMatchRewrite = true;
 
     @VarAttr(name = ENABLE_MATERIALIZED_VIEW_VIEW_DELTA_REWRITE)
     private boolean enableMaterializedViewViewDeltaRewrite = true;
@@ -2066,6 +2070,14 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
             nestedMvRewriteMaxLevel = 1;
         }
         this.nestedMvRewriteMaxLevel = nestedMvRewriteMaxLevel;
+    }
+
+    public boolean isEnableMaterializedViewTextMatchRewrite() {
+        return enableMaterializedViewTextMatchRewrite;
+    }
+
+    public void setEnableMaterializedViewTextMatchRewrite(boolean enable) {
+        this.enableMaterializedViewTextMatchRewrite = enable;
     }
 
     public boolean isEnableRuleBasedMaterializedViewRewrite() {

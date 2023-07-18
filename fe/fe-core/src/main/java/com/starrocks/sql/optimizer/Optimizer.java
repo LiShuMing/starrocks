@@ -198,12 +198,6 @@ public class Optimizer {
         }
         OptimizerTraceUtil.logOptExpression(connectContext, "after extract best plan:\n%s", result);
 
-        if (connectContext.getSessionVariable().isEnableMaterializedViewForceRewriteOrError() &&
-                !MvUtils.containMaterializedView(result))  {
-            throw new IllegalArgumentException("no executable plan with materialized view for this sql in " +
-                    SessionVariable.REWRITE_MODE_FORCE_OR_ERROR + " mode.");
-        }
-
         // set costs audio log before physicalRuleRewrite
         // statistics won't set correctly after physicalRuleRewrite.
         // we need set plan costs before physical rewrite stage.
@@ -221,7 +215,7 @@ public class Optimizer {
             // valid the final plan
             PlanValidator.getInstance().validatePlan(finalPlan, rootTaskContext);
             // validate mv and log tracer if needed
-            MVRewriteValidator.getInstance().validateMV(finalPlan);
+            MVRewriteValidator.getInstance().validateMV(context, connectContext, finalPlan);
             return finalPlan;
         }
     }

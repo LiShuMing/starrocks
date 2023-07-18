@@ -17,27 +17,46 @@ package com.starrocks.sql.optimizer.validate;
 import com.google.api.client.util.Lists;
 import com.google.common.base.Joiner;
 import com.starrocks.qe.ConnectContext;
+import com.starrocks.qe.SessionVariable;
 import com.starrocks.sql.PlannerProfile;
 import com.starrocks.sql.optimizer.OptExpression;
+import com.starrocks.sql.optimizer.OptimizerContext;
 import com.starrocks.sql.optimizer.operator.Operator;
 import com.starrocks.sql.optimizer.operator.physical.PhysicalScanOperator;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.MaterializedViewRewriter;
+import com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 import java.util.List;
 import java.util.Map;
 
 public class MVRewriteValidator {
+    private static final Logger LOG = LogManager.getLogger(MVRewriteValidator.class);
+
     private static final MVRewriteValidator INSTANCE = new MVRewriteValidator();
 
     public static MVRewriteValidator getInstance() {
         return INSTANCE;
     }
 
-    public void validateMV(OptExpression physicalPlan) {
+    public void validateMV(OptimizerContext context,
+                           ConnectContext connectContext,
+                           OptExpression physicalPlan) {
         PlannerProfile.LogTracer tracer = PlannerProfile.getLogTracer("Summary");
         if (tracer == null) {
+            if (connectContext.getSessionVariable().isEnableMaterializedViewForceRewriteOrError() &&
+                    !MvUtils.containMaterializedView(physicalPlan))  {
+                if (context.getCandidateMvs().isEmpty()) {
+                    LOG.info("Ignore check mv rewrite because no candidates are found.");
+                    return;
+                }
+                throw new IllegalArgumentException("no executable plan with materialized view for this sql in " +
+                        SessionVariable.REWRITE_MODE_FORCE_OR_ERROR + " mode.");
+            }
             return;
         }
+
         List<String> mvNames = collectMaterializedViewNames(physicalPlan);
         if (mvNames.isEmpty()) {
             // Check whether plan has been rewritten success by rule.

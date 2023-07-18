@@ -2988,6 +2988,14 @@ public class LocalMetastore implements ConnectorMetadata {
                 String storageVolumeId = svm.getStorageVolumeIdOfTable(materializedView.getId());
                 setLakeStorageInfo(materializedView, storageVolumeId, properties);
             }
+
+            // enable spill if not set by user
+            String enableSpillProp = PropertyAnalyzer.PROPERTIES_MATERIALIZED_VIEW_SESSION_PREFIX +
+                    SessionVariable.ENABLE_SPILL;
+            if (!properties.containsKey(enableSpillProp)) {
+                properties.put(enableSpillProp, "true");
+            }
+
             // session properties
             if (!properties.isEmpty()) {
                 // analyze properties

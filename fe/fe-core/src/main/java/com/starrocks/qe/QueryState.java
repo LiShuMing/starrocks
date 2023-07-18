@@ -186,6 +186,8 @@ public class QueryState {
     public String toProfileString() {
         if (stateType == MysqlStateType.EOF) {
             return "Finished";
+        } else if (stateType == MysqlStateType.OK) {
+            return "OK";
         } else if (stateType == MysqlStateType.ERR) {
             return "Error";
         } else {

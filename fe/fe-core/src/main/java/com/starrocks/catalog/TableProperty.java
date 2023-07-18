@@ -94,7 +94,7 @@ public class TableProperty implements Writable, GsonPostProcessable {
 
     // This property only applies to materialized views
     // It represents the maximum number of partitions that will be refreshed by a TaskRun refresh
-    private int partitionRefreshNumber = INVALID;
+    private int partitionRefreshNumber = 1;
 
     // This property only applies to materialized views
     // When using the system to automatically refresh, the maximum range of the most recent partitions will be refreshed.
@@ -308,7 +308,7 @@ public class TableProperty implements Writable, GsonPostProcessable {
 
     public TableProperty buildPartitionRefreshNumber() {
         partitionRefreshNumber = Integer.parseInt(properties.getOrDefault(PropertyAnalyzer.PROPERTIES_PARTITION_REFRESH_NUMBER,
-                String.valueOf(INVALID)));
+                String.valueOf(1)));
         return this;
     }
 

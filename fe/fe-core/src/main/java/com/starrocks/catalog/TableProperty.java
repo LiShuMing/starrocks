@@ -537,7 +537,8 @@ public class TableProperty implements Writable, GsonPostProcessable {
     }
 
     public QueryRewriteConsistencyMode getOlapTableQueryRewrite() {
-        return this.olapTableQueryRewrite;
+        return this.olapTableQueryRewrite == null ? QueryRewriteConsistencyMode.defaultForOlapTable() :
+                this.olapTableQueryRewrite;
     }
 
     public boolean isInMemory() {

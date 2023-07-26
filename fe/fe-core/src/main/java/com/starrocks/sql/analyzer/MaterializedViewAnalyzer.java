@@ -251,28 +251,28 @@ public class MaterializedViewAnalyzer {
             if (baseTableInfos.isEmpty()) {
                 throw new SemanticException("Can not find base table in query statement");
             }
-             // set the columns into createMaterializedViewStatement
-             List<Column> mvColumns = genMaterializedViewColumns(statement);
-             statement.setMvColumnItems(mvColumns);
- 
-             Map<TableName, Table> aliasTableMap = AnalyzerUtils.collectAllTableAndViewWithAlias(queryStatement);
-             Map<Column, Expr> columnExprMap = Maps.newHashMap();
-             List<Expr> outputExpressions = queryStatement.getQueryRelation().getOutputExpression();
-             for (int i = 0; i < outputExpressions.size(); ++i) {
-                 columnExprMap.put(mvColumns.get(i), outputExpressions.get(i));
-             }
-             // some check if partition exp exists
-             if (statement.getPartitionExpDesc() != null) {
-               // check partition expression all in column list and
-               // write the expr into partitionExpDesc if partition expression exists
-               checkExpInColumn(statement, columnExprMap);
-               // check partition expression is supported
-               checkPartitionColumnExprs(statement, columnExprMap);
-               // check whether partition expression functions are allowed if it exists
-               checkPartitionExpPatterns(statement);
-               // check partition column must be base table's partition column
-               checkPartitionColumnWithBaseTable(statement, aliasTableMap);
-             }
+            // set the columns into createMaterializedViewStatement
+            List<Column> mvColumns = genMaterializedViewColumns(statement);
+            statement.setMvColumnItems(mvColumns);
+
+            Map<TableName, Table> aliasTableMap = AnalyzerUtils.collectAllTableAndViewWithAlias(queryStatement);
+            Map<Column, Expr> columnExprMap = Maps.newHashMap();
+            List<Expr> outputExpressions = queryStatement.getQueryRelation().getOutputExpression();
+            for (int i = 0; i < outputExpressions.size(); ++i) {
+                columnExprMap.put(mvColumns.get(i), outputExpressions.get(i));
+            }
+            // some check if partition exp exists
+            if (statement.getPartitionExpDesc() != null) {
+                // check partition expression all in column list and
+                // write the expr into partitionExpDesc if partition expression exists
+                checkExpInColumn(statement, columnExprMap);
+                // check partition expression is supported
+                checkPartitionColumnExprs(statement, columnExprMap);
+                // check whether partition expression functions are allowed if it exists
+                checkPartitionExpPatterns(statement);
+                // check partition column must be base table's partition column
+                checkPartitionColumnWithBaseTable(statement, aliasTableMap);
+            }
             // check and analyze distribution
             checkDistribution(statement, aliasTableMap);
 

@@ -3,7 +3,6 @@ create materialized view lineitem_mv_agg_mv1
  distributed by hash(p_name,
                o_orderyear,
                n_name2) buckets 96
- refresh deferred manual
  properties (
      "replication_num" = "1"
  )
@@ -21,36 +20,10 @@ create materialized view lineitem_mv_agg_mv1
         n_name2
 ;
 
--- query7
-create materialized view lineitem_mv_agg_mv2
- distributed by hash(l_shipdate,
-        n_name1,
-        n_name2,
-        l_shipyear) buckets 96
- refresh deferred manual
- properties (
-     "replication_num" = "1"
- )
- as select /*+ SET_VAR(query_timeout = 7200) */
-               l_shipdate,
-               n_name1,
-               n_name2,
-               l_shipyear,
-               sum(l_saleprice) as sum_saleprice
-    from
-               lineitem_mv
-    group by
-        l_shipdate,
-        n_name1,
-        n_name2,
-        l_shipyear
-;
-
 -- query4
 create materialized view query4_mv
  distributed by hash(o_orderdate,
     o_orderpriority) buckets 24
- refresh deferred manual
  properties (
      "replication_num" = "1"
  )
@@ -79,7 +52,6 @@ create materialized view query21_mv
 distributed by hash(s_name,
               o_orderstatus,
               n_name) buckets 24
-refresh deferred manual
 properties (
     "replication_num" = "1"
 )

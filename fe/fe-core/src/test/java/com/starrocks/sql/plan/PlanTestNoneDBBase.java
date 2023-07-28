@@ -382,7 +382,7 @@ public class PlanTestNoneDBBase {
     }
 
     public void runFileUnitTest(String filename) {
-        runFileUnitTest(filename, false);
+        runFileUnitTest(filename, true);
     }
 
     public static String format(String result) {

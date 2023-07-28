@@ -921,6 +921,5 @@ public class MvUtils {
             }
         }
         return false;
->>>>>>> c54c143412 (Support mv_rewrite_mode to rewrite mv even if MV's cost is higher than original query)
     }
 }

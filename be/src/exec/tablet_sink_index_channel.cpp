@@ -462,12 +462,8 @@ Status NodeChannel::add_chunk(Chunk* input, const std::vector<int64_t>& tablet_i
     return _send_request(false);
 }
 
-<<<<<<< HEAD:be/src/exec/tablet_sink_index_channel.cpp
-Status NodeChannel::add_chunks(Chunk* input, const std::vector<std::vector<int64_t>>& index_tablet_ids,
-=======
 /// FIXME colocate sender can not filter data for mv index
-Status NodeChannel::add_chunks(Chunk* input, const std::vector<std::vector<int64_t>>& tablet_ids,
->>>>>>> 7cc0378193 (Support where):be/src/exec/tablet_sink/tablet_sink_index_channel.cpp
+Status NodeChannel::add_chunks(Chunk* input, const std::vector<std::vector<int64_t>>& index_tablet_ids,
                                const std::vector<uint32_t>& indexes, uint32_t from, uint32_t size) {
     if (_cancelled || _send_finished) {
         return _err_st;

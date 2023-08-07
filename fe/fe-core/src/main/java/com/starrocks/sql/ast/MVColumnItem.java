@@ -125,7 +125,7 @@ public class MVColumnItem {
         return aliasName;
     }
 
-    public Column toMVColumn(OlapTable olapTable) throws DdlException {
+    public Column toMVColumn(OlapTable olapTable) {
         Column baseColumn = olapTable.getBaseColumn(name);
         Column result;
         if (baseColumn == null) {

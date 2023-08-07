@@ -44,6 +44,7 @@ import com.google.common.collect.Range;
 import com.starrocks.analysis.Expr;
 import com.starrocks.analysis.LiteralExpr;
 import com.starrocks.analysis.SlotDescriptor;
+import com.starrocks.analysis.SlotRef;
 import com.starrocks.analysis.TableName;
 import com.starrocks.analysis.TupleDescriptor;
 import com.starrocks.catalog.Column;
@@ -111,6 +112,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 public class OlapTableSink extends DataSink {
@@ -337,9 +339,7 @@ public class OlapTableSink extends DataSink {
             TOlapTableIndexSchema indexSchema = new TOlapTableIndexSchema(pair.getKey(), columns,
                     indexMeta.getSchemaHash());
             if (indexMeta.getWhereClause() != null) {
-                if (indexMeta.isWhereClauseAnalyzed()) {
-                    indexSchema.setWhere_clause(indexMeta.getWhereClause().treeToThrift());
-                } else {
+                if (!indexMeta.isWhereClauseAnalyzed()) {
                     String dbName = MetaUtils.getDatabase(dbId).getFullName();
                     ExpressionAnalyzer.analyzeExpression(indexMeta.getWhereClause(), new AnalyzeState(),
                             new Scope(RelationId.anonymous(),
@@ -351,9 +351,26 @@ public class OlapTableSink extends DataSink {
                                             .collect(Collectors.toList()))),
                             new ConnectContext());
                     indexMeta.setWhereClauseAnalyzed(true);
-                    indexSchema.setWhere_clause(indexMeta.getWhereClause().treeToThrift());
                 }
 
+                Map<String, SlotDescriptor> descMap = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+
+                Expr whereClause = indexMeta.getWhereClause();
+
+                for (SlotDescriptor slot : tupleDescriptor.getSlots()) {
+                    descMap.put(slot.getColumn().getName(), slot);
+                }
+
+                List<SlotRef> slots = new ArrayList<>();
+                whereClause.collect(SlotRef.class, slots);
+
+                for (SlotRef slot : slots) {
+                    SlotDescriptor slotDesc = descMap.get(slot.getColumnName());
+                    slot.setDesc(slotDesc);
+                }
+
+                indexSchema.setWhere_clause(whereClause.treeToThrift());
+                LOG.info("OlapTableSink Where clause: {}", indexMeta.getWhereClause().explain());
             }
             schemaParam.addToIndexes(indexSchema);
         }

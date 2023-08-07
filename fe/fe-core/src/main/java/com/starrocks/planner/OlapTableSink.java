@@ -78,12 +78,11 @@ import com.starrocks.lake.LakeTablet;
 import com.starrocks.load.Load;
 import com.starrocks.qe.ConnectContext;
 import com.starrocks.server.GlobalStateMgr;
-import com.starrocks.sql.analyzer.AnalyzeState;
-import com.starrocks.sql.analyzer.ExpressionAnalyzer;
 import com.starrocks.sql.analyzer.Field;
 import com.starrocks.sql.analyzer.RelationFields;
 import com.starrocks.sql.analyzer.RelationId;
 import com.starrocks.sql.analyzer.Scope;
+import com.starrocks.sql.analyzer.SelectAnalyzer;
 import com.starrocks.sql.common.MetaUtils;
 import com.starrocks.system.SystemInfoService;
 import com.starrocks.thrift.TDataSink;
@@ -339,31 +338,42 @@ public class OlapTableSink extends DataSink {
             TOlapTableIndexSchema indexSchema = new TOlapTableIndexSchema(pair.getKey(), columns,
                     indexMeta.getSchemaHash());
             if (indexMeta.getWhereClause() != null) {
-                if (!indexMeta.isWhereClauseAnalyzed()) {
                     String dbName = MetaUtils.getDatabase(dbId).getFullName();
-                    ExpressionAnalyzer.analyzeExpression(indexMeta.getWhereClause(), new AnalyzeState(),
-                            new Scope(RelationId.anonymous(),
-                                    new RelationFields(table.getBaseSchema()
-                                            .stream()
-                                            .map(col
-                                                    -> new Field(col.getName(), col.getType(),
-                                                    new TableName(dbName, table.getName()), null))
-                                            .collect(Collectors.toList()))),
-                            new ConnectContext());
-                    indexMeta.setWhereClauseAnalyzed(true);
-                }
 
                 Map<String, SlotDescriptor> descMap = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-
-                Expr whereClause = indexMeta.getWhereClause();
-
                 for (SlotDescriptor slot : tupleDescriptor.getSlots()) {
                     descMap.put(slot.getColumn().getName(), slot);
                 }
 
+                List<Expr> outputExprs = Lists.newArrayList();
+                for (Column col : table.getBaseSchema()) {
+                    SlotDescriptor slotDesc = descMap.get(col.getName());
+                    Preconditions.checkState(slotDesc != null);
+                    SlotRef slotRef = new SlotRef(slotDesc);
+                    slotRef.setColumnName(col.getName());
+                    outputExprs.add(slotRef);
+                }
+
+                // sourceScope must be set null tableName for its Field in RelationFields
+                // because we hope slotRef can not be resolved in sourceScope but can be
+                // resolved in outputScope to force to replace the node using outputExprs.
+                Scope sourceScope = new Scope(RelationId.anonymous(),
+                        new RelationFields(table.getBaseSchema().stream().map(col ->
+                                        new Field(col.getName(), col.getType(), null, null))
+                                .collect(Collectors.toList())));
+                Scope outputScope = new Scope(RelationId.anonymous(),
+                        new RelationFields(table.getBaseSchema().stream().map(col ->
+                                        new Field(col.getName(), col.getType(), new TableName(dbName, table.getName()), null))
+                                .collect(Collectors.toList())));
+                SelectAnalyzer.RewriteAliasVisitor visitor =
+                        new SelectAnalyzer.RewriteAliasVisitor(sourceScope, outputScope,
+                                outputExprs, new ConnectContext());
+                Expr whereClause = indexMeta.getWhereClause();
+                whereClause = whereClause.accept(visitor, null);
+                whereClause = Expr.analyzeAndCastFold(whereClause);
+
                 List<SlotRef> slots = new ArrayList<>();
                 whereClause.collect(SlotRef.class, slots);
-
                 for (SlotRef slot : slots) {
                     SlotDescriptor slotDesc = descMap.get(slot.getColumnName());
                     slot.setDesc(slotDesc);

@@ -368,16 +368,17 @@ public class OlapTableSink extends DataSink {
                 SelectAnalyzer.RewriteAliasVisitor visitor =
                         new SelectAnalyzer.RewriteAliasVisitor(sourceScope, outputScope,
                                 outputExprs, new ConnectContext());
-                Expr whereClause = indexMeta.getWhereClause();
-                whereClause = whereClause.accept(visitor, null);
-                whereClause = Expr.analyzeAndCastFold(whereClause);
-
+                Expr whereClause = indexMeta.getWhereClause().clone();
                 List<SlotRef> slots = new ArrayList<>();
                 whereClause.collect(SlotRef.class, slots);
                 for (SlotRef slot : slots) {
                     SlotDescriptor slotDesc = descMap.get(slot.getColumnName());
                     slot.setDesc(slotDesc);
+                    slot.setType(slotDesc.getType());
                 }
+
+                whereClause = whereClause.accept(visitor, null);
+                whereClause = Expr.analyzeAndCastFold(whereClause);
 
                 indexSchema.setWhere_clause(whereClause.treeToThrift());
                 LOG.info("OlapTableSink Where clause: {}", indexMeta.getWhereClause().explain());

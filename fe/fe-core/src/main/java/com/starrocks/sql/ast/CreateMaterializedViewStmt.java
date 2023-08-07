@@ -253,7 +253,7 @@ public class CreateMaterializedViewStmt extends DdlStmt {
                         break;
                     }
                     default: {
-                        if (functionCallExpr.isAggregateFunction()) {
+                        if (functionCallExpr.getFn() != null && functionCallExpr.isAggregateFunction()) {
                             throw new AnalysisException("Unsupported function:" + functionName);
                         }
                         MVColumnItem item = buildNonAggColumnItem(selectListItem, slots);

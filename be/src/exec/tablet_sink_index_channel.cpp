@@ -21,6 +21,7 @@
 #include "common/statusor.h"
 #include "config.h"
 #include "exec/tablet_sink.h"
+#include "exprs/expr.h"
 #include "gutil/strings/fastmem.h"
 #include "gutil/strings/join.h"
 #include "gutil/strings/substitute.h"
@@ -417,6 +418,10 @@ Status NodeChannel::add_chunk(Chunk* input, const std::vector<int64_t>& tablet_i
         std::vector<uint32_t> filtered_indexes;
         RETURN_IF_ERROR(_filter_indexes_with_where_expr(input, indexes, &filtered_indexes));
         _cur_chunk->append_selective(*input, filtered_indexes.data(), from, filtered_indexes.size());
+
+        for (int i = 0; i < _cur_chunk->num_rows(); i++) {
+            VLOG(2) << "add_chunk , col=" << i << ", input=" << _cur_chunk->debug_row(i);
+        }
         for (size_t i = from; i < filtered_indexes.size(); ++i) {
             req->add_tablet_ids(tablet_ids[filtered_indexes[from + i]]);
         }
@@ -478,6 +483,9 @@ Status NodeChannel::add_chunks(Chunk* input, const std::vector<std::vector<int64
         std::vector<uint32_t> filtered_indexes;
         RETURN_IF_ERROR(_filter_indexes_with_where_expr(input, indexes, &filtered_indexes));
         _cur_chunk->append_selective(*input, filtered_indexes.data(), from, filtered_indexes.size());
+        for (int i = 0; i < _cur_chunk->num_rows(); i++) {
+            VLOG(2) << "add_chunks, col=" << i << ", input=" << _cur_chunk->debug_row(i);
+        }
         for (size_t index_i = 0; index_i < index_tablet_ids.size(); ++index_i) {
             auto req = _rpc_request.mutable_requests(index_i);
             for (size_t i = from; i < filtered_indexes.size(); ++i) {
@@ -515,19 +523,33 @@ Status NodeChannel::_filter_indexes_with_where_expr(Chunk* input, const std::vec
                                                     std::vector<uint32_t>* filtered_indexes) {
     DCHECK(_where_clause != nullptr);
     // Filter data
-    LOG(INFO) << "In node channel filter data, chunk has " << input->num_rows() << " rows data";
+    LOG(INFO) << "In node channel filter data, chunk has " << input->num_rows() << " rows data"
+              << "expr=" << _where_clause->root()->debug_string();
     ASSIGN_OR_RETURN(ColumnPtr filter_col, _where_clause->evaluate(input))
+    for (int i = 0; i < input->num_rows(); i++) {
+        VLOG(2) << "i=" << i << ", input=" << input->debug_row(i);
+    }
+
+    // all trues
+    size_t true_count = ColumnHelper::count_true_with_notnull(filter_col);
+    if (true_count == input->num_rows()) {
+        *filtered_indexes = indexes;
+        return Status::OK();
+    }
 
     size_t size = filter_col->size();
     Buffer<uint8_t> filter(size, 0);
     ColumnViewer<TYPE_BOOLEAN> col(filter_col);
+
     for (size_t i = 0; i < size; ++i) {
         filter[i] = !col.is_null(i) && col.value(i);
+        VLOG(2) << "i=" << i << ", filter=" << (filter[i] ? "1" : "0");
     }
 
     // input->filter(filter);
-    for (auto index : indexes) {
+    for (auto& index : indexes) {
         if (filter[index]) {
+            VLOG(2) << "filtered index=" << index;
             filtered_indexes->emplace_back(index);
         }
     }

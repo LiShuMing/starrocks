@@ -314,9 +314,15 @@ public class MaterializedViewHandler extends AlterHandler {
                             + mvCol + " is not equal to " + targetCol
                             + " and can not cast mv column to target column");
                 }
-                Expr newDefinedExpr = new CastExpr(targetCol.getType(), mvCol.getDefineExpr());
-                mvCol.setDefineExpr(newDefinedExpr);
-                mvCol.setType(targetCol.getType());
+                if (mvCol.getDefineExpr() == null) {
+                    throw new DdlException("Logical materialized view column type "
+                            + mvCol + " is not equal to " + targetCol
+                            + " and can not cast mv column to target column because it is a base column");
+                } else {
+                    Expr newDefinedExpr = new CastExpr(targetCol.getType(), mvCol.getDefineExpr());
+                    mvCol.setDefineExpr(newDefinedExpr);
+                    mvCol.setType(targetCol.getType());
+                }
             }
         }
 

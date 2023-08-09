@@ -17,13 +17,13 @@ package com.starrocks.sql.optimizer.cost;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.starrocks.common.Pair;
 import com.starrocks.qe.ConnectContext;
 import com.starrocks.qe.SessionVariable;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.common.ErrorType;
 import com.starrocks.sql.common.StarRocksPlannerException;
 import com.starrocks.sql.optimizer.ExpressionContext;
+import com.starrocks.sql.optimizer.CostContext;
 import com.starrocks.sql.optimizer.Group;
 import com.starrocks.sql.optimizer.GroupExpression;
 import com.starrocks.sql.optimizer.JoinHelper;
@@ -134,9 +134,9 @@ public class CostModel {
             Group group = context.getGroupExpression().getGroup();
             List<Double> costs = Lists.newArrayList();
             // get the costs of all expression in this group
-            for (Pair<Double, GroupExpression> pair : group.getAllBestExpressionWithCost()) {
-                if (!(pair.second.getOp() instanceof PhysicalOlapScanOperator)) {
-                    costs.add(pair.first);
+            for (CostContext costContext : group.getAllBestExpressionWithCost()) {
+                if (!(costContext.getGroupExpression().getOp() instanceof PhysicalOlapScanOperator)) {
+                    costs.add(costContext.getCost());
                 }
             }
             double groupMinCost = Double.MAX_VALUE;

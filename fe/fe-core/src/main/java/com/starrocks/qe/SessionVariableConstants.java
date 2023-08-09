@@ -14,6 +14,8 @@
 
 package com.starrocks.qe;
 
+import org.apache.commons.lang3.EnumUtils;
+
 public class SessionVariableConstants {
 
     private SessionVariableConstants() {}

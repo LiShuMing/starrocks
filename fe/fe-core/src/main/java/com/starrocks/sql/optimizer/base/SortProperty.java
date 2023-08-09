@@ -16,7 +16,6 @@
 package com.starrocks.sql.optimizer.base;
 
 import com.google.common.collect.Lists;
-import com.starrocks.sql.optimizer.Group;
 import com.starrocks.sql.optimizer.GroupExpression;
 import com.starrocks.sql.optimizer.operator.Operator;
 import com.starrocks.sql.optimizer.operator.SortPhase;
@@ -69,11 +68,13 @@ public class SortProperty implements PhysicalProperty {
     }
 
     @Override
-    public GroupExpression appendEnforcers(Group child) {
-        return new GroupExpression(new PhysicalTopNOperator(spec,
+    public GroupExpression appendEnforcers(GroupExpression originGroupExpression) {
+        GroupExpression groupExpression = new GroupExpression(new PhysicalTopNOperator(spec,
                 Operator.DEFAULT_LIMIT, Operator.DEFAULT_OFFSET, null, Operator.DEFAULT_LIMIT, SortPhase.FINAL,
                 TopNType.ROW_NUMBER, false,
                 true, null, null),
-                Lists.newArrayList(child));
+                Lists.newArrayList(originGroupExpression.getGroup()));
+        groupExpression.setHasRewrittenByMV(originGroupExpression.hasRewrittenByMV());
+        return groupExpression;
     }
 }

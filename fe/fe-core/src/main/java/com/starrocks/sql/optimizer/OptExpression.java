@@ -56,6 +56,9 @@ public class OptExpression {
     // MV Operator property, inferred from best plan
     private MVOperatorProperty mvOperatorProperty;
 
+    // -1 : default, 1 : rewritten
+    private int mvPlanRewriteMarker = -1;
+
     public OptExpression(Operator op) {
         this.op = op;
         this.inputs = Lists.newArrayList();
@@ -205,5 +208,40 @@ public class OptExpression {
             sb.append(input.explain(childHeadlinePrefix, childDetailPrefix));
         }
         return sb.toString();
+    }
+
+    public boolean hasRewrittenByMV() {
+        if (mvPlanRewriteMarker == 1) {
+            return true;
+        } else if (mvPlanRewriteMarker == 0) {
+            return false;
+        } else {
+            return markMVPlanRewrite(this);
+        }
+    }
+
+    private boolean markMVPlanRewrite(OptExpression optExpression) {
+        if (optExpression.hasRewrittenByMV()) {
+            return true;
+        }
+
+        int marker = -1;
+        for (OptExpression child : optExpression.getInputs()) {
+            if (markMVPlanRewrite(child)) {
+                marker = 1;
+                break;
+            }
+        }
+        if (marker == 1) {
+            this.mvPlanRewriteMarker = 1;
+            return true;
+        } else {
+            this.mvPlanRewriteMarker = 0;
+            return false;
+        }
+    }
+
+    public void setHasRewrittenByMV() {
+        this.mvPlanRewriteMarker = 1;
     }
 }

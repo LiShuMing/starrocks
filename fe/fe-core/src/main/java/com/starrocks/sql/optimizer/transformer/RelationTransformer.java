@@ -493,6 +493,7 @@ public class RelationTransformer extends AstVisitor<LogicalPlan, ExpressionMappi
                         .setDistributionSpec(distributionSpec)
                         .setSelectedIndexId(((OlapTable) node.getTable()).getBaseIndexId())
                         .setPartitionNames(node.getPartitionNames())
+                        .setPredicate(partitionPredicate)
                         .setSelectedTabletId(Lists.newArrayList())
                         .setHintsTabletIds(node.getTabletIds())
                         .setHintsReplicaIds(node.getReplicaIds())

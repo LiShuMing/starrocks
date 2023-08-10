@@ -232,13 +232,10 @@ public class OptExpression {
                 break;
             }
         }
-        if (marker == 1) {
-            this.mvPlanRewriteMarker = 1;
-            return true;
-        } else {
-            this.mvPlanRewriteMarker = 0;
-            return false;
-        }
+        boolean isRewritten = (marker == 1);
+        // 0 means already checked.
+        this.mvPlanRewriteMarker = isRewritten ? 1 : 0;
+        return isRewritten;
     }
 
     public void setHasRewrittenByMV() {

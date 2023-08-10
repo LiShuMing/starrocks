@@ -370,7 +370,7 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
         DEFAULT_OR_ERROR,   // default, but throw exception if no materialized view is not chosen.
         FORCE,              // force to choose the materialized view if possible, otherwise use the original query
         FORCE_OR_ERROR;     // force to choose the materialized view if possible, throw exception if no materialized view is
-                            // not chosen.
+        // not chosen.
 
         public static String MODE_DISABLE = DISABLE.toString();
         public static String MODE_DEFAULT = DEFAULT.toString();

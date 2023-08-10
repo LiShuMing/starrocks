@@ -123,7 +123,6 @@ public final class LogicalOlapScanOperator extends LogicalScanOperator {
     public PartitionNames getPartitionNames() {
         return partitionNames;
     }
-
     public List<Long> getSelectedTabletId() {
         return selectedTabletId;
     }

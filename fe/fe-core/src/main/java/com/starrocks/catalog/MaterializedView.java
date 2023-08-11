@@ -32,6 +32,7 @@ import com.starrocks.analysis.SlotId;
 import com.starrocks.analysis.SlotRef;
 import com.starrocks.analysis.TableName;
 import com.starrocks.authentication.AuthenticationMgr;
+import com.starrocks.backup.Status;
 import com.starrocks.common.AnalysisException;
 import com.starrocks.common.DdlException;
 import com.starrocks.common.FeConstants;
@@ -890,12 +891,10 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
                 }
             }
         }
-        analyzePartitionInfo();
+        analyzePartitionInfo(db);
     }
 
-    private void analyzePartitionInfo() {
-        Database db = GlobalStateMgr.getCurrentState().getDb(dbId);
-
+    private void analyzePartitionInfo(Database db) {
         if (partitionInfo instanceof SinglePartitionInfo) {
             return;
         }
@@ -1520,5 +1519,43 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
 
     public String inspectMeta() {
         return GsonUtils.GSON.toJson(this);
+    }
+
+    @Override
+    public Status resetIdsForRestore(GlobalStateMgr globalStateMgr, Database db, int restoreReplicationNum) {
+        Status status = super.resetIdsForRestore(globalStateMgr, db, restoreReplicationNum);
+        if (!status.ok()) {
+            return status;
+        }
+        if (baseTableInfos == null) {
+            setInactiveAndReason("base mv is not active: base info is null");
+            return new Status(Status.ErrCode.NOT_FOUND, "Materialized view's base info is not fount");
+        }
+
+        for (BaseTableInfo baseTableInfo : baseTableInfos) {
+            // Do not set the active when table is null, it would be checked in MVActiveChecker
+            Table table = baseTableInfo.getTableByName();
+            if (table != null) {
+                if (table.isMaterializedView() && !((MaterializedView) table).isActive()) {
+                    LOG.warn("tableName :{} is invalid. set materialized view:{} to invalid",
+                            baseTableInfo.getTableName(), id);
+                    setInactiveAndReason("base mv is not active: " + baseTableInfo.getTableName());
+                    continue;
+                }
+                MvId mvId = new MvId(db.getId(), id);
+                table.addRelatedMaterializedView(mvId);
+
+                if (!table.isNativeTableOrMaterializedView()) {
+                    GlobalStateMgr.getCurrentState().getConnectorTblMetaInfoMgr().addConnectorTableInfo(
+                            baseTableInfo.getCatalogName(), baseTableInfo.getDbName(),
+                            baseTableInfo.getTableIdentifier(),
+                            ConnectorTableInfo.builder().setRelatedMaterializedViews(
+                                    Sets.newHashSet(mvId)).build()
+                    );
+                }
+            }
+        }
+        analyzePartitionInfo(db);
+        return Status.OK;
     }
 }

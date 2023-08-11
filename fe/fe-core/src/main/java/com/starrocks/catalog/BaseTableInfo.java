@@ -146,8 +146,24 @@ public class BaseTableInfo {
             if (tableIdentifier != null && table.getTableIdentifier().equals(tableIdentifier)) {
                 return table;
             }
+            return getTableByName();
+        }
+    }
+
+    public Table getTableByName() {
+        if (!GlobalStateMgr.getCurrentState().getCatalogMgr().catalogExists(catalogName)) {
+            LOG.warn("catalog {} not exist", catalogName);
             return null;
         }
+        Table table = GlobalStateMgr.getCurrentState().getMetadataMgr().getTable(catalogName, dbName, tableName);
+        if (table == null) {
+            LOG.warn("table {}.{}.{} not exist", catalogName, dbName, tableName);
+            return null;
+        }
+        if (table.getTableIdentifier().equals(tableIdentifier)) {
+            return table;
+        }
+        return null;
     }
 
     public Database getDb() {

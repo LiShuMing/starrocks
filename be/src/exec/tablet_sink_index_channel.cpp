@@ -16,10 +16,12 @@
 
 #include "column/chunk.h"
 #include "column/column_helper.h"
+#include "column/column_viewer.h"
 #include "column/nullable_column.h"
 #include "common/statusor.h"
 #include "config.h"
 #include "exec/tablet_sink.h"
+#include "exprs/expr.h"
 #include "gutil/strings/fastmem.h"
 #include "gutil/strings/join.h"
 #include "gutil/strings/substitute.h"
@@ -34,8 +36,9 @@
 namespace starrocks::stream_load {
 
 class OlapTableSink; // forward declaration
-NodeChannel::NodeChannel(OlapTableSink* parent, int64_t node_id, bool is_incremental)
-        : _parent(parent), _node_id(node_id), _is_incremental(is_incremental) {
+
+NodeChannel::NodeChannel(OlapTableSink* parent, int64_t node_id, bool is_incremental, ExprContext* where_clause)
+        : _parent(parent), _node_id(node_id), _is_incremental(is_incremental), _where_clause(where_clause) {
     // restrict the chunk memory usage of send queue & brpc write buffer
     _mem_tracker = std::make_unique<MemTracker>(config::send_channel_buffer_limit, "", nullptr);
     _ts_profile = _parent->ts_profile();
@@ -403,11 +406,25 @@ Status NodeChannel::add_chunk(Chunk* input, const std::vector<int64_t>& tablet_i
     }
 
     SCOPED_TIMER(_ts_profile->pack_chunk_timer);
-    // 1. append data
-    _cur_chunk->append_selective(*input, indexes.data(), from, size);
+
+    // 1 append data
     auto req = _rpc_request.mutable_requests(0);
-    for (size_t i = 0; i < size; ++i) {
-        req->add_tablet_ids(tablet_ids[indexes[from + i]]);
+    if (_where_clause == nullptr) {
+        _cur_chunk->append_selective(*input, indexes.data(), from, size);
+        for (size_t i = from; i < size; ++i) {
+            req->add_tablet_ids(tablet_ids[indexes[from + i]]);
+        }
+    } else {
+        std::vector<uint32_t> filtered_indexes;
+        RETURN_IF_ERROR(_filter_indexes_with_where_expr(input, indexes, &filtered_indexes));
+        _cur_chunk->append_selective(*input, filtered_indexes.data(), from, filtered_indexes.size());
+
+        for (int i = 0; i < _cur_chunk->num_rows(); i++) {
+            VLOG(2) << "add_chunk , col=" << i << ", input=" << _cur_chunk->debug_row(i);
+        }
+        for (size_t i = from; i < filtered_indexes.size(); ++i) {
+            req->add_tablet_ids(tablet_ids[filtered_indexes[from + i]]);
+        }
     }
 
     if (_cur_chunk->num_rows() < _runtime_state->chunk_size()) {
@@ -433,6 +450,7 @@ Status NodeChannel::add_chunk(Chunk* input, const std::vector<int64_t>& tablet_i
     return _send_request(false);
 }
 
+/// FIXME colocate sender can not filter data for mv index
 Status NodeChannel::add_chunks(Chunk* input, const std::vector<std::vector<int64_t>>& index_tablet_ids,
                                const std::vector<uint32_t>& indexes, uint32_t from, uint32_t size) {
     if (_cancelled || _send_finished) {
@@ -451,12 +469,28 @@ Status NodeChannel::add_chunks(Chunk* input, const std::vector<std::vector<int64
     }
 
     SCOPED_TIMER(_ts_profile->pack_chunk_timer);
-    // 1. append data
-    _cur_chunk->append_selective(*input, indexes.data(), from, size);
-    for (size_t index_i = 0; index_i < index_tablet_ids.size(); ++index_i) {
-        auto req = _rpc_request.mutable_requests(index_i);
-        for (size_t i = from; i < size; ++i) {
-            req->add_tablet_ids(index_tablet_ids[index_i][indexes[from + i]]);
+
+    // 1 append data
+    if (_where_clause == nullptr) {
+        _cur_chunk->append_selective(*input, indexes.data(), from, size);
+        for (size_t index_i = 0; index_i < index_tablet_ids.size(); ++index_i) {
+            auto req = _rpc_request.mutable_requests(index_i);
+            for (size_t i = from; i < size; ++i) {
+                req->add_tablet_ids(index_tablet_ids[index_i][indexes[from + i]]);
+            }
+        }
+    } else {
+        std::vector<uint32_t> filtered_indexes;
+        RETURN_IF_ERROR(_filter_indexes_with_where_expr(input, indexes, &filtered_indexes));
+        _cur_chunk->append_selective(*input, filtered_indexes.data(), from, filtered_indexes.size());
+        for (int i = 0; i < _cur_chunk->num_rows(); i++) {
+            VLOG(2) << "add_chunks, col=" << i << ", input=" << _cur_chunk->debug_row(i);
+        }
+        for (size_t index_i = 0; index_i < index_tablet_ids.size(); ++index_i) {
+            auto req = _rpc_request.mutable_requests(index_i);
+            for (size_t i = from; i < filtered_indexes.size(); ++i) {
+                req->add_tablet_ids(index_tablet_ids[index_i][filtered_indexes[from + i]]);
+            }
         }
     }
 
@@ -483,6 +517,43 @@ Status NodeChannel::add_chunks(Chunk* input, const std::vector<std::vector<int64
     }
 
     return _send_request(false);
+}
+
+Status NodeChannel::_filter_indexes_with_where_expr(Chunk* input, const std::vector<uint32_t>& indexes,
+                                                    std::vector<uint32_t>* filtered_indexes) {
+    DCHECK(_where_clause != nullptr);
+    // Filter data
+    LOG(INFO) << "In node channel filter data, chunk has " << input->num_rows() << " rows data"
+              << "expr=" << _where_clause->root()->debug_string();
+    ASSIGN_OR_RETURN(ColumnPtr filter_col, _where_clause->evaluate(input))
+    for (int i = 0; i < input->num_rows(); i++) {
+        VLOG(2) << "i=" << i << ", input=" << input->debug_row(i);
+    }
+
+    // all trues
+    size_t true_count = ColumnHelper::count_true_with_notnull(filter_col);
+    if (true_count == input->num_rows()) {
+        *filtered_indexes = indexes;
+        return Status::OK();
+    }
+
+    size_t size = filter_col->size();
+    Buffer<uint8_t> filter(size, 0);
+    ColumnViewer<TYPE_BOOLEAN> col(filter_col);
+
+    for (size_t i = 0; i < size; ++i) {
+        filter[i] = !col.is_null(i) && col.value(i);
+        VLOG(2) << "i=" << i << ", filter=" << (filter[i] ? "1" : "0");
+    }
+
+    // input->filter(filter);
+    for (auto& index : indexes) {
+        if (filter[index]) {
+            VLOG(2) << "filtered index=" << index;
+            filtered_indexes->emplace_back(index);
+        }
+    }
+    return Status::OK();
 }
 
 Status NodeChannel::_send_request(bool eos, bool wait_all_sender_close) {
@@ -847,7 +918,11 @@ void NodeChannel::_cancel(int64_t index_id, const Status& err_st) {
     request.release_id();
 }
 
-IndexChannel::~IndexChannel() = default;
+IndexChannel::~IndexChannel() {
+    if (_where_clause != nullptr) {
+        _where_clause->close(_parent->_state);
+    }
+}
 
 Status IndexChannel::init(RuntimeState* state, const std::vector<PTabletWithPartition>& tablets, bool is_incremental) {
     for (const auto& tablet : tablets) {
@@ -860,7 +935,7 @@ Status IndexChannel::init(RuntimeState* state, const std::vector<PTabletWithPart
             NodeChannel* channel = nullptr;
             auto it = _node_channels.find(node_id);
             if (it == std::end(_node_channels)) {
-                auto channel_ptr = std::make_unique<NodeChannel>(_parent, node_id, is_incremental);
+                auto channel_ptr = std::make_unique<NodeChannel>(_parent, node_id, is_incremental, _where_clause);
                 channel = channel_ptr.get();
                 _node_channels.emplace(node_id, std::move(channel_ptr));
                 if (is_incremental) {
@@ -874,6 +949,10 @@ Status IndexChannel::init(RuntimeState* state, const std::vector<PTabletWithPart
     }
     for (auto& it : _node_channels) {
         RETURN_IF_ERROR(it.second->init(state));
+    }
+    if (_where_clause != nullptr) {
+        RETURN_IF_ERROR(_where_clause->prepare(_parent->_state));
+        RETURN_IF_ERROR(_where_clause->open(_parent->_state));
     }
     _write_quorum_type = _parent->_write_quorum_type;
     return Status::OK();

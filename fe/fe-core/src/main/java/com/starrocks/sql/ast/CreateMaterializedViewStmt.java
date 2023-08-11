@@ -131,10 +131,13 @@ public class CreateMaterializedViewStmt extends DdlStmt {
      * This order of mvColumnItemList is meaningful.
      */
     private List<MVColumnItem> mvColumnItemList = Lists.newArrayList();
+
+    Expr whereClause;
     private String baseIndexName;
     private String dbName;
     private KeysType mvKeysType = KeysType.DUP_KEYS;
 
+    public static String where_col_name = "__WHERE_PREDICATION";
     // If the process is replaying log, isReplay is true, otherwise is false,
     // avoid throwing error during replay process, only in Rollup or MaterializedIndexMeta is true.
     private boolean isReplay = false;
@@ -144,6 +147,10 @@ public class CreateMaterializedViewStmt extends DdlStmt {
         this.mvTableName = mvTableName;
         this.queryStatement = queryStatement;
         this.properties = properties;
+    }
+
+    public Expr getWhereClause() {
+        return whereClause;
     }
 
     public QueryStatement getQueryStatement() {
@@ -205,7 +212,11 @@ public class CreateMaterializedViewStmt extends DdlStmt {
         SelectList selectList = null;
         QueryRelation queryRelation = queryStatement.getQueryRelation();
         if (queryRelation instanceof SelectRelation) {
-            selectList = ((SelectRelation) queryRelation).getSelectList();
+            SelectRelation select = (SelectRelation) queryRelation;
+            selectList = select.getSelectList();
+            if (select.hasWhereClause()) {
+                result.put(where_col_name, select.getWhereClause());
+            }
         }
         if (selectList == null) {
             LOG.warn("parse defineExpr may not correctly for sql [{}] ", originalSql);
@@ -235,7 +246,7 @@ public class CreateMaterializedViewStmt extends DdlStmt {
                         break;
                     }
                     default: {
-                        if (functionCallExpr.isAggregateFunction()) {
+                        if (functionCallExpr.getFn() != null && functionCallExpr.isAggregateFunction()) {
                             throw new AnalysisException("Unsupported function:" + functionName);
                         }
                         MVColumnItem item = buildNonAggColumnItem(selectListItem, slots);
@@ -317,9 +328,9 @@ public class CreateMaterializedViewStmt extends DdlStmt {
             setMvKeysType(KeysType.AGG_KEYS);
         }
         if (selectRelation.hasWhereClause()) {
-            throw new UnsupportedMVException("The where clause is not supported in add materialized view clause, expr:"
-                    + selectRelation.getWhereClause().toSql());
+            whereClause = selectRelation.getWhereClause();
         }
+
         if (selectRelation.hasHavingClause()) {
             throw new UnsupportedMVException("The having clause is not supported in add materialized view clause, expr:"
                     + selectRelation.getHavingClause().toSql());

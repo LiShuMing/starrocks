@@ -226,7 +226,6 @@ public class MaterializedViewHandler extends AlterHandler {
         LOG.info("finished to create materialized view job: {}", rollupJobV2.getJobId());
     }
 
-
     /**
      * There are 2 main steps.
      * Step1: validate the request

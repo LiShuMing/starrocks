@@ -625,7 +625,8 @@ StatusOr<std::shared_ptr<LocalTabletsChannel::WriteContext>> LocalTabletsChannel
     }
 
     if (UNLIKELY(request.tablet_ids_size() != chunk->num_rows())) {
-        return Status::InvalidArgument("request.tablet_ids_size() != chunk.num_rows()");
+        return Status::InvalidArgument(fmt::format("request.tablet_ids_size() {} != chunk.num_rows() {}",
+                                                   request.tablet_ids_size(), chunk->num_rows()));
     }
 
     const auto channel_size = _tablet_id_to_sorted_indexes.size();

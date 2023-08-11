@@ -457,18 +457,18 @@ public class OlapTable extends Table {
 
     public void setIndexMeta(long indexId, String indexName, List<Column> schema, int schemaVersion,
             int schemaHash, short shortKeyColumnCount, TStorageType storageType, KeysType keysType) {
-        setIndexMeta(indexId, indexName, schema, schemaVersion, schemaHash, shortKeyColumnCount, storageType, keysType,
+        setIndexMeta(indexId, indexName, schema, null, schemaVersion, schemaHash, shortKeyColumnCount, storageType, keysType,
                 null, null);
     }
 
     public void setIndexMeta(long indexId, String indexName, List<Column> schema, int schemaVersion,
             int schemaHash, short shortKeyColumnCount, TStorageType storageType, KeysType keysType,
             OriginStatement origStmt) {
-        setIndexMeta(indexId, indexName, schema, schemaVersion, schemaHash, shortKeyColumnCount, storageType, keysType,
+        setIndexMeta(indexId, indexName, schema, null, schemaVersion, schemaHash, shortKeyColumnCount, storageType, keysType,
                 origStmt, null);
     }
 
-    public void setIndexMeta(long indexId, String indexName, List<Column> schema, int schemaVersion,
+    public void setIndexMeta(long indexId, String indexName, List<Column> schema, Expr whereClause, int schemaVersion,
             int schemaHash, short shortKeyColumnCount, TStorageType storageType, KeysType keysType,
             OriginStatement origStmt, List<Integer> sortColumns) {
         // Nullable when meta comes from schema change log replay.
@@ -494,6 +494,14 @@ public class OlapTable extends Table {
 
         MaterializedIndexMeta indexMeta = new MaterializedIndexMeta(indexId, schema, schemaVersion,
                 schemaHash, shortKeyColumnCount, storageType, keysType, origStmt, sortColumns);
+        if (whereClause != null) {
+            indexMeta.setWhereClause(whereClause, true);
+        }
+        addMaterializedIndexMeta(indexName, indexMeta);
+    }
+
+    public void addMaterializedIndexMeta(String indexName, MaterializedIndexMeta indexMeta) {
+        long indexId = indexMeta.getIndexId();
         indexIdToMeta.put(indexId, indexMeta);
         indexNameToId.put(indexName, indexId);
     }
@@ -1365,9 +1373,10 @@ public class OlapTable extends Table {
 
         // If all indexes except the basic index are all colocate, we can use colocate
         // mv index optimization.
+        // if the index's where expr is not null, cannot use colocate optimization.
         return indexIdToMeta.values().stream()
                 .filter(x -> x.getIndexId() != baseIndexId)
-                .allMatch(MaterializedIndexMeta::isColocateMVIndex);
+                .allMatch(index -> index.isColocateMVIndex() && (index.getWhereClause() == null));
     }
 
     // when the table is creating new rollup and enter finishing state, should tell

@@ -62,14 +62,20 @@ public class BaseTableInfo {
         ConnectorMetadata metadata =
                 GlobalStateMgr.getCurrentState().getMetadataMgr().getOptionalMetadata(this.catalogName).get();
         Preconditions.checkState(metadata != null);
+
+        this.dbId = dbId;
+        this.tableId = tableId;
+
         Database db = metadata.getDb(dbId);
-        Preconditions.checkState(db != null);
-        this.dbId = db.getId();
-        this.dbName = db.getFullName();
-        Table table = db.getTable(tableId);
-        Preconditions.checkState(table != null);
-        this.tableName = table.getName();
-        this.tableId = table.getId();
+        // TODO: Precondition.checkState?
+
+        if (db != null) {
+            this.dbName = db.getFullName();
+            Table table = db.getTable(tableId);
+            if (table != null) {
+                this.tableName = table.getName();
+            }
+        }
     }
 
     // used for external table

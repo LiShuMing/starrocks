@@ -240,7 +240,7 @@ public class TaskManager {
         }
     }
 
-    private boolean stopScheduler(String taskName) {
+    public boolean stopScheduler(String taskName) {
         Task task = nameToTaskMap.get(taskName);
         if (task.getType() != Constants.TaskType.PERIODICAL) {
             return false;

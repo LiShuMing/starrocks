@@ -32,6 +32,7 @@ import com.starrocks.analysis.SlotId;
 import com.starrocks.analysis.SlotRef;
 import com.starrocks.analysis.TableName;
 import com.starrocks.authentication.AuthenticationMgr;
+import com.starrocks.backup.Status;
 import com.starrocks.common.AnalysisException;
 import com.starrocks.common.DdlException;
 import com.starrocks.common.FeConstants;
@@ -50,6 +51,9 @@ import com.starrocks.persist.gson.GsonUtils;
 import com.starrocks.privilege.PrivilegeBuiltinConstants;
 import com.starrocks.qe.ConnectContext;
 import com.starrocks.qe.SqlModeHelper;
+import com.starrocks.scheduler.Task;
+import com.starrocks.scheduler.TaskBuilder;
+import com.starrocks.scheduler.TaskManager;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.analyzer.AnalyzeState;
 import com.starrocks.sql.analyzer.ExpressionAnalyzer;
@@ -448,7 +452,7 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
         this.indexIdToMeta.put(indexId, indexMeta);
 
         this.baseTableInfos = Lists.newArrayList();
-        this.baseTableInfos.add(new BaseTableInfo(db.getId(), db.getFullName(), baseTable.getId()));
+        this.baseTableInfos.add(new BaseTableInfo(db.getId(), db.getFullName(), baseTable.getName(), baseTable.getId()));
 
         Map<Long, Partition> idToPartitions = new HashMap<>(baseTable.idToPartition.size());
         Map<String, Partition> nameToPartitions = Maps.newTreeMap(String.CASE_INSENSITIVE_ORDER);
@@ -874,11 +878,31 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
             if (baseTableIds != null) {
                 // for compatibility
                 for (long tableId : baseTableIds) {
-                    baseTableInfos.add(new BaseTableInfo(dbId, db.getFullName(), tableId));
+                    Table table = db.getTable(tableId);
+                    if (table == null) {
+                        setInactiveAndReason(String.format("mv's base table %s does not exist ", tableId));
+                        return false;
+                    }
+                    baseTableInfos.add(new BaseTableInfo(dbId, db.getFullName(), table.getName(), tableId));
                 }
             } else {
                 active = false;
                 return false;
+            }
+        } else {
+            // for compatibility
+            if (baseTableInfos.stream().anyMatch(t -> Strings.isNullOrEmpty(t.getTableName()))) {
+                // fill table name for base table info.
+                List<BaseTableInfo> newBaseTableInfos = Lists.newArrayList();
+                for (long tableId : baseTableIds) {
+                    Table table = db.getTable(tableId);
+                    if (table == null) {
+                        setInactiveAndReason(String.format("mv's base table %s does not exist ", tableId));
+                        return false;
+                    }
+                    newBaseTableInfos.add(new BaseTableInfo(dbId, db.getFullName(), table.getName(), tableId));
+                }
+                this.baseTableInfos = newBaseTableInfos;
             }
         }
 
@@ -1538,5 +1562,81 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
 
     public String inspectMeta() {
         return GsonUtils.GSON.toJson(this);
+    }
+
+    /**
+     * Post actions after restore. Rebuild the materialized view by using table name instead of table ids
+     * because the table ids have changed since the restore.
+     * @param db : the new database after restore.
+     * @return   : rebuild status, ok if success other error status.
+     */
+    public Status rebuildAfterRestore(Database db) {
+        if (baseTableInfos == null) {
+            setInactiveAndReason("base mv is not active: base info is null");
+            return new Status(Status.ErrCode.NOT_FOUND, "Materialized view's base info is not found");
+        }
+
+        Set<Long> newBaseTableIds = Sets.newHashSet();
+        List<BaseTableInfo> newBaseTableInfos = Lists.newArrayList();
+        for (BaseTableInfo baseTableInfo : baseTableInfos) {
+            if (Strings.isNullOrEmpty(baseTableInfo.getTableName())) {
+                return new Status(Status.ErrCode.NOT_FOUND, String.format("Materialized view %s " +
+                                "base table %s 's name is not found", this.getName(), baseTableInfo.getTableId()));
+            }
+            // Do not set the active when table is null, it would be checked in MVActiveChecker
+            Table table = baseTableInfo.getTableByName();
+            if (table == null) {
+                return new Status(Status.ErrCode.NOT_FOUND, String.format("Materialized view %s " +
+                                "base table %s is not found", this.getName(), baseTableInfo.getTableName()));
+            }
+
+            newBaseTableIds.add(table.getId());
+            if (table.isMaterializedView() && !((MaterializedView) table).isActive()) {
+                LOG.warn("tableName :{} is invalid. set materialized view:{} to invalid",
+                        baseTableInfo.getTableName(), id);
+                setInactiveAndReason("base mv is not active: " + baseTableInfo.getTableName());
+                continue;
+            }
+            MvId mvId = new MvId(db.getId(), id);
+            table.addRelatedMaterializedView(mvId);
+            newBaseTableInfos.add(new BaseTableInfo(db.getId(), db.getFullName(), table.getName(), table.getId()));
+
+            if (!table.isNativeTableOrMaterializedView()) {
+                GlobalStateMgr.getCurrentState().getConnectorTblMetaInfoMgr().addConnectorTableInfo(
+                        baseTableInfo.getCatalogName(), baseTableInfo.getDbName(),
+                        baseTableInfo.getTableIdentifier(),
+                        ConnectorTableInfo.builder().setRelatedMaterializedViews(
+                                Sets.newHashSet(mvId)).build()
+                );
+            }
+        }
+        analyzePartitionInfo();
+        this.baseTableInfos = newBaseTableInfos;
+        this.baseTableIds = newBaseTableIds;
+        this.getRefreshScheme().getAsyncRefreshContext()
+                .getBaseTableInfoVisibleVersionMap().clear();
+
+        try {
+            TaskManager taskManager = GlobalStateMgr.getCurrentState().getTaskManager();
+
+            // stop old task
+            {
+                Task oldTask = taskManager.getTask(TaskBuilder.getMvTaskName(id));
+                if (oldTask != null) {
+                    taskManager.stopScheduler(TaskBuilder.getMvTaskName(id));
+                }
+            }
+
+            // rebuild new task
+            Task task = TaskBuilder.buildMvTask(this, db.getFullName());
+            TaskBuilder.updateTaskInfo(task, this);
+            taskManager.createTask(task, false);
+        } catch (Exception e) {
+            // no throw
+            LOG.warn(String.format("rebuild mv %s task failed:", this.getName()), e);
+        }
+        LOG.info("rebuild materialized view success, {}", this.getName());
+
+        return Status.OK;
     }
 }

@@ -17,8 +17,10 @@ package com.starrocks.catalog;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
 import com.google.gson.annotations.SerializedName;
 import com.starrocks.analysis.TableName;
+import com.starrocks.connector.ConnectorMetadata;
 import com.starrocks.server.GlobalStateMgr;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -43,18 +45,37 @@ public class BaseTableInfo {
     @SerializedName(value = "tableIdentifier")
     private String tableIdentifier;
 
+    // table name must be set to be used in backup/restore
     @SerializedName(value = "tableName")
     private String tableName;
 
-    public BaseTableInfo(long dbId, String dbName, long tableId) {
+    public BaseTableInfo(long dbId, String dbName, String tableName, long tableId) {
         this.catalogName = InternalCatalog.DEFAULT_INTERNAL_CATALOG_NAME;
         this.dbId = dbId;
         this.dbName = dbName;
         this.tableId = tableId;
+        this.tableName = tableName;
     }
 
     public BaseTableInfo(long dbId, long tableId) {
-        this(dbId, null, tableId);
+        this.catalogName = InternalCatalog.DEFAULT_INTERNAL_CATALOG_NAME;
+        ConnectorMetadata metadata =
+                GlobalStateMgr.getCurrentState().getMetadataMgr().getOptionalMetadata(this.catalogName).get();
+        Preconditions.checkState(metadata != null);
+
+        this.dbId = dbId;
+        this.tableId = tableId;
+
+        Database db = metadata.getDb(dbId);
+        // TODO: Precondition.checkState?
+
+        if (db != null) {
+            this.dbName = db.getFullName();
+            Table table = db.getTable(tableId);
+            if (table != null) {
+                this.tableName = table.getName();
+            }
+        }
     }
 
     // used for external table
@@ -68,7 +89,7 @@ public class BaseTableInfo {
     public static BaseTableInfo fromTableName(TableName name, Table table) {
         Database database = GlobalStateMgr.getCurrentState().getMetadataMgr().getDb(name.getCatalog(), name.getDb());
         if (isInternalCatalog(name.getCatalog())) {
-            return new BaseTableInfo(database.getId(), database.getFullName(), table.getId());
+            return new BaseTableInfo(database.getId(), database.getFullName(), table.getName(), table.getId());
         } else {
             return new BaseTableInfo(name.getCatalog(), name.getDb(), table.getName(), table.getTableIdentifier());
         }
@@ -121,18 +142,17 @@ public class BaseTableInfo {
 
     public Table getTable() {
         if (isInternalCatalog(catalogName)) {
-            Database db = GlobalStateMgr.getCurrentState().getDb(dbId);
-            if (db == null) {
-                return null;
-            } else {
-                return db.getTable(tableId);
+            Table table = getTableById();
+            if (table == null) {
+                table = getTableByName();
             }
+            return table;
         } else {
             if (!GlobalStateMgr.getCurrentState().getCatalogMgr().catalogExists(catalogName)) {
                 LOG.warn("catalog {} not exist", catalogName);
                 return null;
             }
-            Table table = GlobalStateMgr.getCurrentState().getMetadataMgr().getTable(catalogName, dbName, tableName);
+            Table table = getTableByName();
             if (table == null) {
                 LOG.warn("table {}.{}.{} not exist", catalogName, dbName, tableName);
                 return null;
@@ -148,6 +168,28 @@ public class BaseTableInfo {
             }
             return null;
         }
+    }
+
+    public Table getTableById() {
+        Database db = GlobalStateMgr.getCurrentState().getDb(dbId);
+        if (db == null) {
+            return null;
+        } else {
+            return db.getTable(tableId);
+        }
+    }
+
+    public Table getTableByName() {
+        if (!GlobalStateMgr.getCurrentState().getCatalogMgr().catalogExists(catalogName)) {
+            LOG.warn("catalog {} not exist", catalogName);
+            return null;
+        }
+        Table table = GlobalStateMgr.getCurrentState().getMetadataMgr().getTable(catalogName, dbName, tableName);
+        if (table == null) {
+            LOG.warn("table {}.{}.{} not exist", catalogName, dbName, tableName);
+            return null;
+        }
+        return table;
     }
 
     public Database getDb() {

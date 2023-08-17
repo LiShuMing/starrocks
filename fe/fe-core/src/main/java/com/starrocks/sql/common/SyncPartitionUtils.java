@@ -122,6 +122,16 @@ public class SyncPartitionUtils {
         return getRangePartitionDiff(baseRangeMap, mvRangeMap, rollupRange, differ);
     }
 
+    public static boolean hasListPartitionChanged(Map<String, List<List<String>>> baseRangeMap,
+                                                 Map<String, List<List<String>>> mvRangeMap) {
+        Map<String, List<List<String>>> adds = diffList(baseRangeMap, mvRangeMap);
+        if (adds != null && !adds.isEmpty()) {
+            return true;
+        }
+        Map<String, List<List<String>>> deletes = diffList(mvRangeMap, baseRangeMap);
+        return deletes != null && !deletes.isEmpty();
+    }
+
     public static RangePartitionDiff getRangePartitionDiffOfExpr(Map<String, Range<PartitionKey>> baseRangeMap,
                                                                  Map<String, Range<PartitionKey>> mvRangeMap,
                                                                  String granularity, PrimitiveType partitionType) {

@@ -1206,16 +1206,18 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
                             // there is partition rename
                             return true;
                         }
+                    } else if (snapshotPartitionInfo instanceof ListPartitionInfo) {
+                        Map<String, List<List<String>>> snapshotPartitionMap =
+                                snapShotOlapTable.getListPartitionMap();
+                        Map<String, List<List<String>>> currentPartitionMap =
+                                ((OlapTable) table).getListPartitionMap();
+                        return SyncPartitionUtils.hasListPartitionChanged(snapshotPartitionMap, currentPartitionMap);
                     } else {
                         Map<String, Range<PartitionKey>> snapshotPartitionMap =
                                 snapShotOlapTable.getRangePartitionMap();
                         Map<String, Range<PartitionKey>> currentPartitionMap =
                                 ((OlapTable) table).getRangePartitionMap();
-                        boolean changed =
-                                SyncPartitionUtils.hasPartitionChange(snapshotPartitionMap, currentPartitionMap);
-                        if (changed) {
-                            return true;
-                        }
+                        return SyncPartitionUtils.hasRangePartitionChanged(snapshotPartitionMap, currentPartitionMap);
                     }
                 } else if (ConnectorPartitionTraits.isSupported(snapshotTable.getType())) {
                     if (snapshotTable.isUnPartitioned()) {
@@ -1224,6 +1226,7 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
                         }
                     } else {
                         PartitionInfo mvPartitionInfo = materializedView.getPartitionInfo();
+                        // TODO: Support list partition later.
                         // do not need to check base partition table changed when mv is not partitioned
                         if (!(mvPartitionInfo instanceof ExpressionRangePartitionInfo)) {
                             return false;
@@ -1242,11 +1245,7 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
                                 snapshotTable, partitionColumn, MaterializedView.getPartitionExpr(materializedView));
                         Map<String, Range<PartitionKey>> currentPartitionMap = PartitionUtil.getPartitionKeyRange(
                                 table, partitionColumn, MaterializedView.getPartitionExpr(materializedView));
-                        boolean changed =
-                                SyncPartitionUtils.hasPartitionChange(snapshotPartitionMap, currentPartitionMap);
-                        if (changed) {
-                            return true;
-                        }
+                        return SyncPartitionUtils.hasPartitionChange(snapshotPartitionMap, currentPartitionMap);
                     }
                 }
             } catch (UserException e) {

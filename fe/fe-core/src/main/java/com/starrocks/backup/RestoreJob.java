@@ -45,6 +45,7 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Range;
 import com.google.common.collect.Table.Cell;
 import com.google.gson.annotations.SerializedName;
+import com.starrocks.alter.AlterJobMgr;
 import com.starrocks.analysis.BrokerDesc;
 import com.starrocks.backup.BackupJobInfo.BackupIndexInfo;
 import com.starrocks.backup.BackupJobInfo.BackupPartitionInfo;
@@ -1353,11 +1354,7 @@ public class RestoreJob extends AbstractJob {
                         // rebuild materialized view after restore job finished
                         MaterializedView mv = (MaterializedView) tbl;
                         try {
-                            Status st = mv.rebuildAfterRestore(db);
-                            if (!st.ok()) {
-                                // ignore
-                                LOG.warn("rebuild materialized view {} failed: {}", mv.getName(), st.getErrMsg());
-                            }
+                            AlterJobMgr.processChangeMaterializedViewStatus(mv, "active", false);
                             LOG.info("rebuild materialized view {} succeed", mv.getName());
                         } catch (Exception e) {
                             // no throw exceptions

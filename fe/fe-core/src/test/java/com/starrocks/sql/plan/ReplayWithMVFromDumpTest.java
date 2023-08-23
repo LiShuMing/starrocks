@@ -121,4 +121,34 @@ public class ReplayWithMVFromDumpTest extends ReplayFromDumpTestBase {
         System.out.println(replayPair.second);
         Assert.assertTrue(replayPair.second.contains("TEST_MV_3"));
     }
+
+    @Test
+    public void testMV1() throws Exception {
+        connectContext.getSessionVariable().setEnableMaterializedViewViewDeltaRewrite(false);
+        Pair<QueryDumpInfo, String> replayPair =
+                getPlanFragment(getDumpInfoFromFile("query_dump/materialized-view/1"),
+                        connectContext.getSessionVariable(), TExplainLevel.NORMAL);
+        System.out.println(replayPair.second);
+        Assert.assertTrue(replayPair.second.contains("A_BRP_LARGE_AMT_TXN_DAY_STAT_AGG_MV_6"));
+    }
+
+    @Test
+    public void testMV2() throws Exception {
+        connectContext.getSessionVariable().setEnableMaterializedViewViewDeltaRewrite(false);
+        Pair<QueryDumpInfo, String> replayPair =
+                getPlanFragment(getDumpInfoFromFile("query_dump/materialized-view/2"),
+                        connectContext.getSessionVariable(), TExplainLevel.NORMAL);
+        System.out.println(replayPair.second);
+        Assert.assertTrue(replayPair.second.contains("A_BRP_LARGE_AMT_TXN_DAY_STAT_AGG_MV_6"));
+    }
+
+    @Test
+    public void testMV3() throws Exception {
+        connectContext.getSessionVariable().setEnableMaterializedViewViewDeltaRewrite(false);
+        Pair<QueryDumpInfo, String> replayPair =
+                getPlanFragment(getDumpInfoFromFile("query_dump/materialized-view/3"),
+                        connectContext.getSessionVariable(), TExplainLevel.NORMAL);
+        System.out.println(replayPair.second);
+        Assert.assertTrue(replayPair.second.contains("A_BRP_LARGE_AMT_TXN_DAY_STAT_AGG_MV"));
+    }
 }

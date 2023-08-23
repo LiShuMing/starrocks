@@ -214,7 +214,6 @@ public class MaterializedViewRewriter {
         LogicalOperator queryOp = (LogicalOperator) queryExpr.getOp();
         LogicalOperator mvOp = (LogicalOperator) mvExpr.getOp();
         if (!queryOp.getOpType().equals(mvOp.getOpType())) {
-            logMVRewrite(mvRewriteContext, "join type is different {} != {}", queryOp.getOpType(), mvOp.getOpType());
             return false;
         }
         if (queryOp instanceof LogicalJoinOperator) {
@@ -526,13 +525,14 @@ public class MaterializedViewRewriter {
         final OptExpression queryExpression = mvRewriteContext.getQueryExpression();
         final OptExpression mvExpression = materializationContext.getMvExpression();
         final List<Table> queryTables = mvRewriteContext.getQueryTables();
+//        final List<Table> queryTables = MvUtils.getAllTables(queryExpression);
         final List<Table> mvTables = MvUtils.getAllTables(mvExpression);
 
         MatchMode matchMode = getMatchMode(queryTables, mvTables);
 
         // Check whether mv can be applicable for the query.
         if (!isMVApplicable(mvExpression, queryTables, mvTables, matchMode, queryExpression)) {
-            logMVRewrite(mvRewriteContext, "mv {} applicable check failed", materializationContext.getMv().getName());
+//            logMVRewrite(mvRewriteContext, "mv {} applicable check failed", materializationContext.getMv().getName());
             return null;
         }
 

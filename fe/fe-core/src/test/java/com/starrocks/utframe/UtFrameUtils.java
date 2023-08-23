@@ -41,9 +41,12 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.starrocks.analysis.StringLiteral;
+import com.starrocks.analysis.TableName;
 import com.starrocks.authentication.AuthenticationMgr;
+import com.starrocks.catalog.BaseTableInfo;
 import com.starrocks.catalog.Database;
 import com.starrocks.catalog.DiskInfo;
+import com.starrocks.catalog.MaterializedView;
 import com.starrocks.catalog.OlapTable;
 import com.starrocks.catalog.Table;
 import com.starrocks.common.AnalysisException;
@@ -66,6 +69,9 @@ import com.starrocks.qe.ConnectContext;
 import com.starrocks.qe.DefaultCoordinator;
 import com.starrocks.qe.SessionVariable;
 import com.starrocks.qe.VariableMgr;
+import com.starrocks.scheduler.Task;
+import com.starrocks.scheduler.TaskBuilder;
+import com.starrocks.scheduler.TaskManager;
 import com.starrocks.server.CatalogMgr;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.Explain;
@@ -612,13 +618,17 @@ public class UtFrameUtils {
                 }
             }
         });
+
+        List<TableName> tables = Lists.newArrayList();
         for (Map.Entry<String, String> entry : replayDumpInfo.getCreateTableStmtMap().entrySet()) {
             String dbName = entry.getKey().split("\\.")[0];
+            String tableName = entry.getKey().split("\\.")[1];
             if (!starRocksAssert.databaseExist(dbName)) {
                 starRocksAssert.withDatabase(dbName);
             }
             starRocksAssert.useDatabase(dbName);
             starRocksAssert.withSingleReplicaTable(entry.getValue());
+            tables.add(new TableName(dbName, tableName));
         }
         // create view
         for (Map.Entry<String, String> entry : replayDumpInfo.getCreateViewStmtMap().entrySet()) {
@@ -662,6 +672,13 @@ public class UtFrameUtils {
                         .addColumnStatistic(replayTable, columnStatisticEntry.getKey(),
                                 columnStatisticEntry.getValue());
             }
+        }
+
+        // collect all tables
+        List<MaterializedView> materializedViews = Lists.newArrayList();
+        reorderMaterializedViews(tables, materializedViews);
+        for (MaterializedView mv : materializedViews) {
+            refreshMaterializedView(mv);
         }
         return replaySql;
     }
@@ -768,6 +785,45 @@ public class UtFrameUtils {
             unLock(dbs);
             tearMockEnv();
         }
+    }
+
+    private static void refreshMaterializedView(MaterializedView mv) throws Exception {
+        TaskManager taskManager = GlobalStateMgr.getCurrentState().getTaskManager();
+        final String mvTaskName = TaskBuilder.getMvTaskName(mv.getId());
+        Task task = taskManager.getTask(mvTaskName);
+        if (!taskManager.containTask(mvTaskName)) {
+            Database db = GlobalStateMgr.getCurrentState().getDb(mv.getDbId());
+            task = TaskBuilder.buildMvTask(mv, db.getFullName());
+            TaskBuilder.updateTaskInfo(task, mv);
+            taskManager.createTask(task, false);
+        }
+        taskManager.executeTaskSync(task);
+    }
+
+    private static void reorderMaterializedViews(List<TableName> tables, List<MaterializedView> materializedViews) {
+        for (TableName e : tables) {
+            Database db = GlobalStateMgr.getCurrentState().getDb(e.getDb());
+            Table table = db.getTable(e.getTbl());
+            if (table.isMaterializedView()) {
+                MaterializedView mv = (MaterializedView) table;
+                collectBaseTablesOfMaterializedView(mv, materializedViews);
+            }
+        }
+    }
+
+    private static void collectBaseTablesOfMaterializedView(MaterializedView mv, List<MaterializedView> materializedViews) {
+        if (materializedViews.contains(mv)) {
+            return;
+        }
+
+        for (BaseTableInfo baseTableInfo : mv.getBaseTableInfos()) {
+            Table baseTable = baseTableInfo.getTable();
+            if (baseTable.isMaterializedView()) {
+                collectBaseTablesOfMaterializedView((MaterializedView) baseTable, materializedViews);
+                materializedViews.add((MaterializedView) baseTable);
+            }
+        }
+        materializedViews.add(mv);
     }
 
     private static void replaceTableCatalogName(StatementBase statementBase) {

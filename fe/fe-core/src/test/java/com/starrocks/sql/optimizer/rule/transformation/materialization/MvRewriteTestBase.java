@@ -77,6 +77,9 @@ public class MvRewriteTestBase {
 
         Config.enable_experimental_mv = true;
 
+    }
+
+    public static void prepareDefaultDatas() throws Exception {
         starRocksAssert.withTable("create table emps (\n" +
                         "    empid int not null,\n" +
                         "    deptno int not null,\n" +
@@ -269,7 +272,7 @@ public class MvRewriteTestBase {
         return s;
     }
 
-    protected Table getTable(String dbName, String mvName) {
+    public static Table getTable(String dbName, String mvName) {
         Database db = GlobalStateMgr.getCurrentState().getDb(dbName);
         Table table = db.getTable(mvName);
         Assert.assertNotNull(table);

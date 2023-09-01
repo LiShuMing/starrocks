@@ -31,7 +31,7 @@ import org.junit.Test;
 
 import java.util.Set;
 
-public class ReplayWithMVFromDumpTest extends ReplayFromDumpTest {
+public class ReplayWithMVFromDumpTest extends ReplayFromDumpTestBase {
 
     @BeforeClass
     public static void beforeClass() throws Exception {
@@ -107,6 +107,24 @@ public class ReplayWithMVFromDumpTest extends ReplayFromDumpTest {
                         null, TExplainLevel.NORMAL);
         Assert.assertTrue(replayPair.second.contains("mv2"));
         FeConstants.isReplayFromQueryDump = false;
+    }
+
+    @Test
+    public void testMock_MV_MVOnMV1() throws Exception {
+        FeConstants.isReplayFromQueryDump = true;
+        Pair<QueryDumpInfo, String> replayPair =
+                getPlanFragment(getDumpInfoFromFile("query_dump/materialized-view/mock_mv_on_mv1"),
+                        null, TExplainLevel.NORMAL);
+        Assert.assertTrue(replayPair.second.contains("tbl_mock_017"));
+        FeConstants.isReplayFromQueryDump = false;
+    }
+
+    @Test
+    public void testMVOnMV2() throws Exception {
+        Pair<QueryDumpInfo, String> replayPair =
+                getPlanFragment(getDumpInfoFromFile("query_dump/materialized-view/mv_on_mv2"),
+                        connectContext.getSessionVariable(), TExplainLevel.NORMAL);
+        Assert.assertTrue(replayPair.second.contains("test_mv2"));
     }
 
     @Test

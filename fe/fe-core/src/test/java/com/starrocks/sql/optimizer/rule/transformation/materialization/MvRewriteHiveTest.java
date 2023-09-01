@@ -197,6 +197,7 @@ public class MvRewriteHiveTest extends MvRewriteTestBase {
         dropMv("test", "hive_union_mv_1");
         dropMv("test", "hive_join_mv_1");
     }
+
     @Test
     public void testHivePartitionPrune1() throws Exception {
         createAndRefreshMv("test", "hive_partition_prune_mv1",

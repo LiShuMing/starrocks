@@ -312,7 +312,26 @@ public class Table extends MetaObject implements Writable {
 
         table.setTypeRead(true);
         table.readFields(in);
+
+        // rebuild table info after restart.
+        rebuildTableInfo(table);
+
         return table;
+    }
+
+    protected static void rebuildTableInfo(Table table) {
+        try {
+            // adjust after rebuild
+            table.getFullSchema().stream().forEach(c ->  {
+                Type t = c.getType();
+                if (t.isScalarType()) {
+                    ScalarType st = (ScalarType) t;
+                    st.setAssignedStrLenInColDefinition();
+                }
+            });
+        } catch (Exception e) {
+            LOG.warn("Rebuild table " + table.getName() + " info failed:", e);
+        }
     }
 
     @Override

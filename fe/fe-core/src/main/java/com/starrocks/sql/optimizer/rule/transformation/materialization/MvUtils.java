@@ -439,6 +439,9 @@ public class MvUtils {
         }
     }
 
+    /**
+     * Canonize the predicate into a normalized form to deduce the redundant predicates.
+     */
     public static ScalarOperator canonizePredicate(ScalarOperator predicate) {
         if (predicate == null) {
             return null;
@@ -447,6 +450,13 @@ public class MvUtils {
         return rewrite.rewrite(predicate, ScalarOperatorRewriter.DEFAULT_REWRITE_SCAN_PREDICATE_RULES);
     }
 
+    /**
+     * Canonize the predicate into a more normalized form to be compared better.
+     * NOTE:
+     * 1. `canonizePredicateForRewrite` will do more optimizations than `canonizePredicate`.
+     * 2. if you need to rewrite src predicate to target predicate, should use `canonizePredicateForRewrite`
+     *  both rather than one use `canonizePredicate` or `canonizePredicateForRewrite`.
+     */
     public static ScalarOperator canonizePredicateForRewrite(ScalarOperator predicate) {
         if (predicate == null) {
             return null;

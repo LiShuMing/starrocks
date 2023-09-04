@@ -107,12 +107,12 @@ public class MvRewritePreprocessor {
         List<String> candidateMvNames = context.getCandidateMvs().stream()
                 .map(materializationContext -> materializationContext.getMv().getName()).collect(Collectors.toList());
 
-        logMVPrepare(connectContext, "RelatedMVs: %s, CandidateMVs: %s", relatedMvNames, candidateMvNames);
+        logMVPrepare(connectContext, "RelatedMVs: {}, CandidateMVs: {}", relatedMvNames, candidateMvNames);
     }
 
     private void preprocessMv(MaterializedView mv, Set<Table> queryTables, Set<ColumnRefOperator> originQueryColumns) {
         if (!mv.isActive()) {
-            logMVPrepare(connectContext, "MV is not active: %s", mv.getName());
+            logMVPrepare(connectContext, "MV is not active: {}", mv.getName());
             return;
         }
 
@@ -131,7 +131,7 @@ public class MvRewritePreprocessor {
             mv.setPlanContext(mvRewriteContextCache);
         }
         if (!mvRewriteContextCache.isValidMvPlan()) {
-            logMVPrepare(connectContext, "MV plan is not valid: %s, plan:\n %s",
+            logMVPrepare(connectContext, "MV plan is not valid: {}, plan:\n {}",
                     mv.getName(), mvRewriteContextCache.getLogicalPlan().explain());
             return;
         }
@@ -143,9 +143,9 @@ public class MvRewritePreprocessor {
                 StringBuilder sb = new StringBuilder();
                 for (BaseTableInfo base : mv.getBaseTableInfos()) {
                     String versionInfo = Joiner.on(",").join(mv.getBaseTableLatestPartitionInfo(base.getTable()));
-                    sb.append(String.format("base table %s version: %s; ", base, versionInfo));
+                    sb.append(String.format("base table {} version: {}; ", base, versionInfo));
                 }
-                logMVPrepare("[MV PREPARE] MV %s is outdated, stale partitions %, detailed version info: %s",
+                logMVPrepare("[MV PREPARE] MV {} is outdated, stale partitions %, detailed version info: {}",
                         mv.getName(), partitionNamesToRefresh, sb.toString());
                 return;
             }
@@ -155,10 +155,10 @@ public class MvRewritePreprocessor {
             StringBuilder sb = new StringBuilder();
             for (BaseTableInfo base : mv.getBaseTableInfos()) {
                 String versionInfo = Joiner.on(",").join(mv.getBaseTableLatestPartitionInfo(base.getTable()));
-                sb.append(String.format("base table %s version: %s; ", base, versionInfo));
+                sb.append(String.format("base table {} version: {}; ", base, versionInfo));
             }
-            logMVPrepare("[MV PREPARE] MV %s is outdated and all its partitions need to be " +
-                    "refreshed: %s, detailed info: %s", mv.getName(), partitionNamesToRefresh, sb.toString());
+            logMVPrepare("[MV PREPARE] MV {} is outdated and all its partitions need to be " +
+                    "refreshed: {}, detailed info: {}", mv.getName(), partitionNamesToRefresh, sb.toString());
             return;
         }
 
@@ -169,8 +169,8 @@ public class MvRewritePreprocessor {
             // when should calculate the latest partition range predicates for partition-by base table
             mvPartialPartitionPredicates = getMvPartialPartitionPredicates(mv, mvPlan, partitionNamesToRefresh);
             if (mvPartialPartitionPredicates == null) {
-                logMVPrepare(connectContext, mv, "Partitioned MV %s is outdated which contains some partitions " +
-                        "to be refreshed:%s", mv.getName(), partitionNamesToRefresh);
+                logMVPrepare(connectContext, mv, "Partitioned MV {} is outdated which contains some partitions " +
+                        "to be refreshed:{}", mv.getName(), partitionNamesToRefresh);
                 return;
             }
         }
@@ -210,7 +210,7 @@ public class MvRewritePreprocessor {
         }
         materializationContext.setOutputMapping(outputMapping);
         context.addCandidateMvs(materializationContext);
-        logMVPrepare(connectContext, mv, "Prepare MV %s success", mv.getName());
+        logMVPrepare(connectContext, mv, "Prepare MV {} success", mv.getName());
     }
 
     /**

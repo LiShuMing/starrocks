@@ -31,11 +31,11 @@ import org.junit.Test;
 
 import java.util.Set;
 
-public class ReplayWithMVFromDumpTest extends ReplayFromDumpTest {
+public class ReplayWithMVFromDumpTest extends ReplayFromDumpTestBase {
 
     @BeforeClass
     public static void beforeClass() throws Exception {
-        ReplayFromDumpTest.beforeClass();
+        ReplayFromDumpTestBase.beforeClass();
         connectContext.getSessionVariable().setEnableMVOptimizerTraceLog(true);
 
         new MockUp<MaterializedView>() {
@@ -107,6 +107,14 @@ public class ReplayWithMVFromDumpTest extends ReplayFromDumpTest {
                         null, TExplainLevel.NORMAL);
         Assert.assertTrue(replayPair.second.contains("mv2"));
         FeConstants.isReplayFromQueryDump = false;
+    }
+
+    @Test
+    public void testMVOnMV2() throws Exception {
+        Pair<QueryDumpInfo, String> replayPair =
+                getPlanFragment(getDumpInfoFromFile("query_dump/materialized-view/mv_on_mv2"),
+                        connectContext.getSessionVariable(), TExplainLevel.NORMAL);
+        Assert.assertTrue(replayPair.second.contains("test_mv2"));
     }
 
     @Test

@@ -438,6 +438,10 @@ public class OlapTable extends Table implements GsonPostProcessable {
                 }
             }
         }
+
+        // rebuild table info
+        rebuildTableInfo(this);
+
         LOG.debug("after rebuild full schema. table {}, schema: {}", id, fullSchema);
     }
 

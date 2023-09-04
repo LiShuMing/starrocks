@@ -313,9 +313,6 @@ public class Table extends MetaObject implements Writable {
         table.setTypeRead(true);
         table.readFields(in);
 
-        // rebuild table info after restart.
-        rebuildTableInfo(table);
-
         return table;
     }
 
@@ -389,6 +386,9 @@ public class Table extends MetaObject implements Writable {
         } else {
             this.createTime = -1L;
         }
+
+        // rebuild table info after restart.
+        rebuildTableInfo(this);
     }
 
     @Override

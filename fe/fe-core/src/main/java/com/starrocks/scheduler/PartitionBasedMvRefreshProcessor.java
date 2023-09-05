@@ -176,7 +176,7 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
     @Override
     public void processTaskRun(TaskRunContext context) throws Exception {
         MaterializedViewMetricsEntity mvEntity =
-                MaterializedViewMetricsRegistry.getInstance().getMetricsEntity(materializedView.getId());
+                MaterializedViewMetricsRegistry.getInstance().getMetricsEntity(materializedView.getMvId());
         mvEntity.increaseRefreshJobStatus(RefreshJobStatus.TOTAL);
 
         long startRefreshTs = System.currentTimeMillis();

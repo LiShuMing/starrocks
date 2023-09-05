@@ -42,7 +42,7 @@ public class MVRewriteValidator {
         List<MaterializedView> mvs = collectMaterializedViewNames(physicalPlan);
         for (MaterializedView mv : mvs) {
             MaterializedViewMetricsEntity mvEntity =
-                    MaterializedViewMetricsRegistry.getInstance().getMetricsEntity(mv.getId());
+                    MaterializedViewMetricsRegistry.getInstance().getMetricsEntity(mv.getMvId());
             mvEntity.increaseQueryHitCount(1L);
         }
 

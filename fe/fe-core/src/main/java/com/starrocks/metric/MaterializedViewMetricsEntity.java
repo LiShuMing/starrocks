@@ -18,6 +18,10 @@ package com.starrocks.metric;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.Lists;
+import com.starrocks.catalog.Database;
+import com.starrocks.catalog.MaterializedView;
+import com.starrocks.catalog.MvId;
+import com.starrocks.catalog.Table;
 import com.starrocks.metric.Metric.MetricUnit;
 import com.starrocks.scheduler.PartitionBasedMvRefreshProcessor;
 import com.starrocks.scheduler.TaskBuilder;
@@ -27,7 +31,7 @@ import com.starrocks.server.GlobalStateMgr;
 import java.util.List;
 
 public final class MaterializedViewMetricsEntity {
-    private final Long mvId;
+    private final MvId mvId;
     private final MetricRegistry metricRegistry;
     private final List<Metric> metrics = Lists.newArrayList();
 
@@ -44,12 +48,12 @@ public final class MaterializedViewMetricsEntity {
     public GaugeMetric<Long> counterRefreshPendingJobs;
     public GaugeMetric<Long> counterRefreshRunningJobs;
 
-    public LongCounterMetric counterRowNums;
-    public LongCounterMetric counterStorageSizeMB;
+    public GaugeMetric<Long> counterRowNums;
+    public GaugeMetric<Long> counterStorageSize;
 
     public Histogram histRefreshDurationSecond;
 
-    public MaterializedViewMetricsEntity(MetricRegistry metricRegistry, Long mvId) {
+    public MaterializedViewMetricsEntity(MetricRegistry metricRegistry, MvId mvId) {
         this.metricRegistry = metricRegistry;
         this.mvId = mvId;
 
@@ -97,7 +101,7 @@ public final class MaterializedViewMetricsEntity {
                 "current materialized view pending refresh jobs number") {
             @Override
             public Long getValue() {
-                String mvTaskName = TaskBuilder.getMvTaskName(mvId);
+                String mvTaskName = TaskBuilder.getMvTaskName(mvId.getId());
                 TaskManager taskManager = GlobalStateMgr.getCurrentState().getTaskManager();
                 if (taskManager == null) {
                     return 0L;
@@ -114,7 +118,7 @@ public final class MaterializedViewMetricsEntity {
                 "current materialized view running refresh jobs number") {
             @Override
             public Long getValue() {
-                String mvTaskName = TaskBuilder.getMvTaskName(mvId);
+                String mvTaskName = TaskBuilder.getMvTaskName(mvId.getId());
                 TaskManager taskManager = GlobalStateMgr.getCurrentState().getTaskManager();
                 if (taskManager == null) {
                     return 0L;
@@ -131,6 +135,58 @@ public final class MaterializedViewMetricsEntity {
             }
         };
         metrics.add(counterQueryMatchedTotal);
+
+        counterRowNums = new GaugeMetric<Long>("mv_row_count", MetricUnit.NOUNIT,
+                "current materialized view's row count") {
+            @Override
+            public Long getValue() {
+                Database db = GlobalStateMgr.getCurrentState().getDb(mvId.getDbId());
+                if (db == null) {
+                    return 0L;
+                }
+                Table table = db.getTable(mvId.getId());
+                if (!table.isMaterializedView()) {
+                    return 0L;
+                }
+
+                db.readLock();
+                try {
+                    MaterializedView mv = (MaterializedView) table;
+                    return mv.getRowCount();
+                } catch (Exception e) {
+                    return 0L;
+                } finally {
+                    db.readUnlock();
+                }
+            }
+        };
+        metrics.add(counterRowNums);
+
+        counterStorageSize = new GaugeMetric<Long>("mv_storage_size", MetricUnit.NOUNIT,
+                "current materialized view's storage size") {
+            @Override
+            public Long getValue() {
+                Database db = GlobalStateMgr.getCurrentState().getDb(mvId.getDbId());
+                if (db == null) {
+                    return 0L;
+                }
+                Table table = db.getTable(mvId.getId());
+                if (!table.isMaterializedView()) {
+                    return 0L;
+                }
+
+                db.readLock();
+                try {
+                    MaterializedView mv = (MaterializedView) table;
+                    return mv.getDataSize();
+                } catch (Exception e) {
+                    return 0L;
+                } finally {
+                    db.readUnlock();
+                }
+            }
+        };
+        metrics.add(counterStorageSize);
     }
 
     public void increaseQueryConsideredCount(long count) {

@@ -146,7 +146,7 @@ public abstract class BaseMaterializedViewRewriteRule extends TransformationRule
             // update metrics
             mvContext.updateMVUsedCount();
             MaterializedViewMetricsEntity mvEntity =
-                    MaterializedViewMetricsRegistry.getInstance().getMetricsEntity(mvContext.getMv().getId());
+                    MaterializedViewMetricsRegistry.getInstance().getMetricsEntity(mvContext.getMv().getMvId());
             mvEntity.increaseQueryMatchedCount(1L);
         }
 

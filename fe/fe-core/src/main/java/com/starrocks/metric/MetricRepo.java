@@ -894,7 +894,7 @@ public final class MetricRepo {
         }
 
         // materialized view metrics
-        MaterializedViewMetricsRegistry.collecMaterializedViewMetrics(visitor, false);
+        MaterializedViewMetricsRegistry.collectMaterializedViewMetrics(visitor, false);
 
         // histogram
         SortedMap<String, Histogram> histograms = METRIC_REGISTER.getHistograms();

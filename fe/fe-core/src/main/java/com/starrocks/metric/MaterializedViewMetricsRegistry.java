@@ -18,6 +18,7 @@ import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.Maps;
 import com.starrocks.catalog.Database;
 import com.starrocks.catalog.MaterializedView;
+import com.starrocks.catalog.MvId;
 import com.starrocks.common.ThreadPoolManager;
 import com.starrocks.server.GlobalStateMgr;
 
@@ -29,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 
 public class MaterializedViewMetricsRegistry {
     private final MetricRegistry metricRegistry = new MetricRegistry();
-    private final Map<Long, MaterializedViewMetricsEntity> idToMVMetrics;
+    private final Map<MvId, MaterializedViewMetricsEntity> idToMVMetrics;
     private final ScheduledThreadPoolExecutor timer;
     private static final MaterializedViewMetricsRegistry INSTANCE = new MaterializedViewMetricsRegistry();
 
@@ -44,7 +45,7 @@ public class MaterializedViewMetricsRegistry {
         return INSTANCE;
     }
 
-    public synchronized MaterializedViewMetricsEntity getMetricsEntity(long mvId) {
+    public synchronized MaterializedViewMetricsEntity getMetricsEntity(MvId mvId) {
         return idToMVMetrics.computeIfAbsent(mvId, k -> new MaterializedViewMetricsEntity(metricRegistry, mvId));
     }
 
@@ -58,7 +59,7 @@ public class MaterializedViewMetricsRegistry {
     }
 
     // collect materialized-view-level metrics
-    public static void collecMaterializedViewMetrics(MetricVisitor visitor, boolean minifyTableMetrics) {
+    public static void collectMaterializedViewMetrics(MetricVisitor visitor, boolean minifyTableMetrics) {
         GlobalStateMgr globalStateMgr = GlobalStateMgr.getCurrentState();
         List<String> dbNames = globalStateMgr.getDbNames();
         for (String dbName : dbNames) {
@@ -68,7 +69,7 @@ public class MaterializedViewMetricsRegistry {
             }
             db.readLock();
             try {
-                for (MaterializedView mv: db.getMaterializedViews()) {
+                for (MaterializedView mv : db.getMaterializedViews()) {
                     TableMetricsEntity entity = TableMetricsRegistry.getInstance().getMetricsEntity(mv.getId());
 
                     for (Metric m : entity.getMetrics()) {

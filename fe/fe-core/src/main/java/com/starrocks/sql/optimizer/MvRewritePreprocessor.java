@@ -335,7 +335,7 @@ public class MvRewritePreprocessor {
 
         // update metrics
         MaterializedViewMetricsEntity mvEntity =
-                MaterializedViewMetricsRegistry.getInstance().getMetricsEntity(mv.getId());
+                MaterializedViewMetricsRegistry.getInstance().getMetricsEntity(mv.getMvId());
         mvEntity.increaseQueryConsideredCount(1L);
 
         logMVPrepare(connectContext, mv, "[SYNC={}] Prepare MV {} success", isSyncMV, mv.getName());

@@ -893,6 +893,9 @@ public final class MetricRepo {
             collectTableMetrics(visitor, minifyTableMetrics);
         }
 
+        // materialized view metrics
+        MaterializedViewMetricsRegistry.collecMaterializedViewMetrics(visitor, false);
+
         // histogram
         SortedMap<String, Histogram> histograms = METRIC_REGISTER.getHistograms();
         for (Map.Entry<String, Histogram> entry : histograms.entrySet()) {

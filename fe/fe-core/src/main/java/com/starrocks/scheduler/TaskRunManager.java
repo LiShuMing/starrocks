@@ -260,6 +260,17 @@ public class TaskRunManager {
         return pendingTaskRunMap.size();
     }
 
+    public boolean containsTaskInRunningTaskRunMap(long taskId) {
+        return this.runningTaskRunMap.containsKey(taskId);
+    }
+
+    public long getPendingTaskRunCount(long taskId) {
+        if (!pendingTaskRunMap.containsKey(taskId)) {
+            return 0;
+        }
+        return pendingTaskRunMap.get(taskId).size();
+    }
+
     public long getRunningTaskRunCount() {
         return runningTaskRunMap.size();
     }

@@ -18,13 +18,16 @@ package com.starrocks.metric;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.Lists;
-import com.starrocks.catalog.MaterializedView;
 import com.starrocks.metric.Metric.MetricUnit;
 import com.starrocks.scheduler.PartitionBasedMvRefreshProcessor;
+import com.starrocks.scheduler.TaskBuilder;
+import com.starrocks.scheduler.TaskManager;
+import com.starrocks.server.GlobalStateMgr;
 
 import java.util.List;
 
 public final class MaterializedViewMetricsEntity {
+    private final Long mvId;
     private final MetricRegistry metricRegistry;
     private final List<Metric> metrics = Lists.newArrayList();
 
@@ -41,14 +44,15 @@ public final class MaterializedViewMetricsEntity {
     public GaugeMetric<Long> counterRefreshPendingJobs;
     public GaugeMetric<Long> counterRefreshRunningJobs;
 
-    public LongCounterMetric counterRefreshDurationTotal;
     public LongCounterMetric counterRowNums;
     public LongCounterMetric counterStorageSizeMB;
 
     public Histogram histRefreshDurationSecond;
 
-    public MaterializedViewMetricsEntity(MetricRegistry metricRegistry) {
+    public MaterializedViewMetricsEntity(MetricRegistry metricRegistry, Long mvId) {
         this.metricRegistry = metricRegistry;
+        this.mvId = mvId;
+
         initMaterializedViewMetrics();
     }
 
@@ -85,22 +89,48 @@ public final class MaterializedViewMetricsEntity {
                 "total matched materialized view's query count");
         metrics.add(counterQueryMatchedTotal);
 
+        // histogram metrics
+        histRefreshDurationSecond = metricRegistry.histogram(MetricRegistry.name("mv_refresh_job", "duration", "ms"));
+
+        // gauge metrics
         counterRefreshPendingJobs = new GaugeMetric<Long>("mv_refresh_pending_jobs", MetricUnit.NOUNIT,
                 "current materialized view pending refresh jobs number") {
             @Override
             public Long getValue() {
-                return null;
+                String mvTaskName = TaskBuilder.getMvTaskName(mvId);
+                TaskManager taskManager = GlobalStateMgr.getCurrentState().getTaskManager();
+                if (taskManager == null) {
+                    return 0L;
+                }
+                if (!taskManager.containTask(mvTaskName)) {
+                    return 0L;
+                }
+                Long taskId = taskManager.getTask(mvTaskName).getId();
+                return taskManager.getTaskRunManager().getPendingTaskRunCount(taskId);
             }
         };
-        counterRefreshPendingJobs = new GaugeMetric<Long>("mv_refresh_running_jobs", MetricUnit.NOUNIT,
+        metrics.add(counterQueryMatchedTotal);
+        counterRefreshRunningJobs = new GaugeMetric<Long>("mv_refresh_running_jobs", MetricUnit.NOUNIT,
                 "current materialized view running refresh jobs number") {
             @Override
             public Long getValue() {
-                return null;
+                String mvTaskName = TaskBuilder.getMvTaskName(mvId);
+                TaskManager taskManager = GlobalStateMgr.getCurrentState().getTaskManager();
+                if (taskManager == null) {
+                    return 0L;
+                }
+                if (!taskManager.containTask(mvTaskName)) {
+                    return 0L;
+                }
+                Long taskId = taskManager.getTask(mvTaskName).getId();
+                if (taskManager.getTaskRunManager().containsTaskInRunningTaskRunMap(taskId)) {
+                    return 1L;
+                } else {
+                    return 0L;
+                }
             }
         };
-
-        histRefreshDurationSecond = metricRegistry.histogram(MetricRegistry.name("mv_refresh_job", "duration", "ms"));
+        metrics.add(counterQueryMatchedTotal);
     }
 
     public void increaseQueryConsideredCount(long count) {

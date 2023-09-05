@@ -45,7 +45,7 @@ public class MaterializedViewMetricsRegistry {
     }
 
     public synchronized MaterializedViewMetricsEntity getMetricsEntity(long mvId) {
-        return idToMVMetrics.computeIfAbsent(mvId, k -> new MaterializedViewMetricsEntity(metricRegistry));
+        return idToMVMetrics.computeIfAbsent(mvId, k -> new MaterializedViewMetricsEntity(metricRegistry, mvId));
     }
 
     private class MetricsCleaner extends TimerTask {

@@ -63,6 +63,8 @@ import com.starrocks.common.util.TimeUtils;
 import com.starrocks.common.util.UUIDUtil;
 import com.starrocks.connector.PartitionUtil;
 import com.starrocks.lake.LakeTable;
+import com.starrocks.metric.MaterializedViewMetricsEntity;
+import com.starrocks.metric.MaterializedViewMetricsRegistry;
 import com.starrocks.persist.ChangeMaterializedViewRefreshSchemeLog;
 import com.starrocks.planner.HdfsScanNode;
 import com.starrocks.planner.OlapScanNode;
@@ -148,6 +150,14 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
 
     private long oldTransactionVisibleWaitTimeout;
 
+    // represents the refresh job final job status
+    public enum RefreshJobStatus {
+        SUCCESS,
+        FAILED,
+        EMPTY,
+        TOTAL
+    }
+
     @VisibleForTesting
     public MvTaskRunContext getMvContext() {
         return mvContext;
@@ -165,15 +175,25 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
     // 5. update the source table version map if refresh task completes successfully
     @Override
     public void processTaskRun(TaskRunContext context) throws Exception {
+        MaterializedViewMetricsEntity mvEntity =
+                MaterializedViewMetricsRegistry.getInstance().getMetricsEntity(materializedView.getId());
+        mvEntity.increaseRefreshJobStatus(RefreshJobStatus.TOTAL);
+
+        long startRefreshTs = System.currentTimeMillis();
         prepare(context);
         try {
-            doMvRefresh(context);
+            RefreshJobStatus status = doMvRefresh(context, mvEntity);
+            mvEntity.increaseRefreshJobStatus(status);
+        } catch (Exception e) {
+            mvEntity.increaseRefreshJobStatus(RefreshJobStatus.FAILED);
+            throw e;
         } finally {
             postProcess();
         }
+        mvEntity.updateRefreshDuration(System.currentTimeMillis() - startRefreshTs);
     }
 
-    private void doMvRefresh(TaskRunContext context) throws Exception {
+    private RefreshJobStatus doMvRefresh(TaskRunContext context, MaterializedViewMetricsEntity mvEntity) throws Exception {
         InsertStmt insertStmt = null;
         ExecPlan execPlan = null;
         int retryNum = 0;
@@ -206,11 +226,13 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
                             materializedView.getName(), retryNum);
                     continue;
                 }
+                mvEntity.increaseRefreshRetryMetaCount((long) retryNum);
+
                 checked = true;
                 mvToRefreshedPartitions = getPartitionsToRefreshForMaterializedView(context.getProperties());
                 if (mvToRefreshedPartitions.isEmpty()) {
                     LOG.info("no partitions to refresh for materialized view {}", materializedView.getName());
-                    return;
+                    return RefreshJobStatus.EMPTY;
                 }
 
                 // Only refresh the first partition refresh number partitions, other partitions will generate new tasks
@@ -272,6 +294,8 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
         if (mvContext.hasNextBatchPartition()) {
             generateNextTaskRun();
         }
+
+        return RefreshJobStatus.SUCCESS;
     }
 
     /**

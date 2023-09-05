@@ -37,6 +37,8 @@ import com.starrocks.catalog.PartitionInfo;
 import com.starrocks.catalog.RandomDistributionInfo;
 import com.starrocks.catalog.SinglePartitionInfo;
 import com.starrocks.catalog.Table;
+import com.starrocks.metric.MaterializedViewMetricsEntity;
+import com.starrocks.metric.MaterializedViewMetricsRegistry;
 import com.starrocks.qe.ConnectContext;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.ast.PartitionNames;
@@ -330,6 +332,12 @@ public class MvRewritePreprocessor {
         }
         materializationContext.setOutputMapping(outputMapping);
         context.addCandidateMvs(materializationContext);
+
+        // update metrics
+        MaterializedViewMetricsEntity mvEntity =
+                MaterializedViewMetricsRegistry.getInstance().getMetricsEntity(mv.getId());
+        mvEntity.increaseQueryConsideredCount(1L);
+
         logMVPrepare(connectContext, mv, "[SYNC={}] Prepare MV {} success", isSyncMV, mv.getName());
     }
 

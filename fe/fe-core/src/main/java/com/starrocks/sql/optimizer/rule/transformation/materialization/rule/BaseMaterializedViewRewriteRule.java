@@ -18,6 +18,8 @@ package com.starrocks.sql.optimizer.rule.transformation.materialization.rule;
 import com.google.common.collect.Lists;
 import com.starrocks.catalog.MaterializedView;
 import com.starrocks.catalog.Table;
+import com.starrocks.metric.MaterializedViewMetricsEntity;
+import com.starrocks.metric.MaterializedViewMetricsRegistry;
 import com.starrocks.sql.optimizer.MaterializationContext;
 import com.starrocks.sql.optimizer.MvRewriteContext;
 import com.starrocks.sql.optimizer.OptExpression;
@@ -140,7 +142,12 @@ public abstract class BaseMaterializedViewRewriteRule extends TransformationRule
             }
 
             results.add(candidate);
+
+            // update metrics
             mvContext.updateMVUsedCount();
+            MaterializedViewMetricsEntity mvEntity =
+                    MaterializedViewMetricsRegistry.getInstance().getMetricsEntity(mvContext.getMv().getId());
+            mvEntity.increaseQueryMatchedCount(1L);
         }
 
         return results;

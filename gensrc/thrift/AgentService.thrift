@@ -146,6 +146,7 @@ struct TAlterTabletReqV2 {
     12: optional InternalService.TQueryGlobals query_globals
     13: optional InternalService.TQueryOptions query_options
     14: optional list<Descriptors.TColumn> columns
+    15: optional Exprs.TExpr where_expr
 }
 
 struct TAlterMaterializedViewParam {

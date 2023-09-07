@@ -15,6 +15,7 @@
 #include "storage/schema_change_utils.h"
 
 #include "column/column_helper.h"
+#include "column/column_viewer.h"
 #include "column/datum_convert.h"
 #include "runtime/mem_pool.h"
 #include "runtime/runtime_state.h"
@@ -358,7 +359,25 @@ bool ChunkChanger::change_chunk(ChunkPtr& base_chunk, ChunkPtr& new_chunk, const
             }
         }
     }
+
+    if (_where_expr) {
+        auto filter = _execute_where_expr(base_chunk);
+        new_chunk->filter(filter);
+    }
     return true;
+}
+
+Buffer<uint8_t> ChunkChanger::_execute_where_expr(ChunkPtr& chunk) {
+    DCHECK(_where_expr != nullptr);
+    ColumnPtr filter_col = _where_expr->evaluate(chunk.get()).value();
+
+    size_t size = filter_col->size();
+    Buffer<uint8_t> filter(size, 0);
+    ColumnViewer<TYPE_BOOLEAN> col(filter_col);
+    for (size_t i = 0; i < size; ++i) {
+        filter[i] = !col.is_null(i) && col.value(i);
+    }
+    return filter;
 }
 
 bool ChunkChanger::change_chunk_v2(ChunkPtr& base_chunk, ChunkPtr& new_chunk, const Schema& base_schema,
@@ -478,6 +497,10 @@ bool ChunkChanger::change_chunk_v2(ChunkPtr& base_chunk, ChunkPtr& new_chunk, co
             }
         }
     }
+    if (_where_expr) {
+        auto filter = _execute_where_expr(base_chunk);
+        new_chunk->filter(filter);
+    }
     return true;
 }
 
@@ -593,7 +616,8 @@ Status ChunkChanger::append_generated_columns(ChunkPtr& read_chunk, ChunkPtr& ne
 #undef COLUMN_APPEND_DATUM
 
 void SchemaChangeUtils::init_materialized_params(const TAlterTabletReqV2& request,
-                                                 MaterializedViewParamMap* materialized_view_param_map) {
+                                                 MaterializedViewParamMap* materialized_view_param_map,
+                                                 std::unique_ptr<TExpr>& where_expr) {
     DCHECK(materialized_view_param_map != nullptr);
     if (!request.__isset.materialized_view_params) {
         return;
@@ -615,12 +639,17 @@ void SchemaChangeUtils::init_materialized_params(const TAlterTabletReqV2& reques
         }
         materialized_view_param_map->insert(std::make_pair(item.column_name, std::move(mv_param)));
     }
+
+    if (request.__isset.where_expr) {
+        where_expr = std::make_unique<starrocks::TExpr>(request.where_expr);
+    }
 }
 
 Status SchemaChangeUtils::parse_request(const TabletSchemaCSPtr& base_schema, const TabletSchemaCSPtr& new_schema,
                                         ChunkChanger* chunk_changer,
                                         const MaterializedViewParamMap& materialized_view_param_map,
-                                        bool has_delete_predicates, bool* sc_sorting, bool* sc_directly,
+                                        const std::unique_ptr<TExpr>& where_expr, bool has_delete_predicates,
+                                        bool* sc_sorting, bool* sc_directly,
                                         std::unordered_set<int>* generated_column_idxs) {
     std::map<ColumnId, ColumnId> base_to_new;
     bool is_modify_generated_column = false;
@@ -689,6 +718,15 @@ Status SchemaChangeUtils::parse_request(const TabletSchemaCSPtr& base_schema, co
                     << "column=" << column_name << ", default_value=" << new_column.default_value();
             continue;
         }
+    }
+
+    if (where_expr) {
+        ExprContext* expr_context;
+        RETURN_IF_ERROR(Expr::create_expr_tree(chunk_changer->get_object_pool(), *where_expr, &expr_context,
+                                               chunk_changer->get_runtime_state()));
+        RETURN_IF_ERROR(expr_context->prepare(chunk_changer->get_runtime_state()));
+        RETURN_IF_ERROR(expr_context->open(chunk_changer->get_runtime_state()));
+        chunk_changer->set_where_expr(expr_context);
     }
 
     // initialized chunk charger state.

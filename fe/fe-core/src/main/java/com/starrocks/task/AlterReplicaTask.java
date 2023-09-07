@@ -91,6 +91,7 @@ public class AlterReplicaTask extends AgentTask implements Runnable {
     private final Map<String, Expr> defineExprs;
     private final TAlterTabletMaterializedColumnReq generatedColumnReq;
     private List<Column> baseSchemaColumns;
+    private final Expr whereExpr;
 
     public static AlterReplicaTask alterLocalTablet(long backendId, long dbId, long tableId, long partitionId, long rollupIndexId,
                                                     long rollupTabletId, long baseTabletId, long newReplicaId, int newSchemaHash,
@@ -99,29 +100,30 @@ public class AlterReplicaTask extends AgentTask implements Runnable {
                                                     List<Column> baseSchemaColumns) {
         return new AlterReplicaTask(backendId, dbId, tableId, partitionId, rollupIndexId, rollupTabletId,
                 baseTabletId, newReplicaId, newSchemaHash, baseSchemaHash, version, jobId, AlterJobV2.JobType.SCHEMA_CHANGE,
-                null, TTabletType.TABLET_TYPE_DISK, 0, generatedColumnReq, baseSchemaColumns);
+                null, null, TTabletType.TABLET_TYPE_DISK, 0, generatedColumnReq, baseSchemaColumns);
     }
 
     public static AlterReplicaTask alterLakeTablet(long backendId, long dbId, long tableId, long partitionId, long rollupIndexId,
             long rollupTabletId, long baseTabletId, long version, long jobId, long txnId) {
         return new AlterReplicaTask(backendId, dbId, tableId, partitionId, rollupIndexId, rollupTabletId,
                 baseTabletId, -1, -1, -1, version, jobId, AlterJobV2.JobType.SCHEMA_CHANGE,
-                null, TTabletType.TABLET_TYPE_LAKE, txnId, null, Collections.emptyList());
+                null, null, TTabletType.TABLET_TYPE_LAKE, txnId, null, Collections.emptyList());
     }
 
     public static AlterReplicaTask rollupLocalTablet(long backendId, long dbId, long tableId, long partitionId,
             long rollupIndexId, long rollupTabletId, long baseTabletId,
             long newReplicaId, int newSchemaHash, int baseSchemaHash, long version,
-            long jobId, Map<String, Expr> defineExprs) {
+            long jobId, Map<String, Expr> defineExprs, Expr whereExpr) {
         return new AlterReplicaTask(backendId, dbId, tableId, partitionId, rollupIndexId, rollupTabletId,
                 baseTabletId, newReplicaId, newSchemaHash, baseSchemaHash, version, jobId, AlterJobV2.JobType.ROLLUP,
-                defineExprs, TTabletType.TABLET_TYPE_DISK, 0, null, Collections.emptyList());
+                defineExprs, whereExpr, TTabletType.TABLET_TYPE_DISK, 0, null, Collections.emptyList());
     }
 
     private AlterReplicaTask(long backendId, long dbId, long tableId, long partitionId, long rollupIndexId, long rollupTabletId,
                              long baseTabletId, long newReplicaId, int newSchemaHash, int baseSchemaHash, long version,
-                             long jobId, AlterJobV2.JobType jobType, Map<String, Expr> defineExprs, TTabletType tabletType,
-                             long txnId, TAlterTabletMaterializedColumnReq generatedColumnReq, List<Column> baseSchemaColumns) {
+                             long jobId, AlterJobV2.JobType jobType, Map<String, Expr> defineExprs, Expr whereExpr, 
+                             TTabletType tabletType, long txnId, TAlterTabletMaterializedColumnReq generatedColumnReq, 
+                             List<Column> baseSchemaColumns) {
         super(null, backendId, TTaskType.ALTER, dbId, tableId, partitionId, rollupIndexId, rollupTabletId);
 
         this.baseTabletId = baseTabletId;
@@ -135,6 +137,7 @@ public class AlterReplicaTask extends AgentTask implements Runnable {
 
         this.jobType = jobType;
         this.defineExprs = defineExprs;
+        this.whereExpr = whereExpr;
 
         this.tabletType = tabletType;
         this.txnId = txnId;
@@ -182,6 +185,11 @@ public class AlterReplicaTask extends AgentTask implements Runnable {
                 mvParam.setOrigin_column_name(slots.get(0).getColumnName());
                 mvParam.setMv_expr(entry.getValue().treeToThrift());
                 req.addToMaterialized_view_params(mvParam);
+            }
+
+
+            if (whereExpr != null) {
+                req.setWhere_expr(whereExpr.treeToThrift());
             }
         }
         req.setMaterialized_column_req(generatedColumnReq);

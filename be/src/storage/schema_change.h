@@ -153,6 +153,7 @@ private:
         TabletSchemaCSPtr base_tablet_schema = nullptr;
         MaterializedViewParamMap materialized_params_map;
         std::vector<RowsetSharedPtr> rowsets_to_change;
+        std::unique_ptr<TExpr> where_expr;
         bool sc_sorting = false;
         bool sc_directly = false;
         std::unique_ptr<ChunkChanger> chunk_changer = nullptr;

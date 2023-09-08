@@ -101,7 +101,7 @@ public:
     static Status parse_request(const TabletSchemaCSPtr& base_schema, const TabletSchemaCSPtr& new_schema,
                                 ChunkChanger* chunk_changer,
                                 const MaterializedViewParamMap& materialized_view_param_map,
-                                std::unique_ptr<TExpr>& where_expr, bool has_delete_predicates, bool* sc_sorting,
+                                const std::unique_ptr<TExpr>& where_expr, bool has_delete_predicates, bool* sc_sorting,
                                 bool* sc_directly, std::unordered_set<int>* materialized_column_idxs);
 
 private:

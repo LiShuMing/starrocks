@@ -233,7 +233,7 @@ public class MaterializedViewRewriter {
      * Checks whether the join-on predicate of a query is equivalent to the join-on predicate
      * of a materialized view (MV).
      */
-    boolean checkJoinOnPredicateFromOnPredicates(Set<ScalarOperator> queryPredicates, Set<ScalarOperator> diff) {
+    boolean checkJoinOnPredicatesHelper(Set<ScalarOperator> queryPredicates, Set<ScalarOperator> diff) {
         for (ScalarOperator queryPredicate : queryPredicates) {
             if (!diff.removeIf(p -> ScalarOperator.isEquivalent(queryPredicate, p))) {
                 return false;
@@ -260,7 +260,7 @@ public class MaterializedViewRewriter {
         final ScalarOperator normMVJoinOnPredicate = MvUtils.canonizePredicateForRewrite(mvJoinOnPredicate);
         final Set<ScalarOperator> queryJoinOnPredicates = Sets.newHashSet(Utils.extractConjuncts(normQueryJoinOnPredicate));
         final Set<ScalarOperator> diffPredicates = Sets.newHashSet(Utils.extractConjuncts(normMVJoinOnPredicate));
-        if (!checkJoinOnPredicateFromOnPredicates(queryJoinOnPredicates, diffPredicates)) {
+        if (!checkJoinOnPredicatesHelper(queryJoinOnPredicates, diffPredicates)) {
             logMVRewrite(mvRewriteContext, "join predicate is different {}(query) != (mv){}, " +
                             "diff: {}", queryJoinOnPredicate, mvJoinOnPredicate,
                     Joiner.on(",").join(diffPredicates));

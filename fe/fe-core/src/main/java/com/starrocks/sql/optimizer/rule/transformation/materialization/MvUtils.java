@@ -916,6 +916,12 @@ public class MvUtils {
     }
 
     /**
+     *
+     * 1. When MV has enough partitions for the query, no need to compensate anymore for both mv
+     *  and the query's plan. A query can be rewritten just by the original SQL meaning.
+     * 2. If not, we compensate the query and mv's partition ranges by the selected partition ids,
+     *  so can be used for the UnionAll rewrite.
+     *
      * Determine whether to compensate extra partition predicates,
      * - if it needs compensate, use `selectedPartitionIds` to compensate complete partition ranges
      *  with lower and upper bound.

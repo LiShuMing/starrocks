@@ -60,7 +60,7 @@ public class MysqlSchemaResolverTest {
     @Before
     public void setUp() throws SQLException {
         partitionsResult = new MockResultSet("partitions");
-        partitionsResult.addColumn("NAME", Arrays.asList("'20230810'"));
+        partitionsResult.addColumn("PARTITION_DESCRIPTION", Arrays.asList("'20230810'"));
         partitionsResult.addColumn("PARTITION_EXPRESSION", Arrays.asList("`d`"));
         partitionsResult.addColumn("MODIFIED_TIME", Arrays.asList("2023-08-01"));
         properties = new HashMap<>();

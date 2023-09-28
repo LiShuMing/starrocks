@@ -313,7 +313,6 @@ public class PartitionBasedMvRefreshProcessorTest {
                         ") " +
                         "as select a, b, c, d from jdbc0.partitioned_db0.tbl3;");
 
-
         new MockUp<StmtExecutor>() {
             @Mock
             public void handleDMLStmt(ExecPlan execPlan, DmlStmt stmt) throws Exception {

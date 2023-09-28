@@ -249,6 +249,9 @@ public class PartitionUtil {
             JDBCTable jdbcTable = (JDBCTable) table;
             partitionNames = GlobalStateMgr.getCurrentState().getMetadataMgr().listPartitionNames(
                     jdbcTable.getCatalogName(), jdbcTable.getDbName(), jdbcTable.getJdbcTable());
+            if (partitionNames.size() == 0) {
+                return Lists.newArrayList(jdbcTable.getJdbcTable());
+            }
         } else {
             Preconditions.checkState(false, "Do not support get partition names and columns for" +
                     "table type %s", table.getType());

@@ -92,7 +92,7 @@ public class SyncPartitionUtils {
             FunctionCallExpr functionCallExpr = (FunctionCallExpr) partitionExpr;
             String granularity = ((StringLiteral) functionCallExpr.getChild(0)).getValue().toLowerCase();
             return getRangePartitionDiffOfExpr(basePartitionMap, mvPartitionMap,
-                    granularity, partitionColumn.getPrimitiveType(), null);
+                    granularity, partitionColumn.getPrimitiveType());
         } else {
             throw UnsupportedException.unsupportedException("unsupported partition expr:" + partitionExpr);
         }
@@ -202,6 +202,18 @@ public class SyncPartitionUtils {
             }
         } catch (AnalysisException e) {
             throw new SemanticException("Convert to PartitionMapping failed:", e);
+        }
+        return result;
+    }
+
+    public static Map<String, Range<PartitionKey>> diffRange(List<PartitionRange> srcRanges,
+                                                             List<PartitionRange> dstRanges) {
+        Map<String, Range<PartitionKey>> result = Maps.newHashMap();
+        Set<PartitionRange> dstRangeSet = dstRanges.stream().collect(Collectors.toSet());
+        for (PartitionRange range : srcRanges) {
+            if (!dstRangeSet.contains(range)) {
+                result.put(range.getPartitionName(), range.getPartitionKeyRange());
+            }
         }
         return result;
     }

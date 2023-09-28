@@ -1275,6 +1275,34 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
                                 getPartitionKeyRange(table, partitionColumn);
                         return SyncPartitionUtils.hasRangePartitionChanged(snapshotPartitionMap, currentPartitionMap);
                     }
+                } else if (snapshotTable.isJDBCTable()) {
+                    JDBCTable snapShotJDBCTable = (JDBCTable) snapshotTable;
+                    if (snapShotJDBCTable.isUnPartitioned()) {
+                        if (!table.isUnPartitioned()) {
+                            return true;
+                        }
+                    } else {
+                        PartitionInfo mvPartitionInfo = materializedView.getPartitionInfo();
+                        // TODO: Support list partition later.
+                        // do not need to check base partition table changed when mv is not partitioned
+                        if  (!(mvPartitionInfo instanceof ExpressionRangePartitionInfo)) {
+                            return false;
+                        }
+
+                        Pair<Table, Column> partitionTableAndColumn = getRefBaseTableAndPartitionColumn(snapshotBaseTables);
+                        Column partitionColumn = partitionTableAndColumn.second;
+                        // For Non-partition based base table, it's not necessary to check the partition changed.
+                        if (!snapshotTable.equals(partitionTableAndColumn.first)
+                                || !snapShotJDBCTable.containColumn(partitionColumn.getName())) {
+                            continue;
+                        }
+
+                        Map<String, Range<PartitionKey>> snapshotPartitionMap = PartitionUtil.
+                                getPartitionKeyRange(snapshotTable, partitionColumn);
+                        Map<String, Range<PartitionKey>> currentPartitionMap = PartitionUtil.
+                                getPartitionKeyRange(table, partitionColumn);
+                        return SyncPartitionUtils.hasRangePartitionChanged(snapshotPartitionMap, currentPartitionMap);
+                    }
                 }
             } catch (UserException e) {
                 LOG.warn("Materialized view compute partition change failed", e);

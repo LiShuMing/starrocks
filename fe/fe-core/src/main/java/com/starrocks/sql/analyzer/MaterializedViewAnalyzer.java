@@ -257,14 +257,27 @@ public class MaterializedViewAnalyzer {
             List<Pair<Column, Integer>> mvColumnPairs = genMaterializedViewColumns(statement);
             List<Column> mvColumns = mvColumnPairs.stream().map(pair -> pair.first).collect(Collectors.toList());
             statement.setMvColumnItems(mvColumns);
-             
+
+            Map<Integer, Integer> queryToMVOutputIndexMap = Maps.newHashMap();
+            for (int i = 0; i < mvColumnPairs.size(); i++) {
+                Pair<Column, Integer> pair = mvColumnPairs.get(i);
+                queryToMVOutputIndexMap.put(pair.second, i);
+            }
+            List<Integer> queryOutputIndexes = Lists.newArrayList();
+            for (int i = 0; i < mvColumnPairs.size(); i++) {
+                Preconditions.checkState(queryToMVOutputIndexMap.containsKey(i));
+                queryOutputIndexes.add(queryToMVOutputIndexMap.get(i));
+            }
+            statement.setQueryOutputIndexes(queryOutputIndexes);
+
             Map<TableName, Table> aliasTableMap = getNormalizedBaseTables(queryStatement, context);
             Map<Column, Expr> columnExprMap = Maps.newHashMap();
 
             // columns' order may be changed for sort keys' reorder, need to
             // change `queryStatement.getQueryRelation`'s outputs at the same time.
             List<Expr> outputExpressions = queryStatement.getQueryRelation().getOutputExpression();
-            for (Pair<Column, Integer> pair : mvColumnPairs) {
+            for (int i = 0; i < mvColumnPairs.size(); i++) {
+                Pair<Column, Integer> pair = mvColumnPairs.get(i);
                 Preconditions.checkState(pair.second < outputExpressions.size());
                 columnExprMap.put(pair.first, outputExpressions.get(pair.second));
             }
@@ -425,8 +438,8 @@ public class MaterializedViewAnalyzer {
                 keyCols.add(column.getName());
             }
             if (theBeginIndexOfValue == skip) {
-                throw new SemanticException("Data type of first column cannot be " +
-                        mvColumns.get(theBeginIndexOfValue).getType());
+                throw new SemanticException("Data type of {}th column cannot be " +
+                        mvColumns.get(theBeginIndexOfValue).getType(), theBeginIndexOfValue);
             }
             return keyCols;
         }

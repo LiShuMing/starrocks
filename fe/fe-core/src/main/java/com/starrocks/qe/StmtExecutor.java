@@ -190,6 +190,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -224,6 +225,7 @@ public class StmtExecutor {
     private ShowResultSet proxyResultSet = null;
     private PQueryStatistics statisticsForAuditLog;
     private List<StmtExecutor> subStmtExecutors;
+    private Optional<Boolean> isForwardToLeaderOpt = null;
 
     // this constructor is mainly for proxy
     public StmtExecutor(ConnectContext context, OriginStatement originStmt, boolean isProxy) {
@@ -330,15 +332,41 @@ public class StmtExecutor {
         profile.computeTimeInChildProfile();
     }
 
+    /**
+     * Whether to forward to leader from follower which should be the same in the StmtExecutor's lifecycle.
+     */
     public boolean isForwardToLeader() {
+        if (isForwardToLeaderOpt == null || !isForwardToLeaderOpt.isPresent()) {
+            isForwardToLeaderOpt = Optional.of(getIsForwardToLeader());
+        }
+        return isForwardToLeaderOpt.get();
+    }
+
+    /**
+     * Only used to check whether `isForwardToLeaderOpt`'s state without initialization.
+     */
+    public boolean getForwardToLeaderFinalState() {
+        if (isForwardToLeaderOpt == null || !isForwardToLeaderOpt.isPresent()) {
+            return false;
+        }
+        return isForwardToLeaderOpt.get();
+    }
+
+    private boolean getIsForwardToLeader() {
         if (GlobalStateMgr.getCurrentState().isLeader()) {
             return false;
         }
 
         // this is a query stmt, but this non-master FE can not read, forward it to master
-        if (parsedStmt instanceof QueryStatement && !GlobalStateMgr.getCurrentState().isLeader()
-                && !GlobalStateMgr.getCurrentState().canRead()) {
-            return true;
+        if (parsedStmt instanceof QueryStatement) {
+            if (!GlobalStateMgr.getCurrentState().isLeader() && !GlobalStateMgr.getCurrentState().canRead()) {
+                return true;
+            }
+            // proxy to leader if user set the flag in session variables.
+            if (context != null && context.getSessionVariable() != null &&
+                    context.getSessionVariable().isEnableFollowerProxyToLeader()) {
+                return true;
+            }
         }
 
         if (redirectStatus == null) {
@@ -380,6 +408,10 @@ public class StmtExecutor {
         return parsedStmt;
     }
 
+    public ConnectContext getContext() {
+        return this.context;
+    }
+
     // Execute one statement.
     // Exception:
     //  IOException: talk with client failed.
@@ -398,8 +430,13 @@ public class StmtExecutor {
 
             // support select hint e.g. select /*+ SET_VAR(query_timeout=1) */ sleep(3);
             if (parsedStmt != null) {
+                boolean isQuery = parsedStmt instanceof QueryStatement;
+
+                // set isQuery before `forwardToLeader` to make it right for audit log.
+                context.getState().setIsQuery(isQuery);
+
                 Map<String, String> optHints = null;
-                if (parsedStmt instanceof QueryStatement &&
+                if (isQuery &&
                         ((QueryStatement) parsedStmt).getQueryRelation() instanceof SelectRelation) {
                     SelectRelation selectRelation = (SelectRelation) ((QueryStatement) parsedStmt).getQueryRelation();
                     optHints = selectRelation.getSelectList().getOptHints();
@@ -480,7 +517,6 @@ public class StmtExecutor {
             }
 
             if (parsedStmt instanceof QueryStatement) {
-                context.getState().setIsQuery(true);
                 context.setStatisticsJob(AnalyzerUtils.isStatisticsJob(context, parsedStmt));
                 final boolean isStatisticsJob = context.isStatisticsJob();
                 if (!isStatisticsJob) {

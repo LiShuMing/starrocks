@@ -405,6 +405,10 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
 
     public static final String ENABLE_ICEBERG_IDENTITY_COLUMN_OPTIMIZE = "enable_iceberg_identity_column_optimize";
 
+    // Add the flag to control whether to proxy follower's query statement to leader which can be
+    // used for testing.
+    public static final String ENABLE_FOLLOWER_PROXY_TO_LEADER = "enable_follower_to_leader";
+
     public enum MaterializedViewRewriteMode {
         DISABLE,            // disable materialized view rewrite
         DEFAULT,            // default, choose the materialized view or not by cost optimizer
@@ -1370,6 +1374,14 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
     }
     @VarAttr(name = ENABLE_ICEBERG_IDENTITY_COLUMN_OPTIMIZE)
     private boolean enableIcebergIdentityColumnOptimize = true;
+
+    @VarAttr(name = ENABLE_FOLLOWER_PROXY_TO_LEADER, flag = VariableMgr.INVISIBLE
+            | VariableMgr.DISABLE_FORWARD_TO_LEADER)
+    private boolean enableFollowerProxyToLeader = false;
+
+    public boolean isEnableFollowerProxyToLeader() {
+        return this.enableFollowerProxyToLeader;
+    }
 
     public int getExprChildrenLimit() {
         return exprChildrenLimit;

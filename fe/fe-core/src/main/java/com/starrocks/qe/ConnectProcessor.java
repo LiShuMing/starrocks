@@ -210,6 +210,9 @@ public class ConnectProcessor {
         }
 
         ctx.getAuditEventBuilder().setFeIp(FrontendOptions.getLocalHostAddress());
+        if (executor != null) {
+            ctx.getAuditEventBuilder().setIsForwardToLeader(executor.getForwardToLeaderFinalState());
+        }
 
         if (!ctx.getState().isQuery() && (parsedStmt != null && parsedStmt.needAuditEncryption())) {
             // Some information like username, password in the stmt should not be printed.
@@ -559,6 +562,10 @@ public class ConnectProcessor {
                 LOG.debug("packet == null");
                 return;
             }
+        }
+        if (packet == null) {
+            LOG.debug("packet == null");
+            return;
         }
 
         MysqlChannel channel = ctx.getMysqlChannel();

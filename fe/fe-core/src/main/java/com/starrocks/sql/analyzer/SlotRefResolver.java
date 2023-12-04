@@ -111,12 +111,14 @@ public class SlotRefResolver {
 
         @Override
         public Expr visitSubquery(SubqueryRelation node, SlotRef slot) {
-            String tableName = slot.getTblNameWithoutAnalyzed().getTbl();
-            if (!node.getAlias().getTbl().equalsIgnoreCase(tableName)) {
-                return null;
+            if (slot.getTblNameWithoutAnalyzed() != null) {
+                String tableName = slot.getTblNameWithoutAnalyzed().getTbl();
+                if (!node.getAlias().getTbl().equalsIgnoreCase(tableName)) {
+                    return null;
+                }
+                slot = (SlotRef) slot.clone();
+                slot.setTblName(null); //clear table name here, not check it inside
             }
-            slot = (SlotRef) slot.clone();
-            slot.setTblName(null); //clear table name here, not check it inside
             return node.getQueryStatement().getQueryRelation().accept(this, slot);
         }
 

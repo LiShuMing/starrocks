@@ -34,7 +34,6 @@
 
 package com.starrocks.planner;
 
-import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Lists;
@@ -81,7 +80,11 @@ import com.starrocks.lake.LakeTablet;
 import com.starrocks.load.Load;
 import com.starrocks.qe.ConnectContext;
 import com.starrocks.server.GlobalStateMgr;
-import com.starrocks.sql.analyzer.*;
+import com.starrocks.sql.analyzer.Field;
+import com.starrocks.sql.analyzer.RelationFields;
+import com.starrocks.sql.analyzer.RelationId;
+import com.starrocks.sql.analyzer.Scope;
+import com.starrocks.sql.analyzer.SelectAnalyzer;
 import com.starrocks.sql.common.MetaUtils;
 import com.starrocks.system.SystemInfoService;
 import com.starrocks.thrift.TColumn;
@@ -103,20 +106,17 @@ import com.starrocks.thrift.TUniqueId;
 import com.starrocks.thrift.TWriteQuorumType;
 import com.starrocks.transaction.TransactionState;
 import com.starrocks.warehouse.Warehouse;
-import java.util.Collection;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.TreeMap;
-
 import java.util.stream.Collectors;
 
 public class OlapTableSink extends DataSink {
@@ -457,9 +457,9 @@ public class OlapTableSink extends DataSink {
                     Preconditions.checkArgument(partitionExprs.size() == 1,
                             "Number of partition expr is not 1 for automatic partition table, expr num="
                                     + partitionExprs.size());
-                    Expr expr = partitionExprs.get(0);
+                    Expr copiedPartitionExpr = partitionExprs.get(0).clone();
                     List<SlotRef> slotRefs = Lists.newArrayList();
-                    expr.collect(SlotRef.class, slotRefs);
+                    copiedPartitionExpr.collect(SlotRef.class, slotRefs);
                     Preconditions.checkState(slotRefs.size() == 1);
                     // default slot is table column slot, when there are some expr on column
                     // the slot desc will change, so we need to reset the slot desc
@@ -469,7 +469,7 @@ public class OlapTableSink extends DataSink {
                             slotRefs.get(0).setDesc(slotDesc);
                         }
                     }
-                    partitionParam.setPartition_exprs(Expr.treesToThrift(exprPartitionInfo.getPartitionExprs()));
+                    partitionParam.setPartition_exprs(Expr.treesToThrift(Lists.newArrayList(copiedPartitionExpr)));
                 } else if (rangePartitionInfo instanceof ExpressionRangePartitionInfoV2) {
                     ExpressionRangePartitionInfoV2 expressionRangePartitionInfoV2 = (ExpressionRangePartitionInfoV2) rangePartitionInfo;
                     partitionParam.setPartition_exprs(Expr.treesToThrift(expressionRangePartitionInfoV2.getPartitionExprs()));

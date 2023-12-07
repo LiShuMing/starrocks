@@ -204,7 +204,7 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
                 .withMaterializedView("create materialized view test.union_all_mv\n" +
                         "partition by dt \n" +
                         "distributed by hash(k2) buckets 10\n" +
-                        "refresh manual\n" +
+                        "refresh deferred manual\n" +
                         "properties('replication_num' = '1')\n" +
                         "as select dt, -1 as k2 from tbl5 where k2 is null union all select dt, k2 from tbl5;")
                 .withMaterializedView("create materialized view test.mv1\n" +
@@ -1389,14 +1389,14 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
         Assert.assertThrows(AnalysisException.class, () ->
                 starRocksAssert.withMaterializedView("create materialized view mv_jdbc_postgres " +
                         "partition by d " +
-                        "refresh manual " +
+                        "refresh deferred manual " +
                         "AS SELECT `a`, `b`, `c`, `d`  FROM `jdbc_postgres`.`partitioned_db0`.`tbl0`;")
         );
 
         // supported
         starRocksAssert.withMaterializedView("create materialized view mv_jdbc_mysql " +
                 "partition by d " +
-                "refresh manual " +
+                "refresh deferred manual " +
                 "AS SELECT `a`, `b`, `c`, `d`  FROM `jdbc0`.`partitioned_db0`.`tbl0`;");
     }
 
@@ -2898,7 +2898,7 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
                 "partition by k1 \n" +
                 "distributed by hash(k2) buckets 10\n" +
                 "PROPERTIES('partition_refresh_number' = '10000')" +
-                "refresh manual\n" +
+                "refresh deferred manual\n" +
                 "as select a.k1, b.k2 from test.tbl15 as a join test.tbl16 as b " +
                 "on a.k1 = date_trunc('month', b.k1);");
         MaterializedView materializedView = ((MaterializedView) testDb.getTable("mv_join_predicate"));
@@ -2915,8 +2915,7 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
         Assert.assertEquals(Sets.newHashSet("p20220101", "p20220102", "p20220103"), baseTables.get(testDb.getTable("tbl16")));
 
         // insert new data into tbl16's p20220202 partition
-        String insertSql = "insert into tbl16 partition(p20220202) values('2022-02-02', 3, 10);";
-        new StmtExecutor(connectContext, insertSql).execute();
+        executeInsertSql(connectContext, "insert into tbl16 partition(p20220202) values('2022-02-02', 3, 10);");
         taskRun.executeTaskRun();
         Assert.assertEquals(Sets.newHashSet("p20220201"), processor.getMVTaskRunExtraMessage().getMvPartitionsToRefresh());
         Assert.assertEquals("{tbl15=[p20220201], tbl16=[p20220202, p20220201]}",
@@ -2929,7 +2928,7 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
                 "partition by k1 \n" +
                 "distributed by hash(k2) buckets 10\n" +
                 "PROPERTIES('partition_refresh_number' = '10000')" +
-                "refresh manual\n" +
+                "refresh deferred manual\n" +
                 "as select tbl1.k1, tbl2.k2 from tbl1  join tbl2 on tbl1.k1 = tbl2.k1 or tbl1.k2 = tbl2.k2;");
         materializedView = ((MaterializedView) testDb.getTable("mv_join_predicate"));
         Assert.assertEquals(1, materializedView.getPartitionExprMaps().size());
@@ -2938,14 +2937,14 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
         taskRun.initStatus(UUIDUtil.genUUID().toString(), System.currentTimeMillis());
         taskRun.executeTaskRun();
 
-        new StmtExecutor(connectContext, "insert into tbl1 partition(p2) values('2022-02-02', 3, 10);").execute();
+        executeInsertSql(connectContext, "insert into tbl1 partition(p2) values('2022-02-02', 3, 10);");
         taskRun.executeTaskRun();
         processor = (PartitionBasedMvRefreshProcessor) taskRun.getProcessor();
         Assert.assertEquals(Sets.newHashSet("p2"), processor.getMVTaskRunExtraMessage().getMvPartitionsToRefresh());
         Assert.assertEquals("{tbl1=[p2]}",
                 processor.getMVTaskRunExtraMessage().getRefBasePartitionsToRefreshMap().toString());
 
-        new StmtExecutor(connectContext, "insert into tbl2 partition(p2) values('2022-02-02', 3, 10);").execute();
+        executeInsertSql(connectContext, "insert into tbl2 partition(p2) values('2022-02-02', 3, 10);");
         taskRun.executeTaskRun();
         processor = (PartitionBasedMvRefreshProcessor) taskRun.getProcessor();
         ExecPlan execPlan = processor.getMvContext().getExecPlan();
@@ -2958,7 +2957,7 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
                 "partition by date_trunc('month',k1) \n" +
                 "distributed by hash(k2) buckets 10\n" +
                 "PROPERTIES('partition_refresh_number' = '100')" +
-                "refresh manual\n" +
+                "refresh deferred manual\n" +
                 "as select tbl1.k1, tbl2.k2 from tbl1  join tbl2 using(k1);");
         materializedView = ((MaterializedView) testDb.getTable("mv_join_predicate"));
         Assert.assertEquals(1, materializedView.getPartitionExprMaps().size());
@@ -2970,7 +2969,7 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
                 "create materialized view test.mv_join_predicate\n" +
                 "partition by date_trunc('month', k1) \n" +
                 "distributed by hash(k2) buckets 10\n" +
-                "refresh manual\n" +
+                "refresh deferred manual\n" +
                 "as select a.k1, b.k2 from test.tbl15 as a join test.tbl16 as b " +
                 "on date_trunc('month', a.k1) = b.k1;");
         materializedView = ((MaterializedView) testDb.getTable("mv_join_predicate"));
@@ -2980,7 +2979,7 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
         taskRun.initStatus(UUIDUtil.genUUID().toString(), System.currentTimeMillis());
         taskRun.executeTaskRun();
 
-        new StmtExecutor(connectContext, "insert into tbl15 partition(p20220202) values('2022-02-02', 3, 10);").execute();
+        executeInsertSql(connectContext, "insert into tbl15 partition(p20220202) values('2022-02-02', 3, 10);");
         taskRun.executeTaskRun();
         processor = (PartitionBasedMvRefreshProcessor) taskRun.getProcessor();
         Assert.assertEquals(Sets.newHashSet("p202202_202203"), processor.getMVTaskRunExtraMessage().getMvPartitionsToRefresh());
@@ -2994,7 +2993,7 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
                 "partition by k1\n" +
                 "distributed by hash(k2) buckets 10\n" +
                 "PROPERTIES('partition_refresh_number' = '100')" +
-                "refresh manual\n" +
+                "refresh deferred manual\n" +
                 "as select a.ds as k1, a.k2 from" +
                 "(select date_trunc('DAY', k1) as ds, k1, k2 from (select k1, k2 from (select * from tbl1)t1 )t2 ) a left join " +
                 "(select date_trunc('DAY', k1) as ds, k2 from (select * from tbl2)t ) b " +
@@ -3008,7 +3007,7 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
         taskRun.initStatus(UUIDUtil.genUUID().toString(), System.currentTimeMillis());
         taskRun.executeTaskRun();
 
-        new StmtExecutor(connectContext, "insert into tbl2 partition(p1) values('2022-01-02', 3, 10);").execute();
+        executeInsertSql(connectContext, "insert into tbl2 partition(p1) values('2022-01-02', 3, 10);");
         taskRun.executeTaskRun();
         processor = (PartitionBasedMvRefreshProcessor) taskRun.getProcessor();
         Assert.assertEquals(Sets.newHashSet("p20211201_20220101", "p20220101_20220201"),
@@ -3023,7 +3022,7 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
                 "partition by k1\n" +
                 "distributed by hash(k2) buckets 10\n" +
                 "PROPERTIES('partition_refresh_number' = '100')" +
-                "refresh manual\n" +
+                "refresh deferred manual\n" +
                 "as select a.ds as k1, a.k2 from" +
                 "(select date_trunc('day', k1) as ds, k2 from tbl1) a " +
                 "left join " +
@@ -3039,7 +3038,7 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
                 "partition by k1\n" +
                 "distributed by hash(k2) buckets 10\n" +
                 "PROPERTIES('partition_refresh_number' = '100')" +
-                "refresh manual\n" +
+                "refresh deferred manual\n" +
                 "as select a.ds as k1, a.k2 from" +
                 "(select k1 as ds, k2 from tbl1) a left join " +
                 "(select k1 as ds, k2 from tbl2) b " +
@@ -3055,7 +3054,7 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
                 "partition by k1\n" +
                 "distributed by hash(k2) buckets 10\n" +
                 "PROPERTIES('partition_refresh_number' = '100')" +
-                "refresh manual\n" +
+                "refresh deferred manual\n" +
                 "as select a.ds as k1, a.k2 from" +
                 "(select date_trunc('day', k1) as ds, k2 from tbl1) a " +
                 "left join " +
@@ -3074,7 +3073,7 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
                 "partition by k1\n" +
                 "distributed by hash(k2) buckets 10\n" +
                 "PROPERTIES('partition_refresh_number' = '100')" +
-                "refresh manual\n" +
+                "refresh deferred manual\n" +
                 "as select a.ds as k1, a.k2 from" +
                 "(select k1 as ds, k2 from tbl1) a left join " +
                 "(select k1 as ds, k2 from tbl2) b " +
@@ -3087,7 +3086,7 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
         taskRun.initStatus(UUIDUtil.genUUID().toString(), System.currentTimeMillis());
         taskRun.executeTaskRun();
 
-        new StmtExecutor(connectContext, "insert into tbl2 partition(p1) values('2022-01-02', 3, 10);").execute();
+        executeInsertSql(connectContext, "insert into tbl2 partition(p1) values('2022-01-02', 3, 10);");
         taskRun.executeTaskRun();
         processor = (PartitionBasedMvRefreshProcessor) taskRun.getProcessor();
         Assert.assertEquals(Sets.newHashSet("p0", "p1"), processor.getMVTaskRunExtraMessage().getMvPartitionsToRefresh());
@@ -3105,7 +3104,7 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
                 "partition by k1 \n" +
                 "distributed by hash(k2) buckets 10\n" +
                 "PROPERTIES('partition_refresh_number' = '10000')\n" +
-                "refresh manual\n" +
+                "refresh deferred manual\n" +
                 "as select k1, k2 from test.tbl15 \n" +
                 "union " +
                 "select k1, k2 from test.tbl16;");
@@ -3137,7 +3136,7 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
                         "partition by k1 \n" +
                         "distributed by hash(k2) buckets 10\n" +
                         "PROPERTIES('partition_refresh_number' = '10000')\n" +
-                        "refresh manual\n" +
+                        "refresh deferred manual\n" +
                         "as " +
                         "select date_trunc('month', k1) as k1, k2 from test.tbl16\n" +
                         "union " +

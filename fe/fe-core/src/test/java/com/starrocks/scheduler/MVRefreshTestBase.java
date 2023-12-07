@@ -13,10 +13,12 @@
 // limitations under the License.
 package com.starrocks.scheduler;
 
+import com.google.common.collect.Maps;
 import com.starrocks.analysis.TableName;
 import com.starrocks.catalog.Database;
 import com.starrocks.catalog.LocalTablet;
 import com.starrocks.catalog.MaterializedIndex;
+import com.starrocks.catalog.MaterializedView;
 import com.starrocks.catalog.OlapTable;
 import com.starrocks.catalog.Partition;
 import com.starrocks.catalog.Replica;
@@ -45,6 +47,7 @@ import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
 
 import java.util.List;
+import java.util.Map;
 
 public class MVRefreshTestBase {
     private static final Logger LOG = LogManager.getLogger(MvRewriteTestBase.class);
@@ -109,4 +112,24 @@ public class MVRefreshTestBase {
     public static void tearDown() throws Exception {
     }
 
+    public static TaskRun buildMVTaskRun(MaterializedView mv, String dbName,
+                                         Map<String, String> properties, Constants.TaskType taskType) {
+        Task task = TaskBuilder.buildMvTask(mv, dbName);
+        task.setType(taskType);
+        ExecuteOption executeOption = new ExecuteOption();
+        TaskRun taskRun = TaskRunBuilder
+                .newBuilder(task)
+                .properties(properties)
+                .setExecuteOption(executeOption)
+                .build();
+        return taskRun;
+    }
+
+    public static TaskRun buildMVTaskRun(MaterializedView mv, String dbName, Constants.TaskType taskType) {
+        return buildMVTaskRun(mv, dbName, Maps.newHashMap(), taskType);
+    }
+
+    public static TaskRun buildMVTaskRun(MaterializedView mv, String dbName) {
+        return buildMVTaskRun(mv, dbName, Maps.newHashMap(), Constants.TaskType.MANUAL);
+    }
 }

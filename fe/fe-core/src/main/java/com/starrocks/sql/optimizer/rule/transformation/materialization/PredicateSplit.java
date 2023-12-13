@@ -86,4 +86,13 @@ public class PredicateSplit {
         }
         return PredicateSplit.of(equalityConjunct, rangeConjunct, residualConjunct);
     }
+
+    @Override
+    public String toString() {
+        return String.format("equalPredicates=%s, rangePredicates=%s, residualPredicates=%s",
+                equalPredicates == null ? "" : equalPredicates,
+                rangePredicates == null ? "" : rangePredicates,
+                residualPredicates == null ? "" : residualPredicates
+        );
+    }
 }

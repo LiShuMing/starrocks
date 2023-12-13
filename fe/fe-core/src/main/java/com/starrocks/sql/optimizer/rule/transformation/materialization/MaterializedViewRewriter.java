@@ -788,6 +788,8 @@ public class MaterializedViewRewriter {
         ScalarOperator mvPrunePredicate = collectMvPrunePredicate(materializationContext);
 
         logMVRewrite(mvRewriteContext, "Construct {} relation id mappings from query to mv", relationIdMappings.size());
+        logMVRewrite(mvRewriteContext, "MV predicate split:{}", mvPredicateSplit);
+        logMVRewrite(mvRewriteContext, "Query predicate split:{}", queryPredicateSplit);
         for (BiMap<Integer, Integer> relationIdMapping : relationIdMappings) {
             mvRewriteContext.setMvPruneConjunct(mvPrunePredicate);
             rewriteContext.setQueryToMvRelationIdMapping(relationIdMapping);

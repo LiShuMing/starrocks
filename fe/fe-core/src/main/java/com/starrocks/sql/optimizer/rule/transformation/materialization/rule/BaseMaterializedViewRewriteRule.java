@@ -113,8 +113,7 @@ public abstract class BaseMaterializedViewRewriteRule extends TransformationRule
             context.checkTimeout();
 
             boolean isCompensatePartitionPredicate = mvContext.isCompensatePartitionPredicate(queryExpression);
-            PredicateSplit queryPredicateSplit = getQuerySplitPredicate(mvContext, queryExpression, queryColumnRefFactory,
-                    queryColumnRefRewriter, isCompensatePartitionPredicate);
+            PredicateSplit queryPredicateSplit = getQuerySplitPredicate(mvContext, queryExpression, queryColumnRefRewriter);
             if (queryPredicateSplit == null) {
                 continue;
             }
@@ -158,13 +157,11 @@ public abstract class BaseMaterializedViewRewriteRule extends TransformationRule
      */
     private PredicateSplit getQuerySplitPredicate(MaterializationContext mvContext,
                                                   OptExpression queryExpression,
-                                                  ColumnRefFactory queryColumnRefFactory,
-                                                  ReplaceColumnRefRewriter queryColumnRefRewriter,
-                                                  boolean isCompensate) {
+                                                  ReplaceColumnRefRewriter queryColumnRefRewriter) {
         // sync mv always has the same partition with
         // Compensate partition predicates and add them into query predicate.
-        final ScalarOperator queryPartitionPredicate = MvUtils.compensatePartitionPredicate(mvContext.getMv(),
-                        queryExpression, queryColumnRefFactory, isCompensate);
+        final ScalarOperator queryPartitionPredicate =
+                MvUtils.compensatePartitionPredicate(mvContext.getMv(), queryExpression);
         if (queryPartitionPredicate == null) {
             logMVRewrite(mvContext.getOptimizerContext(), this, "Compensate query expression's partition " +
                     "predicates from pruned partitions failed.");

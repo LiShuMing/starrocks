@@ -980,9 +980,7 @@ public class MvUtils {
      *      however for mv  we need: k1>='2020-02-11' and k1 < "2020-03-01"
      */
     public static ScalarOperator compensatePartitionPredicate(MaterializedView mv,
-                                                              OptExpression plan,
-                                                              ColumnRefFactory columnRefFactory,
-                                                              boolean isCompensate) {
+                                                              OptExpression plan) {
         List<LogicalScanOperator> scanOperators = MvUtils.getScanOperator(plan);
         if (scanOperators.isEmpty()) {
             return ConstantOperator.createBoolean(true);
@@ -992,18 +990,17 @@ public class MvUtils {
         if (refBaseTableColumns == null || refBaseTableColumns.isEmpty()) {
             return ConstantOperator.createBoolean(true);
         }
-        Set<String> refBaseTableNames = refBaseTableColumns.keySet().stream()
-                .map(Table::getName).collect(Collectors.toSet());
+
         List<ScalarOperator> partitionPredicates = Lists.newArrayList();
         for (LogicalScanOperator scanOperator : scanOperators) {
             // only compensate ref table's partition predicates, skip if it's not ref-base table
             List<ScalarOperator> partitionPredicate = null;
             if (scanOperator instanceof LogicalOlapScanOperator) {
-                partitionPredicate = compensatePartitionPredicateForOlapScan((LogicalOlapScanOperator) scanOperator,
-                        columnRefFactory, isCompensate);
+                partitionPredicate = ((LogicalOlapScanOperator) scanOperator).getPrunedPartitionPredicates();
             } else if (scanOperator instanceof LogicalHiveScanOperator) {
-                partitionPredicate = compensatePartitionPredicateForHiveScan((LogicalHiveScanOperator) scanOperator,
-                        isCompensate);
+                ScanOperatorPredicates scanOperatorPredicates = ((LogicalHiveScanOperator) scanOperator)
+                        .getScanOperatorPredicates();
+                partitionPredicate =  scanOperatorPredicates.getPrunedPartitionConjuncts();
             } else {
                 continue;
             }
@@ -1141,6 +1138,7 @@ public class MvUtils {
         if (olapScanOperator.getSelectedPartitionId().isEmpty()) {
             return olapScanOperator.getPrunedPartitionPredicates();
         }
+
         if (olapTable.getPartitionInfo() instanceof ExpressionRangePartitionInfo) {
             ExpressionRangePartitionInfo partitionInfo =
                     (ExpressionRangePartitionInfo) olapTable.getPartitionInfo();

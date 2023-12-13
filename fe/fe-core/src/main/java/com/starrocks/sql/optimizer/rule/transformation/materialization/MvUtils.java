@@ -986,11 +986,6 @@ public class MvUtils {
             return ConstantOperator.createBoolean(true);
         }
 
-        Map<Table, Column> refBaseTableColumns = mv.getRelatedPartitionTableAndColumn();
-        if (refBaseTableColumns == null || refBaseTableColumns.isEmpty()) {
-            return ConstantOperator.createBoolean(true);
-        }
-
         List<ScalarOperator> partitionPredicates = Lists.newArrayList();
         for (LogicalScanOperator scanOperator : scanOperators) {
             // only compensate ref table's partition predicates, skip if it's not ref-base table

@@ -1232,8 +1232,6 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
     }
 
     @Test
-    @Ignore
-    // TODO: union all support
     public void testJoinAggregateMaterializationNoAggregateFuncs7() {
         testRewriteOK("select depts.deptno, dependents.empid\n"
                         + "from depts\n"
@@ -1270,8 +1268,6 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
     }
 
     @Test
-    @Ignore
-    // TODO: union all support
     public void testJoinAggregateMaterializationNoAggregateFuncs9() {
         testRewriteOK("select depts.deptno, dependents.empid\n"
                         + "from depts\n"
@@ -1317,7 +1313,6 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
     }
 
     @Test
-    @Ignore
     public void testJoinAggregateMaterializationAggregateFuncs2() {
         testRewriteOK("select empid, emps.deptno, count(*) as c, sum(empid) as s\n"
                         + "from emps join depts using (deptno)\n"
@@ -1611,8 +1606,9 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
 
 
     @Test
-    @Ignore
+//    @Ignore
     public void testJoinMaterialization10() {
+        setTracLogModule("ALL");
         testRewriteOK("select depts.deptno, dependents.empid\n"
                         + "from depts\n"
                         + "join dependents on (depts.name = dependents.name)\n"
@@ -4492,6 +4488,7 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
                     "\"replication_num\" = \"1\"\n" +
                     ");\n" +
                     "\n");
+            setTracLogModule("MV");
             {
                 String mv = "select t1.fdate, t2.fplat_form_itg2_name, count(DISTINCT t1.fqqid) AS index_0_8228, sum(t1.flcnt)as index_xxx\n" +
                         "FROM test_sr_table_join t1\n" +

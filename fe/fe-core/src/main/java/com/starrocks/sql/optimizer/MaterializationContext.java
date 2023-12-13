@@ -22,9 +22,11 @@ import com.starrocks.sql.optimizer.base.ColumnRefFactory;
 import com.starrocks.sql.optimizer.operator.logical.LogicalOlapScanOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
+import com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 public class MaterializationContext {
@@ -65,6 +67,11 @@ public class MaterializationContext {
     // NOTE: mvUsedCount is a not exact value because MV may be rewritten multi times
     // in Optimizer Transformation phase but not be really used.
     private long mvUsedCount = 0;
+
+    // It's not changed during one query, so it's safe to cache it and be used for each optimizer rule.
+    // It's used to check whether to need compensate partition predicates or not.
+    // It is different for each materialized view.
+    private Optional<Boolean> isCompensatePartitionPredicateOpt = Optional.empty();
 
     public MaterializationContext(OptimizerContext optimizerContext,
                                   MaterializedView mv,
@@ -169,5 +176,14 @@ public class MaterializationContext {
 
     public Set<String> getRefTableUpdatePartitionNames() {
         return this.refTableUpdatePartitionNames;
+    }
+
+    public boolean isCompensatePartitionPredicate(OptExpression queryExpression) {
+        if (!isCompensatePartitionPredicateOpt.isPresent()) {
+            boolean isCompensatePartitionPredicate = MvUtils
+                    .isNeedCompensatePartitionPredicate(queryExpression, this);
+            isCompensatePartitionPredicateOpt = Optional.of(isCompensatePartitionPredicate);
+        }
+        return isCompensatePartitionPredicateOpt.get();
     }
 }

@@ -15,7 +15,6 @@
 package com.starrocks.planner;
 
 import com.starrocks.catalog.OlapTable;
-import com.starrocks.common.FeConstants;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.plan.MockTpchStatisticStorage;
 import com.starrocks.sql.plan.PlanTestBase;
@@ -67,7 +66,7 @@ public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
 
     @Test
     public void testQuery5() {
-        runFileUnitTest("materialized-view/tpch/q5");
+        runFileUnitTestWithNormalizedResult("materialized-view/tpch/q5");
     }
 
     @Test

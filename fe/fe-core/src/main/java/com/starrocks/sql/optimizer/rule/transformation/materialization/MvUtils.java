@@ -979,7 +979,8 @@ public class MvUtils {
      *      `partitionPredicate` : k1>='2020-02-11'
      *      however for mv  we need: k1>='2020-02-11' and k1 < "2020-03-01"
      */
-    public static ScalarOperator compensatePartitionPredicate(OptExpression plan,
+    public static ScalarOperator compensatePartitionPredicate(MaterializedView mv,
+                                                              OptExpression plan,
                                                               ColumnRefFactory columnRefFactory,
                                                               boolean isCompensate) {
         List<LogicalScanOperator> scanOperators = MvUtils.getScanOperator(plan);
@@ -987,8 +988,15 @@ public class MvUtils {
             return ConstantOperator.createBoolean(true);
         }
 
+        Map<Table, Column> refBaseTableColumns = mv.getRelatedPartitionTableAndColumn();
+        if (refBaseTableColumns == null || refBaseTableColumns.isEmpty()) {
+            return ConstantOperator.createBoolean(true);
+        }
+        Set<String> refBaseTableNames = refBaseTableColumns.keySet().stream()
+                .map(Table::getName).collect(Collectors.toSet());
         List<ScalarOperator> partitionPredicates = Lists.newArrayList();
         for (LogicalScanOperator scanOperator : scanOperators) {
+            // only compensate ref table's partition predicates, skip if it's not ref-base table
             List<ScalarOperator> partitionPredicate = null;
             if (scanOperator instanceof LogicalOlapScanOperator) {
                 partitionPredicate = compensatePartitionPredicateForOlapScan((LogicalOlapScanOperator) scanOperator,

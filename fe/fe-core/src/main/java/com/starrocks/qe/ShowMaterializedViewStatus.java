@@ -17,6 +17,7 @@ package com.starrocks.qe;
 import com.google.common.base.Strings;
 import com.starrocks.common.util.DebugUtil;
 import com.starrocks.common.util.TimeUtils;
+import com.starrocks.scheduler.Constants;
 import com.starrocks.scheduler.persist.MVTaskRunExtraMessage;
 import com.starrocks.scheduler.persist.TaskRunStatus;
 import com.starrocks.thrift.TMaterializedViewStatus;
@@ -177,16 +178,18 @@ public class ShowMaterializedViewStatus {
         status.setTask_id(String.valueOf(this.taskId));
         status.setTask_name(this.taskName);
         if (lastTaskRunStatus != null) {
-            status.setLast_refresh_start_time(TimeUtils.longToTimeString(lastTaskRunStatus.getCreateTime()));
-            status.setLast_refresh_finished_time(TimeUtils.longToTimeString(lastTaskRunStatus.getFinishTime()));
-            if (lastTaskRunStatus.getFinishTime() > lastTaskRunStatus.getCreateTime()) {
-                status.setLast_refresh_duration(DebugUtil.DECIMAL_FORMAT_SCALE_3.format(
-                        (lastTaskRunStatus.getFinishTime() - lastTaskRunStatus.getCreateTime()) / 1000D));
-            }
+            long mvRefreshStartTime = lastTaskRunStatus.getProcessStartTime();
+            long mvRefreshFinishTime = lastTaskRunStatus.getProcessFinishTime();
+            status.setLast_refresh_start_time(TimeUtils.longToTimeString(mvRefreshStartTime));
+            status.setLast_refresh_finished_time(TimeUtils.longToTimeString(mvRefreshFinishTime));
+            status.setLast_refresh_duration(calculateRefreshProcessDuration(lastTaskRunStatus));
+
             status.setLast_refresh_error_code(String.valueOf(lastTaskRunStatus.getErrorCode()));
             status.setLast_refresh_error_message(Strings.nullToEmpty(lastTaskRunStatus.getErrorMessage()));
 
-            status.setLast_refresh_state(String.valueOf(lastTaskRunStatus.getState()));
+            // LAST_REFRESH_STATE
+            status.setLast_refresh_state(String.valueOf(getLastRefreshState(lastTaskRunStatus)));
+
             MVTaskRunExtraMessage extraMessage = lastTaskRunStatus.getMvTaskRunExtraMessage();
             status.setLast_refresh_force_refresh(extraMessage.isForceRefresh() ? "true" : "false");
             status.setLast_refresh_start_partition(Strings.nullToEmpty(extraMessage.getPartitionStart()));
@@ -199,6 +202,31 @@ public class ShowMaterializedViewStatus {
         status.setRows(String.valueOf(this.rows));
         status.setText(this.text);
         return status;
+    }
+
+    public Constants.TaskRunState getLastRefreshState(TaskRunStatus lastTaskRunStatus) {
+        if (isRefreshFinished(lastTaskRunStatus)) {
+            return Constants.TaskRunState.SUCCESS;
+        } else {
+            if (lastTaskRunStatus.getState().equals(Constants.TaskRunState.SUCCESS)) {
+                return Constants.TaskRunState.RUNNING;
+            } else {
+                return lastTaskRunStatus.getState();
+            }
+        }
+    }
+
+    public boolean isRefreshFinished(TaskRunStatus lastTaskRunStatus) {
+        if (lastTaskRunStatus == null) {
+            return false;
+        }
+        if (lastTaskRunStatus.getState().equals(Constants.TaskRunState.SUCCESS)) {
+            return false;
+        }
+        if (!Strings.isNullOrEmpty(lastTaskRunStatus.getMvTaskRunExtraMessage().getPartitionEnd())) {
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -221,10 +249,10 @@ public class ShowMaterializedViewStatus {
             // Add fields related to task run status
             addField(resultRow, lastTaskRunStatus.getTaskId());
             addField(resultRow, Strings.nullToEmpty(lastTaskRunStatus.getTaskName()));
-            addField(resultRow, TimeUtils.longToTimeString(lastTaskRunStatus.getCreateTime()));
-            addField(resultRow, TimeUtils.longToTimeString(lastTaskRunStatus.getFinishTime()));
-            addField(resultRow, calculateRefreshDuration(lastTaskRunStatus));
-            addField(resultRow, lastTaskRunStatus.getState());
+            addField(resultRow, TimeUtils.longToTimeString(lastTaskRunStatus.getProcessStartTime()));
+            addField(resultRow, TimeUtils.longToTimeString(lastTaskRunStatus.getProcessFinishTime()));
+            addField(resultRow, calculateRefreshProcessDuration(lastTaskRunStatus));
+            addField(resultRow, getLastRefreshState(lastTaskRunStatus));
 
             MVTaskRunExtraMessage extraMessage = lastTaskRunStatus.getMvTaskRunExtraMessage();
             if (extraMessage != null) {
@@ -266,9 +294,21 @@ public class ShowMaterializedViewStatus {
         resultRow.addAll(Collections.nCopies(count, ""));
     }
 
+
+    private String calculateRefreshProcessDuration(TaskRunStatus lastTaskRunStatus) {
+        long mvRefreshStartTime = lastTaskRunStatus.getProcessStartTime();
+        long mvRefreshFinishTime = lastTaskRunStatus.getProcessFinishTime();
+
+        if (mvRefreshFinishTime > mvRefreshStartTime) {
+            return DebugUtil.DECIMAL_FORMAT_SCALE_3.format(
+                    (mvRefreshFinishTime - mvRefreshStartTime) / 1000D);
+        }
+        return "";
+    }
+
     // Calculate refresh duration
     private String calculateRefreshDuration(TaskRunStatus taskRunStatus) {
-        if (taskRunStatus.getFinishTime() > taskRunStatus.getCreateTime()) {
+        if (taskRunStatus.getProcessFinishTime() > taskRunStatus.getProcessStartTime()) {
             return DebugUtil.DECIMAL_FORMAT_SCALE_3
                     .format((taskRunStatus.getFinishTime() - taskRunStatus.getCreateTime()) / 1000D);
         }

@@ -39,11 +39,24 @@ public class TaskRunStatus implements Writable {
     @SerializedName("taskName")
     private String taskName;
 
+    // task run submit/created time
     @SerializedName("createTime")
     private long createTime;
 
+    // task run success/fail time which this task run is finished
+    // NOTE: finishTime - createTime =
+    //          pending time in task queue  + process task time + other time
     @SerializedName("finishTime")
     private long finishTime;
+
+    // task run starts to process time
+    @SerializedName("taskStartTime")
+    private long processStartTime;
+
+    // task run process finished time
+    // NOTE: processFinishTime - processStartTime = process task run time(exclude pending time)
+    @SerializedName("taskFinishTime")
+    private long processFinishTime;
 
     @SerializedName("state")
     private Constants.TaskRunState state = Constants.TaskRunState.PENDING;
@@ -54,6 +67,7 @@ public class TaskRunStatus implements Writable {
     @SerializedName("dbName")
     private String dbName;
 
+    @Deprecated
     @SerializedName("definition")
     private String definition;
 
@@ -164,10 +178,6 @@ public class TaskRunStatus implements Writable {
         this.user = user;
     }
 
-    public String getDefinition() {
-        return definition;
-    }
-
     public void setDefinition(String definition) {
         this.definition = definition;
     }
@@ -254,6 +264,22 @@ public class TaskRunStatus implements Writable {
         } else {
             // do nothing
         }
+    }
+
+    public long getProcessStartTime() {
+        return processStartTime;
+    }
+
+    public void setProcessStartTime(long processStartTime) {
+        this.processStartTime = processStartTime;
+    }
+
+    public long getProcessFinishTime() {
+        return processFinishTime;
+    }
+
+    public void setProcessFinishTime(long processFinishTime) {
+        this.processFinishTime = processFinishTime;
     }
 
     public Map<String, String> getProperties() {

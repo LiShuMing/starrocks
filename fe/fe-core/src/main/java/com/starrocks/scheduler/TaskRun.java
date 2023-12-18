@@ -165,9 +165,14 @@ public class TaskRun implements Comparable<TaskRun> {
 
     public boolean executeTaskRun() throws Exception {
         TaskRunContext taskRunContext = new TaskRunContext();
-        Preconditions.checkNotNull(status.getDefinition(), "The definition of task run should not null");
-        taskRunContext.setDefinition(status.getDefinition());
+
+        // Definition will cause a lot of repeats and cost a lot of metadata memory resources, so
+        // ignore it here, and we can get the `definition` from the materialized view's definition too.
+        // Use task's definition rather than status's to avoid costing too much metadata memory.
+        Preconditions.checkNotNull(task.getDefinition(), "The definition of task run should not null");
+        taskRunContext.setDefinition(task.getDefinition());
         taskRunContext.setPostRun(status.getPostRun());
+
         runCtx = new ConnectContext(null);
         if (parentRunCtx != null) {
             runCtx.setParentConnectContext(parentRunCtx);
@@ -203,7 +208,10 @@ public class TaskRun implements Comparable<TaskRun> {
         taskRunContext.setStatus(status);
         taskRunContext.setExecuteOption(executeOption);
 
+        status.setProcessStartTime(System.currentTimeMillis());
         processor.processTaskRun(taskRunContext);
+        status.setProcessFinishTime(System.currentTimeMillis());
+
         QueryState queryState = runCtx.getState();
         if (runCtx.getState().getStateType() == QueryState.MysqlStateType.ERR) {
             status.setErrorMessage(queryState.getErrorMessage());
@@ -272,9 +280,10 @@ public class TaskRun implements Comparable<TaskRun> {
         }
         status.setUser(task.getCreateUser());
         status.setDbName(task.getDbName());
-        status.setDefinition(task.getDefinition());
         status.setPostRun(task.getPostRun());
         status.setExpireTime(System.currentTimeMillis() + Config.task_runs_ttl_second * 1000L);
+        status.getMvTaskRunExtraMessage().setExecuteOption(this.executeOption);
+
         this.status = status;
         return status;
     }
@@ -296,16 +305,17 @@ public class TaskRun implements Comparable<TaskRun> {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        if (status.getDefinition() == null) {
+        if (task.getDefinition() == null) {
             return false;
         }
         TaskRun taskRun = (TaskRun) o;
-        return status.getDefinition().equals(taskRun.getStatus().getDefinition());
+        return this.taskId == taskRun.getTaskId() &&
+                this.task.getDefinition().equals(taskRun.getTask().getDefinition());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(status);
+        return Objects.hash(task);
     }
 
     @Override

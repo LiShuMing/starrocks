@@ -688,7 +688,12 @@ public class TaskManager {
                     LOG.warn("fail to obtain task name {} because task is null", taskName);
                     return;
                 }
-                TaskRun taskRun = TaskRunBuilder.newBuilder(task).build();
+                ExecuteOption executeOption = new ExecuteOption();
+                executeOption.setReplay(true);
+                TaskRun taskRun = TaskRunBuilder
+                        .newBuilder(task)
+                        .setExecuteOption(executeOption)
+                        .build();
                 taskRun.initStatus(status.getQueryId(), status.getCreateTime());
                 taskRunManager.arrangeTaskRun(taskRun);
                 break;
@@ -902,6 +907,10 @@ public class TaskManager {
         } finally {
             taskUnlock();
         }
+    }
+
+    public Task getTaskWithoutLock(String taskName) {
+        return nameToTaskMap.get(taskName);
     }
 
     public long getTaskCount() {

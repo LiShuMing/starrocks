@@ -804,14 +804,23 @@ public class FrontendServiceImpl implements FrontendService.Iface {
                 continue;
             }
 
+            String taskName = status.getTaskName();
             TTaskRunInfo info = new TTaskRunInfo();
             info.setQuery_id(status.getQueryId());
-            info.setTask_name(status.getTaskName());
+            info.setTask_name(taskName);
             info.setCreate_time(status.getCreateTime() / 1000);
             info.setFinish_time(status.getFinishTime() / 1000);
             info.setState(status.getState().toString());
             info.setDatabase(ClusterNamespace.getNameFromFullName(status.getDbName()));
-            info.setDefinition(status.getDefinition());
+            try {
+                // NOTE: use task's definition to display task-run's definition here
+                Task task = taskManager.getTaskWithoutLock(taskName);
+                if (task != null) {
+                    info.setDefinition(task.getDefinition());
+                }
+            } catch (Exception e) {
+                LOG.warn("Get taskName {} definition failed: {}", taskName, e);
+            }
             info.setError_code(status.getErrorCode());
             info.setError_message(status.getErrorMessage());
             info.setExpire_time(status.getExpireTime() / 1000);

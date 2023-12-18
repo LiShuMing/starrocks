@@ -40,6 +40,8 @@ import com.starrocks.qe.DefaultCoordinator;
 import com.starrocks.qe.QeProcessorImpl;
 import com.starrocks.qe.SessionVariable;
 import com.starrocks.qe.StmtExecutor;
+import com.starrocks.scheduler.persist.MVTaskRunExtraMessage;
+import com.starrocks.scheduler.persist.TaskRunStatus;
 import com.starrocks.schema.MTable;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.LoadPlanner;
@@ -3330,6 +3332,7 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
                         taskRun = processor.getNextTaskRun();
                         Assert.assertTrue(taskRun == null);
                     }
+                    starRocksAssert.dropMaterializedView("mv_with_join0");
                 }
         );
     }
@@ -3400,6 +3403,143 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
                         Thread.sleep(100);
                     }
                     starRocksAssert.dropMaterializedView("mv_refresh_priority");
+                }
+        );
+    }
+
+    @Test
+    public void testMVRefreshStatus() {
+        starRocksAssert.withTables(List.of(
+                        new MTable("tt1", "k1",
+                                List.of(
+                                        "k1 date",
+                                        "k2 int",
+                                        "v1 int"
+                                ),
+
+                                "k1",
+                                List.of(
+                                        "PARTITION p0 values [('2021-12-01'),('2022-01-01'))",
+                                        "PARTITION p1 values [('2022-01-01'),('2022-02-01'))",
+                                        "PARTITION p2 values [('2022-02-01'),('2022-03-01'))",
+                                        "PARTITION p3 values [('2022-03-01'),('2022-04-01'))",
+                                        "PARTITION p4 values [('2022-04-01'),('2022-05-01'))"
+                                )
+                        ),
+                        new MTable("tt2", "k1",
+                                List.of(
+                                        "k1 date",
+                                        "k2 int",
+                                        "v1 int"
+                                ),
+
+                                "k1",
+                                List.of(
+                                        "PARTITION p0 values [('2021-12-01'),('2022-01-01'))",
+                                        "PARTITION p1 values [('2022-01-01'),('2022-02-01'))",
+                                        "PARTITION p2 values [('2022-02-01'),('2022-03-01'))",
+                                        "PARTITION p3 values [('2022-03-01'),('2022-04-01'))",
+                                        "PARTITION p4 values [('2022-04-01'),('2022-05-01'))"
+                                )
+                        )
+                ),
+                () -> {
+                    starRocksAssert.withMaterializedView("create materialized view mv_with_join0\n" +
+                                    "partition by k1\n" +
+                                    "distributed by hash(k2) buckets 10\n" +
+                                    "PROPERTIES('partition_refresh_number' = '1')" +
+                                    "refresh deferred manual\n" +
+                                    "as select a.k1, b.k2 from tt1 a join tt2 b on a.k1=b.k1;",
+                            () -> {
+                                Database testDb = GlobalStateMgr.getCurrentState().getDb("test");
+
+                                MaterializedView materializedView =
+                                        ((MaterializedView) testDb.getTable("mv_with_join0"));
+                                Assert.assertEquals(2, materializedView.getPartitionExprMaps().size());
+                                Task task = TaskBuilder.buildMvTask(materializedView, testDb.getFullName());
+                                Map<String, String> testProperties = task.getProperties();
+                                testProperties.put(TaskRun.IS_TEST, "true");
+
+                                TaskRun taskRun = TaskRunBuilder.newBuilder(task).build();
+                                taskRun.initStatus(UUIDUtil.genUUID().toString(), System.currentTimeMillis());
+                                taskRun.executeTaskRun();
+
+                                executeInsertSql(connectContext,
+                                        "insert into tt1 partition(p1) values('2022-01-02', 3, 10);");
+                                executeInsertSql(connectContext,
+                                        "insert into tt1 partition(p2) values('2022-02-03', 3, 10);");
+                                {
+                                    TaskRunStatus taskRunStatus =
+                                            taskRun.initStatus(UUIDUtil.genUUID().toString(), System.currentTimeMillis());
+                                    taskRun.executeTaskRun();
+                                    taskRunStatus.setState(Constants.TaskRunState.SUCCESS);
+                                    MvTaskRunContext mvContext =
+                                            ((PartitionBasedMvRefreshProcessor) taskRun.getProcessor()).getMvContext();
+                                    Assert.assertTrue(mvContext.hasNextBatchPartition());
+                                    PartitionBasedMvRefreshProcessor processor =
+                                            (PartitionBasedMvRefreshProcessor) taskRun.getProcessor();
+                                    Assert.assertEquals(Sets.newHashSet("p1"),
+                                            processor.getMVTaskRunExtraMessage().getMvPartitionsToRefresh());
+
+                                    taskRun = processor.getNextTaskRun();
+                                    Assert.assertTrue(taskRun != null);
+                                    Assert.assertTrue(taskRunStatus.getProcessStartTime() > 0);
+                                    Assert.assertTrue(taskRunStatus.getProcessFinishTime() > 0);
+                                    long processDuration =
+                                            taskRunStatus.getProcessFinishTime() - taskRunStatus.getProcessStartTime();
+                                    Assert.assertTrue(processDuration >= 0);
+
+                                    {
+                                        MVTaskRunExtraMessage extraMessage = taskRunStatus.getMvTaskRunExtraMessage();
+                                        System.out.println(extraMessage);
+                                        Assert.assertTrue(extraMessage != null);
+                                        Assert.assertTrue(extraMessage.getPartitionStart() == null);
+                                        Assert.assertTrue(extraMessage.getPartitionEnd() == null);
+                                        Assert.assertEquals(extraMessage.getNextPartitionStart(), "2022-02-01");
+                                        Assert.assertEquals(extraMessage.getNextPartitionEnd(), "2022-03-01");
+
+
+                                        Assert.assertTrue(extraMessage.getExecuteOption() != null);
+                                        Assert.assertFalse(extraMessage.getExecuteOption().isMergeRedundant());
+                                        Assert.assertFalse(extraMessage.getExecuteOption().isReplay());
+                                    }
+
+                                    Assert.assertFalse(taskRunStatus.isRefreshFinished());
+                                    Assert.assertEquals(String.valueOf(taskRunStatus.getLastRefreshState()), "RUNNING");
+                                }
+
+                                {
+                                    TaskRunStatus taskRunStatus =
+                                            taskRun.initStatus(UUIDUtil.genUUID().toString(), System.currentTimeMillis());
+                                    taskRun.executeTaskRun();
+                                    taskRunStatus.setState(Constants.TaskRunState.SUCCESS);
+
+                                    MvTaskRunContext mvContext =
+                                            ((PartitionBasedMvRefreshProcessor) taskRun.getProcessor()).getMvContext();
+                                    Assert.assertTrue(!mvContext.hasNextBatchPartition());
+                                    PartitionBasedMvRefreshProcessor processor =
+                                            (PartitionBasedMvRefreshProcessor) taskRun.getProcessor();
+                                    Assert.assertEquals(Sets.newHashSet("p2"),
+                                            processor.getMVTaskRunExtraMessage().getMvPartitionsToRefresh());
+                                    {
+                                        MVTaskRunExtraMessage extraMessage = taskRunStatus.getMvTaskRunExtraMessage();
+                                        System.out.println(extraMessage);
+                                        Assert.assertTrue(extraMessage != null);
+                                        Assert.assertEquals(extraMessage.getPartitionStart(), "2022-02-01");
+                                        Assert.assertEquals(extraMessage.getPartitionEnd(), "2022-03-01");
+                                        Assert.assertTrue(extraMessage.getNextPartitionStart() == null);
+                                        Assert.assertTrue(extraMessage.getNextPartitionEnd() == null);
+                                        Assert.assertTrue(extraMessage.getExecuteOption() != null);
+                                        Assert.assertTrue(extraMessage.getExecuteOption().isMergeRedundant());
+                                        Assert.assertFalse(extraMessage.getExecuteOption().isReplay());
+                                    }
+
+                                    Assert.assertTrue(taskRunStatus.isRefreshFinished());
+                                    Assert.assertEquals(String.valueOf(taskRunStatus.getLastRefreshState()), "SUCCESS");
+                                    taskRun = processor.getNextTaskRun();
+                                    Assert.assertTrue(taskRun == null);
+                                }
+                            });
                 }
         );
     }

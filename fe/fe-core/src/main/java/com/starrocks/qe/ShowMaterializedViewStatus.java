@@ -17,7 +17,6 @@ package com.starrocks.qe;
 import com.google.common.base.Strings;
 import com.starrocks.common.util.DebugUtil;
 import com.starrocks.common.util.TimeUtils;
-import com.starrocks.scheduler.Constants;
 import com.starrocks.scheduler.persist.MVTaskRunExtraMessage;
 import com.starrocks.scheduler.persist.TaskRunStatus;
 import com.starrocks.thrift.TMaterializedViewStatus;
@@ -188,7 +187,7 @@ public class ShowMaterializedViewStatus {
             status.setLast_refresh_error_message(Strings.nullToEmpty(lastTaskRunStatus.getErrorMessage()));
 
             // LAST_REFRESH_STATE
-            status.setLast_refresh_state(String.valueOf(getLastRefreshState(lastTaskRunStatus)));
+            status.setLast_refresh_state(String.valueOf(lastTaskRunStatus.getLastRefreshState()));
 
             MVTaskRunExtraMessage extraMessage = lastTaskRunStatus.getMvTaskRunExtraMessage();
             status.setLast_refresh_force_refresh(extraMessage.isForceRefresh() ? "true" : "false");
@@ -202,31 +201,6 @@ public class ShowMaterializedViewStatus {
         status.setRows(String.valueOf(this.rows));
         status.setText(this.text);
         return status;
-    }
-
-    public Constants.TaskRunState getLastRefreshState(TaskRunStatus lastTaskRunStatus) {
-        if (isRefreshFinished(lastTaskRunStatus)) {
-            return Constants.TaskRunState.SUCCESS;
-        } else {
-            if (lastTaskRunStatus.getState().equals(Constants.TaskRunState.SUCCESS)) {
-                return Constants.TaskRunState.RUNNING;
-            } else {
-                return lastTaskRunStatus.getState();
-            }
-        }
-    }
-
-    public boolean isRefreshFinished(TaskRunStatus lastTaskRunStatus) {
-        if (lastTaskRunStatus == null) {
-            return false;
-        }
-        if (lastTaskRunStatus.getState().equals(Constants.TaskRunState.SUCCESS)) {
-            return false;
-        }
-        if (!Strings.isNullOrEmpty(lastTaskRunStatus.getMvTaskRunExtraMessage().getPartitionEnd())) {
-            return false;
-        }
-        return true;
     }
 
     /**
@@ -252,7 +226,7 @@ public class ShowMaterializedViewStatus {
             addField(resultRow, TimeUtils.longToTimeString(lastTaskRunStatus.getProcessStartTime()));
             addField(resultRow, TimeUtils.longToTimeString(lastTaskRunStatus.getProcessFinishTime()));
             addField(resultRow, calculateRefreshProcessDuration(lastTaskRunStatus));
-            addField(resultRow, getLastRefreshState(lastTaskRunStatus));
+            addField(resultRow, lastTaskRunStatus.getLastRefreshState());
 
             MVTaskRunExtraMessage extraMessage = lastTaskRunStatus.getMvTaskRunExtraMessage();
             if (extraMessage != null) {
@@ -298,12 +272,11 @@ public class ShowMaterializedViewStatus {
     private String calculateRefreshProcessDuration(TaskRunStatus lastTaskRunStatus) {
         long mvRefreshStartTime = lastTaskRunStatus.getProcessStartTime();
         long mvRefreshFinishTime = lastTaskRunStatus.getProcessFinishTime();
-
         if (mvRefreshFinishTime > mvRefreshStartTime) {
             return DebugUtil.DECIMAL_FORMAT_SCALE_3.format(
                     (mvRefreshFinishTime - mvRefreshStartTime) / 1000D);
         }
-        return "";
+        return "0.000";
     }
 
     // Calculate refresh duration

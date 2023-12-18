@@ -127,6 +127,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -279,12 +280,14 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
                     LOG.debug("materialized view:{} source partitions :{}",
                             materializedView.getName(), refTableRefreshPartitions);
                 }
-                // add message into information_schema
-                if (this.getMVTaskRunExtraMessage() != null) {
-                    MVTaskRunExtraMessage extraMessage = getMVTaskRunExtraMessage();
-                    extraMessage.setMvPartitionsToRefresh(mvToRefreshedPartitions);
-                    extraMessage.setRefBasePartitionsToRefreshMap(refTablePartitionNames);
-                }
+
+                // add a message into information_schema
+                Set<String> finalMvToRefreshedPartitions = mvToRefreshedPartitions;
+                Map<String, Set<String>> finalRefTablePartitionNames = refTablePartitionNames;
+                updateTaskRunStatusExtraMessage(extraMessage -> {
+                    extraMessage.setMvPartitionsToRefresh(finalMvToRefreshedPartitions);
+                    extraMessage.setRefBasePartitionsToRefreshMap(finalRefTablePartitionNames);
+                });
             } catch (Exception e) {
                 LOG.warn("Refresh mv {} failed: {}", materializedView.getName(), e);
                 throw e;
@@ -533,6 +536,12 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
         }
         newProperties.put(TaskRun.PARTITION_START, mvContext.getNextPartitionStart());
         newProperties.put(TaskRun.PARTITION_END, mvContext.getNextPartitionEnd());
+
+        updateTaskRunStatusExtraMessage(extraMessage -> {
+            extraMessage.setNextPartitionStart(mvContext.getNextPartitionStart());
+            extraMessage.setNextPartitionEnd(mvContext.getNextPartitionEnd());
+        });
+
         // Partition refreshing task run should have the HIGHEST priority, and be scheduled before other tasks
         // Otherwise this round of partition refreshing would be staved and never got finished
         ExecuteOption option = new ExecuteOption(Constants.TaskRunPriority.HIGHEST.value(), true, newProperties);
@@ -607,18 +616,17 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
                 updateMetaForExternalTable(refreshContext, snapshotInfoSplits.get(false));
             }
 
-            // add message into information_schema
-            if (this.getMVTaskRunExtraMessage() != null) {
+            // update mv status message
+            updateTaskRunStatusExtraMessage(extraMessage -> {
                 try {
-                    MVTaskRunExtraMessage extraMessage = getMVTaskRunExtraMessage();
                     Map<String, Set<String>> baseTableRefreshedPartitionsByExecPlan =
                             getBaseTableRefreshedPartitionsByExecPlan(execPlan);
                     extraMessage.setBasePartitionsToRefreshMap(baseTableRefreshedPartitionsByExecPlan);
                 } catch (Exception e) {
-                    // just log warn and no throw exceptions for updating task runs message.
+                    // just log warn and no throw exceptions for an updating task runs message.
                     LOG.warn("update task run messages failed:", e);
                 }
-            }
+            });
         } catch (Exception e) {
             LOG.warn("update final meta failed after mv refreshed:", e);
             throw e;
@@ -1016,14 +1024,26 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
         PartitionInfo partitionInfo = materializedView.getPartitionInfo();
         Set<String> needRefreshMvPartitionNames = getPartitionsToRefreshForMaterializedView(partitionInfo,
                 start, end, force);
-        // update stats
-        if (this.getMVTaskRunExtraMessage() != null) {
-            MVTaskRunExtraMessage extraMessage = this.getMVTaskRunExtraMessage();
+
+        // update mv extra message
+        updateTaskRunStatusExtraMessage(extraMessage -> {
             extraMessage.setForceRefresh(force);
             extraMessage.setPartitionStart(start);
             extraMessage.setPartitionEnd(end);
-        }
+        });
+
         return needRefreshMvPartitionNames;
+    }
+
+    /**
+     * Update task run status's extra message to add more information for information_schema if possible.
+     * @param action
+     */
+    private void updateTaskRunStatusExtraMessage(Consumer<MVTaskRunExtraMessage> action) {
+        MVTaskRunExtraMessage extraMessage = getMVTaskRunExtraMessage();
+        if (extraMessage != null) {
+            action.accept(extraMessage);
+        }
     }
 
     /**

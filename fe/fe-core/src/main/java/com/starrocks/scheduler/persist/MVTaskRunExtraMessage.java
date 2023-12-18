@@ -49,6 +49,11 @@ public class MVTaskRunExtraMessage implements Writable {
     @SerializedName("basePartitionsToRefreshMap")
     private Map<String, Set<String>> basePartitionsToRefreshMap = Maps.newHashMap();
 
+    @SerializedName("nextPartitionStart")
+    private String nextPartitionStart;
+    @SerializedName("nextPartitionEnd")
+    private String nextPartitionEnd;
+
     @SerializedName("executeOption")
     private ExecuteOption executeOption = new ExecuteOption();
 
@@ -134,6 +139,22 @@ public class MVTaskRunExtraMessage implements Writable {
 
     public void setExecuteOption(ExecuteOption executeOption) {
         this.executeOption = executeOption;
+    }
+
+    public String getNextPartitionStart() {
+        return nextPartitionStart;
+    }
+
+    public void setNextPartitionStart(String nextPartitionStart) {
+        this.nextPartitionStart = nextPartitionStart;
+    }
+
+    public String getNextPartitionEnd() {
+        return nextPartitionEnd;
+    }
+
+    public void setNextPartitionEnd(String nextPartitionEnd) {
+        this.nextPartitionEnd = nextPartitionEnd;
     }
 
     @Override

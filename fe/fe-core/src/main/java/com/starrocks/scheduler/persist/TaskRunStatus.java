@@ -15,6 +15,7 @@
 
 package com.starrocks.scheduler.persist;
 
+import com.google.common.base.Strings;
 import com.google.gson.annotations.SerializedName;
 import com.starrocks.cluster.ClusterNamespace;
 import com.starrocks.common.io.Text;
@@ -178,10 +179,6 @@ public class TaskRunStatus implements Writable {
         this.user = user;
     }
 
-    public void setDefinition(String definition) {
-        this.definition = definition;
-    }
-
     public String getPostRun() {
         return postRun;
     }
@@ -295,6 +292,28 @@ public class TaskRunStatus implements Writable {
 
     public void setProperties(Map<String, String> properties) {
         this.properties = properties;
+    }
+
+    public Constants.TaskRunState getLastRefreshState() {
+        if (isRefreshFinished()) {
+            return Constants.TaskRunState.SUCCESS;
+        }
+
+        if (state.equals(Constants.TaskRunState.SUCCESS)) {
+            return Constants.TaskRunState.RUNNING;
+        } else {
+            return state;
+        }
+    }
+
+    public boolean isRefreshFinished() {
+        if (!state.equals(Constants.TaskRunState.SUCCESS)) {
+            return false;
+        }
+        if (!Strings.isNullOrEmpty(mvTaskRunExtraMessage.getNextPartitionEnd())) {
+            return false;
+        }
+        return true;
     }
 
     public static TaskRunStatus read(DataInput in) throws IOException {

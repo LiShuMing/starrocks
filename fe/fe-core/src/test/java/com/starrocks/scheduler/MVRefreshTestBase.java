@@ -117,6 +117,7 @@ public class MVRefreshTestBase {
 
     public void executeInsertSql(ConnectContext connectContext, String sql) throws Exception {
         connectContext.setQueryId(UUIDUtil.genUUID());
+        System.out.println(sql);
         new StmtExecutor(connectContext, sql).execute();
     }
 

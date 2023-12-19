@@ -37,6 +37,11 @@ public class TaskRunStatus implements Writable {
     @SerializedName("taskId")
     private long taskId;
 
+    // A job means a batch of task runs, job id is to mark the unique id of the batch task run status.
+    // You can use the jobId to find the batch of task runs.
+    @SerializedName("jobId")
+    private String jobId;
+
     @SerializedName("taskName")
     private String taskName;
 
@@ -294,12 +299,20 @@ public class TaskRunStatus implements Writable {
         this.properties = properties;
     }
 
+    public String getJobId() {
+        return jobId;
+    }
+
+    public void setJobId(String jobId) {
+        this.jobId = jobId;
+    }
+
     public Constants.TaskRunState getLastRefreshState() {
         if (isRefreshFinished()) {
             return Constants.TaskRunState.SUCCESS;
         }
 
-        if (state.equals(Constants.TaskRunState.SUCCESS)) {
+        if (!state.equals(Constants.TaskRunState.FAILED)) {
             return Constants.TaskRunState.RUNNING;
         } else {
             return state;
@@ -307,13 +320,33 @@ public class TaskRunStatus implements Writable {
     }
 
     public boolean isRefreshFinished() {
+        if (state.equals(Constants.TaskRunState.FAILED)) {
+            return true;
+        }
         if (!state.equals(Constants.TaskRunState.SUCCESS)) {
             return false;
         }
-        if (!Strings.isNullOrEmpty(mvTaskRunExtraMessage.getNextPartitionEnd())) {
+        if (!Strings.isNullOrEmpty(mvTaskRunExtraMessage.getNextPartitionEnd()) ||
+                !Strings.isNullOrEmpty(mvTaskRunExtraMessage.getNextPartitionStart())) {
             return false;
         }
         return true;
+    }
+
+    public long calculateRefreshProcessDuration() {
+        if (processFinishTime > processStartTime) {
+            return processFinishTime - processStartTime;
+        } else {
+            return 0L;
+        }
+    }
+
+    public long calculateRefreshDuration() {
+        if (finishTime > createTime) {
+            return finishTime - createTime;
+        } else {
+            return 0L;
+        }
     }
 
     public static TaskRunStatus read(DataInput in) throws IOException {
@@ -331,6 +364,7 @@ public class TaskRunStatus implements Writable {
     public String toString() {
         return "TaskRunStatus{" +
                 "queryId='" + queryId + '\'' +
+                ", jobID=" + jobId +
                 ", taskName='" + taskName + '\'' +
                 ", createTime=" + createTime +
                 ", finishTime=" + finishTime +

@@ -78,6 +78,7 @@ import com.starrocks.qe.ConnectContext;
 import com.starrocks.qe.SessionVariable;
 import com.starrocks.qe.StmtExecutor;
 import com.starrocks.scheduler.persist.MVTaskRunExtraMessage;
+import com.starrocks.scheduler.persist.TaskRunStatus;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.StatementPlanner;
 import com.starrocks.sql.analyzer.Analyzer;
@@ -284,7 +285,8 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
                 // add a message into information_schema
                 Set<String> finalMvToRefreshedPartitions = mvToRefreshedPartitions;
                 Map<String, Set<String>> finalRefTablePartitionNames = refTablePartitionNames;
-                updateTaskRunStatusExtraMessage(extraMessage -> {
+                updateTaskRunStatus(status -> {
+                    MVTaskRunExtraMessage extraMessage = status.getMvTaskRunExtraMessage();
                     extraMessage.setMvPartitionsToRefresh(finalMvToRefreshedPartitions);
                     extraMessage.setRefBasePartitionsToRefreshMap(finalRefTablePartitionNames);
                 });
@@ -536,8 +538,11 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
         }
         newProperties.put(TaskRun.PARTITION_START, mvContext.getNextPartitionStart());
         newProperties.put(TaskRun.PARTITION_END, mvContext.getNextPartitionEnd());
-
-        updateTaskRunStatusExtraMessage(extraMessage -> {
+        if (mvContext.getStatus() != null) {
+            newProperties.put(TaskRun.JOB_ID, mvContext.getStatus().getJobId());
+        }
+        updateTaskRunStatus(status -> {
+            MVTaskRunExtraMessage extraMessage = status.getMvTaskRunExtraMessage();
             extraMessage.setNextPartitionStart(mvContext.getNextPartitionStart());
             extraMessage.setNextPartitionEnd(mvContext.getNextPartitionEnd());
         });
@@ -617,8 +622,9 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
             }
 
             // update mv status message
-            updateTaskRunStatusExtraMessage(extraMessage -> {
+            updateTaskRunStatus(status -> {
                 try {
+                    MVTaskRunExtraMessage extraMessage = status.getMvTaskRunExtraMessage();
                     Map<String, Set<String>> baseTableRefreshedPartitionsByExecPlan =
                             getBaseTableRefreshedPartitionsByExecPlan(execPlan);
                     extraMessage.setBasePartitionsToRefreshMap(baseTableRefreshedPartitionsByExecPlan);
@@ -790,6 +796,13 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
         // should keep up with the base tables, or it will return outdated result.
         oldTransactionVisibleWaitTimeout = context.ctx.getSessionVariable().getTransactionVisibleWaitTimeout();
         context.ctx.getSessionVariable().setTransactionVisibleWaitTimeout(Long.MAX_VALUE / 1000);
+
+        // Initialize status's job id which is used to track a batch of task runs.
+        String jobId = properties.containsKey(TaskRun.JOB_ID) ? properties.get(TaskRun.JOB_ID) : context.getUUID();
+        if (context.status != null) {
+            context.status.setJobId(jobId);
+        }
+
         mvContext = new MvTaskRunContext(context);
     }
 
@@ -1026,7 +1039,9 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
                 start, end, force);
 
         // update mv extra message
-        updateTaskRunStatusExtraMessage(extraMessage -> {
+        updateTaskRunStatus(status -> {
+            MVTaskRunExtraMessage extraMessage = status.getMvTaskRunExtraMessage();
+            extraMessage.setJobId(status.getJobId());
             extraMessage.setForceRefresh(force);
             extraMessage.setPartitionStart(start);
             extraMessage.setPartitionEnd(end);
@@ -1039,10 +1054,9 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
      * Update task run status's extra message to add more information for information_schema if possible.
      * @param action
      */
-    private void updateTaskRunStatusExtraMessage(Consumer<MVTaskRunExtraMessage> action) {
-        MVTaskRunExtraMessage extraMessage = getMVTaskRunExtraMessage();
-        if (extraMessage != null) {
-            action.accept(extraMessage);
+    private void updateTaskRunStatus(Consumer<TaskRunStatus> action) {
+        if (this.mvContext.status != null) {
+            action.accept(this.mvContext.status);
         }
     }
 

@@ -433,15 +433,9 @@ public class SyncPartitionUtils {
             List<PartitionRange> baseRanges = refreshedPartitionsMap.keySet()
                     .stream()
                     .map(name -> {
-                        try {
-                            Range<PartitionKey> partitionKeyRanges = refreshedPartitionsMap.get(name);
-                            Range<PartitionKey> convertRanges = convertToDatePartitionRange(partitionKeyRanges);
-                            Range<PartitionKey> transferRanges = transferRange(
-                                    convertRanges, basePartitionExprMap.get(baseTable));
-                            return new PartitionRange(name, transferRanges);
-                        } catch (AnalysisException e) {
-                            throw new SemanticException("Convert to PartitionMapping failed:", e);
-                        }
+                        Range<PartitionKey> partitionKeyRanges = refreshedPartitionsMap.get(name);
+                        Range<PartitionKey> convertRanges = convertToDatePartitionRange(partitionKeyRanges);
+                        return new PartitionRange(name, convertRanges);
                     })
                     .sorted(PartitionRange::compareTo).collect(Collectors.toList());
             for (PartitionRange baseRange : baseRanges) {
@@ -547,28 +541,23 @@ public class SyncPartitionUtils {
                                                              Map<Table, Map<String, Set<String>>> baseToMvNameRef,
                                                              Map<String, Map<Table, Set<String>>> mvToBaseNameRef) {
         int curNameCount = needRefreshMvPartitionNames.size();
-        Map<Table, Set<String>> newBaseChangedPartitionNames = Maps.newHashMap();
         Set<String> newNeedRefreshMvPartitionNames = Sets.newHashSet();
         for (String needRefreshMvPartitionName : needRefreshMvPartitionNames) {
+            // RefTable -> Partitions
             Map<Table, Set<String>> baseNames = mvToBaseNameRef.get(needRefreshMvPartitionName);
-            baseNames.forEach((key, value) -> {
-                newBaseChangedPartitionNames.merge(key, value, (set1, set2) -> {
-                    //we should copy set1 here, otherwise the mvToBaseNameRef will be changed
-                    HashSet<String> set = Sets.newHashSet(set1);
-                    set.addAll(set2);
-                    return set;
-                });
-                for (String baseName : value) {
-                    newNeedRefreshMvPartitionNames.addAll(baseToMvNameRef.get(key).get(baseName));
+            for (Map.Entry<Table, Set<String>> entry : baseNames.entrySet()) {
+                // BaseTable partition -> MV partitions
+                Map<String, Set<String>> baseTableToMVPartitionsMap = baseToMvNameRef.get(entry.getKey());
+                Set<String> needRefreshBaseTablePartitions = entry.getValue();
+                for (String needRefreshBaseTablePartition : needRefreshBaseTablePartitions) {
+                    // find the associated mv partition names
+                    newNeedRefreshMvPartitionNames.addAll(baseTableToMVPartitionsMap.get(needRefreshBaseTablePartition));
                 }
-            });
+                baseChangedPartitionNames.computeIfAbsent(entry.getKey(), x -> Sets.newHashSet())
+                        .addAll(needRefreshBaseTablePartitions);
+            }
         }
-        newBaseChangedPartitionNames.forEach((key, value) ->
-                baseChangedPartitionNames.merge(key, value, (set1, set2) -> {
-                    set1.addAll(set2);
-                    return set1;
-                })
-        );
+
         needRefreshMvPartitionNames.addAll(newNeedRefreshMvPartitionNames);
         if (curNameCount != needRefreshMvPartitionNames.size()) {
             gatherPotentialRefreshPartitionNames(needRefreshMvPartitionNames, baseChangedPartitionNames,

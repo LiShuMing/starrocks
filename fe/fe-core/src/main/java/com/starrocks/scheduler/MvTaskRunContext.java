@@ -27,6 +27,9 @@ import java.util.Map;
 import java.util.Set;
 
 public class MvTaskRunContext extends TaskRunContext {
+    public class RefTablePartitionMappingInfo{
+
+    }
 
     // all the RefBaseTable's partition name to its intersected materialized view names.
     //baseTable -> basePartition -> mvPartitions

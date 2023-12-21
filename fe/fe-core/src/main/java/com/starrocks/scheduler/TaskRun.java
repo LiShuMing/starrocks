@@ -71,11 +71,11 @@ public class TaskRun implements Comparable<TaskRun> {
 
     private ExecuteOption executeOption;
 
-    private final String uuid;
+    private final String taskRunId;
 
     TaskRun() {
         future = new CompletableFuture<>();
-        uuid = UUIDUtil.genUUID().toString();
+        taskRunId = UUIDUtil.genUUID().toString();
     }
 
     public long getTaskId() {
@@ -135,7 +135,7 @@ public class TaskRun implements Comparable<TaskRun> {
     }
 
     public String getUUID() {
-        return uuid;
+        return taskRunId;
     }
 
     public Map<String, String> refreshTaskProperties(ConnectContext ctx) {
@@ -206,7 +206,7 @@ public class TaskRun implements Comparable<TaskRun> {
             }
         }
         // If this is the first task run of the job, use its uuid as the job id.
-        taskRunContext.setUUID(uuid);
+        taskRunContext.setUUID(taskRunId);
         taskRunContext.setCtx(runCtx);
         taskRunContext.setRemoteIp(runCtx.getMysqlChannel().getRemoteHostPortString());
         taskRunContext.setProperties(taskRunContextProperties);
@@ -290,6 +290,7 @@ public class TaskRun implements Comparable<TaskRun> {
         status.setPostRun(task.getPostRun());
         status.setExpireTime(System.currentTimeMillis() + Config.task_runs_ttl_second * 1000L);
         status.getMvTaskRunExtraMessage().setExecuteOption(this.executeOption);
+        status.setTaskRunId(taskRunId);
 
         this.status = status;
         return status;
@@ -330,7 +331,7 @@ public class TaskRun implements Comparable<TaskRun> {
         return "TaskRun{" +
                 "taskId=" + taskId +
                 ", type=" + type +
-                ", uuid=" + uuid +
+                ", uuid=" + taskRunId +
                 ", task_state=" + status.getState() +
                 ", properties=" + properties +
                 ", extra_message =" + status.getExtraMessage() +

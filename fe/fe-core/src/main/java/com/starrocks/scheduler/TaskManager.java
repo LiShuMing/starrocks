@@ -652,15 +652,12 @@ public class TaskManager {
         taskRunManager.getTaskRunHistory().getAllHistory().stream()
                 .filter(u -> dbName == null || u.getDbName().equals(dbName))
                 .filter(task -> taskNames == null || taskNames.contains(task.getTaskName()))
-                // 1. if task status has already existed,
-                //  1.1 existed task run status's job id is null(old version), add it
-                //  1.2 existed task run status's job id is not null, find the same job id.
+                // 1. if task status has already existed, existed task run status's job id is not null, find the same job id.
                 // 2. otherwise, add it to the result.
                 .filter(task -> Optional.ofNullable(mvNameRunStatusMap.get(task.getTaskName()))
-                        .map(tasks ->
-                                tasks.stream().findFirst()
-                                        .map(t -> Strings.isNullOrEmpty(t.getJobId()) || task.getJobId().equals(t.getJobId()))
-                                        .orElse(true))
+                        .map(tasks -> tasks.stream().findFirst()
+                                .map(t -> !Strings.isNullOrEmpty(task.getJobId()) && task.getJobId().equals(t.getJobId()))
+                                .orElse(true))
                         .orElse(true)
                 )
                 .forEach(task -> mvNameRunStatusMap
@@ -671,15 +668,12 @@ public class TaskManager {
                 .map(TaskRun::getStatus)
                 .filter(u -> dbName == null || u != null && u.getDbName().equals(dbName))
                 .filter(task -> taskNames == null || taskNames.contains(task.getTaskName()))
-                // 1. if task status has already existed,
-                //  1.1 existed task run status's job id is null(old version), add it
-                //  1.2 existed task run status's job id is not null, find the same job id.
+                // 1. if task status has already existed, existed task run status's job id is not null, find the same job id.
                 // 2. otherwise, add it to the result.
                 .filter(task -> Optional.ofNullable(mvNameRunStatusMap.get(task.getTaskName()))
-                        .map(tasks ->
-                                tasks.stream().findFirst()
-                                        .map(t -> Strings.isNullOrEmpty(t.getJobId()) || task.getJobId().equals(t.getJobId()))
-                                        .orElse(true))
+                        .map(tasks -> tasks.stream().findFirst()
+                                .map(t -> !Strings.isNullOrEmpty(task.getJobId()) && task.getJobId().equals(t.getJobId()))
+                                .orElse(true))
                         .orElse(true)
                 )
                 .forEach(task -> mvNameRunStatusMap

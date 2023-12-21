@@ -14,10 +14,13 @@
 
 package com.starrocks.qe;
 
+import com.google.api.client.util.Sets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
+import com.google.common.collect.Maps;
 import com.starrocks.common.util.DebugUtil;
 import com.starrocks.common.util.TimeUtils;
+import com.starrocks.persist.gson.GsonUtils;
 import com.starrocks.scheduler.Constants;
 import com.starrocks.scheduler.persist.MVTaskRunExtraMessage;
 import com.starrocks.scheduler.persist.TaskRunStatus;
@@ -27,7 +30,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -42,15 +47,11 @@ public class ShowMaterializedViewStatus {
     private long rows;
     private String partitionType;
     private long lastCheckTime;
-    private long createTime;
-    private long taskId;
-    private String taskName;
     private String inactiveReason;
-
     private List<TaskRunStatus> lastJobTaskRunStatus;
-
-
     public class RefreshJobStatus {
+        private long taskId;
+        private String taskName;
         private Constants.TaskRunState refreshState;
         private long mvRefreshStartTime;
         private long mvRefreshEndTime;
@@ -58,11 +59,14 @@ public class ShowMaterializedViewStatus {
         private boolean isForce;
         private List<String> refreshedPartitionStarts;
         private List<String> refreshedPartitionEnds;
-        private List<String> refreshedBasePartitionsToRefreshMaps;
-        private List<String> refreshedMvPartitionsToRefreshs;
+        private List<Map<String, Set<String>>> refreshedBasePartitionsToRefreshMaps;
+        private List<Set<String>> refreshedMvPartitionsToRefreshs;
         private String errorCode;
         private String errorMsg;
         private boolean isRefreshFinished;
+        private JobInfo jobInfo;
+        private String extraMessage;
+
         public RefreshJobStatus() {
         }
 
@@ -114,19 +118,19 @@ public class ShowMaterializedViewStatus {
             this.refreshedPartitionEnds = refreshedPartitionEnds;
         }
 
-        public List<String> getRefreshedBasePartitionsToRefreshMaps() {
+        public List<Map<String, Set<String>>> getRefreshedBasePartitionsToRefreshMaps() {
             return refreshedBasePartitionsToRefreshMaps;
         }
 
-        public void setRefreshedBasePartitionsToRefreshMaps(List<String> refreshedBasePartitionsToRefreshMaps) {
+        public void setRefreshedBasePartitionsToRefreshMaps(List<Map<String, Set<String>>> refreshedBasePartitionsToRefreshMaps) {
             this.refreshedBasePartitionsToRefreshMaps = refreshedBasePartitionsToRefreshMaps;
         }
 
-        public List<String> getRefreshedMvPartitionsToRefreshs() {
+        public List<Set<String>> getRefreshedMvPartitionsToRefreshs() {
             return refreshedMvPartitionsToRefreshs;
         }
 
-        public void setRefreshedMvPartitionsToRefreshs(List<String> refreshedMvPartitionsToRefreshs) {
+        public void setRefreshedMvPartitionsToRefreshs(List<Set<String>> refreshedMvPartitionsToRefreshs) {
             this.refreshedMvPartitionsToRefreshs = refreshedMvPartitionsToRefreshs;
         }
 
@@ -160,6 +164,69 @@ public class ShowMaterializedViewStatus {
 
         public void setRefreshFinished(boolean refreshFinished) {
             isRefreshFinished = refreshFinished;
+        }
+
+        public long getTaskId() {
+            return taskId;
+        }
+
+        public void setTaskId(long taskId) {
+            this.taskId = taskId;
+        }
+
+        public String getTaskName() {
+            return taskName;
+        }
+
+        public void setTaskName(String taskName) {
+            this.taskName = taskName;
+        }
+
+        public JobInfo getJobInfo() {
+            return jobInfo;
+        }
+
+        public void setJobInfo(JobInfo jobInfo) {
+            this.jobInfo = jobInfo;
+        }
+
+        public String getExtraMessage() {
+            return extraMessage;
+        }
+
+        public void setExtraMessage(String extraMessage) {
+            this.extraMessage = extraMessage;
+        }
+    }
+    class JobInfo {
+        private String jobId;
+        private List<String> taskRunIds;
+        private List<String> queryIds;
+        public JobInfo() {
+
+        }
+        public String getJobId() {
+            return jobId;
+        }
+
+        public void setJobId(String jobId) {
+            this.jobId = jobId;
+        }
+
+        public List<String> getTaskRunIds() {
+            return taskRunIds;
+        }
+
+        public void setTaskRunIds(List<String> taskRunIds) {
+            this.taskRunIds = taskRunIds;
+        }
+
+        public List<String> getQueryIds() {
+            return queryIds;
+        }
+
+        public void setQueryIds(List<String> queryIds) {
+            this.queryIds = queryIds;
         }
     }
 
@@ -241,30 +308,6 @@ public class ShowMaterializedViewStatus {
         this.lastCheckTime = lastCheckTime;
     }
 
-    public long getCreateTime() {
-        return createTime;
-    }
-
-    public void setCreateTime(long createTime) {
-        this.createTime = createTime;
-    }
-
-    public long getTaskId() {
-        return taskId;
-    }
-
-    public void setTaskId(long taskId) {
-        this.taskId = taskId;
-    }
-
-    public String getTaskName() {
-        return taskName;
-    }
-
-    public void setTaskName(String taskName) {
-        this.taskName = taskName;
-    }
-
     public String getInactiveReason() {
         return inactiveReason;
     }
@@ -281,6 +324,13 @@ public class ShowMaterializedViewStatus {
         }
     }
 
+    private List<String> applyTaskRunStatusWith(Function<TaskRunStatus, String> func) {
+        return lastJobTaskRunStatus.stream()
+                .map(x -> func.apply(x))
+                .map(x -> Optional.ofNullable(x).orElse(""))
+                .collect(Collectors.toList());
+    }
+
     public RefreshJobStatus getRefreshJobStatus() {
         if (lastJobTaskRunStatus == null || lastJobTaskRunStatus.isEmpty()) {
             return new RefreshJobStatus();
@@ -289,6 +339,23 @@ public class ShowMaterializedViewStatus {
         TaskRunStatus firstTaskRunStatus = lastJobTaskRunStatus.get(0);
         TaskRunStatus lastTaskRunStatus = lastJobTaskRunStatus.get(lastJobTaskRunStatus.size() - 1);
 
+        status.setTaskId(firstTaskRunStatus.getTaskId());
+        status.setTaskName(firstTaskRunStatus.getTaskName());
+
+        JobInfo jobInfo = new JobInfo();
+        // job id
+        jobInfo.setJobId(firstTaskRunStatus.getJobId());
+
+        // taskRunIds
+        List<String> taskRunIds = applyTaskRunStatusWith(x -> x.getTaskRunId());
+        jobInfo.setTaskRunIds(taskRunIds);
+
+        // queryIds
+        List<String> queryIds = applyTaskRunStatusWith(x -> x.getQueryId());
+        jobInfo.setTaskRunIds(queryIds);
+        status.setJobInfo(jobInfo);
+
+        // start time
         long mvRefreshStartTime = firstTaskRunStatus.getProcessStartTime();
         status.setMvRefreshStartTime(mvRefreshStartTime);
 
@@ -299,23 +366,27 @@ public class ShowMaterializedViewStatus {
         status.setForce(extraMessage.isForceRefresh());
 
         // getPartitionStart
-        List<String> refreshedPartitionStarts = applyLastJobTaskRunStatusWith(x ->
+        List<String> refreshedPartitionStarts = applyTaskRunStatusWith(x ->
                 x.getMvTaskRunExtraMessage().getPartitionStart());
         status.setRefreshedPartitionStarts(refreshedPartitionStarts);
 
         // getPartitionEnd
-        List<String> refreshedPartitionEnds = applyLastJobTaskRunStatusWith(x ->
+        List<String> refreshedPartitionEnds = applyTaskRunStatusWith(x ->
                 x.getMvTaskRunExtraMessage().getPartitionEnd());
         status.setRefreshedPartitionEnds(refreshedPartitionEnds);
 
         // getBasePartitionsToRefreshMapString
-        List<String> refreshedBasePartitionsToRefreshMaps = applyLastJobTaskRunStatusWith(x ->
-                x.getMvTaskRunExtraMessage().getBasePartitionsToRefreshMapString());
+        List<Map<String, Set<String>>> refreshedBasePartitionsToRefreshMaps = lastJobTaskRunStatus.stream()
+                .map(x -> x.getMvTaskRunExtraMessage().getBasePartitionsToRefreshMap())
+                .map(x -> Optional.ofNullable(x).orElse(Maps.newHashMap()))
+                .collect(Collectors.toList());
         status.setRefreshedBasePartitionsToRefreshMaps(refreshedBasePartitionsToRefreshMaps);
 
         // getMvPartitionsToRefreshString
-        List<String> refreshedMvPartitionsToRefreshs = applyLastJobTaskRunStatusWith(x ->
-                x.getMvTaskRunExtraMessage().getMvPartitionsToRefreshString());
+        List<Set<String>> refreshedMvPartitionsToRefreshs = lastJobTaskRunStatus.stream()
+                .map(x -> x.getMvTaskRunExtraMessage().getMvPartitionsToRefresh())
+                .map(x -> Optional.ofNullable(x).orElse(Sets.newHashSet()))
+                .collect(Collectors.toList());
         status.setRefreshedMvPartitionsToRefreshs(refreshedMvPartitionsToRefreshs);
 
         // only updated when refresh is finished
@@ -349,44 +420,38 @@ public class ShowMaterializedViewStatus {
         status.setInactive_reason(this.inactiveReason);
         status.setPartition_type(this.partitionType);
 
-        status.setTask_id(String.valueOf(this.taskId));
-        status.setTask_name(this.taskName);
-        if (lastJobTaskRunStatus != null && !lastJobTaskRunStatus.isEmpty()) {
-            RefreshJobStatus refreshJobStatus = getRefreshJobStatus();
-            // start time
-            status.setLast_refresh_start_time(TimeUtils.longToTimeString(refreshJobStatus.getMvRefreshStartTime()));
-            // LAST_REFRESH_STATE
-            status.setLast_refresh_state(String.valueOf(refreshJobStatus.getRefreshState()));
-            // is force
-            status.setLast_refresh_force_refresh(refreshJobStatus.isForce() ? "true" : "false");
-            // partitionStart
-            status.setLast_refresh_start_partition(Joiner.on(",").join(refreshJobStatus.getRefreshedPartitionStarts()));
-            // partitionEnd
-            status.setLast_refresh_end_partition(Joiner.on(",").join(refreshJobStatus.getRefreshedPartitionEnds()));
-            // basePartitionsToRefreshMapString
-            status.setLast_refresh_base_refresh_partitions(
-                    Joiner.on(",").join(refreshJobStatus.getRefreshedBasePartitionsToRefreshMaps()));
-            // mvPartitionsToRefreshString
-            status.setLast_refresh_mv_refresh_partitions(
-                    Joiner.on(",").join(refreshJobStatus.getRefreshedMvPartitionsToRefreshs()));
-            // only updated when refresh is finished
-            if (refreshJobStatus.isRefreshFinished()) {
-                status.setLast_refresh_finished_time(TimeUtils.longToTimeString(refreshJobStatus.getMvRefreshEndTime()));
-                status.setLast_refresh_duration(formatDuration(refreshJobStatus.getTotalProcessDuration()));
-                status.setLast_refresh_error_code(refreshJobStatus.getErrorCode());
-                status.setLast_refresh_error_message(refreshJobStatus.getErrorMsg());
-            }
+        RefreshJobStatus refreshJobStatus = getRefreshJobStatus();
+        status.setTask_id(String.valueOf(refreshJobStatus.getTaskId()));
+        status.setTask_name(refreshJobStatus.getTaskName());
+        // start time
+        status.setLast_refresh_start_time(TimeUtils.longToTimeString(refreshJobStatus.getMvRefreshStartTime()));
+        // LAST_REFRESH_STATE
+        status.setLast_refresh_state(String.valueOf(refreshJobStatus.getRefreshState()));
+        // is force
+        status.setLast_refresh_force_refresh(refreshJobStatus.isForce() ? "true" : "false");
+        // partitionStart
+        status.setLast_refresh_start_partition(Joiner.on(",").join(refreshJobStatus.getRefreshedPartitionStarts()));
+        // partitionEnd
+        status.setLast_refresh_end_partition(Joiner.on(",").join(refreshJobStatus.getRefreshedPartitionEnds()));
+        // basePartitionsToRefreshMapString
+        status.setLast_refresh_base_refresh_partitions(
+                Joiner.on(",").join(refreshJobStatus.getRefreshedBasePartitionsToRefreshMaps()));
+        // mvPartitionsToRefreshString
+        status.setLast_refresh_mv_refresh_partitions(
+                Joiner.on(",").join(refreshJobStatus.getRefreshedMvPartitionsToRefreshs()));
+        status.setJob_infos(GsonUtils.GSON.toJson(refreshJobStatus.getJobInfo()));
+        status.setExtra_message(refreshJobStatus.getExtraMessage());
+        // only updated when refresh is finished
+        if (refreshJobStatus.isRefreshFinished()) {
+            status.setLast_refresh_finished_time(TimeUtils.longToTimeString(refreshJobStatus.getMvRefreshEndTime()));
+            status.setLast_refresh_duration(formatDuration(refreshJobStatus.getTotalProcessDuration()));
+            status.setLast_refresh_error_code(refreshJobStatus.getErrorCode());
+            status.setLast_refresh_error_message(refreshJobStatus.getErrorMsg());
         }
 
         status.setRows(String.valueOf(this.rows));
         status.setText(this.text);
         return status;
-    }
-    private List<String> applyLastJobTaskRunStatusWith(Function<TaskRunStatus, String> func) {
-        return lastJobTaskRunStatus.stream()
-                .map(x -> func.apply(x))
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
     }
 
     /**
@@ -405,38 +470,25 @@ public class ShowMaterializedViewStatus {
         addField(resultRow, inactiveReason);
         addField(resultRow, partitionType);
 
+        RefreshJobStatus refreshJobStatus = getRefreshJobStatus();
         if (lastJobTaskRunStatus != null && !lastJobTaskRunStatus.isEmpty()) {
-            TaskRunStatus firstTaskRunStatus = lastJobTaskRunStatus.get(0);
-            TaskRunStatus lastTaskRunStatus = lastJobTaskRunStatus.get(lastJobTaskRunStatus.size() - 1);
-
             // Add fields related to task run status
             // task id
-            addField(resultRow, lastTaskRunStatus.getTaskId());
+            addField(resultRow, refreshJobStatus.getTaskId());
             // task name
-            addField(resultRow, Strings.nullToEmpty(lastTaskRunStatus.getTaskName()));
+            addField(resultRow, Strings.nullToEmpty(refreshJobStatus.getTaskName()));
             // process start time
-            addField(resultRow, TimeUtils.longToTimeString(firstTaskRunStatus.getProcessStartTime()));
+            addField(resultRow, TimeUtils.longToTimeString(refreshJobStatus.getMvRefreshStartTime()));
 
-            boolean isJobRefreshFinished = lastTaskRunStatus.isRefreshFinished();
-            addField(resultRow, isJobRefreshFinished ? TimeUtils.longToTimeString(lastTaskRunStatus.getProcessFinishTime()) : "");
-            long totalProcessDuration = lastJobTaskRunStatus.stream()
-                    .map(x -> x.calculateRefreshProcessDuration())
-                    .collect(Collectors.summingLong(Long::longValue));
-            addField(resultRow, isJobRefreshFinished ? formatDuration(totalProcessDuration) : "0.000");
+            addField(resultRow, TimeUtils.longToTimeString(refreshJobStatus.getMvRefreshEndTime()));
+            addField(resultRow, formatDuration(refreshJobStatus.getTotalProcessDuration()));
 
-            addField(resultRow, lastTaskRunStatus.getLastRefreshState());
+            addField(resultRow, refreshJobStatus.getRefreshState());
 
-            MVTaskRunExtraMessage extraMessage = firstTaskRunStatus.getMvTaskRunExtraMessage();
-            if (extraMessage != null) {
-                // Add additional task run information fields
-                addField(resultRow, extraMessage.isForceRefresh() ? "true" : "false");
-            } else {
-                // If there is no additional task run information, fill with empty fields
-                addEmptyFields(resultRow, 1);
-            }
+            // Add additional task run information fields
+            addField(resultRow, refreshJobStatus.isForce);
 
             // partitionStart
-            RefreshJobStatus refreshJobStatus = getRefreshJobStatus();
             addField(resultRow, (Joiner.on(",").join(refreshJobStatus.refreshedPartitionStarts)));
 
             // partitionEnd
@@ -448,8 +500,10 @@ public class ShowMaterializedViewStatus {
             // mvPartitionsToRefreshString
             addField(resultRow, (Joiner.on(",").join(refreshJobStatus.refreshedMvPartitionsToRefreshs)));
 
-            addField(resultRow, lastTaskRunStatus.getErrorCode());
-            addField(resultRow, Strings.nullToEmpty(lastTaskRunStatus.getErrorMessage()));
+            // error code
+            addField(resultRow, refreshJobStatus.getErrorCode());
+            // error message
+            addField(resultRow, Strings.nullToEmpty(refreshJobStatus.getErrorMsg()));
         } else {
             // If there is no task run status, fill with empty fields
             addEmptyFields(resultRow, 13);
@@ -457,6 +511,8 @@ public class ShowMaterializedViewStatus {
 
         addField(resultRow, rows);
         addField(resultRow, text);
+        addField(resultRow, GsonUtils.GSON.toJson(refreshJobStatus.getJobInfo()));
+        addField(resultRow, GsonUtils.GSON.toJson(refreshJobStatus.getExtraMessage()));
 
         return resultRow;
     }

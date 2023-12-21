@@ -42,6 +42,15 @@ public class TaskRunStatus implements Writable {
     @SerializedName("jobId")
     private String jobId;
 
+    // Each task run will have a unique taskRunId:
+    // 1. taskRunId is different from taskId, one same taskId can have multi task runs(eg: refresh by partition,
+    //    each partition will generate one task run).
+    // 2. taskRunId is different from queryId:
+    //  a. query id is created when TaskRun starts to run, but taskRunId is created when TaskRun is created.
+    //  b. task run can retry multi times, each time can have a different query id.
+    @SerializedName("taskRunId")
+    private String taskRunId;
+
     @SerializedName("taskName")
     private String taskName;
 
@@ -305,6 +314,14 @@ public class TaskRunStatus implements Writable {
 
     public void setJobId(String jobId) {
         this.jobId = jobId;
+    }
+
+    public String getTaskRunId() {
+        return taskRunId;
+    }
+
+    public void setTaskRunId(String taskRunId) {
+        this.taskRunId = taskRunId;
     }
 
     public Constants.TaskRunState getLastRefreshState() {

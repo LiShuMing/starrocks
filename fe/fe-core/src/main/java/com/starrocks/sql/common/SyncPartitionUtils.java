@@ -483,15 +483,9 @@ public class SyncPartitionUtils {
             List<PartitionRange> baseRanges = entry.getValue().keySet()
                     .stream()
                     .map(name -> {
-                        try {
-                            Range<PartitionKey> partitionKeyRanges = refreshedPartitionsMap.get(name);
-                            Range<PartitionKey> convertRanges = convertToDatePartitionRange(partitionKeyRanges);
-                            Range<PartitionKey> transferRanges = transferRange(
-                                    convertRanges, basePartitionExprMap.get(baseTable));
-                            return new PartitionRange(name, transferRanges);
-                        } catch (AnalysisException e) {
-                            throw new SemanticException("Convert to PartitionMapping failed:", e);
-                        }
+                        Range<PartitionKey> partitionKeyRanges = refreshedPartitionsMap.get(name);
+                        Range<PartitionKey> convertRanges = convertToDatePartitionRange(partitionKeyRanges);
+                        return new PartitionRange(name, convertRanges);
                     })
                     .sorted(PartitionRange::compareTo)
                     .collect(Collectors.toList());

@@ -15,6 +15,7 @@
 
 package com.starrocks.scheduler.persist;
 
+import com.google.common.base.Strings;
 import com.google.gson.annotations.SerializedName;
 import com.starrocks.cluster.ClusterNamespace;
 import com.starrocks.common.io.Text;
@@ -36,14 +37,41 @@ public class TaskRunStatus implements Writable {
     @SerializedName("taskId")
     private long taskId;
 
+    // A job means a batch of task runs, job id is to mark the unique id of the batch task run status.
+    // You can use the jobId to find the batch of task runs.
+    @SerializedName("jobId")
+    private String jobId;
+
+    // Each task run will have a unique taskRunId:
+    // 1. taskRunId is different from taskId, one same taskId can have multi task runs(eg: refresh by partition,
+    //    each partition will generate one task run).
+    // 2. taskRunId is different from queryId:
+    //  a. query id is created when TaskRun starts to run, but taskRunId is created when TaskRun is created.
+    //  b. task run can retry multi times, each time can have a different query id.
+    @SerializedName("taskRunId")
+    private String taskRunId;
+
     @SerializedName("taskName")
     private String taskName;
 
+    // task run submit/created time
     @SerializedName("createTime")
     private long createTime;
 
+    // task run success/fail time which this task run is finished
+    // NOTE: finishTime - createTime =
+    //          pending time in task queue  + process task time + other time
     @SerializedName("finishTime")
     private long finishTime;
+
+    // task run starts to process time
+    @SerializedName("taskStartTime")
+    private long processStartTime;
+
+    // task run process finished time
+    // NOTE: processFinishTime - processStartTime = process task run time(exclude pending time)
+    @SerializedName("taskFinishTime")
+    private long processFinishTime;
 
     @SerializedName("state")
     private Constants.TaskRunState state = Constants.TaskRunState.PENDING;
@@ -54,6 +82,7 @@ public class TaskRunStatus implements Writable {
     @SerializedName("dbName")
     private String dbName;
 
+    @Deprecated
     @SerializedName("definition")
     private String definition;
 
@@ -164,14 +193,6 @@ public class TaskRunStatus implements Writable {
         this.user = user;
     }
 
-    public String getDefinition() {
-        return definition;
-    }
-
-    public void setDefinition(String definition) {
-        this.definition = definition;
-    }
-
     public String getPostRun() {
         return postRun;
     }
@@ -256,6 +277,22 @@ public class TaskRunStatus implements Writable {
         }
     }
 
+    public long getProcessStartTime() {
+        return processStartTime;
+    }
+
+    public void setProcessStartTime(long processStartTime) {
+        this.processStartTime = processStartTime;
+    }
+
+    public long getProcessFinishTime() {
+        return processFinishTime;
+    }
+
+    public void setProcessFinishTime(long processFinishTime) {
+        this.processFinishTime = processFinishTime;
+    }
+
     public Map<String, String> getProperties() {
         return properties;
     }
@@ -269,6 +306,64 @@ public class TaskRunStatus implements Writable {
 
     public void setProperties(Map<String, String> properties) {
         this.properties = properties;
+    }
+
+    public String getJobId() {
+        return jobId;
+    }
+
+    public void setJobId(String jobId) {
+        this.jobId = jobId;
+    }
+
+    public String getTaskRunId() {
+        return taskRunId;
+    }
+
+    public void setTaskRunId(String taskRunId) {
+        this.taskRunId = taskRunId;
+    }
+
+    public Constants.TaskRunState getLastRefreshState() {
+        if (isRefreshFinished()) {
+            return Constants.TaskRunState.SUCCESS;
+        }
+
+        if (!state.equals(Constants.TaskRunState.FAILED)) {
+            return Constants.TaskRunState.RUNNING;
+        } else {
+            return state;
+        }
+    }
+
+    public boolean isRefreshFinished() {
+        if (state.equals(Constants.TaskRunState.FAILED)) {
+            return true;
+        }
+        if (!state.equals(Constants.TaskRunState.SUCCESS)) {
+            return false;
+        }
+        if (!Strings.isNullOrEmpty(mvTaskRunExtraMessage.getNextPartitionEnd()) ||
+                !Strings.isNullOrEmpty(mvTaskRunExtraMessage.getNextPartitionStart())) {
+            return false;
+        }
+        return true;
+    }
+
+    public long calculateRefreshProcessDuration() {
+        if (processFinishTime > processStartTime) {
+            return processFinishTime - processStartTime;
+        } else {
+            return 0L;
+        }
+    }
+
+    public long calculateRefreshDuration() {
+        if (finishTime > createTime) {
+            return finishTime - createTime;
+        } else {
+            return 0L;
+        }
     }
 
     public static TaskRunStatus read(DataInput in) throws IOException {
@@ -286,6 +381,7 @@ public class TaskRunStatus implements Writable {
     public String toString() {
         return "TaskRunStatus{" +
                 "queryId='" + queryId + '\'' +
+                ", jobID=" + jobId +
                 ", taskName='" + taskName + '\'' +
                 ", createTime=" + createTime +
                 ", finishTime=" + finishTime +

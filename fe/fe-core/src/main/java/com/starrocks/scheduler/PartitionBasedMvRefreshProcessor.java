@@ -592,6 +592,14 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
         }
         newProperties.put(TaskRun.PARTITION_START, mvContext.getNextPartitionStart());
         newProperties.put(TaskRun.PARTITION_END, mvContext.getNextPartitionEnd());
+        if (mvContext.getStatus() != null) {
+            newProperties.put(TaskRun.JOB_ID, mvContext.getStatus().getJobId());
+        }
+        updateTaskRunStatus(status -> {
+            MVTaskRunExtraMessage extraMessage = status.getMvTaskRunExtraMessage();
+            extraMessage.setNextPartitionStart(mvContext.getNextPartitionStart());
+            extraMessage.setNextPartitionEnd(mvContext.getNextPartitionEnd());
+        });
 
         // Partition refreshing task run should have the HIGHEST priority, and be scheduled before other tasks
         // Otherwise this round of partition refreshing would be staved and never got finished
@@ -888,6 +896,12 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
         oldTransactionVisibleWaitTimeout = context.ctx.getSessionVariable().getTransactionVisibleWaitTimeout();
         context.ctx.getSessionVariable().setTransactionVisibleWaitTimeout(Long.MAX_VALUE / 1000);
 
+        // Initialize status's job id which is used to track a batch of task runs.
+        String jobId = properties.containsKey(TaskRun.JOB_ID) ? properties.get(TaskRun.JOB_ID) : context.getUUID();
+        if (context.status != null) {
+            context.status.setJobId(jobId);
+        }
+
         mvContext = new MvTaskRunContext(context);
     }
 
@@ -1129,6 +1143,7 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
         // update mv extra message
         updateTaskRunStatus(status -> {
             MVTaskRunExtraMessage extraMessage = status.getMvTaskRunExtraMessage();
+            extraMessage.setJobId(status.getJobId());
             extraMessage.setForceRefresh(force);
             extraMessage.setPartitionStart(start);
             extraMessage.setPartitionEnd(end);

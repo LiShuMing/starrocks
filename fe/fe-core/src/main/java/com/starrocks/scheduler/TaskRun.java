@@ -49,7 +49,7 @@ public class TaskRun implements Comparable<TaskRun> {
     public static final String PARTITION_START = "PARTITION_START";
     public static final String PARTITION_END = "PARTITION_END";
     public static final String FORCE = "FORCE";
-    public static final String JOB_ID = "JOB_ID";
+    public static final String START_TASK_RUN_ID = "START_TASK_RUN_ID";
     public static final String IS_TEST = "__IS_TEST__";
 
     private long taskId;
@@ -221,7 +221,7 @@ public class TaskRun implements Comparable<TaskRun> {
             }
         }
         // If this is the first task run of the job, use its uuid as the job id.
-        taskRunContext.setUUID(taskRunId);
+        taskRunContext.setTaskRunId(taskRunId);
         taskRunContext.setCtx(runCtx);
         taskRunContext.setRemoteIp(runCtx.getMysqlChannel().getRemoteHostPortString());
         taskRunContext.setProperties(taskRunContextProperties);

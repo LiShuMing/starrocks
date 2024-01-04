@@ -75,7 +75,6 @@ public class ShowMaterializedViewStatus {
         private String errorCode;
         private String errorMsg;
         private boolean isRefreshFinished;
-        private JobInfo jobInfo;
         private ExtraMessage extraMessage;
 
         public RefreshJobStatus() {
@@ -193,14 +192,6 @@ public class ShowMaterializedViewStatus {
             this.taskName = taskName;
         }
 
-        public JobInfo getJobInfo() {
-            return jobInfo;
-        }
-
-        public void setJobInfo(JobInfo jobInfo) {
-            this.jobInfo = jobInfo;
-        }
-
         public ExtraMessage getExtraMessage() {
             return extraMessage;
         }
@@ -211,28 +202,11 @@ public class ShowMaterializedViewStatus {
     }
 
     /**
-     * Job Info represents
-     */
-    class JobInfo {
-        @SerializedName("queryIds")
-        private List<String> queryIds;
-
-        public JobInfo() {
-        }
-
-        public List<String> getQueryIds() {
-            return queryIds;
-        }
-
-        public void setQueryIds(List<String> queryIds) {
-            this.queryIds = queryIds;
-        }
-    }
-
-    /**
      * To avoid changing show materialized view's result schema, use this to keep extra message.
      */
     class ExtraMessage {
+        @SerializedName("queryIds")
+        private List<String> queryIds;
         @SerializedName("isManual")
         private boolean isManual = false;
         @SerializedName("isSync")
@@ -272,6 +246,14 @@ public class ShowMaterializedViewStatus {
 
         public void setPriority(int priority) {
             this.priority = priority;
+        }
+
+        public List<String> getQueryIds() {
+            return queryIds;
+        }
+
+        public void setQueryIds(List<String> queryIds) {
+            this.queryIds = queryIds;
         }
     }
 
@@ -388,17 +370,13 @@ public class ShowMaterializedViewStatus {
         status.setTaskId(firstTaskRunStatus.getTaskId());
         status.setTaskName(firstTaskRunStatus.getTaskName());
 
-        // job info
-        JobInfo jobInfo = new JobInfo();
-        // queryIds
-        List<String> queryIds = applyTaskRunStatusWith(x -> x.getQueryId());
-        jobInfo.setQueryIds(queryIds);
-        status.setJobInfo(jobInfo);
-
         // extra message
+        ExtraMessage extraMessage = new ExtraMessage();
+        List<String> queryIds = applyTaskRunStatusWith(x -> x.getQueryId());
+        // queryIds
+        extraMessage.setQueryIds(queryIds);
         MVTaskRunExtraMessage firstTaskRunExtraMessage = firstTaskRunStatus.getMvTaskRunExtraMessage();
         if (firstTaskRunExtraMessage != null && firstTaskRunExtraMessage.getExecuteOption() != null) {
-            ExtraMessage extraMessage = new ExtraMessage();
             ExecuteOption executeOption = firstTaskRunExtraMessage.getExecuteOption();
             extraMessage.setManual(executeOption.isManual());
             extraMessage.setSync(executeOption.getIsSync());
@@ -415,8 +393,8 @@ public class ShowMaterializedViewStatus {
         status.setRefreshState(lastTaskRunStatus.getLastRefreshState());
 
         // is force
-        MVTaskRunExtraMessage extraMessage = lastTaskRunStatus.getMvTaskRunExtraMessage();
-        status.setForce(extraMessage.isForceRefresh());
+        MVTaskRunExtraMessage mvTaskRunExtraMessage = lastTaskRunStatus.getMvTaskRunExtraMessage();
+        status.setForce(mvTaskRunExtraMessage.isForceRefresh());
 
         // getPartitionStart
         List<String> refreshedPartitionStarts = applyTaskRunStatusWith(x ->
@@ -506,8 +484,6 @@ public class ShowMaterializedViewStatus {
         status.setRows(String.valueOf(this.rows));
         status.setText(this.text);
 
-        // job info
-        status.setJob_info(refreshJobStatus.getJobInfo() == null ? "" : GsonUtils.GSON.toJson(refreshJobStatus.getJobInfo()));
         // extra message
         status.setExtra_message(refreshJobStatus.getExtraMessage() == null ? "" :
                 GsonUtils.GSON.toJson(refreshJobStatus.getExtraMessage()));
@@ -573,8 +549,6 @@ public class ShowMaterializedViewStatus {
         addField(resultRow, rows);
         // text
         addField(resultRow, text);
-        // job info
-        addField(resultRow, refreshJobStatus.getJobInfo() == null ? "" : GsonUtils.GSON.toJson(refreshJobStatus.getJobInfo()));
         // extra message
         addField(resultRow, refreshJobStatus.getExtraMessage() == null ? "" :
                 GsonUtils.GSON.toJson(refreshJobStatus.getExtraMessage()));

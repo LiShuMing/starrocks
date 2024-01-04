@@ -4125,14 +4125,14 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
                                     Assert.assertEquals(Sets.newHashSet("p1"),
                                             processor.getMVTaskRunExtraMessage().getMvPartitionsToRefresh());
 
-                                    Assert.assertEquals(taskRunStatus.getJobId(), taskRun.getUUID());
+                                    Assert.assertEquals(taskRunStatus.getStartTaskRunId(), taskRun.getUUID());
                                     Assert.assertTrue(taskRunStatus.getProcessStartTime() > 0);
                                     Assert.assertTrue(taskRunStatus.getProcessFinishTime() > 0);
                                     long processDuration =
                                             taskRunStatus.getProcessFinishTime() - taskRunStatus.getProcessStartTime();
                                     Assert.assertTrue(processDuration >= 0);
 
-                                    jobID = taskRunStatus.getJobId();
+                                    jobID = taskRunStatus.getStartTaskRunId();
                                     {
                                         MVTaskRunExtraMessage extraMessage = taskRunStatus.getMvTaskRunExtraMessage();
                                         System.out.println(extraMessage);
@@ -4169,7 +4169,7 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
                                     Assert.assertEquals(Sets.newHashSet("p2"),
                                             processor.getMVTaskRunExtraMessage().getMvPartitionsToRefresh());
 
-                                    Assert.assertEquals(jobID, taskRunStatus.getJobId());
+                                    Assert.assertEquals(jobID, taskRunStatus.getStartTaskRunId());
                                     {
                                         MVTaskRunExtraMessage extraMessage = taskRunStatus.getMvTaskRunExtraMessage();
                                         System.out.println(extraMessage);

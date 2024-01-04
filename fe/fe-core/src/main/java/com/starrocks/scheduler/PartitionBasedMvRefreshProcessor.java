@@ -593,7 +593,7 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
         newProperties.put(TaskRun.PARTITION_START, mvContext.getNextPartitionStart());
         newProperties.put(TaskRun.PARTITION_END, mvContext.getNextPartitionEnd());
         if (mvContext.getStatus() != null) {
-            newProperties.put(TaskRun.JOB_ID, mvContext.getStatus().getJobId());
+            newProperties.put(TaskRun.START_TASK_RUN_ID, mvContext.getStatus().getStartTaskRunId());
         }
         updateTaskRunStatus(status -> {
             MVTaskRunExtraMessage extraMessage = status.getMvTaskRunExtraMessage();
@@ -897,9 +897,10 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
         context.ctx.getSessionVariable().setTransactionVisibleWaitTimeout(Long.MAX_VALUE / 1000);
 
         // Initialize status's job id which is used to track a batch of task runs.
-        String jobId = properties.containsKey(TaskRun.JOB_ID) ? properties.get(TaskRun.JOB_ID) : context.getUUID();
+        String jobId = properties.containsKey(TaskRun.START_TASK_RUN_ID) ?
+                properties.get(TaskRun.START_TASK_RUN_ID) : context.getTaskRunId();
         if (context.status != null) {
-            context.status.setJobId(jobId);
+            context.status.setStartTaskRunId(jobId);
         }
 
         mvContext = new MvTaskRunContext(context);

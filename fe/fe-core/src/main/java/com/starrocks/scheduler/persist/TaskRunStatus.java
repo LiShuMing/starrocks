@@ -31,10 +31,10 @@ import java.util.Map;
 
 public class TaskRunStatus implements Writable {
 
-    // A job means a batch of task runs, job id is to mark the unique id of the batch task run status.
-    // You can use the jobId to find the batch of task runs.
-    @SerializedName("jobId")
-    private String jobId;
+    // A refresh may contain a batch of task runs, startTaskRunId is to mark the unique id of the batch task run status.
+    // You can use the startTaskRunId to find the batch of task runs.
+    @SerializedName("startTaskRunId")
+    private String startTaskRunId;
 
     @SerializedName("queryId")
     private String queryId;
@@ -111,12 +111,12 @@ public class TaskRunStatus implements Writable {
     public TaskRunStatus() {
     }
 
-    public String getJobId() {
-        return jobId;
+    public String getStartTaskRunId() {
+        return startTaskRunId;
     }
 
-    public void setJobId(String jobId) {
-        this.jobId = jobId;
+    public void setStartTaskRunId(String startTaskRunId) {
+        this.startTaskRunId = startTaskRunId;
     }
 
     public String getQueryId() {
@@ -365,6 +365,7 @@ public class TaskRunStatus implements Writable {
         return "TaskRunStatus{" +
                 "queryId='" + queryId + '\'' +
                 ", taskName='" + taskName + '\'' +
+                ", startTaskRunId='" + startTaskRunId + '\'' +
                 ", createTime=" + createTime +
                 ", finishTime=" + finishTime +
                 ", state=" + state +

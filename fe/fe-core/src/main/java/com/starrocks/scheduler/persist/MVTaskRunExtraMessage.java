@@ -57,9 +57,6 @@ public class MVTaskRunExtraMessage implements Writable {
     @SerializedName("executeOption")
     private ExecuteOption executeOption = new ExecuteOption();
 
-    @SerializedName("jobId")
-    private String jobId;
-
     public MVTaskRunExtraMessage() {
     }
 
@@ -124,14 +121,6 @@ public class MVTaskRunExtraMessage implements Writable {
         } else {
             return "";
         }
-    }
-
-    public String getJobId() {
-        return jobId;
-    }
-
-    public void setJobId(String jobId) {
-        this.jobId = jobId;
     }
 
     public void setBasePartitionsToRefreshMap(

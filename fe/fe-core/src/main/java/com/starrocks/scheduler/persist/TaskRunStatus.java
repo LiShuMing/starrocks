@@ -31,25 +31,16 @@ import java.util.Map;
 
 public class TaskRunStatus implements Writable {
 
-    @SerializedName("queryId")
-    private String queryId;
-
-    @SerializedName("taskId")
-    private long taskId;
-
     // A job means a batch of task runs, job id is to mark the unique id of the batch task run status.
     // You can use the jobId to find the batch of task runs.
     @SerializedName("jobId")
     private String jobId;
 
-    // Each task run will have a unique taskRunId:
-    // 1. taskRunId is different from taskId, one same taskId can have multi task runs(eg: refresh by partition,
-    //    each partition will generate one task run).
-    // 2. taskRunId is different from queryId:
-    //  a. query id is created when TaskRun starts to run, but taskRunId is created when TaskRun is created.
-    //  b. task run can retry multi times, each time can have a different query id.
-    @SerializedName("taskRunId")
-    private String taskRunId;
+    @SerializedName("queryId")
+    private String queryId;
+
+    @SerializedName("taskId")
+    private long taskId;
 
     @SerializedName("taskName")
     private String taskName;
@@ -118,6 +109,14 @@ public class TaskRunStatus implements Writable {
     private Map<String, String> properties;
 
     public TaskRunStatus() {
+    }
+
+    public String getJobId() {
+        return jobId;
+    }
+
+    public void setJobId(String jobId) {
+        this.jobId = jobId;
     }
 
     public String getQueryId() {
@@ -308,22 +307,6 @@ public class TaskRunStatus implements Writable {
         this.properties = properties;
     }
 
-    public String getJobId() {
-        return jobId;
-    }
-
-    public void setJobId(String jobId) {
-        this.jobId = jobId;
-    }
-
-    public String getTaskRunId() {
-        return taskRunId;
-    }
-
-    public void setTaskRunId(String taskRunId) {
-        this.taskRunId = taskRunId;
-    }
-
     public Constants.TaskRunState getLastRefreshState() {
         if (isRefreshFinished()) {
             return Constants.TaskRunState.SUCCESS;
@@ -381,7 +364,6 @@ public class TaskRunStatus implements Writable {
     public String toString() {
         return "TaskRunStatus{" +
                 "queryId='" + queryId + '\'' +
-                ", jobID=" + jobId +
                 ", taskName='" + taskName + '\'' +
                 ", createTime=" + createTime +
                 ", finishTime=" + finishTime +

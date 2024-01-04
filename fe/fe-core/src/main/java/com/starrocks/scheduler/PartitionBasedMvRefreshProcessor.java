@@ -1143,7 +1143,6 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
         // update mv extra message
         updateTaskRunStatus(status -> {
             MVTaskRunExtraMessage extraMessage = status.getMvTaskRunExtraMessage();
-            extraMessage.setJobId(status.getJobId());
             extraMessage.setForceRefresh(force);
             extraMessage.setPartitionStart(start);
             extraMessage.setPartitionEnd(end);

@@ -24,6 +24,7 @@ import com.starrocks.common.util.DebugUtil;
 import com.starrocks.common.util.TimeUtils;
 import com.starrocks.persist.gson.GsonUtils;
 import com.starrocks.scheduler.Constants;
+import com.starrocks.scheduler.ExecuteOption;
 import com.starrocks.scheduler.persist.MVTaskRunExtraMessage;
 import com.starrocks.scheduler.persist.TaskRunStatus;
 import com.starrocks.thrift.TMaterializedViewStatus;
@@ -38,19 +39,27 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * ShowMaterializedViewStatus represents one materialized view's refresh status for ShowMaterializedViews command usage.
+ */
 public class ShowMaterializedViewStatus {
+    public static final String MULTI_TASK_RUN_SEPARATOR = "|";
+
     private long id;
     private String dbName;
     private String name;
     private String refreshType;
     private boolean isActive;
-
     private String text;
     private long rows;
     private String partitionType;
     private long lastCheckTime;
     private String inactiveReason;
     private List<TaskRunStatus> lastJobTaskRunStatus;
+
+    /**
+     * RefreshJobStatus represents a batch of batch TaskRunStatus because a fresh may trigger more than one task runs.
+     */
     public class RefreshJobStatus {
         private long taskId;
         private String taskName;
@@ -67,7 +76,7 @@ public class ShowMaterializedViewStatus {
         private String errorMsg;
         private boolean isRefreshFinished;
         private JobInfo jobInfo;
-        private String extraMessage;
+        private ExtraMessage extraMessage;
 
         public RefreshJobStatus() {
         }
@@ -192,37 +201,23 @@ public class ShowMaterializedViewStatus {
             this.jobInfo = jobInfo;
         }
 
-        public String getExtraMessage() {
+        public ExtraMessage getExtraMessage() {
             return extraMessage;
         }
 
-        public void setExtraMessage(String extraMessage) {
+        public void setExtraMessage(ExtraMessage extraMessage) {
             this.extraMessage = extraMessage;
         }
     }
+
+    /**
+     * Job Info represents
+     */
     class JobInfo {
-        @SerializedName("jobId")
-        private String jobId;
-        @SerializedName("taskRunIds")
-        private List<String> taskRunIds;
         @SerializedName("queryIds")
         private List<String> queryIds;
+
         public JobInfo() {
-        }
-        public String getJobId() {
-            return jobId;
-        }
-
-        public void setJobId(String jobId) {
-            this.jobId = jobId;
-        }
-
-        public List<String> getTaskRunIds() {
-            return taskRunIds;
-        }
-
-        public void setTaskRunIds(List<String> taskRunIds) {
-            this.taskRunIds = taskRunIds;
         }
 
         public List<String> getQueryIds() {
@@ -231,6 +226,52 @@ public class ShowMaterializedViewStatus {
 
         public void setQueryIds(List<String> queryIds) {
             this.queryIds = queryIds;
+        }
+    }
+
+    /**
+     * To avoid changing show materialized view's result schema, use this to keep extra message.
+     */
+    class ExtraMessage {
+        @SerializedName("isManual")
+        private boolean isManual = false;
+        @SerializedName("isSync")
+        private boolean isSync = false;
+        @SerializedName("isReplay")
+        private boolean isReplay = false;
+        @SerializedName("priority")
+        private int priority = Constants.TaskRunPriority.LOWEST.value();
+
+        public boolean isManual() {
+            return isManual;
+        }
+
+        public void setManual(boolean manual) {
+            isManual = manual;
+        }
+
+        public boolean isSync() {
+            return isSync;
+        }
+
+        public void setSync(boolean sync) {
+            isSync = sync;
+        }
+
+        public boolean isReplay() {
+            return isReplay;
+        }
+
+        public void setReplay(boolean replay) {
+            isReplay = replay;
+        }
+
+        public int getPriority() {
+            return priority;
+        }
+
+        public void setPriority(int priority) {
+            this.priority = priority;
         }
     }
 
@@ -349,18 +390,22 @@ public class ShowMaterializedViewStatus {
 
         // job info
         JobInfo jobInfo = new JobInfo();
-        // job id
-        jobInfo.setJobId(firstTaskRunStatus.getJobId());
-        // taskRunIds
-        List<String> taskRunIds = applyTaskRunStatusWith(x -> x.getTaskRunId());
-        jobInfo.setTaskRunIds(taskRunIds);
         // queryIds
         List<String> queryIds = applyTaskRunStatusWith(x -> x.getQueryId());
         jobInfo.setQueryIds(queryIds);
         status.setJobInfo(jobInfo);
 
         // extra message
-        status.setExtraMessage(lastTaskRunStatus.getExtraMessage());
+        MVTaskRunExtraMessage firstTaskRunExtraMessage = firstTaskRunStatus.getMvTaskRunExtraMessage();
+        if (firstTaskRunExtraMessage != null && firstTaskRunExtraMessage.getExecuteOption() != null) {
+            ExtraMessage extraMessage = new ExtraMessage();
+            ExecuteOption executeOption = firstTaskRunExtraMessage.getExecuteOption();
+            extraMessage.setManual(executeOption.isManual());
+            extraMessage.setSync(executeOption.getIsSync());
+            extraMessage.setReplay(executeOption.isReplay());
+            extraMessage.setPriority(executeOption.getPriority());
+            status.setExtraMessage(extraMessage);
+        }
 
         // start time
         long mvRefreshStartTime = firstTaskRunStatus.getProcessStartTime();
@@ -438,15 +483,17 @@ public class ShowMaterializedViewStatus {
         // is force
         status.setLast_refresh_force_refresh(refreshJobStatus.isForce() ? "true" : "false");
         // partitionStart
-        status.setLast_refresh_start_partition(Joiner.on(",").join(refreshJobStatus.getRefreshedPartitionStarts()));
+        status.setLast_refresh_start_partition(Joiner.on(MULTI_TASK_RUN_SEPARATOR)
+                .join(refreshJobStatus.getRefreshedPartitionStarts()));
         // partitionEnd
-        status.setLast_refresh_end_partition(Joiner.on(",").join(refreshJobStatus.getRefreshedPartitionEnds()));
+        status.setLast_refresh_end_partition(Joiner.on(MULTI_TASK_RUN_SEPARATOR)
+                .join(refreshJobStatus.getRefreshedPartitionEnds()));
         // basePartitionsToRefreshMapString
-        status.setLast_refresh_base_refresh_partitions(
-                Joiner.on(",").join(refreshJobStatus.getRefreshedBasePartitionsToRefreshMaps()));
+        status.setLast_refresh_base_refresh_partitions(Joiner.on(MULTI_TASK_RUN_SEPARATOR)
+                .join(refreshJobStatus.getRefreshedBasePartitionsToRefreshMaps()));
         // mvPartitionsToRefreshString
-        status.setLast_refresh_mv_refresh_partitions(
-                Joiner.on(",").join(refreshJobStatus.getRefreshedMvPartitionsToRefreshs()));
+        status.setLast_refresh_mv_refresh_partitions(Joiner.on(MULTI_TASK_RUN_SEPARATOR)
+                .join(refreshJobStatus.getRefreshedMvPartitionsToRefreshs()));
 
         // only updated when refresh is finished
         if (refreshJobStatus.isRefreshFinished()) {
@@ -460,9 +507,10 @@ public class ShowMaterializedViewStatus {
         status.setText(this.text);
 
         // job info
-        status.setJob_info(refreshJobStatus.getJobInfo() == null ? GsonUtils.GSON.toJson(refreshJobStatus.getJobInfo()) : "");
+        status.setJob_info(refreshJobStatus.getJobInfo() == null ? "" : GsonUtils.GSON.toJson(refreshJobStatus.getJobInfo()));
         // extra message
-        status.setExtra_message(Strings.nullToEmpty(refreshJobStatus.getExtraMessage()));
+        status.setExtra_message(refreshJobStatus.getExtraMessage() == null ? "" :
+                GsonUtils.GSON.toJson(refreshJobStatus.getExtraMessage()));
 
         return status;
     }
@@ -507,13 +555,15 @@ public class ShowMaterializedViewStatus {
         // whether it's force refresh
         addField(resultRow, refreshJobStatus.isForce);
         // partitionStart
-        addField(resultRow, (Joiner.on(",").join(refreshJobStatus.getRefreshedPartitionStarts())));
+        addField(resultRow, (Joiner.on(MULTI_TASK_RUN_SEPARATOR).join(refreshJobStatus.getRefreshedPartitionStarts())));
         // partitionEnd
-        addField(resultRow, (Joiner.on(",").join(refreshJobStatus.getRefreshedPartitionEnds())));
+        addField(resultRow, (Joiner.on(MULTI_TASK_RUN_SEPARATOR).join(refreshJobStatus.getRefreshedPartitionEnds())));
         // basePartitionsToRefreshMapString
-        addField(resultRow, (Joiner.on(",").join(refreshJobStatus.getRefreshedBasePartitionsToRefreshMaps())));
+        addField(resultRow, (Joiner.on(MULTI_TASK_RUN_SEPARATOR)
+                .join(refreshJobStatus.getRefreshedBasePartitionsToRefreshMaps())));
         // mvPartitionsToRefreshString
-        addField(resultRow, (Joiner.on(",").join(refreshJobStatus.getRefreshedMvPartitionsToRefreshs())));
+        addField(resultRow, (Joiner.on(MULTI_TASK_RUN_SEPARATOR)
+                .join(refreshJobStatus.getRefreshedMvPartitionsToRefreshs())));
         // error code
         addField(resultRow, refreshJobStatus.getErrorCode());
         // error message
@@ -526,7 +576,8 @@ public class ShowMaterializedViewStatus {
         // job info
         addField(resultRow, refreshJobStatus.getJobInfo() == null ? "" : GsonUtils.GSON.toJson(refreshJobStatus.getJobInfo()));
         // extra message
-        addField(resultRow, Strings.nullToEmpty(refreshJobStatus.getExtraMessage()));
+        addField(resultRow, refreshJobStatus.getExtraMessage() == null ? "" :
+                GsonUtils.GSON.toJson(refreshJobStatus.getExtraMessage()));
 
         return resultRow;
     }

@@ -60,7 +60,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -647,42 +646,41 @@ public class TaskManager {
                     .filter(Objects::nonNull)
                     .filter(u -> dbName == null || u.getDbName().equals(dbName))
                     .filter(task -> taskNames == null || taskNames.contains(task.getTaskName()))
-                    .forEach(task -> mvNameRunStatusMap
-                            .computeIfAbsent(task.getTaskName(), x -> Lists.newArrayList())
-                            .add(task));
+                    .forEach(task -> mvNameRunStatusMap.computeIfAbsent(task.getTaskName(), x -> Lists.newArrayList()).add(task));
         }
+
         // Add a batch of task runs with the same job id
         taskRunManager.getTaskRunHistory().getAllHistory().stream()
                 .filter(u -> dbName == null || u.getDbName().equals(dbName))
                 .filter(task -> taskNames == null || taskNames.contains(task.getTaskName()))
-                // 1. if task status has already existed, existed task run status's job id is not null, find the same job id.
-                // 2. otherwise, add it to the result.
-                .filter(task -> Optional.ofNullable(mvNameRunStatusMap.get(task.getTaskName()))
-                        .map(tasks -> tasks.stream().findFirst()
-                                .map(t -> !Strings.isNullOrEmpty(task.getJobId()) && task.getJobId().equals(t.getJobId()))
-                                .orElse(true))
-                        .orElse(true)
-                )
+                .filter(task -> isSameTaskRunJob(task, mvNameRunStatusMap))
                 .forEach(task -> mvNameRunStatusMap
                         .computeIfAbsent(task.getTaskName(), x -> Lists.newArrayList())
                         .add(task));
+
         taskRunManager.getRunningTaskRunMap().values().stream()
                 .filter(task -> task.getTask().getSource() == Constants.TaskSource.MV)
                 .map(TaskRun::getStatus)
                 .filter(u -> dbName == null || u != null && u.getDbName().equals(dbName))
                 .filter(task -> taskNames == null || taskNames.contains(task.getTaskName()))
-                // 1. if task status has already existed, existed task run status's job id is not null, find the same job id.
-                // 2. otherwise, add it to the result.
-                .filter(task -> Optional.ofNullable(mvNameRunStatusMap.get(task.getTaskName()))
-                        .map(tasks -> tasks.stream().findFirst()
-                                .map(t -> !Strings.isNullOrEmpty(task.getJobId()) && task.getJobId().equals(t.getJobId()))
-                                .orElse(true))
-                        .orElse(true)
-                )
-                .forEach(task -> mvNameRunStatusMap
-                        .computeIfAbsent(task.getTaskName(), x -> Lists.newArrayList())
-                        .add(task));
+                .filter(task -> isSameTaskRunJob(task, mvNameRunStatusMap))
+                .forEach(task -> mvNameRunStatusMap.computeIfAbsent(task.getTaskName(), x -> Lists.newArrayList()).add(task));
         return mvNameRunStatusMap;
+    }
+
+    private boolean isSameTaskRunJob(TaskRunStatus taskRunStatus,
+                                     Map<String, List<TaskRunStatus>> mvNameRunStatusMap) {
+        // 1. if task status has already existed, existed task run status's job id is not null, find the same job id.
+        // 2. otherwise, add it to the result.
+        if (!mvNameRunStatusMap.containsKey(taskRunStatus.getTaskName())) {
+            return true;
+        }
+        List<TaskRunStatus> existedTaskRuns = mvNameRunStatusMap.get(taskRunStatus.getTaskName());
+        if (existedTaskRuns == null || existedTaskRuns.isEmpty()) {
+            return true;
+        }
+        String jobId = taskRunStatus.getJobId();
+        return !Strings.isNullOrEmpty(jobId) && jobId.equals(existedTaskRuns.get(0).getJobId());
     }
 
     public void replayCreateTaskRun(TaskRunStatus status) {

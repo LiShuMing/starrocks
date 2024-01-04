@@ -679,6 +679,9 @@ public class TaskManager {
         if (existedTaskRuns == null || existedTaskRuns.isEmpty()) {
             return true;
         }
+        if (!Config.enable_show_materialized_views_include_all_task_runs) {
+            return false;
+        }
         String jobId = taskRunStatus.getJobId();
         return !Strings.isNullOrEmpty(jobId) && jobId.equals(existedTaskRuns.get(0).getJobId());
     }

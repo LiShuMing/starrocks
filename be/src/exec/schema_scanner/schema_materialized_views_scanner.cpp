@@ -49,8 +49,6 @@ SchemaScanner::ColumnDesc SchemaMaterializedViewsScanner::_s_tbls_columns[] = {
         {"LAST_REFRESH_ERROR_MESSAGE", TYPE_VARCHAR, sizeof(StringValue), false},
         {"TABLE_ROWS", TYPE_VARCHAR, sizeof(StringValue), false},
         {"MATERIALIZED_VIEW_DEFINITION", TYPE_VARCHAR, sizeof(StringValue), false},
-
-        {"JOB_INFO", TYPE_VARCHAR, sizeof(StringValue), false},
         {"EXTRA_MESSAGE", TYPE_VARCHAR, sizeof(StringValue), false},
 };
 
@@ -150,7 +148,6 @@ Status SchemaMaterializedViewsScanner::_fill_chunk_v2(ChunkPtr* chunk) {
             Slice(info.last_refresh_error_message),
             Slice(info.rows),
             Slice(info.text),
-            Slice(info.job_info),
             Slice(info.extra_message),
     };
 

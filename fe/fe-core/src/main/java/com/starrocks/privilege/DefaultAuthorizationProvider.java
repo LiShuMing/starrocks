@@ -42,7 +42,8 @@ public class DefaultAuthorizationProvider implements AuthorizationProvider {
                             PrivilegeType.SELECT,
                             PrivilegeType.ALTER,
                             PrivilegeType.EXPORT,
-                            PrivilegeType.UPDATE))
+                            PrivilegeType.UPDATE,
+                            PrivilegeType.METRICS))
 
                     .put(ObjectType.DATABASE, ImmutableList.of(
                             PrivilegeType.CREATE_TABLE,
@@ -51,7 +52,8 @@ public class DefaultAuthorizationProvider implements AuthorizationProvider {
                             PrivilegeType.CREATE_VIEW,
                             PrivilegeType.CREATE_FUNCTION,
                             PrivilegeType.CREATE_MATERIALIZED_VIEW,
-                            PrivilegeType.CREATE_PIPE))
+                            PrivilegeType.CREATE_PIPE,
+                            PrivilegeType.METRICS))
 
                     .put(ObjectType.SYSTEM, ImmutableList.of(
                             PrivilegeType.GRANT,
@@ -78,7 +80,8 @@ public class DefaultAuthorizationProvider implements AuthorizationProvider {
                     .put(ObjectType.VIEW, ImmutableList.of(
                             PrivilegeType.SELECT,
                             PrivilegeType.ALTER,
-                            PrivilegeType.DROP))
+                            PrivilegeType.DROP,
+                            PrivilegeType.METRICS))
 
                     .put(ObjectType.CATALOG, ImmutableList.of(
                             PrivilegeType.USAGE,
@@ -90,7 +93,8 @@ public class DefaultAuthorizationProvider implements AuthorizationProvider {
                             PrivilegeType.ALTER,
                             PrivilegeType.REFRESH,
                             PrivilegeType.DROP,
-                            PrivilegeType.SELECT))
+                            PrivilegeType.SELECT,
+                            PrivilegeType.METRICS))
 
                     .put(ObjectType.FUNCTION, ImmutableList.of(
                             PrivilegeType.USAGE,

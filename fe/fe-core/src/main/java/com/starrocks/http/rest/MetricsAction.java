@@ -159,7 +159,7 @@ public class MetricsAction extends RestBaseAction {
             UserIdentity currentUser = null;
             try {
                 ActionAuthorizationInfo authInfo = getAuthorizationInfo(request);
-                // check user password and need admin root to collect table/mv level metrics.
+                // check current user need admin root to collect table/mv level metrics.
                 currentUser = checkPassword(authInfo);
                 Authorizer.checkSystemAction(currentUser, null, PrivilegeType.METRICS);
             } catch (AccessDeniedException e) {

@@ -68,6 +68,12 @@ public class ResourceGroupMgr implements Writable {
     private static final Logger LOG = LogManager.getLogger(ResourceGroupMgr.class);
     private final Map<String, ResourceGroup> resourceGroupMap = new HashMap<>();
 
+    public ResourceGroupMgr() {
+        // initialize default_wg and default_mv_wg  resource groups.
+        resourceGroupMap.put(ResourceGroup.DEFAULT_RESOURCE_GROUP_NAME, ResourceGroup.DEFAULT_WG);
+        resourceGroupMap.put(ResourceGroup.DEFAULT_MV_RESOURCE_GROUP_NAME, ResourceGroup.DEFAULT_MV_WG);
+    }
+
     // Record the current short_query resource group.
     // There can be only one short_query resource group.
     private ResourceGroup shortQueryResourceGroup = null;

@@ -656,7 +656,7 @@ public class InsertPlanner {
 
         // Check all materialized index metas except base are valid at final
         checkMaterializedIndexMeta(targetTable);
-        
+
         return root.withNewRoot(new LogicalProjectOperator(new HashMap<>(columnRefMap)));
     }
 
@@ -695,6 +695,12 @@ public class InsertPlanner {
             if (slots == null) {
                 referredColumnNames.add(targetColumn.getName());
             } else {
+                // after 3.1.0, slot ref of base table also has define expr. so needs to check the column name too.
+                Expr defineExpr = targetColumn.getDefineExpr();
+                if (defineExpr != null && defineExpr instanceof SlotRef) {
+                    referredColumnNames.add(targetColumn.getName());
+                }
+
                 slots.stream().map(slot -> slot.getColumnName()).forEach(x -> referredColumnNames.add(x));
             }
 
@@ -704,8 +710,9 @@ public class InsertPlanner {
                     MaterializedIndexMeta targetIndexMeta = columnToMaterializedIndexMeta.get(targetColumn);
                     String targetIndexMetaName = ((OlapTable) targetTable).getIndexNameById(targetIndexMeta.getIndexId());
                     String errorMsg = String.format("The base column %s of defined column %s is not existed in the " +
-                                    "base table, please check the associated materialized view %s of target table: %s",
-                            originName, targetColumn.getName(), targetIndexMetaName, targetTable.getName());
+                                    "base table, please drop associated materialized view %s of target table: %s " +
+                                    "before insert: drop materialized view %s",
+                            originName, targetColumn.getName(), targetIndexMetaName, targetTable.getName(), targetIndexMetaName);
                     LOG.warn("Check target table's MaterializedIndexMeta failed: {}", errorMsg);
                     throw new SemanticException(errorMsg);
                 }

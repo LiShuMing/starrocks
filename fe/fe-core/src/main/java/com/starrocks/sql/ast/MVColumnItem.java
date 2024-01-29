@@ -128,10 +128,10 @@ public class MVColumnItem {
             if (defineExpr != null) {
                 result.setDefineExpr(defineExpr);
             }
+            result.setName(name);
         } else {
             result = new Column(baseColumn);
         }
-        result.setName(name);
         result.setIsKey(isKey);
         result.setAggregationType(aggregationType, isAggregationTypeImplicit);
         return result;

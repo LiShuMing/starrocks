@@ -17,6 +17,7 @@ package com.starrocks.sql;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.starrocks.alter.SchemaChangeHandler;
 import com.starrocks.analysis.DescriptorTable;
@@ -544,7 +545,8 @@ public class InsertPlanner {
                                              List<ColumnRefOperator> outputColumns, OptExprBuilder root,
                                              ConnectContext session) {
         Set<Column> baseSchema = Sets.newHashSet(insertStatement.getTargetTable().getBaseSchema());
-        List<Column> fullSchema = insertStatement.getTargetTable().getFullSchema();
+        Table targetTable = insertStatement.getTargetTable();
+        List<Column> fullSchema = targetTable.getFullSchema();
         Map<ColumnRefOperator, ScalarOperator> columnRefMap = new HashMap<>();
 
         for (int columnIdx = 0; columnIdx < fullSchema.size(); ++columnIdx) {
@@ -576,7 +578,6 @@ public class InsertPlanner {
             if (targetColumn.isNameWithPrefix(MATERIALIZED_VIEW_NAME_PREFIX) &&
                     !baseSchema.contains(targetColumn)) {
                 if (targetColumn.getDefineExpr() == null) {
-                    Table targetTable = insertStatement.getTargetTable();
                     // Only olap table can have the synchronized materialized view.
                     OlapTable targetOlapTable = (OlapTable) targetTable;
                     MaterializedIndexMeta targetIndexMeta = null;
@@ -652,7 +653,66 @@ public class InsertPlanner {
                 columnRefMap.put(outputColumns.get(columnIdx), outputColumns.get(columnIdx));
             }
         }
+
+        // Check all materialized index metas except base are valid at final
+        checkMaterializedIndexMeta(targetTable, fullSchema);
+        
         return root.withNewRoot(new LogicalProjectOperator(new HashMap<>(columnRefMap)));
+    }
+
+    /**
+     * Make sure all MVColumn's base columns exists in the BaseSchema.
+     *
+     * @param targetTable: insert statement target table.
+     * @param fullSchema: base table's all schemas including base and other materialized index metas.
+     * @throws SemanticException: if non-base materialized index meta's referred columns are not existed in the base
+     * schema, {@code SemanticException} will be thrown.
+     */
+    private void checkMaterializedIndexMeta(Table targetTable,
+                                            List<Column> fullSchema) throws SemanticException {
+        if (!targetTable.isOlapTableOrMaterializedView()) {
+            return;
+        }
+        Map<Column, MaterializedIndexMeta> columnToMaterializedIndexMeta = Maps.newHashMap();
+        Set<Column> baseSchema =  Sets.newHashSet(targetTable.getBaseSchema());
+        Set<String> baseColumnNames = baseSchema.stream().map(col -> col.getName()).collect(Collectors.toSet());
+        OlapTable olapTargetTable = (OlapTable) targetTable;
+        Map<Long, MaterializedIndexMeta> indexIdToSchema = olapTargetTable.getIndexIdToMeta();
+        for (Map.Entry<Long, MaterializedIndexMeta> e : indexIdToSchema.entrySet()) {
+            if (e.getKey() == olapTargetTable.getBaseIndexId()) {
+                continue;
+            }
+            for (Column column : e.getValue().getSchema()) {
+                columnToMaterializedIndexMeta.put(column, e.getValue());
+            }
+        }
+        if (columnToMaterializedIndexMeta.isEmpty()) {
+            return;
+        }
+        for (Column targetColumn : fullSchema) {
+            if (columnToMaterializedIndexMeta.containsKey(targetColumn)) {
+                // Check mv column's referred columns existed in the base table.
+                List<SlotRef> slots = targetColumn.getRefColumns();
+                List<String> referredColumnNames = Lists.newArrayList();
+                if (slots == null) {
+                    referredColumnNames.add(targetColumn.getName());
+                } else {
+                    slots.stream().map(slot -> slot.getColumnName()).forEach(x -> referredColumnNames.add(x));
+                }
+
+                // Make sure all MVColumn's base columns exists in the BaseSchema.
+                for (String originName : referredColumnNames) {
+                    if (!baseColumnNames.contains(originName)) {
+                        MaterializedIndexMeta targetIndexMeta = columnToMaterializedIndexMeta.get(targetColumn);
+                        String targetIndexMetaName = ((OlapTable) targetTable).getIndexNameById(targetIndexMeta.getIndexId());
+                        String errorMsg = String.format("The base column %s of defined column %s is not existed in the " +
+                                        "base table, please check the associated materialized view %s of target table: %s",
+                                originName, targetColumn.getName(), targetIndexMetaName, targetTable.getName());
+                        throw new SemanticException(errorMsg);
+                    }
+                }
+            }
+        }
     }
 
     private OptExprBuilder castOutputColumnsTypeToTargetColumns(ColumnRefFactory columnRefFactory,

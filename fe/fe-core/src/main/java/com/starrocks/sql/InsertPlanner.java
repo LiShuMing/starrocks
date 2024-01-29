@@ -689,27 +689,30 @@ public class InsertPlanner {
         if (columnToMaterializedIndexMeta.isEmpty()) {
             return;
         }
+        Map<String, Column> targetNameToColumn = Maps.newHashMap();
         for (Column targetColumn : fullSchema) {
-            if (columnToMaterializedIndexMeta.containsKey(targetColumn)) {
-                // Check mv column's referred columns existed in the base table.
-                List<SlotRef> slots = targetColumn.getRefColumns();
-                List<String> referredColumnNames = Lists.newArrayList();
-                if (slots == null) {
-                    referredColumnNames.add(targetColumn.getName());
-                } else {
-                    slots.stream().map(slot -> slot.getColumnName()).forEach(x -> referredColumnNames.add(x));
-                }
+            targetNameToColumn.put(targetColumn.getName(), targetColumn);
+        }
+        for (Map.Entry<Column, MaterializedIndexMeta> e : columnToMaterializedIndexMeta.entrySet()) {
+            Column targetColumn = e.getKey();
+            // Check mv column's referred columns existed in the base table.
+            List<SlotRef> slots = targetColumn.getRefColumns();
+            List<String> referredColumnNames = Lists.newArrayList();
+            if (slots == null) {
+                referredColumnNames.add(targetColumn.getName());
+            } else {
+                slots.stream().map(slot -> slot.getColumnName()).forEach(x -> referredColumnNames.add(x));
+            }
 
-                // Make sure all MVColumn's base columns exists in the BaseSchema.
-                for (String originName : referredColumnNames) {
-                    if (!baseColumnNames.contains(originName)) {
-                        MaterializedIndexMeta targetIndexMeta = columnToMaterializedIndexMeta.get(targetColumn);
-                        String targetIndexMetaName = ((OlapTable) targetTable).getIndexNameById(targetIndexMeta.getIndexId());
-                        String errorMsg = String.format("The base column %s of defined column %s is not existed in the " +
-                                        "base table, please check the associated materialized view %s of target table: %s",
-                                originName, targetColumn.getName(), targetIndexMetaName, targetTable.getName());
-                        throw new SemanticException(errorMsg);
-                    }
+            // Make sure all MVColumn's base columns exists in the BaseSchema.
+            for (String originName : referredColumnNames) {
+                if (!baseColumnNames.contains(originName)) {
+                    MaterializedIndexMeta targetIndexMeta = columnToMaterializedIndexMeta.get(targetColumn);
+                    String targetIndexMetaName = ((OlapTable) targetTable).getIndexNameById(targetIndexMeta.getIndexId());
+                    String errorMsg = String.format("The base column %s of defined column %s is not existed in the " +
+                                    "base table, please check the associated materialized view %s of target table: %s",
+                            originName, targetColumn.getName(), targetIndexMetaName, targetTable.getName());
+                    throw new SemanticException(errorMsg);
                 }
             }
         }

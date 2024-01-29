@@ -655,7 +655,7 @@ public class InsertPlanner {
         }
 
         // Check all materialized index metas except base are valid at final
-        checkMaterializedIndexMeta(targetTable, fullSchema);
+        checkMaterializedIndexMeta(targetTable);
         
         return root.withNewRoot(new LogicalProjectOperator(new HashMap<>(columnRefMap)));
     }
@@ -664,12 +664,10 @@ public class InsertPlanner {
      * Make sure all MVColumn's base columns exists in the BaseSchema.
      *
      * @param targetTable: insert statement target table.
-     * @param fullSchema: base table's all schemas including base and other materialized index metas.
      * @throws SemanticException: if non-base materialized index meta's referred columns are not existed in the base
      * schema, {@code SemanticException} will be thrown.
      */
-    private void checkMaterializedIndexMeta(Table targetTable,
-                                            List<Column> fullSchema) throws SemanticException {
+    private void checkMaterializedIndexMeta(Table targetTable) throws SemanticException {
         if (!targetTable.isOlapTableOrMaterializedView()) {
             return;
         }
@@ -688,10 +686,6 @@ public class InsertPlanner {
         }
         if (columnToMaterializedIndexMeta.isEmpty()) {
             return;
-        }
-        Map<String, Column> targetNameToColumn = Maps.newHashMap();
-        for (Column targetColumn : fullSchema) {
-            targetNameToColumn.put(targetColumn.getName(), targetColumn);
         }
         for (Map.Entry<Column, MaterializedIndexMeta> e : columnToMaterializedIndexMeta.entrySet()) {
             Column targetColumn = e.getKey();
@@ -712,6 +706,7 @@ public class InsertPlanner {
                     String errorMsg = String.format("The base column %s of defined column %s is not existed in the " +
                                     "base table, please check the associated materialized view %s of target table: %s",
                             originName, targetColumn.getName(), targetIndexMetaName, targetTable.getName());
+                    LOG.warn("Check target table's MaterializedIndexMeta failed: {}", errorMsg);
                     throw new SemanticException(errorMsg);
                 }
             }

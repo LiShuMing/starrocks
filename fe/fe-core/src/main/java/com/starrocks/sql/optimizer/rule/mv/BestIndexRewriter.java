@@ -59,9 +59,10 @@ public class BestIndexRewriter extends OptExpressionVisitor<OptExpression, Long>
         if (olapScanOperator.equals(scanOperator)) {
             OlapTable olapTable = (OlapTable) scanOperator.getTable();
             long oldSelectedIndexId = scanOperator.getSelectedIndexId();
-            Map<ColumnRefOperator, Column> columnRefOperatorColumnMap = scanOperator.getColRefToColumnMetaMap();
+            Map<ColumnRefOperator, Column> columnRefOperatorColumnMap =
+                    Maps.newHashMap(scanOperator.getColRefToColumnMetaMap());
             if (oldSelectedIndexId == olapTable.getBaseIndexId()) {
-                List<ColumnRefOperator> oldOutputColumns = scanOperator.getOutputColumns();
+                List<ColumnRefOperator> outputColumns = scanOperator.getOutputColumns();
                 MaterializedIndexMeta indexMeta = olapTable.getIndexMetaByIndexId(bestIndex);
                 List<Column> mvMetaColumns = indexMeta.getSchema();
                 Map<String, Column> nameToColumnMap = Maps.newHashMap();
@@ -88,8 +89,7 @@ public class BestIndexRewriter extends OptExpressionVisitor<OptExpression, Long>
                 // Query: select * from t1_agg;
                 // If query can be rewritten by mv, `SUM(t1_17.c_1_2)` must have an alias because mv's sum column name is
                 // different from base table since 3.1.0.
-                for (int i = 0; i < oldOutputColumns.size(); i++) {
-                    ColumnRefOperator colRef = oldOutputColumns.get(i);
+                for (ColumnRefOperator colRef : outputColumns) {
                     String columnName = colRef.getName();
                     Preconditions.checkState(nameToColumnMap.containsKey(columnName));
                     columnRefOperatorColumnMap.put(colRef, nameToColumnMap.get(columnName));

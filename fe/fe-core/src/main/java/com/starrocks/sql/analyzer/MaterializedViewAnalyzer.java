@@ -42,6 +42,7 @@ import com.starrocks.catalog.IcebergTable;
 import com.starrocks.catalog.Index;
 import com.starrocks.catalog.InternalCatalog;
 import com.starrocks.catalog.JDBCTable;
+import com.starrocks.catalog.ListPartitionInfo;
 import com.starrocks.catalog.MaterializedView;
 import com.starrocks.catalog.MysqlTable;
 import com.starrocks.catalog.OlapTable;
@@ -783,6 +784,24 @@ public class MaterializedViewAnalyzer {
                             "must be base table partition column");
                 }
                 partitionColumns.forEach(partitionColumn1 -> checkPartitionColumnType(partitionColumn1));
+            } else if (partitionInfo instanceof ListPartitionInfo) {
+                ListPartitionInfo listPartitionInfo = (ListPartitionInfo) partitionInfo;
+                List<Column> listPartitionColumns = listPartitionInfo.getPartitionColumns();
+
+                if (listPartitionColumns.size() != 1) {
+                    throw new SemanticException("Materialized view related base table partition columns " +
+                            "only supports single column");
+                }
+                Column partitionColumn = listPartitionColumns.get(0);
+                if (!partitionColumn.getName().equalsIgnoreCase(slotRef.getColumnName())) {
+                    throw new SemanticException("Materialized view partition column in partition exp " +
+                            "must be base table partition column");
+                }
+                if (!partitionColumn.getType().isStringType()) {
+                    throw new SemanticException("Materialized view partition exp column:"
+                            + partitionColumn.getName() + " with type " + partitionColumn.getType() + " not supported," +
+                            "only string type is supported for now(use str2date).");
+                }
             } else {
                 throw new SemanticException("Materialized view related base table partition type: " +
                         partitionInfo.getType().name() + " not supports");

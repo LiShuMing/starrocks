@@ -224,17 +224,6 @@ public class PlanTestNoneDBBase {
                 getExplainString(TExplainLevel.NORMAL);
     }
 
-    public String getFragmentPlan(String sql, String traceModule) throws Exception {
-        Pair<String, Pair<ExecPlan, String>> result =
-                UtFrameUtils.getFragmentPlanWithTrace(connectContext, sql, traceModule);
-        Pair<ExecPlan, String> execPlanWithQuery = result.second;
-        String traceLog = execPlanWithQuery.second;
-        if (!Strings.isNullOrEmpty(traceLog)) {
-            System.out.println(traceLog);
-        }
-        return execPlanWithQuery.first.getExplainString(TExplainLevel.NORMAL);
-    }
-
     public String getLogicalFragmentPlan(String sql) throws Exception {
         return LogicalPlanPrinter.print(UtFrameUtils.getPlanAndFragment(
                 connectContext, sql).second.getPhysicalPlan());

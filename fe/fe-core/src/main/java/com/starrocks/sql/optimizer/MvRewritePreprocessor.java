@@ -397,7 +397,7 @@ public class MvRewritePreprocessor {
         }
         // if mv is in plan cache(avoid building plan), check whether it's valid
         MvPlanContext planContext = CachingMvPlanContextBuilder.getInstance().getPlanContextFromCacheIfPresent(mv);
-        if (planContext == null || (planContext != null && !planContext.isValidMvPlan())) {
+        if ((planContext != null && !planContext.isValidMvPlan())) {
             logMVPrepare(connectContext, mv, "MV has not a valid plan: {}", mv.getName());
             return false;
         }

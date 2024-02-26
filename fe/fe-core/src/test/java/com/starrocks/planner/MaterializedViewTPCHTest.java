@@ -19,8 +19,10 @@ import com.starrocks.catalog.OlapTable;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.plan.MockTpchStatisticStorage;
 import com.starrocks.sql.plan.PlanTestBase;
+import org.junit.Ignore;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -44,6 +46,10 @@ public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
         executeSqlFile("sql/materialized-view/tpch/ddl_tpch_mv3.sql");
         connectContext.getSessionVariable().setEnableMaterializedViewUnionRewrite(false);
 
+        // QueryDebugOptions queryDebugOptions = new QueryDebugOptions();
+        // queryDebugOptions.setEnableQueryTraceLog(true);
+        // connectContext.getSessionVariable().setQueryDebugOptions(queryDebugOptions.toString());
+
         int scale = 1;
         GlobalStateMgr globalStateMgr = connectContext.getGlobalStateMgr();
         connectContext.getGlobalStateMgr().setStatisticStorage(new MockTpchStatisticStorage(connectContext, scale));
@@ -51,7 +57,11 @@ public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
         setTableStatistics(t4, 150000 * scale);
         OlapTable t7 = (OlapTable) globalStateMgr.getDb(MATERIALIZED_DB_NAME).getTable("lineitem");
         setTableStatistics(t7, 6000000 * scale);
-        connectContext.getSessionVariable().setMaterializedViewRewriteStrategy(2);
+
+        // When force rule based rewrite is enabled, query will be transformed into scan in Rule Rewrite Phase.
+        // And OneTabletExecutorVisitor#visitLogicalTableScan will deduce `supportOneTabletOpt` because this test
+        // case has no tablets left after mv rewrite.
+        connectContext.getSessionVariable().setEnableForceRuleBasedMvRewrite(false);
     }
 
     @ParameterizedTest(name = "Tpch.{0}")
@@ -66,5 +76,14 @@ public class MaterializedViewTPCHTest extends MaterializedViewTestBase {
             cases.add(Arguments.of(entry.getKey(), entry.getValue(), "materialized-view/tpch/" + entry.getKey()));
         }
         return cases.stream();
+    }
+
+    @Test
+    @Ignore
+    public void testSpecificQuery() {
+        String query = "q3";
+        String sql = TpchSQL.getSQL(query);
+        String restultFile = "materialized-view/tpch/" + query;
+        runFileUnitTest(sql, restultFile);
     }
 }

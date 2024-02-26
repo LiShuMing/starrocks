@@ -66,6 +66,7 @@ import com.starrocks.sql.optimizer.rule.transformation.SeparateProjectRule;
 import com.starrocks.sql.optimizer.rule.transformation.SkewJoinOptimizeRule;
 import com.starrocks.sql.optimizer.rule.transformation.SplitDatePredicateRule;
 import com.starrocks.sql.optimizer.rule.transformation.SplitScanORToUnionRule;
+import com.starrocks.sql.optimizer.rule.transformation.materialization.MvRewriteStrategy;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils;
 import com.starrocks.sql.optimizer.rule.transformation.pruner.CboTablePruneRule;
 import com.starrocks.sql.optimizer.rule.transformation.pruner.PrimaryKeyUpdateTableRule;
@@ -115,6 +116,7 @@ public class Optimizer {
     private static final Logger LOG = LogManager.getLogger(Optimizer.class);
     private OptimizerContext context;
     private final OptimizerConfig optimizerConfig;
+    private MvRewriteStrategy mvRewriteStrategy = new MvRewriteStrategy();
 
     private long updateTableId = -1;
 
@@ -281,8 +283,8 @@ public class Optimizer {
         context.setQueryTables(queryTables);
         context.setUpdateTableId(updateTableId);
 
-        // prepare related mvs if needed
-        new MvRewritePreprocessor(connectContext, columnRefFactory,
+        // prepare related mvs if needed and initialize mv rewrite strategy
+        mvRewriteStrategy = new MvRewritePreprocessor(connectContext, columnRefFactory,
                 context, logicOperatorTree, requiredColumns).prepare(logicOperatorTree);
     }
 
@@ -316,8 +318,77 @@ public class Optimizer {
             ruleRewriteIterative(tree, rootTaskContext, new MergeTwoProjectRule());
             rootTaskContext.setRequiredColumns(requiredColumns.clone());
             ruleRewriteOnlyOnce(tree, rootTaskContext, RuleSetType.PRUNE_COLUMNS);
-            context.setEnableLeftRightJoinEquivalenceDerive(true);
             ruleRewriteIterative(tree, rootTaskContext, RuleSetType.PUSH_DOWN_PREDICATE);
+        }
+    }
+
+    private void ruleBasedMaterializedViewRewritePhase1(OptExpression tree,
+                                                        TaskContext rootTaskContext,
+                                                        ColumnRefSet requiredColumns) {
+        if (!mvRewriteStrategy.enableEagerRewrite) {
+            return;
+        }
+
+        OptimizerTraceUtil.logOptExpression("before RuleBasedMaterializedViewRewrite:\n%s", tree);
+
+        ///////////// Normalize query plan before rule based mv rewrite. /////////////
+        // PARTITION_PRUNE is required to run before ReorderJoinRule because ReorderJoinRule's
+        // Statistics calculation on Operators depends on row count yielded by the PARTITION_PRUNE.
+        ruleRewriteOnlyOnce(tree, rootTaskContext, RuleSetType.PARTITION_PRUNE);
+        ruleRewriteIterative(tree, rootTaskContext, new MergeTwoProjectRule());
+        ruleRewriteIterative(tree, rootTaskContext, new MergeProjectWithChildRule());
+        CTEUtils.collectForceCteStatisticsOutsideMemo(tree, context);
+        rootTaskContext.setRequiredColumns(requiredColumns.clone());
+
+        // TODO: disable join reorder for both query and mv's plan for better match and optimizer cost.
+
+        // try view based mv rewrite first, then try normal mv rewrite rules
+        if (mvRewriteStrategy.enableRBOSingleViewRewrite) {
+            // view based mv rewrite for single view
+            viewBasedMvRuleRewrite(tree, rootTaskContext);
+        }
+
+        // if disable single mv rewrite, return false.
+        if (mvRewriteStrategy.enableRBOSingleViewRewrite) {
+            ruleRewriteIterative(tree, rootTaskContext, RuleSetType.SINGLE_TABLE_MV_REWRITE);
+        }
+        // only rewrite multi tables when force rbo rewrite is enabled
+        if (mvRewriteStrategy.enableForceRBORewrite) {
+            ruleRewriteIterative(tree, rootTaskContext, RuleSetType.MULTI_TABLE_MV_REWRITE);
+        }
+        deriveLogicalProperty(tree);
+
+        tree = new SeparateProjectRule().rewrite(tree, rootTaskContext);
+        ruleRewriteIterative(tree, rootTaskContext, new MergeTwoProjectRule());
+        rootTaskContext.setRequiredColumns(requiredColumns.clone());
+        ruleRewriteOnlyOnce(tree, rootTaskContext, RuleSetType.PRUNE_COLUMNS);
+
+        OptimizerTraceUtil.logOptExpression("after RuleBasedMaterializedViewRewrite:\n%s", tree);
+    }
+
+    private void ruleBasedMaterializedViewRewritePhase2(OptExpression tree,
+                                                        TaskContext rootTaskContext) {
+        if (!mvRewriteStrategy.enableDefaultRewrite) {
+            return;
+        }
+        // query has been rewritten in phase1, return directly
+        if (context.getQueryMaterializationContext() == null ||
+                context.getQueryMaterializationContext().hasRewrittenSuccess()) {
+            return;
+        }
+
+        // try view based mv rewrite first, then try normal mv rewrite rules
+        if (mvRewriteStrategy.enableRBOSingleViewRewrite) {
+            // view based mv rewrite for single view
+            viewBasedMvRuleRewrite(tree, rootTaskContext);
+        }
+
+        if (mvRewriteStrategy.enableForceRBORewrite) {
+            // use rule based mv rewrite strategy to do mv rewrite for single table and multi tables query
+            ruleRewriteIterative(tree, rootTaskContext, RuleSetType.ALL_MV_REWRITE);
+        } else if (mvRewriteStrategy.enableRBOSingleTableRewrite) {
+            // now add single table materialized view rewrite rules in rule based rewrite phase to boost optimization
+            ruleRewriteIterative(tree, rootTaskContext, RuleSetType.SINGLE_TABLE_MV_REWRITE);
         }
     }
 
@@ -338,8 +409,17 @@ public class Optimizer {
         SessionVariable sessionVariable = rootTaskContext.getOptimizerContext().getSessionVariable();
         CTEContext cteContext = context.getCteContext();
         CTEUtils.collectCteOperators(tree, context);
-        if (sessionVariable.isEnableRboTablePrune()) {
-            context.setEnableLeftRightJoinEquivalenceDerive(false);
+
+        // Whether to do complete equivalence derive in
+        // {@link com.starrocks.sql.optimizer.rule.transformation.PushDownJoinOnClauseRule}, eg: outer join to inner join,
+        // or derive equivalence derive for outer joins.
+        // NOTE: It's useful for normal queries but it will disturb some rewrite rule(eg: mv rewrite, table prune), so add
+        // a config to control it.
+        if (sessionVariable.isEnableRboTablePrune() || mvRewriteStrategy.enableEagerRewrite) {
+            context.getJoinPushDownParams().enableLeftRightJoinEquivalenceDerive = false;
+            if (mvRewriteStrategy.enableEagerRewrite) {
+                context.getJoinPushDownParams().enableLeftRightJoinToInnerJoin = false;
+            }
         }
 
         // inline CTE if consume use once
@@ -383,6 +463,29 @@ public class Optimizer {
 
         ruleRewriteIterative(tree, rootTaskContext, new PruneEmptyWindowRule());
         ruleRewriteIterative(tree, rootTaskContext, new MergeTwoProjectRule());
+
+        // Add a config to decide whether to rewrite sync mv.
+        if (!optimizerConfig.isRuleDisable(TF_MATERIALIZED_VIEW)
+                && sessionVariable.isEnableSyncMaterializedViewRewrite()) {
+            // Split or predicates to union all so can be used by mv rewrite to choose the best sort key indexes.
+            // TODO: support adaptive for or-predicates to union all.
+            if (SplitScanORToUnionRule.isForceRewrite()) {
+                ruleRewriteOnlyOnce(tree, rootTaskContext, SplitScanORToUnionRule.getInstance());
+            }
+
+            OptimizerTraceUtil.logOptExpression("before MaterializedViewRule:\n%s", tree);
+            tree = new MaterializedViewRule().transform(tree, context).get(0);
+            OptimizerTraceUtil.logOptExpression("after MaterializedViewRule:\n%s", tree);
+
+            deriveLogicalProperty(tree);
+        }
+        // rule based materialized view rewrite: phase 1
+        ruleBasedMaterializedViewRewritePhase1(tree, rootTaskContext, requiredColumns);
+
+        if (sessionVariable.isEnableRboTablePrune() || mvRewriteStrategy.enableEagerRewrite) {
+            context.resetJoinPushDownParams();
+        }
+
         // Limit push must be after the column prune,
         // otherwise the Node containing limit may be prune
         ruleRewriteIterative(tree, rootTaskContext, RuleSetType.MERGE_LIMIT);
@@ -417,22 +520,6 @@ public class Optimizer {
             }
 
             ruleRewriteOnlyOnce(tree, rootTaskContext, new ForceCTEReuseRule());
-        }
-
-        // Add a config to decide whether to rewrite sync mv.
-        if (!optimizerConfig.isRuleDisable(TF_MATERIALIZED_VIEW)
-                && sessionVariable.isEnableSyncMaterializedViewRewrite()) {
-            // Split or predicates to union all so can be used by mv rewrite to choose the best sort key indexes.
-            // TODO: support adaptive for or-predicates to union all.
-            if (SplitScanORToUnionRule.isForceRewrite()) {
-                ruleRewriteOnlyOnce(tree, rootTaskContext, SplitScanORToUnionRule.getInstance());
-            }
-
-            OptimizerTraceUtil.logOptExpression("before MaterializedViewRule:\n%s", tree);
-            tree = new MaterializedViewRule().transform(tree, context).get(0);
-            OptimizerTraceUtil.logOptExpression("after MaterializedViewRule:\n%s", tree);
-
-            deriveLogicalProperty(tree);
         }
 
         ruleRewriteIterative(tree, rootTaskContext, RuleSetType.PUSH_DOWN_PREDICATE);
@@ -475,23 +562,11 @@ public class Optimizer {
         ruleRewriteOnlyOnce(tree, rootTaskContext, RuleSetType.INTERSECT_REWRITE);
         ruleRewriteIterative(tree, rootTaskContext, new RemoveAggregationFromAggTable());
 
-
         ruleRewriteOnlyOnce(tree, rootTaskContext, SplitScanORToUnionRule.getInstance());
         ruleRewriteOnlyOnce(tree, rootTaskContext, new PushDownTopNBelowUnionRule());
 
-        // try view based mv rewrite first, then try normal mv rewrite rules
-        if (isEnableSingleViewMvRewrite()) {
-            // view based mv rewrite for single view
-            viewBasedMvRuleRewrite(tree, rootTaskContext);
-        }
-
-        if (sessionVariable.isEnableMaterializedViewRewrite() && sessionVariable.isEnableForceRuleBasedMvRewrite()) {
-            // use rule based mv rewrite strategy to do mv rewrite for single table and multi tables query
-            ruleRewriteIterative(tree, rootTaskContext, RuleSetType.ALL_MV_REWRITE);
-        } else if (isEnableSingleTableMVRewrite(rootTaskContext, sessionVariable, tree)) {
-            // now add single table materialized view rewrite rules in rule based rewrite phase to boost optimization
-            ruleRewriteIterative(tree, rootTaskContext, RuleSetType.SINGLE_TABLE_MV_REWRITE);
-        }
+        // rule based materialized view rewrite: phase 2
+        ruleBasedMaterializedViewRewritePhase2(tree, rootTaskContext);
 
         // NOTE: This rule should be after MV Rewrite because MV Rewrite cannot handle
         // select count(distinct c) from t group by a, b
@@ -548,49 +623,6 @@ public class Optimizer {
             OptimizerTraceUtil.logMVRewriteRule("VIEW_BASED_MV_REWRITE",
                     "single table view based mv rule rewrite failed.", e);
         }
-    }
-
-    private boolean isEnableSingleViewMvRewrite() {
-        return context.getQueryMaterializationContext() != null
-                && context.getQueryMaterializationContext().getLogicalTreeWithView() != null
-                && !optimizerConfig.isRuleSetTypeDisable(RuleSetType.SINGLE_TABLE_MV_REWRITE)
-                && !context.getCandidateMvs().isEmpty()
-                && context.getCandidateMvs().stream().anyMatch(MaterializationContext::isSingleTable)
-                && context.getSessionVariable().isEnableRuleBasedMaterializedViewRewrite();
-    }
-
-    private boolean isEnableSingleTableMVRewrite(TaskContext rootTaskContext,
-                                                 SessionVariable sessionVariable,
-                                                 OptExpression queryPlan) {
-        if (sessionVariable.isDisableMaterializedViewRewrite()) {
-            return false;
-        }
-        // if disable single mv rewrite, return false.
-        if (optimizerConfig.isRuleSetTypeDisable(RuleSetType.SINGLE_TABLE_MV_REWRITE)) {
-            return false;
-        }
-        // if disable isEnableMaterializedViewRewrite/isEnableRuleBasedMaterializedViewRewrite, return false.
-        if (!sessionVariable.isEnableMaterializedViewRewrite()
-                || !sessionVariable.isEnableRuleBasedMaterializedViewRewrite()) {
-            return false;
-        }
-        // if mv candidates are empty, return false.
-        if (rootTaskContext.getOptimizerContext().getCandidateMvs().isEmpty()) {
-            return false;
-        }
-        // If query only has one table use single table rewrite, view delta only rewrites multi-tables query.
-        if (!sessionVariable.isEnableMaterializedViewSingleTableViewDeltaRewrite() &&
-                MvUtils.getAllTables(queryPlan).size() <= 1) {
-            return true;
-        }
-        // If view delta is enabled and there are multi-table mvs, return false.
-        // if mv has multi table sources, we will process it in memo to support view delta join rewrite
-        if (sessionVariable.isEnableMaterializedViewViewDeltaRewrite() &&
-                rootTaskContext.getOptimizerContext().getCandidateMvs()
-                        .stream().anyMatch(MaterializationContext::hasMultiTables)) {
-            return false;
-        }
-        return true;
     }
 
     private OptExpression rewriteAndValidatePlan(
@@ -714,10 +746,8 @@ public class Optimizer {
             context.getRuleSet().addRealtimeMVRules();
         }
 
-        if (isEnableMultiTableRewrite(connectContext, tree)) {
-            if (sessionVariable.isEnableMaterializedViewViewDeltaRewrite() &&
-                    rootTaskContext.getOptimizerContext().getCandidateMvs()
-                            .stream().anyMatch(MaterializationContext::hasMultiTables)) {
+        if (mvRewriteStrategy.enableCBOMultiTableRewrite) {
+            if (mvRewriteStrategy.enableCBOSingleTableRewrite) {
                 context.getRuleSet().addSingleTableMvRewriteRule();
             }
             context.getRuleSet().addMultiTableMvRewriteRule();
@@ -725,26 +755,6 @@ public class Optimizer {
 
         context.getTaskScheduler().pushTask(new OptimizeGroupTask(rootTaskContext, memo.getRootGroup()));
         context.getTaskScheduler().executeTasks(rootTaskContext);
-    }
-
-    private boolean isEnableMultiTableRewrite(ConnectContext connectContext, OptExpression queryPlan) {
-        if (connectContext.getSessionVariable().isDisableMaterializedViewRewrite()) {
-            return false;
-        }
-
-        if (context.getCandidateMvs().isEmpty()) {
-            return false;
-        }
-
-        if (!connectContext.getSessionVariable().isEnableMaterializedViewRewrite()) {
-            return false;
-        }
-
-        if (!connectContext.getSessionVariable().isEnableMaterializedViewSingleTableViewDeltaRewrite() &&
-                MvUtils.getAllTables(queryPlan).size() <= 1) {
-            return false;
-        }
-        return true;
     }
 
     private OptExpression physicalRuleRewrite(TaskContext rootTaskContext, OptExpression result) {

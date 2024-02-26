@@ -1801,7 +1801,6 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
 
     @Test
     public void testAggJoinViewDelta() {
-        connectContext.getSessionVariable().setOptimizerExecuteTimeout(300000000);
         String mv = "SELECT" +
                 " `LO_ORDERKEY` as col1, C_CUSTKEY, S_SUPPKEY, P_PARTKEY," +
                 " sum(LO_QUANTITY) as total_quantity, sum(LO_ORDTOTALPRICE) as total_price, count(*) as num" +
@@ -2730,6 +2729,18 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
     }
 
     @Test
+    @Ignore
+    public void testArrayAggDistinctWithRollup2() {
+        String mv = "select user_id, ARRAY_AGG_DISTINCT(tag_id) from user_tags group by user_id, time;";
+        testRewriteOK(mv, "select user_id, ARRAY_AGG_DISTINCT(tag_id) from user_tags group by user_id, time;")
+                .notContain("array_unique_agg");
+        testRewriteOK(mv, "select user_id, ARRAY_AGG_DISTINCT(tag_id) from user_tags group by user_id")
+                .contains("array_unique_agg");
+        testRewriteOK(mv, "select ARRAY_AGG_DISTINCT(tag_id) from user_tags")
+                .contains("array_unique_agg");
+    }
+
+    @Test
     public void testCountDistinctToBitmapCount1() {
         String mv = "select user_id, bitmap_union(to_bitmap(tag_id)) from user_tags group by user_id;";
         testRewriteOK(mv, "select user_id, bitmap_union(to_bitmap(tag_id)) x from user_tags group by user_id;");
@@ -2848,11 +2859,11 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
                 "bitmap_union(bitmap_hash(concat(user_name, \"b\"))), " +
                 "bitmap_union(bitmap_hash(concat(user_name, \"c\"))) from user_tags group by user_id, time;";
         connectContext.getSessionVariable().setMaterializedViewRewriteMode("force");
+
+        connectContext.getSessionVariable().setMaterializedViewRewriteStrategy(2);
         testRewriteOK(mv, "select user_id, bitmap_union(bitmap_hash(user_name)) x from user_tags group by user_id;");
         testRewriteOK(mv, "select user_id, bitmap_count(bitmap_union(bitmap_hash(user_name))) x " +
                 "from user_tags group by user_id;");
-        // FIXME: MV Rewrite should take care cte reuse node later.
-        connectContext.getSessionVariable().setCboCteReuse(false);
         testRewriteOK(mv, "select user_id, count(distinct user_name), " +
                 " count(distinct concat(user_name, \"a\")), count(distinct concat(user_name, \"b\"))," +
                 " count(distinct concat(user_name, \"c\"))  from user_tags group by user_id;");
@@ -2863,6 +2874,7 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
                 " count(distinct concat(user_name, \"a\")), count(distinct concat(user_name, \"b\"))," +
                 " count(distinct concat(user_name, \"c\"))  from user_tags group by user_id, time;");
         connectContext.getSessionVariable().setCboCteReuse(true);
+        connectContext.getSessionVariable().setMaterializedViewRewriteStrategy(0);
     }
 
     @Test
@@ -5255,13 +5267,11 @@ public class MaterializedViewTest extends MaterializedViewTestBase {
         PlanTestBase.setTableStatistics((OlapTable) table1, 1000000);
         PlanTestBase.setTableStatistics((OlapTable) table2, 1000000);
 
-        {
-            testRewriteFail(mv, query);
-        }
-
         // For enforce-columns changed which also changed mv's cost model, use force rewrite to force the result.
         connectContext.getSessionVariable()
                 .setMaterializedViewRewriteMode(SessionVariable.MaterializedViewRewriteMode.FORCE.toString());
+        testRewriteOK(mv, query);
+
         {
             MVRewriteChecker checker = testRewriteOK(mv, query);
             checker.contains("UNION");

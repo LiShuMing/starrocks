@@ -17,7 +17,6 @@ package com.starrocks.sql.optimizer.task;
 import com.google.common.base.Preconditions;
 import com.starrocks.common.profile.Timer;
 import com.starrocks.common.profile.Tracers;
-import com.starrocks.qe.SessionVariable;
 import com.starrocks.sql.optimizer.ExpressionContext;
 import com.starrocks.sql.optimizer.OptExpression;
 import com.starrocks.sql.optimizer.OptimizerTraceUtil;
@@ -66,8 +65,6 @@ public class RewriteTreeTask extends OptimizerTask {
     }
 
     private void rewrite(OptExpression parent, int childIndex, OptExpression root) {
-        SessionVariable sessionVariable = context.getOptimizerContext().getSessionVariable();
-
         for (Rule rule : rules) {
             if (rule.exhausted(context.getOptimizerContext())) {
                 continue;

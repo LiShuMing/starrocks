@@ -64,6 +64,7 @@ import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
 import com.starrocks.sql.optimizer.rule.RuleSetType;
 import com.starrocks.sql.optimizer.rule.mv.MVUtils;
+import com.starrocks.sql.optimizer.rule.transformation.materialization.MvRewriteStrategy;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.logging.log4j.LogManager;
@@ -224,10 +225,10 @@ public class MvRewritePreprocessor {
         }
     }
 
-    public void prepare(OptExpression queryOptExpression) {
+    public MvRewriteStrategy prepare(OptExpression queryOptExpression) {
         // MV Rewrite will be used when cbo is enabled.
         if (context.getOptimizerConfig().isRuleBased()) {
-            return;
+            return new MvRewriteStrategy();
         }
         try (Timer ignored = Tracers.watchScope("preprocessMvs")) {
             Set<Table> queryTables = MvUtils.getAllTables(queryOptExpression).stream().collect(Collectors.toSet());
@@ -261,6 +262,8 @@ public class MvRewritePreprocessor {
                 context.setQueryMaterializationContext(queryMaterializationContext);
             }
         }
+        // initialize mv rewrite strategy
+        return MvRewriteStrategy.getMvRewriteStrategy(context, connectContext, queryOptExpression);
     }
 
     private void logMVParams(ConnectContext connectContext, Set<Table> queryTables) {

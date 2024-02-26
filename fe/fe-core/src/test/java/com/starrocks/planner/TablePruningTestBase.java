@@ -103,7 +103,7 @@ public class TablePruningTestBase {
 
     String checkHashJoinCountEq(String infoMsg, String sql, int numHashJoins, Consumer<SessionVariable> svSetter) {
         return checkHashJoinCount(infoMsg, sql, (info, n) -> {
-            //System.out.println(String.format("{\"%s\", %d},", info, n));
+            // System.out.println(String.format("{\"%s\", %d},", info, n));
             Assert.assertEquals(info, numHashJoins, (int) n);
             return null;
         }, svSetter);

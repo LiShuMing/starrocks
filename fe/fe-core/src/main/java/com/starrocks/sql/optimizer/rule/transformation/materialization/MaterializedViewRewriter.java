@@ -98,6 +98,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.starrocks.sql.optimizer.OptimizerTraceUtil.logMVRewrite;
+import static com.starrocks.sql.optimizer.rule.transformation.materialization.MvPartitionCompensator.getMvTransparentPlan;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils.setAppliedUnionAllRewrite;
 
 /*
@@ -1209,7 +1210,6 @@ public class MaterializedViewRewriter {
     private OptExpression tryRewriteForRelationMapping(RewriteContext rewriteContext) {
         final ColumnRewriter columnRewriter = new ColumnRewriter(rewriteContext);
         final Map<ColumnRefOperator, ScalarOperator> mvColumnRefToScalarOp = rewriteContext.getMVColumnRefToScalarOp();
-        OptExpression mvScanOptExpression = buildMVScanOptExpression(rewriteContext, columnRewriter, mvColumnRefToScalarOp);
 
         final PredicateSplit compensationPredicates = getCompensationPredicates(columnRewriter,
                 rewriteContext.getQueryEquivalenceClasses(),
@@ -1217,7 +1217,13 @@ public class MaterializedViewRewriter {
                 rewriteContext.getQueryPredicateSplit(),
                 rewriteContext.getMvPredicateSplit(),
                 true);
+        boolean isTransparentRewrite = MvPartitionCompensator.isTransparentRewrite(materializationContext);
         if (compensationPredicates == null) {
+            if (isTransparentRewrite) {
+                logMVRewrite(mvRewriteContext, "Partitions no need to compensate: cannot compensate predicates " +
+                        "from mv rewrite, and no try to use union rewrite");
+                return null;
+            }
             logMVRewrite(mvRewriteContext, "Cannot compensate predicates from mv rewrite, " +
                     "try to use union rewrite.");
             if (!optimizerContext.getSessionVariable().isEnableMaterializedViewUnionRewrite()) {
@@ -1228,6 +1234,7 @@ public class MaterializedViewRewriter {
                 // TODO: support union rewrite for view based mv rewrite
                 return null;
             }
+            OptExpression mvScanOptExpression = buildMVScanOptExpression(rewriteContext, columnRewriter, mvColumnRefToScalarOp);
             return tryUnionRewrite(rewriteContext, mvScanOptExpression);
         } else {
             // all predicates are now query based
@@ -1242,6 +1249,9 @@ public class MaterializedViewRewriter {
                 return null;
             }
 
+            OptExpression mvScanOptExpression = isTransparentRewrite ? getMvTransparentPlan(materializationContext,
+                    rewriteContext.getQueryExpression()): buildMVScanOptExpression(rewriteContext,
+                     columnRewriter, mvColumnRefToScalarOp);
             if (!compensationPredicate.isTrue()) {
                 // NOTE: Keep mv's original predicates which have been already rewritten.
                 ScalarOperator finalCompensationPredicate = compensationPredicate;
@@ -1251,15 +1261,15 @@ public class MaterializedViewRewriter {
                 }
                 final Operator.Builder newScanOpBuilder = OperatorBuilderFactory.build(mvScanOptExpression.getOp());
                 newScanOpBuilder.withOperator(mvScanOptExpression.getOp());
+                mvScanOptExpression = OptExpression.create(newScanOpBuilder.build(), mvScanOptExpression.getInputs());
 
                 ScalarOperator normalizedPredicate = normalizePredicate(finalCompensationPredicate);
                 // Canonize predicates to make uts more stable.
                 if (optimizerContext.getSessionVariable().getQueryDebugOptions().isEnableNormalizePredicateAfterMVRewrite()) {
                     normalizedPredicate = MvUtils.canonizePredicateForRewrite(queryMaterializationContext, normalizedPredicate);
                 }
-                newScanOpBuilder.setPredicate(normalizedPredicate);
+                mvScanOptExpression = addExtraPredicate(mvScanOptExpression, normalizedPredicate);
 
-                mvScanOptExpression = OptExpression.create(newScanOpBuilder.build());
                 mvScanOptExpression.setLogicalProperty(null);
                 deriveLogicalProperty(mvScanOptExpression);
             }
@@ -2120,15 +2130,15 @@ public class MaterializedViewRewriter {
 
         // Add extra union all predicates above union all operator.
         if (rewriteContext.getUnionRewriteQueryExtraPredicate() != null) {
-            result = addUnionAllExtraPredicate(result, rewriteContext.getUnionRewriteQueryExtraPredicate());
+            result = addExtraPredicate(result, rewriteContext.getUnionRewriteQueryExtraPredicate());
         }
 
         deriveLogicalProperty(result);
         return result;
     }
 
-    protected OptExpression addUnionAllExtraPredicate(OptExpression result,
-                                                      ScalarOperator extraPredicate) {
+    protected OptExpression addExtraPredicate(OptExpression result,
+                                              ScalarOperator extraPredicate) {
         Operator op = result.getOp();
         if (op instanceof LogicalSetOperator) {
             LogicalFilterOperator filter = new LogicalFilterOperator(extraPredicate);
@@ -2137,9 +2147,13 @@ public class MaterializedViewRewriter {
         } else {
             // If op is aggregate operator, use setPredicate directly.
             ScalarOperator origPredicate = op.getPredicate();
-            ReplaceColumnRefRewriter rewriter = new ReplaceColumnRefRewriter(op.getProjection().getColumnRefMap());
-            ScalarOperator rewrittenExtraPredicate = rewriter.rewrite(extraPredicate);
-            op.setPredicate(Utils.compoundAnd(origPredicate, rewrittenExtraPredicate));
+            if (op.getProjection() != null) {
+                ReplaceColumnRefRewriter rewriter = new ReplaceColumnRefRewriter(op.getProjection().getColumnRefMap());
+                ScalarOperator rewrittenExtraPredicate = rewriter.rewrite(extraPredicate);
+                op.setPredicate(Utils.compoundAnd(origPredicate, rewrittenExtraPredicate));
+            } else {
+                op.setPredicate(origPredicate);
+            }
             return result;
         }
     }

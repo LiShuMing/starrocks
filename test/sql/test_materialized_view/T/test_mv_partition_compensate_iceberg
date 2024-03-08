@@ -1,4 +1,4 @@
--- name: test_mv_iceberg_rewrite2
+-- name: test_mv_partition_compensate_iceberg
 create external catalog mv_iceberg_${uuid0}
 properties
 (
@@ -94,9 +94,9 @@ function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid
 function: check_no_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 where date_trunc('month', dt) ='2020-07-01' GROUP BY dt;", "test_mv1")
 function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 where dt between '2020-06-16' and '2020-07-01' GROUP BY dt;", "test_mv1")
 
--- function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 where dt between '2020-06-15' and '2020-07-01' GROUP BY dt;", "test_mv1", "UNION")
+function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 where dt between '2020-06-15' and '2020-07-01' GROUP BY dt;", "test_mv1", "UNION")
 function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 where dt>='2020-06-15' GROUP BY dt;", "test_mv1", "UNION")
--- function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 where dt in ('2020-06-15', '2020-06-21', '2020-07-25') GROUP BY dt;", "test_mv1", "UNION")
+function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 where dt in ('2020-06-15', '2020-06-21', '2020-07-25') GROUP BY dt;", "test_mv1", "UNION")
 -- cannot partition prune
 function: check_no_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 where date_trunc('month', dt) ='2020-06-01' GROUP BY dt;", "test_mv1", "UNION")
 function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 GROUP BY dt;", "test_mv1", "UNION")
@@ -169,9 +169,9 @@ function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid
 function: check_no_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 where date_trunc('month', dt) ='2020-07-01' GROUP BY dt;", "test_mv1")
 function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 where dt between '2020-06-16' and '2020-07-01' GROUP BY dt;", "test_mv1")
 
--- function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 where dt between '2020-06-15' and '2020-07-01' GROUP BY dt;", "test_mv1", "UNION")
+function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 where dt between '2020-06-15' and '2020-07-01' GROUP BY dt;", "test_mv1", "UNION")
 function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 where dt>='2020-06-15' GROUP BY dt;", "test_mv1", "UNION")
--- function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 where dt in ('2020-06-15', '2020-06-21', '2020-07-25') GROUP BY dt;", "test_mv1", "UNION")
+function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 where dt in ('2020-06-15', '2020-06-21', '2020-07-25') GROUP BY dt;", "test_mv1", "UNION")
 -- cannot partition prune
 function: check_no_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 where date_trunc('month', dt) ='2020-06-01' GROUP BY dt;", "test_mv1")
 function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 GROUP BY dt;", "test_mv1", "UNION")
@@ -248,9 +248,9 @@ function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid
 function: check_no_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 where date_trunc('month', dt) ='2020-07-01' GROUP BY dt;", "test_mv1")
 function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 where dt between '2020-06-16' and '2020-07-01' GROUP BY dt;", "test_mv1")
 
--- function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 where dt between '2020-06-15' and '2020-07-01' GROUP BY dt;", "test_mv1", "UNION")
+function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 where dt between '2020-06-15' and '2020-07-01' GROUP BY dt;", "test_mv1", "UNION")
 function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 where dt>='2020-06-15' GROUP BY dt;", "test_mv1", "UNION")
--- function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 where dt in ('2020-06-15', '2020-06-21', '2020-07-25') GROUP BY dt;", "test_mv1", "UNION")
+function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 where dt in ('2020-06-15', '2020-06-21', '2020-07-25') GROUP BY dt;", "test_mv1", "UNION")
 -- cannot partition prune
 function: check_no_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 where date_trunc('month', dt) ='2020-06-01' GROUP BY dt;", "test_mv1")
 function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 GROUP BY dt;", "test_mv1", "UNION")
@@ -325,9 +325,9 @@ function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid
 function: check_no_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 where date_trunc('month', dt) ='2020-07-01' GROUP BY dt;", "test_mv1")
 function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 where dt between '2020-06-16' and '2020-07-01' GROUP BY dt;", "test_mv1")
 
--- function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 where dt between '2020-06-15' and '2020-07-01' GROUP BY dt;", "test_mv1", "UNION")
+function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 where dt between '2020-06-15' and '2020-07-01' GROUP BY dt;", "test_mv1", "UNION")
 function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 where dt>='2020-06-15' GROUP BY dt;", "test_mv1", "UNION")
--- function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 where dt in ('2020-06-15', '2020-06-21', '2020-07-25') GROUP BY dt;", "test_mv1", "UNION")
+function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 where dt in ('2020-06-15', '2020-06-21', '2020-07-25') GROUP BY dt;", "test_mv1", "UNION")
 -- cannot partition prune
 function: check_no_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 where date_trunc('month', dt) ='2020-06-01' GROUP BY dt;", "test_mv1")
 function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 GROUP BY dt;", "test_mv1", "UNION")

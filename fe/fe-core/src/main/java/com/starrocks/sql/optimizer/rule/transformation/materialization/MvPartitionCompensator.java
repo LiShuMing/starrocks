@@ -17,6 +17,7 @@ package com.starrocks.sql.optimizer.rule.transformation.materialization;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -26,6 +27,7 @@ import com.starrocks.analysis.Expr;
 import com.starrocks.analysis.LiteralExpr;
 import com.starrocks.analysis.SlotRef;
 import com.starrocks.analysis.StringLiteral;
+import com.starrocks.catalog.BaseTableInfo;
 import com.starrocks.catalog.Column;
 import com.starrocks.catalog.ExpressionRangePartitionInfo;
 import com.starrocks.catalog.MaterializedView;
@@ -41,17 +43,23 @@ import com.starrocks.common.UserException;
 import com.starrocks.common.util.DateUtils;
 import com.starrocks.common.util.DebugUtil;
 import com.starrocks.connector.PartitionUtil;
+import com.starrocks.qe.SessionVariable;
 import com.starrocks.sql.analyzer.RelationFields;
 import com.starrocks.sql.analyzer.RelationId;
 import com.starrocks.sql.analyzer.Scope;
 import com.starrocks.sql.optimizer.MaterializationContext;
+import com.starrocks.sql.optimizer.MvRewritePreprocessor;
 import com.starrocks.sql.optimizer.OptExpression;
+import com.starrocks.sql.optimizer.OptExpressionVisitor;
 import com.starrocks.sql.optimizer.Utils;
 import com.starrocks.sql.optimizer.base.ColumnRefFactory;
+import com.starrocks.sql.optimizer.operator.Operator;
+import com.starrocks.sql.optimizer.operator.OperatorBuilderFactory;
 import com.starrocks.sql.optimizer.operator.OperatorType;
 import com.starrocks.sql.optimizer.operator.ScanOperatorPredicates;
 import com.starrocks.sql.optimizer.operator.logical.LogicalOlapScanOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalScanOperator;
+import com.starrocks.sql.optimizer.operator.logical.LogicalUnionOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalViewScanOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ConstantOperator;
@@ -71,7 +79,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.starrocks.connector.PartitionUtil.checkAndGetPartitionColumnIndex;
 import static com.starrocks.sql.optimizer.OptimizerTraceUtil.logMVRewrite;
+import static com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils.deriveLogicalProperty;
+import static com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils.mergeRanges;
 
 /**
  * This class represents all partition compensations for partition predicates in a materialized view.
@@ -96,6 +107,39 @@ public class MvPartitionCompensator {
                     .build();
 
     /**
+     * PCType means different compensate type for the specific mv and query plan:
+     * - NO_REWRITE: When mv's refreshed partitions are not intersected with query's selected partitions, no need to rewrite.
+     * - PRUNED_COMPENSATE: When mv's refreshed partitions are intersected with query's selected partitions, but mv's
+     *      refreshed partitions are not satisfied with query's selected partitions.
+     * - NO_COMPENSATE: When mv's refreshed partitions are intersected with query's selected partitions, but mv's
+     *      refreshed partitions are satisfied with query's selected partitions.
+     * - UNKNOWN: others we set it unknown.
+     */
+    public enum PCType {
+        NO_REWRITE,
+        PRUNED_COMPENSATE,
+        NO_PRUNED_COMPENSATE,
+        NO_COMPENSATE,
+        UNKNOWN;
+
+        public boolean isNoRewrite() {
+            return this == NO_REWRITE;
+        }
+
+        public boolean isNoCompensate() {
+            return this == NO_COMPENSATE;
+        }
+
+        public boolean isCompensate() {
+            return !isNoCompensate();
+        }
+
+        public boolean isUnionAllWithPullUpPredicates() {
+            return this == NO_COMPENSATE || this == PRUNED_COMPENSATE;
+        }
+    }
+
+    /**
      * Determine whether to compensate extra partition predicates to query plan for the mv,
      * - if it needs compensate, use `selectedPartitionIds` to compensate complete partition ranges
      *  with lower and upper bound.
@@ -106,12 +150,12 @@ public class MvPartitionCompensator {
      * @return Optional<Boolean>: if `queryPlan` contains ref table, Optional is set and return whether mv can satisfy
      * query plan's freshness, other Optional.empty() is returned.
      */
-    public static Optional<Boolean> isNeedCompensatePartitionPredicate(OptExpression queryPlan,
-                                                                       MaterializationContext mvContext) {
+    public static PCType deducePartitionCompensateType(OptExpression queryPlan,
+                                                       MaterializationContext mvContext) {
         Set<String> mvPartitionNameToRefresh = mvContext.getMvPartitionNamesToRefresh();
         // If mv contains no partitions to refresh, no need compensate
         if (Objects.isNull(mvPartitionNameToRefresh) || mvPartitionNameToRefresh.isEmpty()) {
-            return Optional.of(false);
+            return PCType.NO_COMPENSATE;
         }
 
         // If ref table contains no partitions to refresh, no need compensate.
@@ -121,36 +165,37 @@ public class MvPartitionCompensator {
         if (Objects.isNull(refTablePartitionNameToRefresh) || refTablePartitionNameToRefresh.isEmpty()) {
             // NOTE: This should not happen: `mvPartitionNameToRefresh` is not empty, so `refTablePartitionNameToRefresh`
             // should not empty. Return true in the situation to avoid bad cases.
-            return Optional.of(true);
+            return PCType.NO_PRUNED_COMPENSATE;
         }
 
         List<LogicalScanOperator> scanOperators = MvUtils.getScanOperator(queryPlan);
         // If no scan operator, no need compensate
         if (scanOperators.isEmpty()) {
-            return Optional.of(false);
+            return PCType.NO_COMPENSATE;
         }
         if (scanOperators.stream().anyMatch(scan -> scan instanceof LogicalViewScanOperator)) {
-            return Optional.of(true);
+            return PCType.NO_PRUNED_COMPENSATE;
         }
 
         // If no partition table and columns, no need compensate
         MaterializedView mv = mvContext.getMv();
         Pair<Table, Column> partitionTableAndColumns = mv.getDirectTableAndPartitionColumn();
         if (partitionTableAndColumns == null) {
-            return Optional.of(false);
+            return PCType.UNKNOWN;
         }
 
         // only set this when `queryExpression` contains ref table, otherwise the cached value maybe dirty.
         Table refBaseTable = partitionTableAndColumns.first;
+        Column refBaseTablePartitionCol = partitionTableAndColumns.second;
         LogicalScanOperator refScanOperator = getRefBaseTableScanOperator(scanOperators, refBaseTable);
         if (refScanOperator == null) {
-            return Optional.empty();
+            return PCType.UNKNOWN;
         }
 
         Table table = refScanOperator.getTable();
         // If table's not partitioned, no need compensate
         if (table.isUnPartitioned()) {
-            return Optional.of(false);
+            return PCType.NO_COMPENSATE;
         }
 
         if (refScanOperator instanceof LogicalOlapScanOperator) {
@@ -159,49 +204,344 @@ public class MvPartitionCompensator {
 
             List<Long> selectPartitionIds = olapScanOperator.getSelectedPartitionId();
             if (Objects.isNull(selectPartitionIds) || selectPartitionIds.size() == 0) {
-                return Optional.of(false);
+                return PCType.NO_COMPENSATE;
             }
 
-            // determine whether query's partitions can be satisfied by materialized view.
-            for (Long selectPartitionId : selectPartitionIds) {
-                Partition partition = olapTable.getPartition(selectPartitionId);
-                if (partition != null && refTablePartitionNameToRefresh.contains(partition.getName())) {
-                    return Optional.of(true);
-                }
+            // if any of query's select partition ids has not been refreshed, then no rewrite with this mv.
+            if (selectPartitionIds.stream()
+                    .map(id -> olapTable.getPartition(id))
+                    .noneMatch(part -> refTablePartitionNameToRefresh.contains(part.getName()))) {
+                return PCType.NO_COMPENSATE;
             }
-            return Optional.of(false);
+
+            // if mv's to refresh partitions contains any of query's select partition ids, then rewrite with compensate.
+            List<Long> toRefreshRefTablePartitions = getMvRefTableCompensatePartitionsForOlap(mv,
+                    refBaseTable, refScanOperator);
+            if (toRefreshRefTablePartitions != null && toRefreshRefTablePartitions.size() == selectPartitionIds.size()) {
+                return PCType.NO_REWRITE;
+            }
+
+            return hasPartitionPruned(olapScanOperator, refBaseTable) ?
+                    PCType.PRUNED_COMPENSATE : PCType.NO_PRUNED_COMPENSATE;
         } else if (SUPPORTED_PARTITION_COMPENSATE_EXTERNAL_SCAN_TYPES.contains(refScanOperator.getOpType())) {
             try {
                 ScanOperatorPredicates scanOperatorPredicates = refScanOperator.getScanOperatorPredicates();
-                if (scanOperatorPredicates == null) {
-                    return Optional.of(true);
-                }
-
+                PCType pcType = hasPartitionPruned(refScanOperator, refBaseTable) ? PCType.PRUNED_COMPENSATE
+                        : PCType.NO_PRUNED_COMPENSATE;
                 Collection<Long> selectPartitionIds = scanOperatorPredicates.getSelectedPartitionIds();
                 if (Objects.isNull(selectPartitionIds) || selectPartitionIds.size() == 0) {
                     // see OptExternalPartitionPruner#computePartitionInfo:
                     // it's not the same meaning when selectPartitionIds is null and empty for hive and other tables
                     if (refScanOperator.getOpType() == OperatorType.LOGICAL_HIVE_SCAN) {
-                        return Optional.of(false);
+                        return PCType.NO_COMPENSATE;
                     } else {
-                        return Optional.of(true);
+                        return pcType;
                     }
                 }
-                // determine whether query's partitions can be satisfied by materialized view.
                 List<PartitionKey> selectPartitionKeys = scanOperatorPredicates.getSelectedPartitionKeys();
-                for (PartitionKey partitionKey : selectPartitionKeys) {
-                    String mvPartitionName = PartitionUtil.generateMVPartitionName(partitionKey);
-                    if (refTablePartitionNameToRefresh.contains(mvPartitionName)) {
-                        return Optional.of(true);
-                    }
+                if (selectPartitionKeys.stream()
+                        .map(PartitionUtil::generateMVPartitionName)
+                        .noneMatch(x -> refTablePartitionNameToRefresh.contains(x))) {
+                    return PCType.NO_COMPENSATE;
                 }
-                return Optional.of(false);
+                // if mv's to refresh partitions contains any of query's select partition ids, then rewrite with compensate.
+                List<PartitionKey> toRefreshRefTablePartitions = getMvRefTableCompensatePartitionsForExternal(mv,
+                        refBaseTable, refBaseTablePartitionCol, refScanOperator);
+                if (toRefreshRefTablePartitions != null &&
+                        toRefreshRefTablePartitions.size() == selectPartitionKeys.size()) {
+                    return PCType.NO_REWRITE;
+                }
+
+                return pcType;
             } catch (AnalysisException e) {
-                return Optional.of(true);
+                return PCType.UNKNOWN;
             }
         } else {
-            return Optional.of(true);
+            return PCType.UNKNOWN;
         }
+    }
+
+    private static boolean hasPartitionPruned(LogicalScanOperator refScanOperator,
+                                              Table refBaseTable) {
+        if (refScanOperator instanceof LogicalOlapScanOperator) {
+            LogicalOlapScanOperator olapScanOperator = (LogicalOlapScanOperator) refScanOperator;
+            if (olapScanOperator.getPrunedPartitionPredicates() != null &&
+                    !olapScanOperator.getPrunedPartitionPredicates().isEmpty()) {
+                return true;
+            }
+            List<Long> selectPartitionIds = olapScanOperator.getSelectedPartitionId();
+            return selectPartitionIds.size() < refBaseTable.getPartitions().size();
+        } else if (SUPPORTED_PARTITION_COMPENSATE_EXTERNAL_SCAN_TYPES.contains(refScanOperator.getOpType())) {
+            try {
+                ScanOperatorPredicates scanOperatorPredicates = refScanOperator.getScanOperatorPredicates();
+                if (!scanOperatorPredicates.getPrunedPartitionConjuncts().isEmpty()) {
+                    return true;
+                }
+                Collection<Long> selectedPartitionIds = scanOperatorPredicates.getSelectedPartitionIds();
+                if (refScanOperator.getOpType() == OperatorType.LOGICAL_HIVE_SCAN) {
+                    return selectedPartitionIds.size() <
+                            scanOperatorPredicates.getIdToPartitionKey().size();
+                } else {
+                    // TODO: Find a better way to check whether the partition is pruned.
+                    List<String> partitionNames = PartitionUtil.getPartitionNames(refBaseTable);
+                    return selectedPartitionIds.size() < partitionNames.size();
+                }
+            } catch (AnalysisException e) {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Get mv's compensate partitions for ref table(olap table).
+     * @param mv: materialized view to compensate partitions.
+     * @param refBaseTable: materialized view's ref base table
+     * @param refScanOperator: ref base table's scan operator.
+     * @return: need to compensate partition ids of the materialized view.
+     */
+    private static List<Long> getMvRefTableCompensatePartitionsForOlap(MaterializedView mv,
+                                                                       Table refBaseTable,
+                                                                       LogicalScanOperator refScanOperator) {
+
+        LogicalOlapScanOperator olapScanOperator = ((LogicalOlapScanOperator) refScanOperator);
+        if (olapScanOperator.getSelectedPartitionId() == null) {
+            return null;
+        }
+        List<Long> refTableCompensatePartitionIds = Lists.newArrayList();
+        Map<String, MaterializedView.BasePartitionInfo> baseTableVisibleVersionMap =
+                mv.getRefreshScheme().getAsyncRefreshContext().getBaseTableVisibleVersionMap().get(refBaseTable.getId());
+        if (baseTableVisibleVersionMap == null) {
+            return null;
+        }
+        Set<String> refTableRefreshedPartitionNames = baseTableVisibleVersionMap.keySet();
+        List<Long> selectPartitionIds = olapScanOperator.getSelectedPartitionId();
+        for (Long selectPartitionId : selectPartitionIds) {
+            Partition partition = refBaseTable.getPartition(selectPartitionId);
+            if (!refTableRefreshedPartitionNames.contains(partition.getName())) {
+                refTableCompensatePartitionIds.add(selectPartitionId);
+            }
+        }
+        return refTableCompensatePartitionIds;
+    }
+
+    private static List<PartitionKey> getMvRefTableCompensatePartitionsForExternal(MaterializedView mv,
+                                                                                   Table refBaseTable,
+                                                                                   Column refBaseTablePartitionCol,
+                                                                                   LogicalScanOperator refScanOperator) {
+        ScanOperatorPredicates scanOperatorPredicates = null;
+        try {
+            scanOperatorPredicates = refScanOperator.getScanOperatorPredicates();
+        } catch (Exception e) {
+            return null;
+        }
+        if (scanOperatorPredicates == null) {
+            return null;
+        }
+        List<PartitionKey> refTableCompensatePartitionKeys = Lists.newArrayList();
+        Optional<BaseTableInfo> baseTableInfoOpt = mv.getBaseTableInfos().stream()
+                .filter(info -> info.getTableIdentifier().equalsIgnoreCase(refBaseTable.getTableIdentifier()))
+                .findFirst();
+        if (!baseTableInfoOpt.isPresent()) {
+            return null;
+        }
+        BaseTableInfo baseTableInfo = baseTableInfoOpt.get();
+        Map<String, MaterializedView.BasePartitionInfo> baseTableVisibleVersionMap = mv.getRefreshScheme()
+                .getAsyncRefreshContext().getBaseTableInfoVisibleVersionMap().get(baseTableInfo);
+        if (baseTableVisibleVersionMap == null) {
+            return null;
+        }
+        Set<String> refTablePartitionNames = baseTableVisibleVersionMap.keySet();
+        Set<String> refTablePartitionValuesRefreshed = convertExternalTablePartitionNameToValues(refBaseTable,
+                refBaseTablePartitionCol, refTablePartitionNames);
+        if (refTablePartitionValuesRefreshed == null) {
+            return null;
+        }
+        List<PartitionKey> selectPartitionKeys = scanOperatorPredicates.getSelectedPartitionKeys();
+        // different behavior for different external table types
+        if (selectPartitionKeys.isEmpty() && refScanOperator.getOpType() != OperatorType.LOGICAL_HIVE_SCAN) {
+            return null;
+        }
+        for (PartitionKey partitionKey : selectPartitionKeys) {
+            String partitionVal = partitionKey.getKeys().get(0).getStringValue();
+            if (!refTablePartitionValuesRefreshed.contains(partitionVal)) {
+                refTableCompensatePartitionKeys.add(partitionKey);
+            }
+        }
+        return refTableCompensatePartitionKeys;
+    }
+
+    private static Set<String> convertExternalTablePartitionNameToValues(Table refBaseTable,
+                                                                         Column refBaseTablePartitionCol,
+                                                                         Set<String> refTablePartitionNames) {
+        List<Column> partitionColumns = PartitionUtil.getPartitionColumns(refBaseTable);
+        try {
+            int partitionColumnIndex = checkAndGetPartitionColumnIndex(partitionColumns, refBaseTablePartitionCol);
+            Set<String> refTablePartitionValues = Sets.newHashSet();
+            refTablePartitionNames.stream()
+                    .map(name -> PartitionUtil.toPartitionValues(name).get(partitionColumnIndex))
+                    .forEach(val -> refTablePartitionValues.add(val));
+            return refTablePartitionValues;
+        } catch (AnalysisException e) {
+            return null;
+        }
+    }
+
+    public static OptExpression getMvCompensateQueryPlan(MaterializedView mv,
+                                                         OptExpression mvQueryPlan,
+                                                         OptExpression queryPlan) {
+        Pair<Table, Column> partitionTableAndColumns = mv.getDirectTableAndPartitionColumn();
+        if (partitionTableAndColumns == null) {
+            return null;
+        }
+        // only set this when `queryExpression` contains ref table, otherwise the cached value maybe dirty.
+        Table refBaseTable = partitionTableAndColumns.first;
+        Column refBaseTablePartitionCol = partitionTableAndColumns.second;
+        LogicalScanOperator mvRefScanOperator = getRefBaseTableScanOperator(mvQueryPlan, refBaseTable);
+        if (mvRefScanOperator == null) {
+            return null;
+        }
+        LogicalScanOperator queryRefScanOperator = getRefBaseTableScanOperator(queryPlan, refBaseTable);
+        if (queryRefScanOperator == null) {
+            return null;
+        }
+
+        if (mvRefScanOperator instanceof LogicalOlapScanOperator) {
+            List<Long> refTableCompensatePartitionIds = getMvRefTableCompensatePartitionsForOlap(mv,
+                    refBaseTable, queryRefScanOperator);
+            if (refTableCompensatePartitionIds == null) {
+                return null;
+            }
+            // TODO: fix me later
+            return new OptScanOperatorCompensator(refTableCompensatePartitionIds, mvRefScanOperator).visit(mvQueryPlan, null);
+        } else if (SUPPORTED_PARTITION_COMPENSATE_EXTERNAL_SCAN_TYPES.contains(mvRefScanOperator.getOpType())) {
+            List<PartitionKey> refTableCompensatePartitionKeys = getMvRefTableCompensatePartitionsForExternal(mv,
+                    refBaseTable, refBaseTablePartitionCol, queryRefScanOperator);
+            if (refTableCompensatePartitionKeys == null) {
+                return null;
+            }
+            ScanOperatorPredicates scanOperatorPredicates = null;
+            try {
+                scanOperatorPredicates = mvRefScanOperator.getScanOperatorPredicates();
+            } catch (Exception e) {
+                return null;
+            }
+            if (scanOperatorPredicates == null) {
+                return null;
+            }
+            List<Long> ids = refBaseTable.allocatePartitionIdByKey(refTableCompensatePartitionKeys);
+            ImmutableMap.Builder<Long, PartitionKey> idToPartitionKey = ImmutableMap.builder();
+            for (int i = 0; i < refTableCompensatePartitionKeys.size(); i++) {
+                idToPartitionKey.put(ids.get(i), refTableCompensatePartitionKeys.get(i));
+            }
+            Map<Long, PartitionKey> partitionKeyMap = idToPartitionKey.build();
+            scanOperatorPredicates.getIdToPartitionKey().putAll(partitionKeyMap);
+            scanOperatorPredicates.setSelectedPartitionIds(partitionKeyMap.keySet());
+            return mvQueryPlan;
+        } else {
+            return mvQueryPlan;
+        }
+    }
+
+    static class OptScanOperatorCompensator extends OptExpressionVisitor<OptExpression, Void> {
+        private final List<Long> refTableCompensatePartitionIds;
+        private final LogicalScanOperator refScanOperator;
+        public OptScanOperatorCompensator(List<Long> refTableCompensatePartitionIds,
+                                          LogicalScanOperator scanOperator) {
+            this.refTableCompensatePartitionIds = refTableCompensatePartitionIds;
+            this.refScanOperator = scanOperator;
+        }
+
+        @Override
+        public OptExpression visitLogicalTableScan(OptExpression optExpression, Void context) {
+            LogicalScanOperator scanOperator = optExpression.getOp().cast();
+            if (scanOperator instanceof LogicalOlapScanOperator && scanOperator == refScanOperator) {
+                LogicalOlapScanOperator olapScanOperator = (LogicalOlapScanOperator) scanOperator;
+                final LogicalOlapScanOperator.Builder builder = new LogicalOlapScanOperator.Builder();
+                builder.withOperator(olapScanOperator)
+                        .setSelectedPartitionId(refTableCompensatePartitionIds);
+                return OptExpression.create(builder.build());
+            } else {
+                return optExpression;
+            }
+        }
+
+        public OptExpression visit(OptExpression optExpression, Void context) {
+            List<OptExpression> children = Lists.newArrayList();
+            for (int i = 0; i < optExpression.arity(); ++i) {
+                children.add(optExpression.inputAt(i).getOp().accept(this, optExpression.inputAt(i), null));
+            }
+            return OptExpression.create(optExpression.getOp(), children);
+        }
+    }
+
+    public static boolean isTransparentRewrite(MaterializationContext materializationContext) {
+        SessionVariable sessionVariable = materializationContext.getOptimizerContext().getSessionVariable();
+        if (sessionVariable.getMaterializedViewUnionRewriteMode() != 4) {
+            return false;
+        }
+        // No compensate once if mv's freshness is satisfied.
+        if (materializationContext.getMvPCompensateType().isNoCompensate()) {
+            return false;
+        }
+        return true;
+    }
+
+    private static Pair<OptExpression, List<ColumnRefOperator>> getMvScanPlan(MaterializationContext materializationContext,
+                                                                              OptExpressionDuplicator duplicator) {
+        final LogicalOlapScanOperator mvScanOperator = materializationContext.getScanMvOperator();
+        final MaterializedView mv = materializationContext.getMv();
+        final List<ColumnRefOperator> orgMvScanOutputColumns = MvRewritePreprocessor.getMvOutputColumnRefs(mv,
+                mvScanOperator);
+        final Operator.Builder mvScanBuilder = OperatorBuilderFactory.build(mvScanOperator);
+        mvScanBuilder.withOperator(mvScanOperator);
+        OptExpression mvScanOptExpression = OptExpression.create(mvScanBuilder.build());
+        deriveLogicalProperty(mvScanOptExpression);
+        OptExpression newMvScanPlan = duplicator.duplicate(mvScanOptExpression);
+
+        MvUtils.setAppliedUnionAllRewrite(newMvScanPlan.getOp());
+        // output columns order by mv's columns
+        List<ColumnRefOperator> mvScanOutputColumns = duplicator.getMappedColumns(orgMvScanOutputColumns);
+        return Pair.create(newMvScanPlan, mvScanOutputColumns);
+    }
+
+    private static Pair<OptExpression, List<ColumnRefOperator>> getMvQueryPlan(MaterializationContext materializationContext,
+                                                                               OptExpressionDuplicator duplicator,
+                                                                               OptExpression inputPlan) {
+        final OptExpression mvQueryPlan = materializationContext.getMvExpression();
+        final MaterializedView mv = materializationContext.getMv();
+        OptExpression compensateMvQueryPlan = getMvCompensateQueryPlan(mv, mvQueryPlan, inputPlan);
+        OptExpression newMvQueryPlan = duplicator.duplicate(compensateMvQueryPlan);
+        deriveLogicalProperty(newMvQueryPlan);
+        List<ColumnRefOperator> orgMvQueryOutputColumnRefs = materializationContext.getMvOutputColumnRefs();
+        List<ColumnRefOperator> mvQueryOutputColumnRefs = duplicator.getMappedColumns(orgMvQueryOutputColumnRefs);
+        MvUtils.setAppliedUnionAllRewrite(newMvQueryPlan.getOp());
+        return Pair.create(newMvQueryPlan, mvQueryOutputColumnRefs);
+    }
+
+    /**
+     * What's the transparent plan of mv?
+     */
+    public static OptExpression getMvTransparentPlan(MaterializationContext materializationContext,
+                                                     OptExpression inputPlan) {
+        Preconditions.checkState(isTransparentRewrite(materializationContext));
+        OptExpressionDuplicator duplicator = new OptExpressionDuplicator(materializationContext);
+        final LogicalOlapScanOperator mvScanOperator = materializationContext.getScanMvOperator();
+        final MaterializedView mv = materializationContext.getMv();
+        final List<ColumnRefOperator> originalOutputColumns = MvRewritePreprocessor.getMvOutputColumnRefs(mv,
+                mvScanOperator);
+
+        Pair<OptExpression, List<ColumnRefOperator>> mvScanPlans = getMvScanPlan(materializationContext, duplicator);
+        Pair<OptExpression, List<ColumnRefOperator>> mvQueryPlans = getMvQueryPlan(materializationContext, duplicator, inputPlan);
+        LogicalUnionOperator unionOperator = new LogicalUnionOperator.Builder()
+                .setOutputColumnRefOp(originalOutputColumns)
+                .setChildOutputColumns(Lists.newArrayList(mvScanPlans.second, mvQueryPlans.second))
+                .isUnionAll(true)
+                .build();
+        OptExpression result = OptExpression.create(unionOperator, mvScanPlans.first, mvQueryPlans.first);
+        deriveLogicalProperty(result);
+        return result;
     }
 
     /**
@@ -232,20 +572,34 @@ public class MvPartitionCompensator {
     public static ScalarOperator compensateQueryPartitionPredicate(MaterializationContext mvContext,
                                                                    ColumnRefFactory columnRefFactory,
                                                                    OptExpression queryExpression) {
+        if (!mvContext.isCompensatePartitionPredicate()) {
+            return ConstantOperator.createBoolean(true);
+        }
+
         List<LogicalScanOperator> scanOperators = MvUtils.getScanOperator(queryExpression);
         if (scanOperators.isEmpty()) {
             return ConstantOperator.createBoolean(true);
         }
 
         List<ScalarOperator> partitionPredicates = Lists.newArrayList();
-        boolean isCompensatePartition = mvContext.getOrInitCompensatePartitionPredicate(queryExpression);
+        MvPartitionCompensator.PCType pcType = mvContext.getMvPCompensateType();
+        if (pcType.isNoRewrite()) {
+            return null;
+        }
+        boolean isCompensatePartition = pcType.isCompensate();
         // Compensate partition predicates and add them into query predicate.
         Map<Pair<LogicalScanOperator, Boolean>, List<ScalarOperator>> scanOperatorScalarOperatorMap =
                 mvContext.getScanOpToPartitionCompensatePredicates();
         MaterializedView mv = mvContext.getMv();
         for (LogicalScanOperator scanOperator : scanOperators) {
             if (!SUPPORTED_PARTITION_COMPENSATE_SCAN_TYPES.contains(scanOperator.getOpType())) {
-                continue;
+                // If the scan operator is not supported, then return null when compensate type is not NO_COMPENSATE
+                // which means the query cannot be rewritten only when all partitions are refreshed.
+                // Change query_rewrite_consistency=loose to no check query rewrite consistency.
+                if (pcType.isNoCompensate()) {
+                    continue;
+                }
+                return null;
             }
             List<ScalarOperator> partitionPredicate = scanOperatorScalarOperatorMap
                     .computeIfAbsent(Pair.create(scanOperator, isCompensatePartition), x -> {
@@ -276,7 +630,7 @@ public class MvPartitionCompensator {
             partitionPredicate = compensatePartitionPredicateForExternalTables(mvContext, scanOperator);
         } else {
             logMVRewrite(mvContext.getMv().getName(), "Compensate partition failed: unsupported scan " +
-                            "operator type {} for {}", scanOperator.getOpType(), scanOperator.getTable().getName());
+                    "operator type {} for {}", scanOperator.getOpType(), scanOperator.getTable().getName());
             return null;
         }
         return partitionPredicate;
@@ -334,7 +688,7 @@ public class MvPartitionCompensator {
             }
         }
 
-        List<Range<PartitionKey>> mergedRanges = MvUtils.mergeRanges(ranges);
+        List<Range<PartitionKey>> mergedRanges = mergeRanges(ranges);
         ColumnRefOperator partitionColumnRef = scanOperator.getColumnReference(baseTable.getPartitionColumns().get(0));
         ScalarOperator partitionPredicate = convertPartitionKeysToPredicate(partitionColumnRef, mergedRanges);
         if (partitionPredicate == null) {
@@ -401,9 +755,12 @@ public class MvPartitionCompensator {
             }
 
             // normalize selected partition ranges
-            List<Range<PartitionKey>> mergedRanges = MvUtils.mergeRanges(selectedRanges);
+            List<Range<PartitionKey>> mergedRanges = mergeRanges(selectedRanges);
             ScalarOperator partitionPredicate =
                     convertPartitionKeysToPredicate(partitionScalarOperator, mergedRanges);
+            if (partitionPredicate == null) {
+                return null;
+            }
             partitionPredicates.add(partitionPredicate);
         } else if (olapTable.getPartitionInfo() instanceof RangePartitionInfo) {
             RangePartitionInfo rangePartitionInfo = (RangePartitionInfo) olapTable.getPartitionInfo();
@@ -417,12 +774,13 @@ public class MvPartitionCompensator {
                 selectedRanges.add(rangePartitionInfo.getRange(pid));
             }
             ColumnRefOperator partitionColumnRef = olapScanOperator.getColumnReference(partitionColumns.get(0));
-            List<Range<PartitionKey>> mergedRanges = MvUtils.mergeRanges(selectedRanges);
+            List<Range<PartitionKey>> mergedRanges = mergeRanges(selectedRanges);
             ScalarOperator partitionPredicate =
                     convertPartitionKeysToPredicate(partitionColumnRef, mergedRanges);
-            if (partitionPredicate != null) {
-                partitionPredicates.add(partitionPredicate);
+            if (partitionPredicate == null) {
+                return null;
             }
+            partitionPredicates.add(partitionPredicate);
         } else {
             return null;
         }
@@ -448,7 +806,7 @@ public class MvPartitionCompensator {
             } else if (range.hasUpperBound()) {
                 ConstantOperator upperBound =
                         (ConstantOperator) SqlToScalarOperatorTranslator.translate(range.upperEndpoint().getKeys().get(0));
-                Preconditions.checkState(upperBound.getType().isStringType());
+                inArgs.add(upperBound);
             } else {
                 return null;
             }
@@ -462,8 +820,8 @@ public class MvPartitionCompensator {
 
     private static ScalarOperator convertPartitionKeysToPredicate(ScalarOperator partitionColumn,
                                                                   List<Range<PartitionKey>> partitionKeys) {
-        boolean isListPartition = partitionColumn.getType().isStringType();
         // NOTE: For string type partition column, it should be list partition rather than range partition.
+        boolean isListPartition = partitionColumn.getType().isStringType();
         if (isListPartition) {
             return convertListPartitionKeys(partitionColumn, partitionKeys);
         } else {
@@ -479,28 +837,31 @@ public class MvPartitionCompensator {
     // then this function will return predicate:
     // k1 >= "2022-01-01" and k1 < "2022-01-02"
     // NOTE: This method can be only used in query rewrite and cannot be used in insert routine.
-    public static ScalarOperator getMvPartialPartitionPredicates(
-            MaterializedView mv,
-            OptExpression mvPlan,
-            Set<String> mvPartitionNamesToRefresh) throws AnalysisException {
+    public static ScalarOperator getMvPartialPartitionPredicates(MaterializedView mv,
+                                                                 OptExpression mvPlan,
+                                                                 Set<String> mvPartitionNamesToRefresh) {
         Pair<Table, Column> partitionTableAndColumns = mv.getDirectTableAndPartitionColumn();
         if (partitionTableAndColumns == null) {
             return null;
         }
 
         Table refBaseTable = partitionTableAndColumns.first;
-        List<Range<PartitionKey>> latestBaseTableRanges =
-                getLatestPartitionRangeForTable(refBaseTable, partitionTableAndColumns.second,
-                        mv, mvPartitionNamesToRefresh);
-        if (latestBaseTableRanges.isEmpty()) {
-            // if there isn't an updated partition, do not rewrite
+        List<Range<PartitionKey>> refreshedRefBaseTableRanges = getMvRefreshedPartitionRange(refBaseTable,
+                partitionTableAndColumns.second, mv, mvPartitionNamesToRefresh);
+        if (refreshedRefBaseTableRanges == null) {
             return null;
+        }
+
+        if (refreshedRefBaseTableRanges.isEmpty()) {
+            // if there isn't an updated partition, do not rewrite
+            return ConstantOperator.TRUE;
         }
 
         Column partitionColumn = partitionTableAndColumns.second;
         Expr partitionExpr = mv.getFirstPartitionRefTableExpr();
         List<LogicalScanOperator> scanOperators = MvUtils.getScanOperator(mvPlan);
         for (LogicalScanOperator scanOperator : scanOperators) {
+            // Since mv's plan disabled partition prune, no need to compensate partition predicate for non ref base tables.
             if (!isRefBaseTable(scanOperator, refBaseTable)) {
                 continue;
             }
@@ -514,7 +875,7 @@ public class MvPartitionCompensator {
             if (!columnRefOption.isPresent()) {
                 continue;
             }
-            return convertPartitionKeysToPredicate(columnRefOption.get(), latestBaseTableRanges);
+            return convertPartitionKeysToPredicate(columnRefOption.get(), refreshedRefBaseTableRanges);
         }
         return null;
     }
@@ -546,59 +907,72 @@ public class MvPartitionCompensator {
     }
 
     /**
-     * Return the updated partition key ranges of the specific table.
+     * Return the refreshed partition key ranges of the ref base table.
      *
      * NOTE: This method can be only used in query rewrite and cannot be used to insert routine.
-     * @param partitionByTable          : the base table of the mv
+     * @param refBaseTable          : the base table of the mv
      * @param partitionColumn           : the partition column of the base table
      * @param mv                        : the materialized view
-     * @param mvPartitionNamesToRefresh : the updated partition names  of the materialized view
+     * @param mvPartitionsToRefresh : the updated partition names  of the materialized view
      * @return
      */
-    private static List<Range<PartitionKey>> getLatestPartitionRangeForTable(
-            Table partitionByTable,
-            Column partitionColumn,
-            MaterializedView mv,
-            Set<String> mvPartitionNamesToRefresh) throws AnalysisException {
-        Set<String> refBaseTableUpdatedPartitionNames = mv.getUpdatedPartitionNamesOfTable(partitionByTable, true);
-        List<Range<PartitionKey>> refBaseTableRanges = getLatestPartitionRange(partitionByTable, partitionColumn,
+    private static List<Range<PartitionKey>> getMvRefreshedPartitionRange(Table refBaseTable,
+                                                                          Column partitionColumn,
+                                                                          MaterializedView mv,
+                                                                          Set<String> mvPartitionsToRefresh) {
+        Set<String> refBaseTableUpdatedPartitionNames = mv.getUpdatedPartitionNamesOfTable(refBaseTable, true);
+        List<Range<PartitionKey>> refBaseTableRanges = getLatestPartitionRange(refBaseTable, partitionColumn,
                 refBaseTableUpdatedPartitionNames, MaterializedView.getPartitionExpr(mv));
+
         // date to varchar range
-        Map<Range<PartitionKey>, Range<PartitionKey>> baseRangeMapping = null;
         boolean isConvertToDate = PartitionUtil.isConvertToDate(mv.getFirstPartitionRefTableExpr(), partitionColumn);
         if (isConvertToDate) {
-            baseRangeMapping = Maps.newHashMap();
-            // convert varchar range to date range
-            List<Range<PartitionKey>> baseTableDateRanges = Lists.newArrayList();
-            for (Range<PartitionKey> range : refBaseTableRanges) {
-                Range<PartitionKey> datePartitionRange = convertToDateRange(range);
-                baseTableDateRanges.add(datePartitionRange);
-                baseRangeMapping.put(datePartitionRange, range);
+            Map<Range<PartitionKey>, Range<PartitionKey>> baseRangeMapping = Maps.newHashMap();
+            try {
+                // convert varchar range to date range
+                List<Range<PartitionKey>> baseTableDateRanges = Lists.newArrayList();
+                for (Range<PartitionKey> range : refBaseTableRanges) {
+                    Range<PartitionKey> datePartitionRange = convertToDateRange(range);
+                    baseTableDateRanges.add(datePartitionRange);
+                    baseRangeMapping.put(datePartitionRange, range);
+                }
+                refBaseTableRanges = baseTableDateRanges;
+            } catch (AnalysisException e) {
+                logMVRewrite(mv.getName(), "Compensate partition predicate for mv {} failed: {}",
+                        mv.getName(), DebugUtil.getStackTrace(e));
+                return null;
             }
-            refBaseTableRanges = baseTableDateRanges;
+            List<Range<PartitionKey>> refreshedRefBaseTableRanges = getRefreshedPartitionRangeOfMv(refBaseTableRanges, mv,
+                    mvPartitionsToRefresh);
+            // treat string type partition as list, so no need merge
+            List<Range<PartitionKey>> tmpRangeList = Lists.newArrayList();
+            for (Range<PartitionKey> range : refreshedRefBaseTableRanges) {
+                tmpRangeList.add(baseRangeMapping.get(range));
+            }
+            return tmpRangeList;
+        } else {
+            List<Range<PartitionKey>> refreshedRefBaseTableRanges = getRefreshedPartitionRangeOfMv(refBaseTableRanges, mv,
+                    mvPartitionsToRefresh);
+            return mergeRanges(refreshedRefBaseTableRanges);
         }
-        // materialized view latest partition ranges except to-refresh partitions
-        List<Range<PartitionKey>> mvRanges = getLatestPartitionRangeForNativeTable(mv, mvPartitionNamesToRefresh);
+    }
 
-        List<Range<PartitionKey>> latestBaseTableRanges = Lists.newArrayList();
+    private static List<Range<PartitionKey>> getRefreshedPartitionRangeOfMv(List<Range<PartitionKey>> refBaseTableRanges,
+                                                                            MaterializedView mv,
+                                                                            Set<String> mvPartitionsToRefresh) {
+        // materialized view latest partition ranges except to-refresh partitions
+        List<Range<PartitionKey>> mvRanges = getLatestPartitionRangeForNativeTable(mv, mvPartitionsToRefresh);
+
+        List<Range<PartitionKey>> refreshedRefBaseTableRanges = Lists.newArrayList();
         for (Range<PartitionKey> range : refBaseTableRanges) {
             // if materialized view's partition range can enclose the ref base table range, we think that
             // the materialized view's partition has been refreshed and should be compensated into the materialized
             // view's partition predicate.
             if (mvRanges.stream().anyMatch(mvRange -> mvRange.encloses(range))) {
-                latestBaseTableRanges.add(range);
+                refreshedRefBaseTableRanges.add(range);
             }
         }
-        if (isConvertToDate) {
-            // treat string type partition as list, so no need merge
-            List<Range<PartitionKey>> tmpRangeList = Lists.newArrayList();
-            for (Range<PartitionKey> range : latestBaseTableRanges) {
-                tmpRangeList.add(baseRangeMapping.get(range));
-            }
-            return tmpRangeList;
-        } else {
-            return MvUtils.mergeRanges(latestBaseTableRanges);
-        }
+        return refreshedRefBaseTableRanges;
     }
 
     private static List<Range<PartitionKey>> getLatestPartitionRangeForNativeTable(OlapTable partitionTable,
@@ -668,6 +1042,31 @@ public class MvPartitionCompensator {
             return null;
         }
         return optRefScanOperator.get();
+    }
+
+    private static LogicalScanOperator getRefBaseTableScanOperator(OptExpression queryPlan,
+                                                                   Table refBaseTable) {
+
+        List<LogicalScanOperator> scanOperators = MvUtils.getScanOperator(queryPlan);
+        // If no scan operator, no need compensate
+        if (scanOperators.isEmpty()) {
+            return null;
+        }
+        if (scanOperators.stream().anyMatch(scan -> scan instanceof LogicalViewScanOperator)) {
+            return null;
+        }
+
+        LogicalScanOperator refScanOperator = getRefBaseTableScanOperator(scanOperators, refBaseTable);
+        if (refScanOperator == null) {
+            return null;
+        }
+
+        Table table = refScanOperator.getTable();
+        // If table's not partitioned, no need compensate
+        if (table.isUnPartitioned()) {
+            return null;
+        }
+        return refScanOperator;
     }
 
     private static boolean isRefBaseTable(LogicalScanOperator scanOperator, Table refBaseTable) {

@@ -165,6 +165,9 @@ public abstract class BaseMaterializedViewRewriteRule extends TransformationRule
         List<Table> queryTables = MvUtils.getAllTables(queryExpression);
         ConnectContext connectContext = ConnectContext.get();
         for (MaterializationContext mvContext : mvCandidateContexts) {
+            // initialize query's compensate type based on query and mv's partition refresh status
+            mvContext.initCompensatePartitionPredicate(queryExpression);
+
             PredicateSplit queryPredicateSplit = getQuerySplitPredicate(context, mvContext, queryExpression,
                     queryColumnRefFactory, queryColumnRefRewriter);
             if (queryPredicateSplit == null) {

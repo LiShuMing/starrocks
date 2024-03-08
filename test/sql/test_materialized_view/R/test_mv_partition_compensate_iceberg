@@ -1,4 +1,4 @@
--- name: test_mv_iceberg_rewrite2
+-- name: test_mv_partition_compensate_iceberg
 create external catalog mv_iceberg_${uuid0}
 properties
 (
@@ -288,7 +288,15 @@ function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid
 -- result:
 None
 -- !result
+function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 where dt between '2020-06-15' and '2020-07-01' GROUP BY dt;", "test_mv1", "UNION")
+-- result:
+None
+-- !result
 function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 where dt>='2020-06-15' GROUP BY dt;", "test_mv1", "UNION")
+-- result:
+None
+-- !result
+function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 where dt in ('2020-06-15', '2020-06-21', '2020-07-25') GROUP BY dt;", "test_mv1", "UNION")
 -- result:
 None
 -- !result
@@ -671,7 +679,15 @@ function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid
 -- result:
 None
 -- !result
+function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 where dt between '2020-06-15' and '2020-07-01' GROUP BY dt;", "test_mv1", "UNION")
+-- result:
+None
+-- !result
 function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 where dt>='2020-06-15' GROUP BY dt;", "test_mv1", "UNION")
+-- result:
+None
+-- !result
+function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 where dt in ('2020-06-15', '2020-06-21', '2020-07-25') GROUP BY dt;", "test_mv1", "UNION")
 -- result:
 None
 -- !result
@@ -1054,7 +1070,15 @@ function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid
 -- result:
 None
 -- !result
+function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 where dt between '2020-06-15' and '2020-07-01' GROUP BY dt;", "test_mv1", "UNION")
+-- result:
+None
+-- !result
 function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 where dt>='2020-06-15' GROUP BY dt;", "test_mv1", "UNION")
+-- result:
+None
+-- !result
+function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 where dt in ('2020-06-15', '2020-06-21', '2020-07-25') GROUP BY dt;", "test_mv1", "UNION")
 -- result:
 None
 -- !result
@@ -1437,7 +1461,15 @@ function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid
 -- result:
 None
 -- !result
+function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 where dt between '2020-06-15' and '2020-07-01' GROUP BY dt;", "test_mv1", "UNION")
+-- result:
+None
+-- !result
 function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 where dt>='2020-06-15' GROUP BY dt;", "test_mv1", "UNION")
+-- result:
+None
+-- !result
+function: check_hit_materialized_view("SELECT dt,sum(num) FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 where dt in ('2020-06-15', '2020-06-21', '2020-07-25') GROUP BY dt;", "test_mv1", "UNION")
 -- result:
 None
 -- !result
@@ -1593,5 +1625,5 @@ drop table mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 force;
 -- !result
 drop table mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 force;
 -- result:
-E: (1051, "Getting analyzing error. Detail message: Unknown table 't2'.")
+E: (1064, "Getting analyzing error. Detail message: Unknown table 't2'.")
 -- !result

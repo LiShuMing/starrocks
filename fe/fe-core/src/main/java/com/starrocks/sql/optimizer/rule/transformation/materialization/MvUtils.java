@@ -126,18 +126,18 @@ public class MvUtils {
                                      int maxLevel, int currentLevel,
                                      Set<Table> tablesToCheck, Set<MaterializedView> mvs) {
         if (currentLevel >= maxLevel) {
-            logMVPrepare(connectContext, "Current level {} is greater than max level {}", currentLevel, maxLevel);
+            logMVPrepare("Current level {} is greater than max level {}", currentLevel, maxLevel);
             return;
         }
         Set<MvId> newMvIds = Sets.newHashSet();
         for (Table table : tablesToCheck) {
             Set<MvId> mvIds = table.getRelatedMaterializedViews();
             if (mvIds != null && !mvIds.isEmpty()) {
-                logMVPrepare(connectContext, "Table/MaterializedView {} has related materialized views: {}",
+                logMVPrepare("Table/MaterializedView {} has related materialized views: {}",
                         table.getName(), mvIds);
                 newMvIds.addAll(mvIds);
             } else if (currentLevel == 0) {
-                logMVPrepare(connectContext, "Table/MaterializedView {} has no related materialized views, " +
+                logMVPrepare("Table/MaterializedView {} has no related materialized views, " +
                                 "identifier:{}", table.getName(), table.getTableIdentifier());
             }
         }
@@ -148,12 +148,12 @@ public class MvUtils {
         for (MvId mvId : newMvIds) {
             Database db = GlobalStateMgr.getCurrentState().getDb(mvId.getDbId());
             if (db == null) {
-                logMVPrepare(connectContext, "Cannot find database from mvId:{}", mvId);
+                logMVPrepare("Cannot find database from mvId:{}", mvId);
                 continue;
             }
             Table table = db.getTable(mvId.getId());
             if (table == null) {
-                logMVPrepare(connectContext, "Cannot find materialized view from mvId:{}", mvId);
+                logMVPrepare("Cannot find materialized view from mvId:{}", mvId);
                 continue;
             }
             newMvs.add(table);

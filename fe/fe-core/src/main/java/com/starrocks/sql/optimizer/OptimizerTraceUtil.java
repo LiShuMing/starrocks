@@ -16,7 +16,6 @@ package com.starrocks.sql.optimizer;
 
 import com.starrocks.catalog.MaterializedView;
 import com.starrocks.common.profile.Tracers;
-import com.starrocks.qe.ConnectContext;
 import com.starrocks.sql.ast.QueryStatement;
 import com.starrocks.sql.common.DebugRelationTracer;
 import com.starrocks.sql.optimizer.rule.Rule;
@@ -38,11 +37,11 @@ public class OptimizerTraceUtil {
         Tracers.log(Tracers.Module.OPTIMIZER, args -> String.format(format, object));
     }
 
-    public static void logMVPrepare(ConnectContext ctx, String format, Object... object) {
-        logMVPrepare(ctx, null, format, object);
+    public static void logMVPrepare(String format, Object... object) {
+        logMVPrepare(null, format, object);
     }
 
-    public static void logMVPrepare(ConnectContext ctx, MaterializedView mv,
+    public static void logMVPrepare(MaterializedView mv,
                                     String format, Object... object) {
         Tracers.log(Tracers.Module.MV, input -> {
             String str = MessageFormatter.arrayFormat(format, object).getMessage();

@@ -472,6 +472,8 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
     public static final String MATERIALIZED_VIEW_UNION_REWRITE_MODE = "materialized_view_union_rewrite_mode";
     public static final String ENABLE_MATERIALIZED_VIEW_REWRITE_PARTITION_COMPENSATE =
             "enable_materialized_view_rewrite_partition_compensate";
+    public static final String ENABLE_TRANSPARENT_MATERIALIZED_VIEW_REWRITE =
+            "enable_transparent_materialized_view_rewrite";
 
     public static final String LARGE_DECIMAL_UNDERLYING_TYPE = "large_decimal_underlying_type";
 
@@ -1530,6 +1532,9 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
      */
     @VarAttr(name = ENABLE_MATERIALIZED_VIEW_REWRITE_PARTITION_COMPENSATE, flag = VariableMgr.INVISIBLE)
     private boolean enableMaterializedViewRewritePartitionCompensate = true;
+
+    @VarAttr(name = ENABLE_TRANSPARENT_MATERIALIZED_VIEW_REWRITE, flag = VariableMgr.INVISIBLE)
+    private boolean enableTransparentMaterializedViewRewrite = true;
 
     @VarAttr(name = ENABLE_FORCE_RULE_BASED_MV_REWRITE)
     private boolean enableForceRuleBasedMvRewrite = true;
@@ -3016,6 +3021,14 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
 
     public void setEnableMaterializedViewRewritePartitionCompensate(boolean enableMaterializedViewRewritePartitionCompensate) {
         this.enableMaterializedViewRewritePartitionCompensate = enableMaterializedViewRewritePartitionCompensate;
+    }
+
+    public boolean isEnableTransparentMaterializedViewRewrite() {
+        return enableTransparentMaterializedViewRewrite;
+    }
+
+    public void setEnableTransparentMaterializedViewRewrite(boolean enableTransparentMaterializedViewRewrite) {
+        this.enableTransparentMaterializedViewRewrite = enableTransparentMaterializedViewRewrite;
     }
 
     public boolean isEnableMaterializedViewViewDeltaRewrite() {

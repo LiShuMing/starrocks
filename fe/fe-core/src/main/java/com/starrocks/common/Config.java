@@ -321,7 +321,7 @@ public class Config extends ConfigBase {
      * It will run every *task_check_interval_second* to do background job.
      */
     @ConfField
-    public static int task_check_interval_second = 4 * 3600; // 4 hours
+    public static int task_check_interval_second = 1 * 3600; // 1 hour
 
     /**
      * for task set expire time
@@ -2621,6 +2621,19 @@ public class Config extends ConfigBase {
      */
     @ConfField(mutable = true)
     public static boolean enable_mv_automatic_active_check = true;
+
+    @ConfField(mutable = true, comment = "The max retry times for base table change when refreshing materialized view")
+    public static int max_mv_check_base_table_change_retry_times = 10;
+
+    @ConfField(mutable = true, comment = "The max retry times for materialized view refresh retry times when failed")
+    public static int max_mv_refresh_failure_retry_times = 1;
+
+    @ConfField(mutable = true, comment = "The max retry times when materialized view refresh try lock " +
+            "timeout failed")
+    public static int max_mv_refresh_try_lock_failure_retry_times = 3;
+
+    @ConfField(mutable = true, comment = "The default try lock timeout for mv refresh to try base table/mv dbs' lock")
+    public static int mv_refresh_try_lock_timeout_ms = 30 * 1000;
 
     /**
      * The refresh partition number when refreshing materialized view at once by default.

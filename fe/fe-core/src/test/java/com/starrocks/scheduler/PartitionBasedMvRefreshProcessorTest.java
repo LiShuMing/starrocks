@@ -50,6 +50,7 @@ import com.starrocks.sql.ast.InsertStmt;
 import com.starrocks.sql.common.QueryDebugOptions;
 import com.starrocks.sql.plan.ExecPlan;
 import com.starrocks.thrift.TExplainLevel;
+import com.starrocks.thrift.TGetTasksParams;
 import com.starrocks.thrift.TUniqueId;
 import mockit.Mock;
 import mockit.MockUp;
@@ -3073,6 +3074,7 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
                     initAndExecuteTaskRun(taskRun);
 
                     // without db name
+<<<<<<< HEAD
                     Assert.assertFalse(tm.showTaskRunStatus(null).isEmpty());
                     Assert.assertFalse(tm.showTasks(null).isEmpty());
                     Assert.assertFalse(tm.showMVLastRefreshTaskRunStatus(null).isEmpty());
@@ -3081,6 +3083,18 @@ public class PartitionBasedMvRefreshProcessorTest extends MVRefreshTestBase {
                     Assert.assertFalse(tm.showTaskRunStatus(TEST_DB_NAME).isEmpty());
                     Assert.assertFalse(tm.showTasks(TEST_DB_NAME).isEmpty());
                     Assert.assertFalse(tm.showMVLastRefreshTaskRunStatus(TEST_DB_NAME).isEmpty());
+=======
+                    Assert.assertFalse(tm.getMatchedTaskRunStatus(null).isEmpty());
+                    Assert.assertFalse(tm.filterTasks(null).isEmpty());
+                    Assert.assertFalse(tm.listMVRefreshedTaskRunStatus(null, null).isEmpty());
+
+                    // specific db
+                    TGetTasksParams getTasksParams = new TGetTasksParams();
+                    getTasksParams.setDb(TEST_DB_NAME);
+                    Assert.assertFalse(tm.getMatchedTaskRunStatus(getTasksParams).isEmpty());
+                    Assert.assertFalse(tm.filterTasks(getTasksParams).isEmpty());
+                    Assert.assertFalse(tm.listMVRefreshedTaskRunStatus(TEST_DB_NAME, null).isEmpty());
+>>>>>>> 927f0a6616 ([Enhancement] [Refactor] Refactor schema scanner & support push predicates into fe for materialized views/task run status (#44981))
 
                     long taskId = tm.getTask(TaskBuilder.getMvTaskName(materializedView.getId())).getId();
                     Assert.assertNotNull(tm.getTaskRunManager().getRunnableTaskRun(taskId));

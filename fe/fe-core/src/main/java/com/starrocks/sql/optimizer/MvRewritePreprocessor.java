@@ -894,6 +894,7 @@ public class MvRewritePreprocessor {
         LogicalOlapScanOperator scanMvOp = createScanMvOperator(mv,
                 materializationContext.getQueryRefFactory(), mvUpdateInfo.getMvToRefreshPartitionNames());
         materializationContext.setScanMvOperator(scanMvOp);
+
         // should keep the sequence of schema
         List<ColumnRefOperator> scanMvOutputColumns = Lists.newArrayList();
         for (Column column : getMvOutputColumns(copiedMV)) {

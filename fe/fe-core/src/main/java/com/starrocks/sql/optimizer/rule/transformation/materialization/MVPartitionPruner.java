@@ -21,6 +21,7 @@ import com.starrocks.catalog.IcebergTable;
 import com.starrocks.catalog.Table;
 import com.starrocks.common.AnalysisException;
 import com.starrocks.server.GlobalStateMgr;
+import com.starrocks.sql.optimizer.MaterializationContext;
 import com.starrocks.sql.optimizer.MvRewriteContext;
 import com.starrocks.sql.optimizer.OptExpression;
 import com.starrocks.sql.optimizer.OptExpressionVisitor;
@@ -146,15 +147,18 @@ public class MVPartitionPruner {
                 LogicalOlapScanOperator.Builder builder = new LogicalOlapScanOperator.Builder();
                 LogicalOlapScanOperator olapScanOperator = (LogicalOlapScanOperator) (scanOperator);
                 builder.withOperator(olapScanOperator);
+
+                MaterializationContext materializationContext = mvRewriteContext.getMaterializationContext();
                 // for mv: select c1, c3, c2 from test_base_part where c3 < 2000 and c1 = 1,
                 // which c3 is partition column and c1 is distribution column.
                 // we should add predicate c3 < 2000 and c1 = 1 into scan operator to do pruning
                 boolean isAddMvPrunePredicate = scanOperator.getTable().isMaterializedView()
-                        && scanOperator.getTable().getId() == mvRewriteContext.getMaterializationContext().getMv().getId()
+                        && scanOperator.getTable().getId() == materializationContext.getMv().getId()
                         && mvRewriteContext.getMvPruneConjunct() != null;
                 if (isAddMvPrunePredicate) {
                     ScalarOperator originPredicate = scanOperator.getPredicate();
                     ScalarOperator newPredicate = Utils.compoundAnd(originPredicate, mvRewriteContext.getMvPruneConjunct());
+                    // NOTE: mv pruned predicate may change input slot refs if mv scan opt expression is duplciated.
                     builder.setPredicate(newPredicate);
                 }
                 LogicalOlapScanOperator newOlapScanOperator = builder.build();

@@ -2945,6 +2945,13 @@ public class MaterializedViewRewriter implements IMaterializedViewRewriter {
                 }
             }
             equationRewriter.setOutputMapping(newOutputMapping);
+
+            // rewrite mv pruned predicates since mv's output columns mapping have changed
+            if (mvRewriteContext.getMvPruneConjunct() != null) {
+                ScalarOperator newMvPruneConjunct = duplicator.rewrite(mvRewriteContext.getMvPruneConjunct());
+                mvRewriteContext.setMvPruneConjunct(newMvPruneConjunct);
+            }
+
             return newMvOptExpr;
         } else {
             equationRewriter.setOutputMapping(outputMapping);

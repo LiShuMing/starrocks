@@ -131,7 +131,8 @@ public class MvRefreshArbiter {
 
         // check mv's query rewrite consistency mode property only in query rewrite.
         TableProperty tableProperty = mv.getTableProperty();
-        TableProperty.QueryRewriteConsistencyMode mvConsistencyRewriteMode = tableProperty.getQueryRewriteConsistencyMode();
+        TableProperty.QueryRewriteConsistencyMode mvConsistencyRewriteMode = tableProperty != null ?
+                tableProperty.getQueryRewriteConsistencyMode() : TableProperty.QueryRewriteConsistencyMode.CHECKED;
         if (isQueryRewrite) {
             switch (mvConsistencyRewriteMode) {
                 case DISABLE:
@@ -151,7 +152,7 @@ public class MvRefreshArbiter {
             return getPartitionNamesToRefreshForMvInLooseMode(mv, isQueryRewrite);
         } else {
             PartitionInfo partitionInfo = mv.getPartitionInfo();
-            if (partitionInfo instanceof SinglePartitionInfo) {
+            if (partitionInfo.isUnPartitioned()) {
                 return getNonPartitionedMVRefreshPartitions(mv, isQueryRewrite);
             } else if (partitionInfo instanceof ExpressionRangePartitionInfo) {
                 // partitions to refresh
@@ -171,7 +172,7 @@ public class MvRefreshArbiter {
     private static MvUpdateInfo getPartitionNamesToRefreshForMvInLooseMode(MaterializedView mv,
                                                                            boolean isQueryRewrite) {
         PartitionInfo partitionInfo = mv.getPartitionInfo();
-        if (partitionInfo instanceof SinglePartitionInfo) {
+        if (partitionInfo.isUnPartitioned()) {
             List<Partition> partitions = Lists.newArrayList(mv.getPartitions());
             if (partitions.size() > 0 && partitions.get(0).getVisibleVersion() <= 1) {
                 // the mv is newly created, can not use it to rewrite query.
@@ -224,9 +225,11 @@ public class MvRefreshArbiter {
     private static MvUpdateInfo getNonPartitionedMVRefreshPartitions(MaterializedView mv,
                                                                      boolean isQueryRewrite) {
         PartitionInfo partitionInfo = mv.getPartitionInfo();
-        Preconditions.checkState(partitionInfo instanceof SinglePartitionInfo);
+        Preconditions.checkState(partitionInfo.isUnPartitioned());
         List<BaseTableInfo> baseTableInfos = mv.getBaseTableInfos();
         TableProperty tableProperty = mv.getTableProperty();
+        boolean isDisableExternalForceQueryRewrite = tableProperty != null &&
+                tableProperty.getForceExternalTableQueryRewrite() == TableProperty.QueryRewriteConsistencyMode.DISABLE;
         for (BaseTableInfo tableInfo : baseTableInfos) {
             Table table = MvUtils.getTableChecked(tableInfo);
             // skip check freshness of view
@@ -235,12 +238,9 @@ public class MvRefreshArbiter {
             }
 
             // skip check external table if the external does not support rewrite.
-            if (!table.isNativeTableOrMaterializedView()) {
-                if (tableProperty.getForceExternalTableQueryRewrite() ==
-                        TableProperty.QueryRewriteConsistencyMode.DISABLE) {
-                    logMVPrepare(mv, "Non-partitioned contains external table, and it's disabled query rewrite");
-                    return new MvUpdateInfo(MvUpdateInfo.MvToRefreshType.FULL);
-                }
+            if (!table.isNativeTableOrMaterializedView() && isDisableExternalForceQueryRewrite) {
+                logMVPrepare(mv, "Non-partitioned contains external table, and it's disabled query rewrite");
+                return new MvUpdateInfo(MvUpdateInfo.MvToRefreshType.FULL);
             }
 
             // once mv's base table has updated, refresh the materialized view totally.
@@ -396,6 +396,8 @@ public class MvRefreshArbiter {
                                                                      Map<Table, Column> partitionInfos,
                                                                      boolean isQueryRewrite) {
         TableProperty tableProperty = mv.getTableProperty();
+        boolean isDisableExternalForceQueryRewrite = tableProperty != null &&
+                tableProperty.getForceExternalTableQueryRewrite() == TableProperty.QueryRewriteConsistencyMode.DISABLE;
         for (BaseTableInfo tableInfo : mv.getBaseTableInfos()) {
             Table baseTable = MvUtils.getTableChecked(tableInfo);
             // skip view
@@ -404,11 +406,8 @@ public class MvRefreshArbiter {
             }
             // skip external table that is not supported for query rewrite, return all partition ?
             // skip check external table if the external does not support rewrite.
-            if (!baseTable.isNativeTableOrMaterializedView()) {
-                if (tableProperty.getForceExternalTableQueryRewrite() ==
-                        TableProperty.QueryRewriteConsistencyMode.DISABLE) {
-                    return MvUpdateInfo.MvToRefreshType.FULL;
-                }
+            if (!baseTable.isNativeTableOrMaterializedView() && isDisableExternalForceQueryRewrite) {
+                return MvUpdateInfo.MvToRefreshType.FULL;
             }
             if (partitionInfos.containsKey(baseTable)) {
                 continue;

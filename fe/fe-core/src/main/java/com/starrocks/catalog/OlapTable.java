@@ -407,6 +407,7 @@ public class OlapTable extends Table {
         this.tableProperty = tableProperty;
     }
 
+    @Nullable
     public TableProperty getTableProperty() {
         return this.tableProperty;
     }
@@ -1045,7 +1046,7 @@ public class OlapTable extends Table {
      * @return : table's partition name to range partition key mapping.
      */
     public Map<String, Range<PartitionKey>> getRangePartitionMap() {
-        Preconditions.checkState(partitionInfo instanceof RangePartitionInfo);
+        Preconditions.checkState(partitionInfo.isRangePartition());
         RangePartitionInfo rangePartitionInfo = (RangePartitionInfo) partitionInfo;
         Map<String, Range<PartitionKey>> rangePartitionMap = Maps.newHashMap();
         for (Map.Entry<Long, Partition> partitionEntry : idToPartition.entrySet()) {
@@ -2876,6 +2877,17 @@ public class OlapTable extends Table {
         tryToAssignIndexId();
     }
 
+    public boolean isEnableDynamicPartitionScheduled() {
+        if (!Config.dynamic_partition_enable) {
+            return false;
+        }
+        if (tableProperty != null && tableProperty.getDynamicPartitionProperty() != null &&
+                tableProperty.getDynamicPartitionProperty().isEnabled()) {
+            return true;
+        }
+        return false;
+    }
+
     @Override
     public void onCreate(Database db) {
         super.onCreate(db);
@@ -2891,7 +2903,7 @@ public class OlapTable extends Table {
 
         DynamicPartitionUtil.registerOrRemovePartitionScheduleInfo(db.getId(), this);
 
-        if (Config.dynamic_partition_enable && getTableProperty().getDynamicPartitionProperty().isEnabled()) {
+        if (isEnableDynamicPartitionScheduled()) {
             new Thread(() -> {
                 try {
                     GlobalStateMgr.getCurrentState().getDynamicPartitionScheduler()

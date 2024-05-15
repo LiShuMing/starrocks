@@ -633,8 +633,13 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
             return null;
         }
         if (partitionRefTableExprs.get(0).getType() == Type.INVALID) {
-            ExpressionRangePartitionInfo expressionRangePartitionInfo = (ExpressionRangePartitionInfo) partitionInfo;
-            partitionRefTableExprs.get(0).setType(expressionRangePartitionInfo.getPartitionExprs().get(0).getType());
+            if (partitionInfo.isRangePartition()) {
+                ExpressionRangePartitionInfo expressionRangePartitionInfo = (ExpressionRangePartitionInfo) partitionInfo;
+                partitionRefTableExprs.get(0).setType(expressionRangePartitionInfo.getPartitionExprs().get(0).getType());
+            } else if (partitionInfo.isListPartition()) {
+                ListPartitionInfo listPartitionInfo = (ListPartitionInfo) partitionInfo;
+                partitionRefTableExprs.get(0).setType(listPartitionInfo.getPartitionColumns().get(0).getType());
+            }
         }
         return partitionRefTableExprs.get(0);
     }
@@ -984,7 +989,7 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
     private void analyzePartitionInfo() {
         Database db = GlobalStateMgr.getCurrentState().getDb(dbId);
 
-        if (partitionInfo instanceof SinglePartitionInfo) {
+        if (partitionInfo.isUnPartitioned()) {
             return;
         }
         // analyze expression, because it converts to sql for serialize
@@ -1060,7 +1065,7 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
     public boolean isEnableTransparentRewrite() {
         TableProperty tableProperty = getTableProperty();
         if (tableProperty == null) {
-            return true;
+            return false;
         }
         return tableProperty.getMvTransparentRewriteMode().isEnable();
     }
@@ -1150,7 +1155,7 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
 
         // partition
         PartitionInfo partitionInfo = this.getPartitionInfo();
-        if (!(partitionInfo instanceof SinglePartitionInfo)) {
+        if (!partitionInfo.isUnPartitioned()) {
             sb.append("\n").append(partitionInfo.toSql(this, null));
         }
 
@@ -1159,7 +1164,7 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
         sb.append("\n").append(distributionInfo.toSql());
 
         // order by
-        if (CollectionUtils.isNotEmpty(getTableProperty().getMvSortKeys())) {
+        if (tableProperty != null && CollectionUtils.isNotEmpty(getTableProperty().getMvSortKeys())) {
             String str = Joiner.on(",").join(getTableProperty().getMvSortKeys());
             sb.append("\nORDER BY (").append(str).append(")");
         }
@@ -1191,52 +1196,53 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
         // properties
         sb.append("\nPROPERTIES (\n");
         boolean first = true;
-        Map<String, String> properties = this.getTableProperty().getProperties();
-        boolean hasStorageMedium = false;
-        for (Map.Entry<String, String> entry : properties.entrySet()) {
-            String name = entry.getKey();
-            String value = entry.getValue();
+        if (tableProperty != null) {
+            Map<String, String> properties = this.getTableProperty().getProperties();
+            boolean hasStorageMedium = false;
+            for (Map.Entry<String, String> entry : properties.entrySet()) {
+                String name = entry.getKey();
+                String value = entry.getValue();
 
-            // It's invisible
-            if (name.equalsIgnoreCase(PropertyAnalyzer.PROPERTY_MV_SORT_KEYS)) {
-                continue;
+                // It's invisible
+                if (name.equalsIgnoreCase(PropertyAnalyzer.PROPERTY_MV_SORT_KEYS)) {
+                    continue;
+                }
+                if (!first) {
+                    sb.append(",\n");
+                }
+                first = false;
+                if (name.equalsIgnoreCase(PropertyAnalyzer.PROPERTIES_FOREIGN_KEY_CONSTRAINT)) {
+                    sb.append("\"")
+                            .append(PropertyAnalyzer.PROPERTIES_FOREIGN_KEY_CONSTRAINT)
+                            .append("\" = \"")
+                            .append(ForeignKeyConstraint.getShowCreateTableConstraintDesc(getForeignKeyConstraints()))
+                            .append("\"");
+                } else if (name.equalsIgnoreCase(PropertyAnalyzer.PROPERTIES_STORAGE_COOLDOWN_TIME)) {
+                    sb.append("\"").append(PropertyAnalyzer.PROPERTIES_STORAGE_COOLDOWN_TIME)
+                            .append("\" = \"")
+                            .append(TimeUtils.longToTimeString(
+                                    Long.parseLong(properties.get(PropertyAnalyzer.PROPERTIES_STORAGE_COOLDOWN_TIME))))
+                            .append("\"");
+                } else if (name.equalsIgnoreCase(PropertyAnalyzer.PROPERTIES_STORAGE_MEDIUM)) {
+                    // handled in appendUniqueProperties
+                    hasStorageMedium = true;
+                    sb.append("\"").append(PropertyAnalyzer.PROPERTIES_STORAGE_MEDIUM)
+                            .append("\" = \"")
+                            .append(getStorageMedium())
+                            .append("\"");
+                } else {
+                    sb.append("\"").append(name).append("\"");
+                    sb.append(" = ");
+                    sb.append("\"").append(value).append("\"");
+                }
             }
-            if (!first) {
-                sb.append(",\n");
-            }
-            first = false;
-            if (name.equalsIgnoreCase(PropertyAnalyzer.PROPERTIES_FOREIGN_KEY_CONSTRAINT)) {
-                sb.append("\"")
-                        .append(PropertyAnalyzer.PROPERTIES_FOREIGN_KEY_CONSTRAINT)
-                        .append("\" = \"")
-                        .append(ForeignKeyConstraint.getShowCreateTableConstraintDesc(getForeignKeyConstraints()))
-                        .append("\"");
-            } else if (name.equalsIgnoreCase(PropertyAnalyzer.PROPERTIES_STORAGE_COOLDOWN_TIME)) {
-                sb.append("\"").append(PropertyAnalyzer.PROPERTIES_STORAGE_COOLDOWN_TIME)
-                        .append("\" = \"")
-                        .append(TimeUtils.longToTimeString(
-                                Long.parseLong(properties.get(PropertyAnalyzer.PROPERTIES_STORAGE_COOLDOWN_TIME))))
-                        .append("\"");
-            } else if (name.equalsIgnoreCase(PropertyAnalyzer.PROPERTIES_STORAGE_MEDIUM)) {
-                // handled in appendUniqueProperties
-                hasStorageMedium = true;
-                sb.append("\"").append(PropertyAnalyzer.PROPERTIES_STORAGE_MEDIUM)
-                        .append("\" = \"")
-                        .append(getStorageMedium())
-                        .append("\"");
-            } else {
-                sb.append("\"").append(name).append("\"");
-                sb.append(" = ");
-                sb.append("\"").append(value).append("\"");
+            // NOTE: why not append unique properties when replaying ?
+            // Actually we don't need any properties of MV when replaying, but only the schema information
+            // And in ShareData mode, the storage_volume property cannot be retrieved in the Checkpointer thread
+            if (!hasStorageMedium && !isReplay) {
+                appendUniqueProperties(sb);
             }
         }
-        // NOTE: why not append unique properties when replaying ?
-        // Actually we don't need any properties of MV when replaying, but only the schema information
-        // And in ShareData mode, the storage_volume property cannot be retrieved in the Checkpointer thread
-        if (!hasStorageMedium && !isReplay) {
-            appendUniqueProperties(sb);
-        }
-
         // bloom filter
         Set<String> bfColumnNames = getCopiedBfColumns();
         if (bfColumnNames != null) {
@@ -1286,7 +1292,7 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
         // storageMedium
         String storageMedium = this.getStorageMedium();
         propsMap.put(PropertyAnalyzer.PROPERTIES_STORAGE_MEDIUM, storageMedium);
-        Map<String, String> properties = this.getTableProperty().getProperties();
+        Map<String, String> properties = tableProperty != null ? tableProperty.getProperties() : Maps.newHashMap();
 
         // maxMVRewriteStaleness
         propsMap.put(PropertyAnalyzer.PROPERTIES_MV_REWRITE_STALENESS_SECOND, String.valueOf(maxMVRewriteStaleness));

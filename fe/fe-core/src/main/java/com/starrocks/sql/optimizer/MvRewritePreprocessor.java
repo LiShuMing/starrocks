@@ -788,7 +788,7 @@ public class MvRewritePreprocessor {
         OptExpression mvPlan = mvPlanContext.getLogicalPlan();
         Preconditions.checkState(mvPlan != null);
         PartitionInfo partitionInfo = mv.getPartitionInfo();
-        if (partitionInfo instanceof SinglePartitionInfo) {
+        if (partitionInfo.isUnPartitioned()) {
             if (!partitionNamesToRefresh.isEmpty()) {
                 StringBuilder sb = new StringBuilder();
                 for (BaseTableInfo base : mv.getBaseTableInfos()) {

@@ -1,0 +1,29 @@
+-- name: test_mv_refresh_with_union
+
+CREATE TABLE t1 (
+      id BIGINT,
+      province VARCHAR(64) not null,
+      age SMALLINT,
+      dt VARCHAR(10)
+)
+PRIMARY KEY(id, province)
+PARTITION BY LIST (province) (
+     PARTITION p1 VALUES IN ("beijing","chongqing") ,
+     PARTITION p2 VALUES IN ("guangdong") 
+)
+DISTRIBUTED BY HASH(id) BUCKETS 10
+PROPERTIES (
+    "replication_num" = "1"
+);
+INSERT INTO t1 VALUES (1, 'beijing', 20, '2024-05-15'), (2, 'chongqing', 20, '2024-05-15'), (3, 'guangdong', 20, '2024-05-15');
+
+create materialized view test_mv1
+partition by province 
+distributed by hash(dt, province) buckets 10 
+PROPERTIES (
+"replication_num" = "1"
+) 
+as select dt, province, avg(age) from list_partition_tbl1 group by dt, province;
+
+drop table t1;
+drop table t2;

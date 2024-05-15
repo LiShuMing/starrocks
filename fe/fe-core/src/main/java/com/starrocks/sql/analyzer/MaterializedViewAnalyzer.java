@@ -50,7 +50,6 @@ import com.starrocks.catalog.PaimonTable;
 import com.starrocks.catalog.PartitionInfo;
 import com.starrocks.catalog.PrimitiveType;
 import com.starrocks.catalog.RangePartitionInfo;
-import com.starrocks.catalog.SinglePartitionInfo;
 import com.starrocks.catalog.Table;
 import com.starrocks.catalog.Type;
 import com.starrocks.common.DdlException;
@@ -777,10 +776,10 @@ public class MaterializedViewAnalyzer {
 
         private void checkPartitionColumnWithBaseOlapTable(SlotRef slotRef, OlapTable table) {
             PartitionInfo partitionInfo = table.getPartitionInfo();
-            if (partitionInfo instanceof SinglePartitionInfo) {
+            if (partitionInfo.isUnPartitioned()) {
                 throw new SemanticException("Materialized view partition column in partition exp " +
                         "must be base table partition column");
-            } else if (partitionInfo instanceof RangePartitionInfo) {
+            } else if (partitionInfo.isRangePartition()) {
                 RangePartitionInfo rangePartitionInfo = (RangePartitionInfo) partitionInfo;
                 List<Column> partitionColumns = rangePartitionInfo.getPartitionColumns();
                 if (partitionColumns.size() != 1) {
@@ -793,11 +792,15 @@ public class MaterializedViewAnalyzer {
                             "must be base table partition column");
                 }
                 partitionColumns.forEach(partitionColumn1 -> checkPartitionColumnType(partitionColumn1));
-            } else if (partitionInfo instanceof ListPartitionInfo) {
+            } else if (partitionInfo.isListPartition()) {
                 ListPartitionInfo listPartitionInfo = (ListPartitionInfo) partitionInfo;
                 Set<String> partitionColumns = listPartitionInfo.getPartitionColumns().stream()
                         .map(col -> col.getName())
                         .collect(Collectors.toSet());
+                if (partitionColumns.size() != 1) {
+                    throw new SemanticException("Materialized view related base table partition columns " +
+                            "only supports single column");
+                }
                 // mv's partition columns should be subset of the base table's partition columns
                 if (!partitionColumns.contains(slotRef.getColumnName())) {
                     throw new SemanticException("Materialized view partition column in partition exp " +
@@ -1088,12 +1091,16 @@ public class MaterializedViewAnalyzer {
             if (statement.getPartitionRangeDesc() == null) {
                 return null;
             }
-            if (!(table.getPartitionInfo() instanceof RangePartitionInfo)) {
+            if (table.getPartitionInfo().isUnPartitioned()) {
                 throw new SemanticException("Not support refresh by partition for single partition mv",
                         mvName.getPos());
             }
-            Column partitionColumn =
-                    ((RangePartitionInfo) table.getPartitionInfo()).getPartitionColumns().get(0);
+            if (table.getPartitionInfo().getPartitionColumns().isEmpty()) {
+                throw new SemanticException("Partition column is empty for materialized view",
+                        mvName.getPos());
+            }
+            // TODO: support multi partition columns for mv
+            Column partitionColumn = table.getPartitionInfo().getPartitionColumns().get(0);
             if (partitionColumn.getType().isDateType()) {
                 validateDateTypePartition(statement.getPartitionRangeDesc());
             } else if (partitionColumn.getType().isIntegerType()) {

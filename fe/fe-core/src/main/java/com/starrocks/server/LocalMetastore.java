@@ -3420,13 +3420,11 @@ public class LocalMetastore implements ConnectorMetadata {
             }
         }
 
-        boolean isNonPartitioned = partitionInfo.getType() == PartitionType.UNPARTITIONED;
-        DataProperty dataProperty = analyzeMVDataProperties(db, materializedView, properties, isNonPartitioned);
-
+        DataProperty dataProperty = analyzeMVDataProperties(db, materializedView, properties, partitionInfo.isUnPartitioned());
         try {
             Set<Long> tabletIdSet = new HashSet<>();
             // process single partition info
-            if (isNonPartitioned) {
+            if (partitionInfo.isUnPartitioned()) {
                 long partitionId = GlobalStateMgr.getCurrentState().getNextId();
                 Preconditions.checkNotNull(dataProperty);
                 partitionInfo.setDataProperty(partitionId, dataProperty);
@@ -3442,7 +3440,7 @@ public class LocalMetastore implements ConnectorMetadata {
                 buildPartitions(db, materializedView, partition.getSubPartitions().stream().collect(Collectors.toList()),
                         ConnectContext.get().getCurrentWarehouseId());
                 materializedView.addPartition(partition);
-            } else {
+            } else if (partitionInfo.isRangePartition()) {
                 Expr partitionExpr = stmt.getPartitionExpDesc().getExpr();
                 Map<Expr, SlotRef> partitionExprMaps = MvJoinFilter.getPartitionJoinMap(partitionExpr, stmt.getQueryStatement());
                 partitionExpr = stmt.getPartitionRefTableExpr();
@@ -3453,6 +3451,15 @@ public class LocalMetastore implements ConnectorMetadata {
                 materializedView.setPartitionExprMaps(partitionExprMaps);
                 // check partition schema from children
                 PartitionDiffer.computePartitionRangeDiff(db, materializedView, Pair.create(null, null));
+            } else if (partitionInfo.isListPartition()) {
+                Expr partitionExpr = stmt.getPartitionExpDesc().getExpr();
+                Map<Expr, SlotRef> partitionExprMaps = MvJoinFilter.getPartitionJoinMap(partitionExpr, stmt.getQueryStatement());
+                partitionExpr = stmt.getPartitionRefTableExpr();
+                if (!partitionExprMaps.containsKey(partitionExpr)) {
+                    LOG.warn("Failed to get partition expr from multiple base tables: " + stmt.getOrigStmt());
+                    partitionExprMaps.put(partitionExpr, MaterializedView.getMvPartitionSlotRef(partitionExpr));
+                }
+                materializedView.setPartitionExprMaps(partitionExprMaps);
             }
 
             MaterializedViewMgr.getInstance().prepareMaintenanceWork(stmt, materializedView);

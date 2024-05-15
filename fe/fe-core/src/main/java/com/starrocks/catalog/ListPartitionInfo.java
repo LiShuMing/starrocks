@@ -238,8 +238,8 @@ public class ListPartitionInfo extends PartitionInfo {
 
     @Override
     public String toSql(OlapTable table, List<Long> partitionId) {
-        TableProperty tableProperty = table.getTableProperty();
-        String replicationNumStr = tableProperty != null ? tableProperty.getProperties().get(PROPERTIES_REPLICATION_NUM) : null;
+        String replicationNumStr = table.getTableProperty()
+                .getProperties().get(PROPERTIES_REPLICATION_NUM);
         short tableReplicationNum = replicationNumStr == null ?
                 RunMode.defaultReplicationNum() : Short.parseShort(replicationNumStr);
 

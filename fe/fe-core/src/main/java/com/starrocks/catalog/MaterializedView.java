@@ -1164,7 +1164,7 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
         sb.append("\n").append(distributionInfo.toSql());
 
         // order by
-        if (tableProperty != null && CollectionUtils.isNotEmpty(getTableProperty().getMvSortKeys())) {
+        if (CollectionUtils.isNotEmpty(getTableProperty().getMvSortKeys())) {
             String str = Joiner.on(",").join(getTableProperty().getMvSortKeys());
             sb.append("\nORDER BY (").append(str).append(")");
         }
@@ -1196,52 +1196,50 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
         // properties
         sb.append("\nPROPERTIES (\n");
         boolean first = true;
-        if (tableProperty != null) {
-            Map<String, String> properties = this.getTableProperty().getProperties();
-            boolean hasStorageMedium = false;
-            for (Map.Entry<String, String> entry : properties.entrySet()) {
-                String name = entry.getKey();
-                String value = entry.getValue();
+        Map<String, String> properties = this.getTableProperty().getProperties();
+        boolean hasStorageMedium = false;
+        for (Map.Entry<String, String> entry : properties.entrySet()) {
+            String name = entry.getKey();
+            String value = entry.getValue();
 
-                // It's invisible
-                if (name.equalsIgnoreCase(PropertyAnalyzer.PROPERTY_MV_SORT_KEYS)) {
-                    continue;
-                }
-                if (!first) {
-                    sb.append(",\n");
-                }
-                first = false;
-                if (name.equalsIgnoreCase(PropertyAnalyzer.PROPERTIES_FOREIGN_KEY_CONSTRAINT)) {
-                    sb.append("\"")
-                            .append(PropertyAnalyzer.PROPERTIES_FOREIGN_KEY_CONSTRAINT)
-                            .append("\" = \"")
-                            .append(ForeignKeyConstraint.getShowCreateTableConstraintDesc(getForeignKeyConstraints()))
-                            .append("\"");
-                } else if (name.equalsIgnoreCase(PropertyAnalyzer.PROPERTIES_STORAGE_COOLDOWN_TIME)) {
-                    sb.append("\"").append(PropertyAnalyzer.PROPERTIES_STORAGE_COOLDOWN_TIME)
-                            .append("\" = \"")
-                            .append(TimeUtils.longToTimeString(
-                                    Long.parseLong(properties.get(PropertyAnalyzer.PROPERTIES_STORAGE_COOLDOWN_TIME))))
-                            .append("\"");
-                } else if (name.equalsIgnoreCase(PropertyAnalyzer.PROPERTIES_STORAGE_MEDIUM)) {
-                    // handled in appendUniqueProperties
-                    hasStorageMedium = true;
-                    sb.append("\"").append(PropertyAnalyzer.PROPERTIES_STORAGE_MEDIUM)
-                            .append("\" = \"")
-                            .append(getStorageMedium())
-                            .append("\"");
-                } else {
-                    sb.append("\"").append(name).append("\"");
-                    sb.append(" = ");
-                    sb.append("\"").append(value).append("\"");
-                }
+            // It's invisible
+            if (name.equalsIgnoreCase(PropertyAnalyzer.PROPERTY_MV_SORT_KEYS)) {
+                continue;
             }
-            // NOTE: why not append unique properties when replaying ?
-            // Actually we don't need any properties of MV when replaying, but only the schema information
-            // And in ShareData mode, the storage_volume property cannot be retrieved in the Checkpointer thread
-            if (!hasStorageMedium && !isReplay) {
-                appendUniqueProperties(sb);
+            if (!first) {
+                sb.append(",\n");
             }
+            first = false;
+            if (name.equalsIgnoreCase(PropertyAnalyzer.PROPERTIES_FOREIGN_KEY_CONSTRAINT)) {
+                sb.append("\"")
+                        .append(PropertyAnalyzer.PROPERTIES_FOREIGN_KEY_CONSTRAINT)
+                        .append("\" = \"")
+                        .append(ForeignKeyConstraint.getShowCreateTableConstraintDesc(getForeignKeyConstraints()))
+                        .append("\"");
+            } else if (name.equalsIgnoreCase(PropertyAnalyzer.PROPERTIES_STORAGE_COOLDOWN_TIME)) {
+                sb.append("\"").append(PropertyAnalyzer.PROPERTIES_STORAGE_COOLDOWN_TIME)
+                        .append("\" = \"")
+                        .append(TimeUtils.longToTimeString(
+                                Long.parseLong(properties.get(PropertyAnalyzer.PROPERTIES_STORAGE_COOLDOWN_TIME))))
+                        .append("\"");
+            } else if (name.equalsIgnoreCase(PropertyAnalyzer.PROPERTIES_STORAGE_MEDIUM)) {
+                // handled in appendUniqueProperties
+                hasStorageMedium = true;
+                sb.append("\"").append(PropertyAnalyzer.PROPERTIES_STORAGE_MEDIUM)
+                        .append("\" = \"")
+                        .append(getStorageMedium())
+                        .append("\"");
+            } else {
+                sb.append("\"").append(name).append("\"");
+                sb.append(" = ");
+                sb.append("\"").append(value).append("\"");
+            }
+        }
+        // NOTE: why not append unique properties when replaying ?
+        // Actually we don't need any properties of MV when replaying, but only the schema information
+        // And in ShareData mode, the storage_volume property cannot be retrieved in the Checkpointer thread
+        if (!hasStorageMedium && !isReplay) {
+            appendUniqueProperties(sb);
         }
         // bloom filter
         Set<String> bfColumnNames = getCopiedBfColumns();

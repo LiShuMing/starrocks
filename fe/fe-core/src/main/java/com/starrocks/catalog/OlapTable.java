@@ -407,7 +407,6 @@ public class OlapTable extends Table {
         this.tableProperty = tableProperty;
     }
 
-    @Nullable
     public TableProperty getTableProperty() {
         return this.tableProperty;
     }
@@ -1046,7 +1045,7 @@ public class OlapTable extends Table {
      * @return : table's partition name to range partition key mapping.
      */
     public Map<String, Range<PartitionKey>> getRangePartitionMap() {
-        Preconditions.checkState(partitionInfo.isRangePartition());
+        Preconditions.checkState(partitionInfo instanceof RangePartitionInfo);
         RangePartitionInfo rangePartitionInfo = (RangePartitionInfo) partitionInfo;
         Map<String, Range<PartitionKey>> rangePartitionMap = Maps.newHashMap();
         for (Map.Entry<Long, Partition> partitionEntry : idToPartition.entrySet()) {
@@ -1063,6 +1062,9 @@ public class OlapTable extends Table {
 
     /**
      * @return : table's partition name to list partition names.
+     * eg:
+     *  partition columns   : (a, b, c)
+     *  values              : [[1, 2, 3], [4, 5, 6]]
      */
     public Map<String, List<List<String>>> getListPartitionMap() {
         Preconditions.checkState(partitionInfo instanceof ListPartitionInfo);
@@ -1075,15 +1077,26 @@ public class OlapTable extends Table {
             if (partitionName.startsWith(ExpressionRangePartitionInfo.SHADOW_PARTITION_PREFIX)) {
                 continue;
             }
-            List<String> values = listPartitionInfo.getIdToValues().get(partitionId);
-            if (values != null) {
-                List<List<String>> valueList = Lists.newArrayList();
-                valueList.add(values);
-                listPartitionMap.put(partitionName, valueList);
+
+            {
+                List<String> values = listPartitionInfo.getIdToValues().get(partitionId);
+                if (values != null) {
+                    for (String val : values) {
+                        List<List<String>> valueList = Lists.newArrayList();
+                        valueList.add(Lists.newArrayList(val));
+                        listPartitionMap.put(partitionName, valueList);
+                    }
+                }
             }
-            List<List<String>> multiValues = listPartitionInfo.getIdToMultiValues().get(partitionId);
-            if (multiValues != null) {
-                listPartitionMap.put(partitionName, listPartitionInfo.getIdToMultiValues().get(partitionId));
+            {
+                List<List<String>> multiValues = listPartitionInfo.getIdToMultiValues().get(partitionId);
+                if (multiValues != null) {
+                    for (List<String> values : multiValues) {
+                        List<List<String>> valueList = Lists.newArrayList();
+                        valueList.add(values);
+                        listPartitionMap.put(partitionName, valueList);
+                    }
+                }
             }
 
         }
@@ -2877,17 +2890,6 @@ public class OlapTable extends Table {
         tryToAssignIndexId();
     }
 
-    public boolean isEnableDynamicPartitionScheduled() {
-        if (!Config.dynamic_partition_enable) {
-            return false;
-        }
-        if (tableProperty != null && tableProperty.getDynamicPartitionProperty() != null &&
-                tableProperty.getDynamicPartitionProperty().isEnabled()) {
-            return true;
-        }
-        return false;
-    }
-
     @Override
     public void onCreate(Database db) {
         super.onCreate(db);
@@ -2903,7 +2905,7 @@ public class OlapTable extends Table {
 
         DynamicPartitionUtil.registerOrRemovePartitionScheduleInfo(db.getId(), this);
 
-        if (isEnableDynamicPartitionScheduled()) {
+        if (Config.dynamic_partition_enable && getTableProperty().getDynamicPartitionProperty().isEnabled()) {
             new Thread(() -> {
                 try {
                     GlobalStateMgr.getCurrentState().getDynamicPartitionScheduler()

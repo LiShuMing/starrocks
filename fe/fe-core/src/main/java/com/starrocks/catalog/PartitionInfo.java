@@ -122,8 +122,16 @@ public class PartitionInfo implements Cloneable, Writable, GsonPreProcessable, G
         return type != PartitionType.UNPARTITIONED;
     }
 
+    public boolean isRangePartitionedV1() {
+        return type == PartitionType.EXPR_RANGE;
+    }
+
     public boolean isUnPartitioned() {
         return type == PartitionType.UNPARTITIONED;
+    }
+
+    public boolean isMVSupportedPartitionType() {
+        return type == PartitionType.EXPR_RANGE || type == PartitionType.LIST;
     }
 
     public DataProperty getDataProperty(long partitionId) {

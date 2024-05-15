@@ -124,7 +124,7 @@ public class PartitionDiffer {
             res.entrySet().removeIf(entry -> !isRangeIncluded(entry.getValue(), rangeToInclude));
         }
 
-        if (partitionTTL != null && !partitionTTL.isZero() && partitionInfo instanceof RangePartitionInfo) {
+        if (partitionTTL != null && !partitionTTL.isZero() && partitionInfo.isRangePartition()) {
             List<Column> partitionColumns = partitionInfo.getPartitionColumns();
             Type partitionType = partitionColumns.get(0).getType();
             LocalDateTime ttlTime = LocalDateTime.now().minus(partitionTTL);
@@ -141,7 +141,7 @@ public class PartitionDiffer {
             // filter partitions with ttl
             res.values().removeIf(isOutdated);
         }
-        if (partitionTTLNumber > 0 && partitionInfo instanceof RangePartitionInfo) {
+        if (partitionTTLNumber > 0 && partitionInfo.isRangePartition()) {
             List<PartitionRange> sorted =
                     addPartitions.entrySet()
                             .stream().map(entry -> new PartitionRange(entry.getKey(), entry.getValue()))

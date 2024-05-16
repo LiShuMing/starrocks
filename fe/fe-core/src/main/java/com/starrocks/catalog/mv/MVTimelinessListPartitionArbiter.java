@@ -15,25 +15,21 @@
 package com.starrocks.catalog.mv;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.starrocks.analysis.Expr;
-import com.starrocks.analysis.FunctionCallExpr;
 import com.starrocks.catalog.Column;
 import com.starrocks.catalog.ExpressionRangePartitionInfo;
 import com.starrocks.catalog.MaterializedView;
 import com.starrocks.catalog.MvBaseTableUpdateInfo;
 import com.starrocks.catalog.MvUpdateInfo;
 import com.starrocks.catalog.PartitionInfo;
-import com.starrocks.catalog.PartitionKey;
 import com.starrocks.catalog.Table;
 import com.starrocks.catalog.TableProperty;
 import com.starrocks.common.Pair;
 import com.starrocks.common.UserException;
 import com.starrocks.connector.PartitionUtil;
-import com.starrocks.scheduler.TableWithPartitions;
 import com.starrocks.sql.common.ListPartitionDiff;
-import com.starrocks.sql.common.RangePartitionDiff;
+import com.starrocks.sql.common.ListPartitionDiffer;
 import com.starrocks.sql.common.SyncPartitionUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -102,8 +98,8 @@ public class MVTimelinessListPartitionArbiter extends MVTimelinessArbiter {
         mvPartitionNameToListMap.putAll(listPartitionDiff.getAdds());
 
         Map<Table, Expr> tableToPartitionExprMap = mv.getTableToPartitionExprMap();
-        Map<Table, Map<String, Set<String>>> baseToMvNameRef = SyncPartitionUtils
-                .generateBaseRefMap(mvPartitionNameToListMap, tableToPartitionExprMap, mvPartitionNameToListMap);
+        Map<Table, Map<String, Set<String>>> baseToMvNameRef =
+                ListPartitionDiffer.generateBaseRefMap(mvPartitionNameToListMap, tableToPartitionExprMap, mvPartitionNameToListMap);
         Map<String, Map<Table, Set<String>>> mvToBaseNameRef = SyncPartitionUtils
                 .generateMvRefMap(mvPartitionNameToListMap, tableToPartitionExprMap, mvPartitionNameToListMap);
 

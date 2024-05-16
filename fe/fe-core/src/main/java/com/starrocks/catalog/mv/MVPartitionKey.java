@@ -43,4 +43,12 @@ public class MVPartitionKey {
         }
         return mvPartitionValue.right().get();
     }
+
+    @Override
+    public String toString() {
+        return "MVPartitionKey{" +
+                "range=" + (mvPartitionValue.left().isPresent() ? mvPartitionValue.left().get() : "") +
+                "list=" + (mvPartitionValue.right().isPresent() ? mvPartitionValue.right().get() : "") +
+                '}';
+    }
 }

@@ -67,6 +67,7 @@ import com.starrocks.qe.ConnectContext;
 import com.starrocks.qe.SessionVariable;
 import com.starrocks.qe.StmtExecutor;
 import com.starrocks.scheduler.mv.MVPCTRefreshListPartitioner;
+import com.starrocks.scheduler.mv.MVPCTRefreshNonPartitioner;
 import com.starrocks.scheduler.mv.MVPCTRefreshPartitioner;
 import com.starrocks.scheduler.mv.MVPCTRefreshRangePartitioner;
 import com.starrocks.scheduler.persist.MVTaskRunExtraMessage;
@@ -898,9 +899,14 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
         // initial mv refresh partitioner
         PartitionInfo partitionInfo = materializedView.getPartitionInfo();
         if (partitionInfo.isRangePartitionedV1()) {
+            mvRefreshPartitioner = new MVPCTRefreshNonPartitioner(mvContext, context, db, materializedView);
+        } else if (partitionInfo.isRangePartitionedV1()) {
             mvRefreshPartitioner = new MVPCTRefreshRangePartitioner(mvContext, context, db, materializedView);
         } else if (partitionInfo.isListPartition()) {
             mvRefreshPartitioner = new MVPCTRefreshListPartitioner(mvContext, context, db, materializedView);
+        } else {
+            throw new DmlException(String.format("materialized view:%s in database:%s refresh failed: partition info %s not " +
+                            "supported", mvId, context.ctx.getDatabase(), partitionInfo));
         }
     }
 
@@ -918,10 +924,7 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
         }
         int partitionTTLNumber = materializedView.getTableProperty().getPartitionTTLNumber();
         mvContext.setPartitionTTLNumber(partitionTTLNumber);
-
-        if (mvRefreshPartitioner != null) {
-            mvRefreshPartitioner.syncAddOrDropPartitions();
-        }
+        mvRefreshPartitioner.syncAddOrDropPartitions();
     }
 
     /**
@@ -1002,17 +1005,9 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
             }
         }
 
-        if (mvPartitionInfo.isUnPartitioned()) {
-            // non-partitioned materialized view
-            if (force || isNonPartitionedMVNeedToRefresh(snapshotBaseTables, materializedView)) {
-                return materializedView.getVisiblePartitionNames();
-            }
-            return Sets.newHashSet();
-        } else {
-            Preconditions.checkState(mvRefreshPartitioner != null);
-            return mvRefreshPartitioner.getMVPartitionsToRefresh(mvPartitionInfo, snapshotBaseTables,
-                    start, end, force, mvPotentialPartitionNames);
-        }
+        Preconditions.checkState(mvRefreshPartitioner != null);
+        return mvRefreshPartitioner.getMVPartitionsToRefresh(mvPartitionInfo, snapshotBaseTables,
+                start, end, force, mvPotentialPartitionNames);
     }
 
     /**

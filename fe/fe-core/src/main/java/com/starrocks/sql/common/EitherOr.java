@@ -146,5 +146,3 @@ public final class EitherOr<L, R> {
         return 31 * left.hashCode() + right.hashCode();
     }
 }
-
-

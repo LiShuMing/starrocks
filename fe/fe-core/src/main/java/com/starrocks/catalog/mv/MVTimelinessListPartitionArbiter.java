@@ -14,24 +14,37 @@
 
 package com.starrocks.catalog.mv;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Range;
+import com.google.common.collect.Sets;
+import com.starrocks.analysis.Expr;
+import com.starrocks.analysis.FunctionCallExpr;
 import com.starrocks.catalog.Column;
+import com.starrocks.catalog.ExpressionRangePartitionInfo;
 import com.starrocks.catalog.MaterializedView;
 import com.starrocks.catalog.MvBaseTableUpdateInfo;
 import com.starrocks.catalog.MvUpdateInfo;
+import com.starrocks.catalog.PartitionInfo;
+import com.starrocks.catalog.PartitionKey;
 import com.starrocks.catalog.Table;
 import com.starrocks.catalog.TableProperty;
+import com.starrocks.common.Pair;
 import com.starrocks.common.UserException;
 import com.starrocks.connector.PartitionUtil;
+import com.starrocks.scheduler.TableWithPartitions;
 import com.starrocks.sql.common.ListPartitionDiff;
+import com.starrocks.sql.common.RangePartitionDiff;
 import com.starrocks.sql.common.SyncPartitionUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.starrocks.catalog.MvRefreshArbiter.getMvBaseTableUpdateInfo;
+import static com.starrocks.sql.optimizer.OptimizerTraceUtil.logMVPrepare;
 
 public class MVTimelinessListPartitionArbiter extends MVTimelinessArbiter {
     private static final Logger LOG = LogManager.getLogger(MVTimelinessListPartitionArbiter.class);
@@ -40,10 +53,77 @@ public class MVTimelinessListPartitionArbiter extends MVTimelinessArbiter {
         super(mv);
     }
 
-
     @Override
     public MvUpdateInfo getMVTimelinessUpdateInfoInChecked(boolean isQueryRewrite) {
+        PartitionInfo partitionInfo = mv.getPartitionInfo();
+        Preconditions.checkState(partitionInfo instanceof ExpressionRangePartitionInfo);
+        Map<Table, Column> partitionInfos = mv.getRelatedPartitionTableAndColumn();
+        if (partitionInfos.isEmpty()) {
+            mv.setInactiveAndReason("partition configuration changed");
+            LOG.warn("mark mv:{} inactive for get partition info failed", mv.getName());
+            throw new RuntimeException(String.format("getting partition info failed for mv: %s", mv.getName()));
+        }
 
+        MvUpdateInfo.MvToRefreshType refreshType = determineRefreshType(partitionInfos, isQueryRewrite);
+        logMVPrepare(mv, "Partitioned mv to refresh type:{}", refreshType);
+        if (refreshType == MvUpdateInfo.MvToRefreshType.FULL) {
+            return new MvUpdateInfo(refreshType);
+        }
+
+        MvUpdateInfo mvRefreshInfo = new MvUpdateInfo(MvUpdateInfo.MvToRefreshType.PARTIAL);
+        if (!collectBaseTablePartitionInfos(partitionInfos, isQueryRewrite, mvRefreshInfo)) {
+            logMVPrepare(mv, "Partitioned mv collect base table infos failed");
+            return new MvUpdateInfo(MvUpdateInfo.MvToRefreshType.FULL);
+        }
+
+        Map<Table, MvBaseTableUpdateInfo> baseTableUpdateInfos = mvRefreshInfo.getBaseTableUpdateInfos();
+        Map<Table, Map<String, List<List<String>>>> refBaseTablePartitionMap = baseTableUpdateInfos.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().getPartitionNameWithLists()));
+        // TODO: prune the partitions based on ttl
+        Pair<Table, Column> directTableAndPartitionColumn = mv.getDirectTableAndPartitionColumn();
+        Table refBaseTable = directTableAndPartitionColumn.first;
+
+        Map<String, List<List<String>>> refTablePartitionMap = refBaseTablePartitionMap.get(refBaseTable);
+        Map<String, List<List<String>>> mvPartitionNameToListMap = mv.getListPartitionMap();
+        ListPartitionDiff listPartitionDiff = SyncPartitionUtils.getListPartitionDiff(
+                refTablePartitionMap, mvPartitionNameToListMap);
+
+        Set<String> needRefreshMvPartitionNames = Sets.newHashSet();
+
+        // TODO: no needs to refresh the deleted partitions, because the deleted partitions are not in the mv's partition map.
+        needRefreshMvPartitionNames.addAll(listPartitionDiff.getDeletes().keySet());
+        // remove ref base table's deleted partitions from `mvPartitionMap`
+        for (String deleted : listPartitionDiff.getDeletes().keySet()) {
+            mvPartitionNameToListMap.remove(deleted);
+        }
+
+        // step2: refresh ref base table's new added partitions
+        needRefreshMvPartitionNames.addAll(listPartitionDiff.getAdds().keySet());
+        mvPartitionNameToListMap.putAll(listPartitionDiff.getAdds());
+
+        Map<Table, Expr> tableToPartitionExprMap = mv.getTableToPartitionExprMap();
+        Map<Table, Map<String, Set<String>>> baseToMvNameRef = SyncPartitionUtils
+                .generateBaseRefMap(mvPartitionNameToListMap, tableToPartitionExprMap, mvPartitionNameToListMap);
+        Map<String, Map<Table, Set<String>>> mvToBaseNameRef = SyncPartitionUtils
+                .generateMvRefMap(mvPartitionNameToListMap, tableToPartitionExprMap, mvPartitionNameToListMap);
+
+        mvRefreshInfo.getBasePartToMvPartNames().putAll(baseToMvNameRef);
+        mvRefreshInfo.getMvPartToBasePartNames().putAll(mvToBaseNameRef);
+
+        // Step1: collect updated partitions by partition name to range name:
+        // - deleted partitions.
+        // - added partitions.
+        Map<Table, Set<String>> baseChangedPartitionNames = mvRefreshInfo.getBaseTableUpdateInfos().entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, x -> x.getValue().getToRefreshPartitionNames()));
+        for (Map.Entry<Table, Set<String>> entry : baseChangedPartitionNames.entrySet()) {
+            entry.getValue().stream().forEach(x ->
+                    needRefreshMvPartitionNames.addAll(baseToMvNameRef.get(entry.getKey()).get(x))
+            );
+        }
+
+        // update mv's to refresh partitions
+        mvRefreshInfo.getMvToRefreshPartitionNames().addAll(needRefreshMvPartitionNames);
+        return mvRefreshInfo;
     }
 
     @Override

@@ -15,48 +15,43 @@
 package com.starrocks.sql.common;
 
 import com.google.api.client.util.Lists;
-import com.google.api.client.util.Preconditions;
-import com.google.common.collect.Sets;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  * `PartitionRange` contains a `PartitionKey` range and the partition's name to represent a table's partition range info.
  */
 public class ListPartitionValue {
     // multi values
-    private final List<String> partitionKeys;
+    private final List<String> partitionKey;
     private final String partitionName;
     private final List<Integer> partitionColumnIds;
-    private final Set<List<String>> selectedPartitionKeys = Sets.newHashSet();
-
-    public ListPartitionValue(String partitionName,
-                              List<String> partitionKeys) {
-        this(partitionName, partitionKeys, Lists.newArrayList());
-        for (List<String> val : partitionKeys) {
-            selectedPartitionKeys.add(val);
-        }
-    }
+    private final List<String> selectedPartitionKeys;
 
     public ListPartitionValue(String partitionName,
                               List<String> partitionKeys,
                               List<Integer> partitionColumnIds) {
         this.partitionName = partitionName;
-        this.partitionKeys = partitionKeys;
+        this.partitionKey = partitionKeys;
         this.partitionColumnIds = partitionColumnIds;
-        for (List<String> val : partitionKeys) {
-            List<String> selectKeys = Lists.newArrayList();
-            for (int i = 0; i < partitionColumnIds.size(); i++) {
-                selectKeys.add(val.get(partitionColumnIds.get(i)));
-            }
-            selectedPartitionKeys.add(selectKeys);
+        List<String> selectKeys = Lists.newArrayList();
+        for (int i = 0; i < partitionColumnIds.size(); i++) {
+            selectKeys.add(partitionKeys.get(partitionColumnIds.get(i)));
         }
+        this.selectedPartitionKeys = selectKeys;
     }
 
-    public List<List<String>> getPartitionKeys() {
-        return partitionKeys;
+    public ListPartitionValue(String partitionName,
+                              List<String> partitionKey) {
+        this.partitionName = partitionName;
+        this.partitionKey = partitionKey;
+        this.partitionColumnIds = Lists.newArrayList();
+        this.selectedPartitionKeys = Lists.newArrayList(partitionKey);
+    }
+
+    public List<String> getPartitionKey() {
+        return partitionKey;
     }
 
     public String getPartitionName() {
@@ -67,25 +62,42 @@ public class ListPartitionValue {
         return partitionColumnIds;
     }
 
-    public Set<List<String>> getSelectedPartitionKeys() {
+    public List<String> getSelectedPartitionKeys() {
         return selectedPartitionKeys;
     }
 
     public boolean isIntersected(ListPartitionValue o) {
-        Set<List<String>> otherSelectedPartitionKeys = o.getSelectedPartitionKeys();
-        if (!getPartitionColumnIds().isEmpty() && !otherSelectedPartitionKeys.isEmpty()) {
-            Preconditions.checkState(getPartitionColumnIds().size() == otherSelectedPartitionKeys.size());
-        }
-        for (List<String> val : selectedPartitionKeys) {
-            if (otherSelectedPartitionKeys.contains(val)) {
-                return true;
-            }
-        }
-        return false;
+
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(partitionName, partitionKeys);
+        // only consider partition key
+        return Objects.hash(partitionKey);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null) {
+            return false;
+        }
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof ListPartitionValue)) {
+            return false;
+        }
+        ListPartitionValue other = (ListPartitionValue) o;
+        List<String> otherSelectedPartitionKeys = other.getSelectedPartitionKeys();
+        if (otherSelectedPartitionKeys.size() != selectedPartitionKeys.size()) {
+            return false;
+        }
+        int len = selectedPartitionKeys.size();
+        for (int i = 0; i < len; i++) {
+            if (!selectedPartitionKeys.get(i).equals(otherSelectedPartitionKeys.get(i))) {
+                return false;
+            }
+        }
+        return true;
     }
 }

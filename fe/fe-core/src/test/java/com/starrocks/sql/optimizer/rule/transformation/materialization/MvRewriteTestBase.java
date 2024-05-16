@@ -225,11 +225,11 @@ public class MvRewriteTestBase {
     }
 
     public static MvUpdateInfo getMvUpdateInfo(MaterializedView mv) {
-        return MvRefreshArbiter.getPartitionNamesToRefreshForMv(mv, true);
+        return MvRefreshArbiter.getMVTimelinessUpdateInfo(mv, true);
     }
 
     public static Set<String> getPartitionNamesToRefreshForMv(MaterializedView mv) {
-        MvUpdateInfo mvUpdateInfo = MvRefreshArbiter.getPartitionNamesToRefreshForMv(mv, true);
+        MvUpdateInfo mvUpdateInfo = MvRefreshArbiter.getMVTimelinessUpdateInfo(mv, true);
         Preconditions.checkState(mvUpdateInfo != null);
         return mvUpdateInfo.getMvToRefreshPartitionNames();
     }

@@ -50,7 +50,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.starrocks.catalog.MvRefreshArbiter.getMvBaseTableUpdateInfo;
-import static com.starrocks.catalog.MvRefreshArbiter.needToRefreshTable;
+import static com.starrocks.catalog.MvRefreshArbiter.needsToRefreshTable;
 
 /**
  * MV PCT Refresh Partitioner for Partitioned Materialized View which provide utility methods associated partitions during mv
@@ -193,7 +193,7 @@ public abstract class MVPCTRefreshPartitioner {
             if (tableColumnMap.containsKey(snapshotTable)) {
                 continue;
             }
-            if (needToRefreshTable(mv, snapshotTable)) {
+            if (needsToRefreshTable(mv, snapshotTable)) {
                 return true;
             }
         }
@@ -213,7 +213,7 @@ public abstract class MVPCTRefreshPartitioner {
             if (!isPartitionRefreshSupported(snapshotTable)) {
                 return true;
             }
-            if (needToRefreshTable(mv, snapshotTable)) {
+            if (needsToRefreshTable(mv, snapshotTable)) {
                 return true;
             }
         }

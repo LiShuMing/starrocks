@@ -78,7 +78,7 @@ public class MaterializedViewTestBase extends PlanTestBase {
 
         new MockUp<MvRefreshArbiter>() {
             /**
-             * {@link MvRefreshArbiter#getPartitionNamesToRefreshForMv(MaterializedView, boolean)}
+             * {@link MvRefreshArbiter#getMVTimelinessUpdateInfo(MaterializedView, boolean)}
              */
             @Mock
             public MvUpdateInfo getPartitionNamesToRefreshForMv(MaterializedView mv,

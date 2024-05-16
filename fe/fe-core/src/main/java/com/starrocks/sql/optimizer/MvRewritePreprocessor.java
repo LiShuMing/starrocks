@@ -87,7 +87,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.starrocks.catalog.MvRefreshArbiter.getPartitionNamesToRefreshForMv;
+import static com.starrocks.catalog.MvRefreshArbiter.getMVTimelinessUpdateInfo;
 import static com.starrocks.sql.optimizer.OptimizerTraceUtil.logMVPrepare;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.MvPartitionCompensator.getMvPartialPartitionPredicates;
 
@@ -225,7 +225,7 @@ public class MvRewritePreprocessor {
 
     public void prepare(OptExpression queryOptExpression, MvRewriteStrategy strategy) {
         // MV Rewrite will be used when cbo is enabled.
-        if (context.getOptimizerConfig().isRuleBased()) {
+        if (context.getOptimizerConfig().isRuleBased() || !strategy.enableMaterializedViewRewrite) {
             return;
         }
         try (Timer ignored = Tracers.watchScope("preprocessMvs")) {
@@ -730,7 +730,7 @@ public class MvRewritePreprocessor {
             MvPlanContext mvPlanContext = mvWithPlanContext.getMvPlanContext();
             try {
                 // mv's partitions to refresh
-                MvUpdateInfo mvUpdateInfo = getPartitionNamesToRefreshForMv(mv, true);
+                MvUpdateInfo mvUpdateInfo = getMVTimelinessUpdateInfo(mv, true);
                 if (mvUpdateInfo == null || !mvUpdateInfo.isValidRewrite()) {
                     logMVPrepare(mv, "MV {} cannot be used for rewrite, " +
                             "stale partitions {}", mv.getName(), mvUpdateInfo);

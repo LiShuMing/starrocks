@@ -15,14 +15,10 @@
 package com.starrocks.sql.common;
 
 import com.google.common.collect.Maps;
-import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
-import com.starrocks.analysis.Expr;
-import com.starrocks.catalog.PartitionKey;
 import com.starrocks.catalog.Table;
+import com.starrocks.common.Pair;
 
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -35,25 +31,31 @@ public class ListPartitionDiffer {
             Map<String, List<List<String>>> mvRangeMap) {
         Map<Table, Map<String, Set<String>>> result = Maps.newHashMap();
         // for each partition of base, find the corresponding partition of mv
-        Set<ListPartitionMultiValues> mvRanges = mvRangeMap.keySet().stream()
-                .map(name -> mvRangeMap.get(name).stream().map(x -> new ListPartitionValue(name, x)))
-                .flatMap(x -> x)
+        Set<ListPartitionMultiValues> mvRangeWithMultiValues = mvRangeMap.keySet().stream()
+                .map(name -> new ListPartitionMultiValues(name, mvRangeMap.get(name)))
                 .collect(Collectors.toSet());
+        Map<ListPartitionValue, ListPartitionMultiValues>  mvRanges = Maps.newHashMap();
+        mvRangeWithMultiValues.stream()
+                .flatMap(v -> v.toListPartitionValues().stream().map(x -> Pair.create(x, v)))
+                .forEach(p -> mvRanges.put(p.first, p.second));
         for (Map.Entry<Table, Map<String, List<List<String>>>> entry : baseRangeMap.entrySet()) {
             Table baseTable = entry.getKey();
             Map<String, List<List<String>>> refreshedPartitionsMap = entry.getValue();
             List<Integer> partitionColumnIds = basePartitionColumnIds.get(baseTable);
-            Set<ListPartitionValue> baseRanges = refreshedPartitionsMap.keySet()
+            Set<ListPartitionMultiValues> baseRangeWithMultiValues = refreshedPartitionsMap.keySet()
                     .stream()
-                    .map(name -> refreshedPartitionsMap.get(name).stream().map(x -> new ListPartitionValue(name, x, partitionColumnIds)))
-                    .flatMap(x -> x)
+                    .map(name -> new ListPartitionMultiValues(name, refreshedPartitionsMap.get(name)))
                     .collect(Collectors.toSet());
-            Set<ListPartitionValue> intersects = Sets.intersection(baseRanges, mvRanges);
-            if (!intersects.isEmpty()) {
-                for (ListPartitionValue baseRange : intersects) {
+            Map<ListPartitionValue, ListPartitionMultiValues> baseRanges = Maps.newHashMap();
+            baseRangeWithMultiValues.stream()
+                    .flatMap(v -> v.toListPartitionValues(partitionColumnIds).stream().map(x -> Pair.create(x, v)))
+                    .forEach(p -> baseRanges.put(p.first, p.second));
+            for (ListPartitionValue baseRange : baseRanges.keySet()) {
+                if (mvRanges.containsKey(baseRange)) {
+                    ListPartitionMultiValues mvBaseRange = mvRanges.get(baseRange);
                     result.computeIfAbsent(baseTable, k -> Maps.newHashMap())
                             .computeIfAbsent(baseRange.getPartitionName(), k -> Sets.newHashSet())
-                            .add(baseRange.getPartitionName());
+                            .add(mvBaseRange.getPartitionName());
                 }
             }
         }
@@ -66,25 +68,31 @@ public class ListPartitionDiffer {
             Map<Table, Map<String, List<List<String>>>> baseRangeMap) {
         Map<String, Map<Table, Set<String>>> result = Maps.newHashMap();
         // for each partition of base, find the corresponding partition of mv
-        Set<ListPartitionValue> mvRanges = mvRangeMap.keySet().stream()
-                .map(name -> mvRangeMap.get(name).stream().map(x -> new ListPartitionValue(name, x)))
-                .flatMap(x -> x)
+        Set<ListPartitionMultiValues> mvRangeWithMultiValues = mvRangeMap.keySet().stream()
+                .map(name -> new ListPartitionMultiValues(name, mvRangeMap.get(name)))
                 .collect(Collectors.toSet());
+        Map<ListPartitionValue, ListPartitionMultiValues>  mvRanges = Maps.newHashMap();
+        mvRangeWithMultiValues.stream()
+                .flatMap(v -> v.toListPartitionValues().stream().map(x -> Pair.create(x, v)))
+                .forEach(p -> mvRanges.put(p.first, p.second));
         for (Map.Entry<Table, Map<String, List<List<String>>>> entry : baseRangeMap.entrySet()) {
             Table baseTable = entry.getKey();
             Map<String, List<List<String>>> refreshedPartitionsMap = entry.getValue();
             List<Integer> partitionColumnIds = basePartitionColumnIds.get(baseTable);
-            Set<ListPartitionValue> baseRanges = refreshedPartitionsMap.keySet()
+            Set<ListPartitionMultiValues> baseRangeWithMultiValues = refreshedPartitionsMap.keySet()
                     .stream()
-                    .map(name -> refreshedPartitionsMap.get(name).stream().map(x -> new ListPartitionValue(name, x, partitionColumnIds)))
-                    .flatMap(x -> x)
+                    .map(name -> new ListPartitionMultiValues(name, refreshedPartitionsMap.get(name)))
                     .collect(Collectors.toSet());
-            Set<ListPartitionValue> mvIntersects = Sets.intersection(mvRanges, baseRanges);
-            if (!mvIntersects.isEmpty()) {
-                for (ListPartitionValue mvBaseRange : mvIntersects) {
+            Map<ListPartitionValue, ListPartitionMultiValues> baseRanges = Maps.newHashMap();
+            baseRangeWithMultiValues.stream()
+                    .flatMap(v -> v.toListPartitionValues(partitionColumnIds).stream().map(x -> Pair.create(x, v)))
+                    .forEach(p -> baseRanges.put(p.first, p.second));
+            for (ListPartitionValue baseRange : baseRanges.keySet()) {
+                if (mvRanges.containsKey(baseRange)) {
+                    ListPartitionMultiValues mvBaseRange = mvRanges.get(baseRange);
                     result.computeIfAbsent(mvBaseRange.getPartitionName(), k -> Maps.newHashMap())
                             .computeIfAbsent(baseTable, k -> Sets.newHashSet())
-                            .add(mvBaseRange.getPartitionName());
+                            .add(baseRange.getPartitionName());
                 }
             }
         }

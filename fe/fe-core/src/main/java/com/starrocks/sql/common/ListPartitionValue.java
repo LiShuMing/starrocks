@@ -14,8 +14,6 @@
 
 package com.starrocks.sql.common;
 
-import com.google.api.client.util.Lists;
-
 import java.util.List;
 import java.util.Objects;
 
@@ -26,28 +24,11 @@ public class ListPartitionValue {
     // multi values
     private final List<String> partitionKey;
     private final String partitionName;
-    private final List<Integer> partitionColumnIds;
-    private final List<String> selectedPartitionKeys;
 
     public ListPartitionValue(String partitionName,
-                              List<String> partitionKeys,
-                              List<Integer> partitionColumnIds) {
+                              List<String> partitionKeys) {
         this.partitionName = partitionName;
         this.partitionKey = partitionKeys;
-        this.partitionColumnIds = partitionColumnIds;
-        List<String> selectKeys = Lists.newArrayList();
-        for (int i = 0; i < partitionColumnIds.size(); i++) {
-            selectKeys.add(partitionKeys.get(partitionColumnIds.get(i)));
-        }
-        this.selectedPartitionKeys = selectKeys;
-    }
-
-    public ListPartitionValue(String partitionName,
-                              List<String> partitionKey) {
-        this.partitionName = partitionName;
-        this.partitionKey = partitionKey;
-        this.partitionColumnIds = Lists.newArrayList();
-        this.selectedPartitionKeys = Lists.newArrayList(partitionKey);
     }
 
     public List<String> getPartitionKey() {
@@ -56,18 +37,6 @@ public class ListPartitionValue {
 
     public String getPartitionName() {
         return partitionName;
-    }
-
-    public List<Integer> getPartitionColumnIds() {
-        return partitionColumnIds;
-    }
-
-    public List<String> getSelectedPartitionKeys() {
-        return selectedPartitionKeys;
-    }
-
-    public boolean isIntersected(ListPartitionValue o) {
-
     }
 
     @Override
@@ -88,13 +57,13 @@ public class ListPartitionValue {
             return false;
         }
         ListPartitionValue other = (ListPartitionValue) o;
-        List<String> otherSelectedPartitionKeys = other.getSelectedPartitionKeys();
-        if (otherSelectedPartitionKeys.size() != selectedPartitionKeys.size()) {
+        List<String> otherSelectedPartitionKeys = other.getPartitionKey();
+        if (otherSelectedPartitionKeys.size() != partitionKey.size()) {
             return false;
         }
-        int len = selectedPartitionKeys.size();
+        int len = partitionKey.size();
         for (int i = 0; i < len; i++) {
-            if (!selectedPartitionKeys.get(i).equals(otherSelectedPartitionKeys.get(i))) {
+            if (!partitionKey.get(i).equals(otherSelectedPartitionKeys.get(i))) {
                 return false;
             }
         }

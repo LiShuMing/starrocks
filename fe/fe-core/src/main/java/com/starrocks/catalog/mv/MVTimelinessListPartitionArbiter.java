@@ -15,10 +15,11 @@
 package com.starrocks.catalog.mv;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.starrocks.analysis.Expr;
 import com.starrocks.catalog.Column;
-import com.starrocks.catalog.ExpressionRangePartitionInfo;
+import com.starrocks.catalog.ListPartitionInfo;
 import com.starrocks.catalog.MaterializedView;
 import com.starrocks.catalog.MvBaseTableUpdateInfo;
 import com.starrocks.catalog.MvUpdateInfo;
@@ -52,7 +53,7 @@ public class MVTimelinessListPartitionArbiter extends MVTimelinessArbiter {
     @Override
     public MvUpdateInfo getMVTimelinessUpdateInfoInChecked(boolean isQueryRewrite) {
         PartitionInfo partitionInfo = mv.getPartitionInfo();
-        Preconditions.checkState(partitionInfo instanceof ExpressionRangePartitionInfo);
+        Preconditions.checkState(partitionInfo instanceof ListPartitionInfo);
         Map<Table, Column> partitionInfos = mv.getRelatedPartitionTableAndColumn();
         if (partitionInfos.isEmpty()) {
             mv.setInactiveAndReason("partition configuration changed");
@@ -97,11 +98,17 @@ public class MVTimelinessListPartitionArbiter extends MVTimelinessArbiter {
         needRefreshMvPartitionNames.addAll(listPartitionDiff.getAdds().keySet());
         mvPartitionNameToListMap.putAll(listPartitionDiff.getAdds());
 
-        Map<Table, Expr> tableToPartitionExprMap = mv.getTableToPartitionExprMap();
+        Map<Table, List<Integer>> tableToPartitionColIds = Maps.newHashMap();
+        for (Map.Entry<Table, Column> e : partitionInfos.entrySet()) {
+            Table table = e.getKey();
+            List<Column> basePartCols = table.getPartitionColumns();
+            int coldIdx = basePartCols.indexOf(e.getValue());
+            tableToPartitionColIds.put(table, Lists.newArrayList(coldIdx));
+        }
         Map<Table, Map<String, Set<String>>> baseToMvNameRef =
-                ListPartitionDiffer.generateBaseRefMap(mvPartitionNameToListMap, tableToPartitionExprMap, mvPartitionNameToListMap);
-        Map<String, Map<Table, Set<String>>> mvToBaseNameRef = SyncPartitionUtils
-                .generateMvRefMap(mvPartitionNameToListMap, tableToPartitionExprMap, mvPartitionNameToListMap);
+                ListPartitionDiffer.generateBaseRefMap(refBaseTablePartitionMap, tableToPartitionColIds, mvPartitionNameToListMap);
+        Map<String, Map<Table, Set<String>>> mvToBaseNameRef = ListPartitionDiffer
+                .generateMvRefMap(mvPartitionNameToListMap, tableToPartitionColIds, refBaseTablePartitionMap);
 
         mvRefreshInfo.getBasePartToMvPartNames().putAll(baseToMvNameRef);
         mvRefreshInfo.getMvPartToBasePartNames().putAll(mvToBaseNameRef);

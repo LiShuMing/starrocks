@@ -14,6 +14,8 @@
 
 package com.starrocks.sql.common;
 
+import com.google.api.client.util.Lists;
+
 import java.util.List;
 import java.util.Objects;
 
@@ -33,6 +35,30 @@ public class ListPartitionMultiValues {
 
     public List<List<String>> getPartitionKey() {
         return partitionKeys;
+    }
+
+    public String getPartitionName() {
+        return partitionName;
+    }
+
+    public List<ListPartitionValue> toListPartitionValues() {
+        List<ListPartitionValue> listPartitionValues = Lists.newArrayList();
+        for (List<String> partitionKey : partitionKeys) {
+            listPartitionValues.add(new ListPartitionValue(partitionName, partitionKey));
+        }
+        return listPartitionValues;
+    }
+
+    public List<ListPartitionValue> toListPartitionValues(List<Integer> selectColIds) {
+        List<ListPartitionValue> listPartitionValues = Lists.newArrayList();
+        for (List<String> partitionKey : partitionKeys) {
+            List<String> selectedPartitionKey = Lists.newArrayList();
+            for (Integer i : selectColIds) {
+                selectedPartitionKey.add(partitionKey.get(i));
+            }
+            listPartitionValues.add(new ListPartitionValue(partitionName, selectedPartitionKey));
+        }
+        return listPartitionValues;
     }
 
     @Override

@@ -17,7 +17,9 @@ package com.starrocks.catalog;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
+import com.starrocks.catalog.mv.MVPartitionKey;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -28,7 +30,7 @@ public class MvBaseTableUpdateInfo {
     // The partition names of base table that have been updated
     private final Set<String> toRefreshPartitionNames = Sets.newHashSet();
     // The mapping of partition name to partition range
-    private final Map<String, Range<PartitionKey>> partitionNameWithRanges = Maps.newHashMap();
+    private final Map<String, MVPartitionKey> nameToPartKeys = Maps.newHashMap();
 
     public MvBaseTableUpdateInfo() {
     }
@@ -36,16 +38,43 @@ public class MvBaseTableUpdateInfo {
     public Set<String> getToRefreshPartitionNames() {
         return toRefreshPartitionNames;
     }
+    public void addToRefreshPartitionNames(Set<String> toRefreshPartitionNames) {
+        toRefreshPartitionNames.addAll(toRefreshPartitionNames);
+    }
+
+    public void addRangePartitionKeys(String partitionName,
+                                      Range<PartitionKey> rangePartitionKey) {
+        MVPartitionKey mvPartitionKey = new MVPartitionKey(rangePartitionKey);
+        nameToPartKeys.put(partitionName, mvPartitionKey);
+    }
+
+    public void addListPartitionKeys(String partitionName,
+                                     List<List<String>> listPartitionKey) {
+        MVPartitionKey mvPartitionKey = new MVPartitionKey(listPartitionKey);
+        nameToPartKeys.put(partitionName, mvPartitionKey);
+    }
 
     public Map<String, Range<PartitionKey>> getPartitionNameWithRanges() {
-        return partitionNameWithRanges;
+        Map<String, Range<PartitionKey>> result = Maps.newHashMap();
+        for (Map.Entry<String, MVPartitionKey> e : nameToPartKeys.entrySet()) {
+            result.put(e.getKey(), e.getValue().getRangePartitionKeyChecked());
+        }
+        return result;
+    }
+
+    public Map<String, List<List<String>>> getPartitionNameWithLists() {
+        Map<String, List<List<String>>> result = Maps.newHashMap();
+        for (Map.Entry<String, MVPartitionKey> e : nameToPartKeys.entrySet()) {
+            result.put(e.getKey(), e.getValue().getListPartitionKeyChecked());
+        }
+        return result;
     }
 
     @Override
     public String toString() {
         return "BaseTableRefreshInfo{" +
                 ", toRefreshPartitionNames=" + toRefreshPartitionNames +
-                ", partitionNameWithRanges=" + partitionNameWithRanges +
+                ", partitionNameWithRanges=" + nameToPartKeys +
                 '}';
     }
 }

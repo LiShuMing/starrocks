@@ -147,12 +147,13 @@ public class MVTimelinessRangePartitionArbiter extends MVTimelinessArbiter {
                 TableProperty.QueryRewriteConsistencyMode.LOOSE);
         Expr partitionExpr = mv.getFirstPartitionRefTableExpr();
         Map<Table, Column> partitionTableAndColumn = mv.getRelatedPartitionTableAndColumn();
-        Map<String, Range<PartitionKey>> mvRangePartitionMap = mv.getRangePartitionMap();
         RangePartitionDiff rangePartitionDiff = null;
         try {
             if (!collectBaseTablePartitionInfos(partitionTableAndColumn, partitionExpr, isQueryRewrite, mvUpdateInfo)) {
                 return new MvUpdateInfo(MvUpdateInfo.MvToRefreshType.FULL);
             }
+
+            Map<String, Range<PartitionKey>> mvRangePartitionMap = mv.getRangePartitionMap();
             Map<Table, MvBaseTableUpdateInfo> baseTableUpdateInfos = mvUpdateInfo.getBaseTableUpdateInfos();
             Map<Table, Map<String, Range<PartitionKey>>> refBaseTablePartitionMap = baseTableUpdateInfos.entrySet().stream()
                     .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().getPartitionNameWithRanges()));
@@ -164,12 +165,12 @@ public class MVTimelinessRangePartitionArbiter extends MVTimelinessArbiter {
             LOG.warn("Materialized view compute partition difference with base table failed.", e);
             return null;
         }
-
         if (rangePartitionDiff == null) {
             LOG.warn("Materialized view compute partition difference with base table failed, the diff of range partition" +
                     " is null.");
             return null;
         }
+
         Map<String, Range<PartitionKey>> adds = rangePartitionDiff.getAdds();
         for (Map.Entry<String, Range<PartitionKey>> addEntry : adds.entrySet()) {
             String mvPartitionName = addEntry.getKey();
@@ -196,7 +197,9 @@ public class MVTimelinessRangePartitionArbiter extends MVTimelinessArbiter {
             try {
                 Map<String, Range<PartitionKey>> partitionKeyRanges =
                         PartitionUtil.getPartitionKeyRange(table, entry.getValue(), partitionExpr);
-                mvBaseTableUpdateInfo.getPartitionNameWithRanges().putAll(partitionKeyRanges);
+                for (Map.Entry<String, Range<PartitionKey>> e : partitionKeyRanges.entrySet()) {
+                    mvBaseTableUpdateInfo.addRangePartitionKeys(e.getKey(), e.getValue());
+                }
             } catch (UserException e) {
                 LOG.warn("Materialized view compute partition difference with base table failed.", e);
                 return false;

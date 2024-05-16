@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.starrocks.connector.PartitionUtil.getMVPartitionNameWithList;
 import static com.starrocks.connector.PartitionUtil.getMVPartitionNameWithRange;
 import static com.starrocks.sql.optimizer.OptimizerTraceUtil.logMVPrepare;
 
@@ -142,10 +143,24 @@ public class MvRefreshArbiter {
                 List<String> updatedPartitionNamesList = Lists.newArrayList(updatePartitionNames);
                 Column partitionColumn = partitionTableAndColumns.get(baseTable);
                 Expr partitionExpr = MaterializedView.getPartitionExpr(mv);
-                Map<String, Range<PartitionKey>> partitionNameWithRange = getMVPartitionNameWithRange(baseTable,
-                        partitionColumn, updatedPartitionNamesList, partitionExpr);
-                mvBaseTableUpdateInfo.getPartitionNameWithRanges().putAll(partitionNameWithRange);
-                mvBaseTableUpdateInfo.getToRefreshPartitionNames().addAll(partitionNameWithRange.keySet());
+                PartitionInfo mvPartitionInfo = mv.getPartitionInfo();
+                if (mvPartitionInfo.isListPartition()) {
+                    Map<String, List<List<String>>> partitionNameWithRange = getMVPartitionNameWithList(baseTable,
+                            partitionColumn, updatedPartitionNamesList);
+                    for (Map.Entry<String, List<List<String>>> e : partitionNameWithRange.entrySet()) {
+                        mvBaseTableUpdateInfo.addListPartitionKeys(e.getKey(), e.getValue());
+                    }
+                    mvBaseTableUpdateInfo.addToRefreshPartitionNames(partitionNameWithRange.keySet());
+                } else if (mvPartitionInfo.isRangePartition()) {
+                    Map<String, Range<PartitionKey>> partitionNameWithRange = getMVPartitionNameWithRange(baseTable,
+                            partitionColumn, updatedPartitionNamesList, partitionExpr);
+                    for (Map.Entry<String, Range<PartitionKey>> e : partitionNameWithRange.entrySet()) {
+                        mvBaseTableUpdateInfo.addRangePartitionKeys(e.getKey(), e.getValue());
+                    }
+                    mvBaseTableUpdateInfo.addToRefreshPartitionNames(partitionNameWithRange.keySet());
+                } else {
+                    return null;
+                }
             } catch (AnalysisException e) {
                 LOG.warn("Mv {}'s base table {} get partition name fail", mv.getName(), baseTable.getName(), e);
                 return null;

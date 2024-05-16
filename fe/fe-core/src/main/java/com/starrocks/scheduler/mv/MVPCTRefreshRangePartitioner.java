@@ -31,7 +31,9 @@ import com.starrocks.catalog.FunctionSet;
 import com.starrocks.catalog.MaterializedView;
 import com.starrocks.catalog.PartitionInfo;
 import com.starrocks.catalog.PartitionKey;
+import com.starrocks.catalog.RangePartitionInfo;
 import com.starrocks.catalog.Table;
+import com.starrocks.catalog.TableProperty;
 import com.starrocks.common.AnalysisException;
 import com.starrocks.common.Config;
 import com.starrocks.common.Pair;
@@ -55,6 +57,7 @@ import com.starrocks.sql.common.PartitionDiffer;
 import com.starrocks.sql.common.SyncPartitionUtils;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils;
 import org.apache.commons.collections4.ListUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -67,6 +70,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static com.starrocks.sql.common.SyncPartitionUtils.createRange;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils.getStr2DateExpr;
 
 public class MVPCTRefreshRangePartitioner extends MVPCTRefreshPartitioner {
@@ -182,8 +186,7 @@ public class MVPCTRefreshRangePartitioner extends MVPCTRefreshPartitioner {
         boolean isAutoRefresh = (mvContext.getTaskType() == Constants.TaskType.PERIODICAL ||
                 mvContext.getTaskType() == Constants.TaskType.EVENT_TRIGGERED);
         int partitionTTLNumber = mvContext.getPartitionTTLNumber();
-        Set<String> mvRangePartitionNames = SyncPartitionUtils.getPartitionNamesByRangeWithPartitionLimit(
-                mv, start, end, partitionTTLNumber, isAutoRefresh);
+        Set<String> mvRangePartitionNames = getMVPartitionNamesWithTTL(mv, start, end, partitionTTLNumber, isAutoRefresh);
 
         // check non-ref base tables
         if (needsRefreshBasedOnNonRefTables(snapshotBaseTables, refBaseTable)) {
@@ -256,6 +259,44 @@ public class MVPCTRefreshRangePartitioner extends MVPCTRefreshPartitioner {
             }
         }
         return needRefreshMvPartitionNames;
+    }
+
+
+    @Override
+    public Set<String> getMVPartitionNamesWithTTL(MaterializedView materializedView, String start, String end,
+                                                  int partitionTTLNumber, boolean isAutoRefresh) throws AnalysisException {
+        int autoRefreshPartitionsLimit = materializedView.getTableProperty().getAutoRefreshPartitionsLimit();
+        boolean hasPartitionRange = StringUtils.isNoneEmpty(start) || StringUtils.isNoneEmpty(end);
+
+        if (hasPartitionRange) {
+            Set<String> result = Sets.newHashSet();
+            Column partitionColumn =
+                    ((RangePartitionInfo) materializedView.getPartitionInfo()).getPartitionColumns().get(0);
+            Range<PartitionKey> rangeToInclude = createRange(start, end, partitionColumn);
+            Map<String, Range<PartitionKey>> rangeMap = materializedView.getValidRangePartitionMap(partitionTTLNumber);
+            for (Map.Entry<String, Range<PartitionKey>> entry : rangeMap.entrySet()) {
+                Range<PartitionKey> rangeToCheck = entry.getValue();
+                int lowerCmp = rangeToInclude.lowerEndpoint().compareTo(rangeToCheck.upperEndpoint());
+                int upperCmp = rangeToInclude.upperEndpoint().compareTo(rangeToCheck.lowerEndpoint());
+                if (!(lowerCmp >= 0 || upperCmp <= 0)) {
+                    result.add(entry.getKey());
+                }
+            }
+            return result;
+        }
+
+        int lastPartitionNum;
+        if (partitionTTLNumber > 0 && isAutoRefresh && autoRefreshPartitionsLimit > 0) {
+            lastPartitionNum = Math.min(partitionTTLNumber, autoRefreshPartitionsLimit);
+        } else if (isAutoRefresh && autoRefreshPartitionsLimit > 0) {
+            lastPartitionNum = autoRefreshPartitionsLimit;
+        } else if (partitionTTLNumber > 0) {
+            lastPartitionNum = partitionTTLNumber;
+        } else {
+            lastPartitionNum = TableProperty.INVALID;
+        }
+
+        return materializedView.getValidRangePartitionMap(lastPartitionNum).keySet();
     }
 
     /**

@@ -53,7 +53,8 @@ import static com.starrocks.catalog.MvRefreshArbiter.getMvBaseTableUpdateInfo;
 import static com.starrocks.catalog.MvRefreshArbiter.needToRefreshTable;
 
 /**
- * MV Refresh Partitioner for Partitioned Materialized View which provide utility methods associated partitions during mv refresh.
+ * MV PCT Refresh Partitioner for Partitioned Materialized View which provide utility methods associated partitions during mv
+ * refresh.
  */
 public abstract class MVPCTRefreshPartitioner {
     private static final Logger LOG = LogManager.getLogger(MVPCTRefreshPartitioner.class);
@@ -106,6 +107,21 @@ public abstract class MVPCTRefreshPartitioner {
                                                          Map<Long, TableSnapshotInfo> snapshotBaseTables,
                                                          String start, String end, boolean force,
                                                          Set<String> mvPotentialPartitionNames) throws AnalysisException;
+
+    /**
+     * Get mv partition names with TTL based on the ref base table partitions.
+     * @param materializedView: materialized view to check.
+     * @param start: start partition name to refresh.
+     * @param end: end partition name to refresh.
+     * @param partitionTTLNumber: mv partition TTL number.
+     * @param isAutoRefresh: is auto refresh or not.
+     * @return: mv to refresh partition names with TTL based on the ref base table partitions.
+     * @throws AnalysisException
+     */
+    public abstract Set<String> getMVPartitionNamesWithTTL(MaterializedView materializedView,
+                                                           String start, String end,
+                                                           int partitionTTLNumber,
+                                                           boolean isAutoRefresh) throws AnalysisException;
 
     /**
      * @param refBaseTable : ref base table to check.

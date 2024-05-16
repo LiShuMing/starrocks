@@ -25,6 +25,7 @@ import com.starrocks.catalog.Database;
 import com.starrocks.catalog.MaterializedView;
 import com.starrocks.catalog.PartitionInfo;
 import com.starrocks.catalog.Table;
+import com.starrocks.catalog.TableProperty;
 import com.starrocks.catalog.Type;
 import com.starrocks.common.AnalysisException;
 import com.starrocks.common.Config;
@@ -46,6 +47,7 @@ import com.starrocks.sql.common.DmlException;
 import com.starrocks.sql.common.ListPartitionDiff;
 import com.starrocks.sql.common.SyncPartitionUtils;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -151,8 +153,7 @@ public class MVPCTRefreshListPartitioner extends MVPCTRefreshPartitioner {
         boolean isAutoRefresh = (mvContext.getTaskType() == Constants.TaskType.PERIODICAL ||
                 mvContext.getTaskType() == Constants.TaskType.EVENT_TRIGGERED);
         int partitionTTLNumber = mvContext.getPartitionTTLNumber();
-        Set<String> mvListPartitionNames = SyncPartitionUtils.getPartitionNamesByListWithPartitionLimit(
-                mv, start, end, partitionTTLNumber, isAutoRefresh);
+        Set<String> mvListPartitionNames = getMVPartitionNamesWithTTL(mv, start, end, partitionTTLNumber, isAutoRefresh);
 
         // check non-ref base tables
         if (needsRefreshBasedOnNonRefTables(snapshotBaseTables, refBaseTable)) {
@@ -169,6 +170,40 @@ public class MVPCTRefreshListPartitioner extends MVPCTRefreshPartitioner {
 
         // check the ref base table
         return getMvPartitionNamesToRefresh(refBaseTable, mvListPartitionNames, force);
+    }
+
+    @Override
+    public Set<String> getMVPartitionNamesWithTTL(MaterializedView materializedView,
+                                                  String start, String end,
+                                                  int partitionTTLNumber,
+                                                  boolean isAutoRefresh) {
+        int autoRefreshPartitionsLimit = materializedView.getTableProperty().getAutoRefreshPartitionsLimit();
+        boolean hasPartitionRange = StringUtils.isNoneEmpty(start) || StringUtils.isNoneEmpty(end);
+
+        if (hasPartitionRange) {
+            Set<String> result = Sets.newHashSet();
+
+            Map<String, List<List<String>>> listMap = materializedView.getValidListPartitionMap(partitionTTLNumber);
+            for (Map.Entry<String, List<List<String>>> entry : listMap.entrySet()) {
+                if (entry.getKey().compareTo(start) >= 0 && entry.getKey().compareTo(end) <= 0) {
+                    result.add(entry.getKey());
+                }
+            }
+            return result;
+        }
+
+        int lastPartitionNum;
+        if (partitionTTLNumber > 0 && isAutoRefresh && autoRefreshPartitionsLimit > 0) {
+            lastPartitionNum = Math.min(partitionTTLNumber, autoRefreshPartitionsLimit);
+        } else if (isAutoRefresh && autoRefreshPartitionsLimit > 0) {
+            lastPartitionNum = autoRefreshPartitionsLimit;
+        } else if (partitionTTLNumber > 0) {
+            lastPartitionNum = partitionTTLNumber;
+        } else {
+            lastPartitionNum = TableProperty.INVALID;
+        }
+
+        return materializedView.getValidListPartitionMap(lastPartitionNum).keySet();
     }
 
     private void addListPartitions(Database database, MaterializedView materializedView,

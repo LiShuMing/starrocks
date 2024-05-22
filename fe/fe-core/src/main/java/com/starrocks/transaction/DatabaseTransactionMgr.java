@@ -37,6 +37,7 @@ package com.starrocks.transaction;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -72,9 +73,10 @@ import com.starrocks.replication.ReplicationTxnCommitAttachment;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.server.RunMode;
 import com.starrocks.sql.analyzer.FeNameFormat;
-import com.starrocks.statistic.StatisticUtils;
 import com.starrocks.thrift.TTransactionStatus;
 import com.starrocks.thrift.TUniqueId;
+import com.starrocks.transaction.listener.MVPublishVersionListener;
+import com.starrocks.transaction.listener.StatsPublishVersionListener;
 import io.opentelemetry.api.trace.Span;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.logging.log4j.LogManager;
@@ -154,6 +156,10 @@ public class DatabaseTransactionMgr {
      */
     private final Map<String, Set<Long>> labelToTxnIds = Maps.newHashMap();
     private long maxCommitTs = 0;
+    private final List<PublishVersionListener> publishVersionListeners = ImmutableList.of(
+            StatsPublishVersionListener.INSTANCE,
+            MVPublishVersionListener.INSTANCE
+    );
 
     public DatabaseTransactionMgr(long dbId, GlobalStateMgr globalStateMgr) {
         this.dbId = dbId;
@@ -1183,7 +1189,8 @@ public class DatabaseTransactionMgr {
             finishSpan.end();
         }
 
-        collectStatisticsForStreamLoadOnFirstLoad(transactionState, db);
+        // do after transaction finish
+        doAfterTransactionFinish(transactionState);
 
         LOG.info("finish transaction {} successfully", transactionState);
     }
@@ -1819,7 +1826,8 @@ public class DatabaseTransactionMgr {
             finishSpan.end();
         }
 
-        collectStatisticsForStreamLoadOnFirstLoad(transactionState, db);
+        // do after transaction finish
+        doAfterTransactionFinish(transactionState);
 
         LOG.info("finish transaction {} successfully", transactionState);
 
@@ -1885,32 +1893,26 @@ public class DatabaseTransactionMgr {
             locker.unLockTablesWithIntensiveDbLock(db, new ArrayList<>(tableIds), LockType.WRITE);
         }
 
-        collectStatisticsForStreamLoadOnFirstLoadBatch(stateBatch, db);
+        // do after transaction finish in batch
+        for (TransactionState transactionState : stateBatch.getTransactionStates()) {
+            doAfterTransactionFinish(transactionState);
+        }
 
         LOG.info("finish transaction {} batch successfully", stateBatch);
     }
 
-    private void collectStatisticsForStreamLoadOnFirstLoad(TransactionState txnState, Database db) {
-        TransactionState.LoadJobSourceType sourceType = txnState.getSourceType();
-        if (!TransactionState.LoadJobSourceType.FRONTEND_STREAMING.equals(sourceType)
-                && !TransactionState.LoadJobSourceType.BACKEND_STREAMING.equals(sourceType)) {
-            return;
-        }
-        List<Table> tables = txnState.getIdToTableCommitInfos().values().stream()
-                .map(TableCommitInfo::getTableId)
-                .distinct()
-                .map(db::getTable)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
-
-        for (Table table : tables) {
-            StatisticUtils.triggerCollectionOnFirstLoad(txnState, db, table, false);
-        }
-    }
-
-    private void collectStatisticsForStreamLoadOnFirstLoadBatch(TransactionStateBatch txnStateBatch, Database db) {
-        for (TransactionState txnState : txnStateBatch.getTransactionStates()) {
-            collectStatisticsForStreamLoadOnFirstLoad(txnState, db);
+    /**
+     * Trigger the listeners after transaction finish which means the transaction is visible.
+     * @param transactionState: the transaction state
+     */
+    private void doAfterTransactionFinish(TransactionState transactionState) {
+        for (PublishVersionListener listener : publishVersionListeners) {
+            try {
+                listener.onFinish(transactionState);
+            } catch (Exception e) {
+                LOG.error("publish version listener {} failed on transaction {}", listener.getName(),
+                        transactionState, DebugUtil.getStackTrace(e));
+            }
         }
     }
 

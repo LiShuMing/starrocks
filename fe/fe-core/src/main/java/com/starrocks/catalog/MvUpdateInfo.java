@@ -65,6 +65,10 @@ public class MvUpdateInfo {
         return mvToRefreshType == MvToRefreshType.PARTIAL || mvToRefreshType == MvToRefreshType.NO_REFRESH;
     }
 
+    public boolean isNeedRefresh() {
+        return mvToRefreshType == MvToRefreshType.PARTIAL || mvToRefreshType == MvToRefreshType.FULL;
+    }
+
     public Set<String> getMvToRefreshPartitionNames() {
         return mvToRefreshPartitionNames;
     }

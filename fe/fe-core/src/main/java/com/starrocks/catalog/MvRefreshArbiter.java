@@ -339,9 +339,21 @@ public class MvRefreshArbiter {
         Map<Table, Set<String>> baseChangedPartitionNames = mvRefreshInfo.getBaseTableUpdateInfos().entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, x -> x.getValue().getToRefreshPartitionNames()));
         for (Map.Entry<Table, Set<String>> entry : baseChangedPartitionNames.entrySet()) {
-            entry.getValue().stream().forEach(x ->
-                    needRefreshMvPartitionNames.addAll(baseToMvNameRef.get(entry.getKey()).get(x))
-            );
+            Table baseTable = entry.getKey();
+            Set<String> baseTablePartitionNames = entry.getValue();
+            Map<String, Set<String>> basePartitionToMvPartitionNames = baseToMvNameRef.get(baseTable);
+            if (basePartitionToMvPartitionNames == null) {
+                LOG.warn("mv {} has no ref partition names of ref base table {}", mv.getName(), baseTable.getName());
+                continue;
+            }
+            for (String partitionName : baseTablePartitionNames) {
+                if (!basePartitionToMvPartitionNames.containsKey(partitionName)) {
+                    LOG.warn("base table {} partition {} has no ref partition names in mv {}",
+                            baseTable.getName(), partitionName, mv.getName());
+                    continue;
+                }
+                needRefreshMvPartitionNames.addAll(basePartitionToMvPartitionNames.get(partitionName));
+            }
         }
 
         if (partitionExpr instanceof FunctionCallExpr) {

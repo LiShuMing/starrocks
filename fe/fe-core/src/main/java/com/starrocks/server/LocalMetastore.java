@@ -3591,8 +3591,8 @@ public class LocalMetastore implements ConnectorMetadata {
         new AlterMVJobExecutor().process(stmt, ConnectContext.get());
     }
 
-    private String executeRefreshMvTask(String dbName, MaterializedView materializedView,
-                                        ExecuteOption executeOption)
+    public String executeRefreshMvTask(String dbName, MaterializedView materializedView,
+                                       ExecuteOption executeOption)
             throws DdlException {
         MaterializedView.RefreshType refreshType = materializedView.getRefreshScheme().getType();
         LOG.info("Start to execute refresh materialized view task, mv: {}, refreshType: {}, executionOption:{}",

@@ -52,6 +52,7 @@ import com.starrocks.sql.analyzer.SemanticException;
 import com.starrocks.sql.ast.QueryRelation;
 import com.starrocks.sql.ast.QueryStatement;
 import com.starrocks.sql.ast.StatementBase;
+import com.starrocks.sql.common.DmlException;
 import com.starrocks.sql.optimizer.CachingMvPlanContextBuilder;
 import com.starrocks.sql.optimizer.ExpressionContext;
 import com.starrocks.sql.optimizer.JoinHelper;
@@ -1377,5 +1378,26 @@ public class MvUtils {
 
     public static Table getTableChecked(BaseTableInfo baseTableInfo) {
         return GlobalStateMgr.getCurrentState().getMetadataMgr().getTableChecked(baseTableInfo);
+    }
+
+    /**
+     * Collect all deduplicated databases of the materialized view's base tables.
+     * @param materializedView: the materialized view to check
+     * @return: the deduplicated databases of the materialized view's base tables,
+     * throw exception if the database do not exist.
+     */
+    public static List<Database> collectLockDatabasesOfMV(MaterializedView materializedView) throws DmlException {
+        Map<Long, Database> databaseMap = Maps.newHashMap();
+        for (BaseTableInfo baseTableInfo : materializedView.getBaseTableInfos()) {
+            Optional<Database> dbOpt = GlobalStateMgr.getCurrentState().getMetadataMgr().getDatabase(baseTableInfo);
+            if (dbOpt.isEmpty()) {
+                LOG.warn("database {} do not exist when refreshing materialized view:{}",
+                        baseTableInfo.getDbInfoStr(), materializedView.getName());
+                throw new DmlException("database " + baseTableInfo.getDbInfoStr() + " do not exist.");
+            }
+            Database db = dbOpt.get();
+            databaseMap.put(db.getId(), db);
+        }
+        return Lists.newArrayList(databaseMap.values());
     }
 }

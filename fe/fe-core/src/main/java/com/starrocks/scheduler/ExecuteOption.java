@@ -42,6 +42,8 @@ public class ExecuteOption {
     @SerializedName("isReplay")
     private boolean isReplay = false;
 
+    private TaskRunTriggerType taskRunTriggerType = TaskRunTriggerType.UNKNOWN;
+
     public ExecuteOption(boolean isMergeRedundant) {
         this.isMergeRedundant = isMergeRedundant;
     }
@@ -96,6 +98,14 @@ public class ExecuteOption {
 
     public void setReplay(boolean replay) {
         isReplay = replay;
+    }
+
+    public TaskRunTriggerType getTaskRunTriggerType() {
+        return taskRunTriggerType;
+    }
+
+    public void setTaskRunTriggerType(TaskRunTriggerType taskRunTriggerType) {
+        this.taskRunTriggerType = taskRunTriggerType;
     }
 
     @Override

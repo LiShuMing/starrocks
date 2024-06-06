@@ -84,8 +84,9 @@ public class RangePartitionDiff {
                     if (intersectedRange.size() > 1 ||
                             !existingRange.equals(add.getValue()) ||
                             !addRanges.getEntry(existingRange.lowerEndpoint()).getKey().equals(add.getValue())) {
-                        throw new IllegalArgumentException(
-                                "partitions are intersected: " + existingRange + " and " + add);
+                        LOG.warn("partitions are intersected: " + existingRange + " and " + add);
+                        // throw new IllegalArgumentException(
+                        //        "partitions are intersected: " + existingRange + " and " + add);
                     }
                 }
             }

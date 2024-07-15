@@ -100,14 +100,16 @@ enum TPrimitiveType {
   DECIMAL128,
   JSON,
   FUNCTION,
-  VARBINARY
+  VARBINARY,
+  AGG_STATE
 }
 
 enum TTypeNodeType {
     SCALAR,
     ARRAY,
     MAP,
-    STRUCT
+    STRUCT,
+    AGG_STATE
 }
 
 struct TScalarType {
@@ -152,6 +154,7 @@ struct TTypeNode {
 // to TTypeDesc. In future, we merge these two to one
 struct TTypeDesc {
     1: list<TTypeNode> types
+    2: optional list<TTypeDesc> arg_types;
 }
 
 enum TAggregationType {
@@ -163,7 +166,8 @@ enum TAggregationType {
     NONE,
     BITMAP_UNION,
     REPLACE_IF_NOT_NULL,
-    PERCENTILE_UNION
+    PERCENTILE_UNION,
+    AGG_STATE_UNION
 }
 
 enum TPushType {

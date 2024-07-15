@@ -21,6 +21,7 @@
 #include "column/type_traits.h"
 #include "exprs/agg/aggregate.h"
 #include "exprs/agg/factory/aggregate_factory.hpp"
+#include "gutil/strings/util.h"
 #include "types/logical_type.h"
 #include "types/logical_type_infra.h"
 #include "udf/java/java_function_fwd.h"
@@ -57,6 +58,8 @@ class AggregateFuncResolver {
     DECLARE_SINGLETON(AggregateFuncResolver);
 
 public:
+    const std::string AGG_STATE_SUFFIX = "_state";
+
     void register_avg();
     void register_bitmap();
     void register_minmaxany();
@@ -80,6 +83,13 @@ public:
     const AggregateFunction* get_aggregate_info(const std::string& name, const LogicalType arg_type,
                                                 const LogicalType return_type, const bool is_window_function,
                                                 const bool is_null) const {
+        if (return_type == TYPE_AGG_STATE) {
+            if (HasSuffixString(str, AGG_STATE_SUFFIX)) {
+                name = name.substr(0, name.length() - AGG_DISTINCT.leng());
+            } else {
+                return nullptr;
+            }
+        }
         auto pair = _infos_mapping.find(std::make_tuple(name, arg_type, return_type, is_window_function, is_null));
         if (pair == _infos_mapping.end()) {
             return nullptr;

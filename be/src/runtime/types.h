@@ -40,6 +40,7 @@
 #include "common/logging.h"
 #include "gen_cpp/Types_types.h" // for TPrimitiveType
 #include "gen_cpp/types.pb.h"    // for PTypeDesc
+#include "runtime/agg_state_type_desc.h"
 #include "thrift/protocol/TDebugProtocol.h"
 #include "types/constexpr.h"
 #include "types/logical_type.h"
@@ -77,6 +78,9 @@ struct TypeDescriptor {
 
     /// Only set if type == TYPE_STRUCT. The field name of each child.
     std::vector<std::string> field_names;
+
+    /// @brief Only set if type contains extra type desc, eg: agg_state_desc for aggregate function combinator.
+    AggStateTypeDescPtr agg_state_type = nullptr;
 
     TypeDescriptor() = default;
 
@@ -212,12 +216,8 @@ struct TypeDescriptor {
             return TypeDescriptor(type);
         }
     }
-    static TypeDescriptor from_thrift(const TTypeDesc& t) {
-        int idx = 0;
-        TypeDescriptor result(t.types, &idx);
-        DCHECK_EQ(idx, t.types.size());
-        return result;
-    }
+
+    static TypeDescriptor from_thrift(const TTypeDesc& t);
 
     static TypeDescriptor from_storage_type_info(TypeInfo* type_info);
 

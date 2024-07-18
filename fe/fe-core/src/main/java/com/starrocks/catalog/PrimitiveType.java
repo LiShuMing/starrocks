@@ -84,6 +84,9 @@ public enum PrimitiveType {
     BINARY("BINARY", -1, TPrimitiveType.BINARY),
     VARBINARY("VARBINARY", 16, TPrimitiveType.VARBINARY),
 
+    // agg_state
+    AGG_STATE("AGG_STATE", 16, TPrimitiveType.VARBINARY),
+
     // If external table column type is unsupported, it will be converted to UNKNOWN_TYPE
     UNKNOWN_TYPE("UNKNOWN_TYPE", -1, TPrimitiveType.INVALID_TYPE);
 

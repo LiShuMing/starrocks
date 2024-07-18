@@ -65,6 +65,8 @@ static StorageAggregateType t_aggregation_type_to_field_aggregation_method(TAggr
         return STORAGE_AGGREGATE_SUM;
     case TAggregationType::PERCENTILE_UNION:
         return STORAGE_AGGREGATE_PERCENTILE_UNION;
+    case TAggregationType::AGG_STATE_UNION:
+        return STORAGE_AGGREGATE_AGG_STATE_UNION;
     }
     return STORAGE_AGGREGATE_NONE;
 }

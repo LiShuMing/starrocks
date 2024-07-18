@@ -40,27 +40,60 @@ DEFINE_FAIL_POINT(expr_prepare_fragment_thread_local_call_failed);
 
 VectorizedFunctionCallExpr::VectorizedFunctionCallExpr(const TExprNode& node) : Expr(node) {}
 
-Status VectorizedFunctionCallExpr::prepare(starrocks::RuntimeState* state, starrocks::ExprContext* context) {
-    RETURN_IF_ERROR(Expr::prepare(state, context));
-
-    if (!_fn.__isset.fid) {
-        return Status::InternalError("Vectorized engine doesn't implement function " + _fn.name.function_name);
+StatusOr<FunctionDescriptor*> VectorizedFunctionCallExpr::_get_function_by_fid(TFunction fn) {
+    if (!fn.__isset.fid &&) {
+        return Status::InternalError("Vectorized engine doesn't implement function " + fn.name.function_name);
     }
 
     // branch-3.0 is 150102~150104, branch-3.1 is 150103~150105
     // refs: https://github.com/StarRocks/starrocks/pull/17803
     // @todo: remove this code when branch-3.0 is deprecated
-    int64_t fid = _fn.fid;
-    if (_fn.fid == 150102 && _type.type == TYPE_ARRAY && _type.children[0].type == TYPE_DECIMAL32) {
+    int64_t fid = fn.fid;
+    if (fn.fid == 150102 && _type.type == TYPE_ARRAY && _type.children[0].type == TYPE_DECIMAL32) {
         fid = 150103;
-    } else if (_fn.fid == 150103 && _type.type == TYPE_ARRAY && _type.children[0].type == TYPE_DECIMAL64) {
+    } else if (fn.fid == 150103 && _type.type == TYPE_ARRAY && _type.children[0].type == TYPE_DECIMAL64) {
         fid = 150104;
-    } else if (_fn.fid == 150104 && _type.type == TYPE_ARRAY && _type.children[0].type == TYPE_DECIMAL128) {
+    } else if (fn.fid == 150104 && _type.type == TYPE_ARRAY && _type.children[0].type == TYPE_DECIMAL128) {
         fid = 150105;
     }
+    return BuiltinFunctions::find_builtin_function(fid);
+}
 
-    _fn_desc = BuiltinFunctions::find_builtin_function(fid);
+StatusOr<FunctionDescriptor*> VectorizedFunctionCallExpr::_get_function(TFunction fn,
+                                                                        std::vector<TypeDescriptor> arg_types,
+                                                                        TypeDescriptor result_type) {
+    if (!result_type.has_extra_type_desc()) {
+        return _get_function_by_fid(fn);
+    } else {
+        auto extra_type_desc = result_type.extra_type_info;
+        if (extra_type_desc->agg_state_desc == nullptr) {
+            return Status::InternalError("Vectorized engine doesn't implement agg state function " +
+                                         fn.name.function_name);
+        }
+        auto agg_state_desc = extra.agg_type_desc;
+        _agg_state_func = std::make_unique<AggStateFunction>(agg_state_desc->return_type, agg_state_desc);
 
+        auto execute_func = std::bind(&AggStateFunction::execute, agg_state_func.get(), std::placeholders::_1);
+        auto prepare_func = std::bind(&AggStateFunction::prepare, agg_state_func.get(), std::placeholders::_1);
+        auto close_func = std::bind(&AggStateFunction::close, agg_state_func.get(), std::placeholders::_1);
+        _agg_func_desc = std::make_unique<FunctionDescriptor>(fn.name.function_name, arg_types.size(), exec_func,
+                                                              prepare_func, close_func, true, false);
+        return func_desc.get();
+    }
+}
+
+Status VectorizedFunctionCallExpr::prepare(starrocks::RuntimeState* state, starrocks::ExprContext* context) {
+    RETURN_IF_ERROR(Expr::prepare(state, context));
+
+    // parpare result type and arg types
+    FunctionContext::TypeDesc return_type = AnyValUtil::column_type_to_type_desc(_type);
+    std::vector<FunctionContext::TypeDesc> args_types;
+    for (Expr* child : _children) {
+        args_types.push_back(AnyValUtil::column_type_to_type_desc(child->type()));
+    }
+
+    // initialize function descriptor
+    _fn_desc = _get_function(_fn);
     if (_fn_desc == nullptr || _fn_desc->scalar_function == nullptr) {
         return Status::InternalError("Vectorized engine doesn't implement function " + _fn.name.function_name);
     }
@@ -73,13 +106,6 @@ Status VectorizedFunctionCallExpr::prepare(starrocks::RuntimeState* state, starr
 
     FAIL_POINT_TRIGGER_RETURN_ERROR(random_error);
     FAIL_POINT_TRIGGER_RETURN_ERROR(expr_prepare_failed);
-
-    FunctionContext::TypeDesc return_type = AnyValUtil::column_type_to_type_desc(_type);
-    std::vector<FunctionContext::TypeDesc> args_types;
-
-    for (Expr* child : _children) {
-        args_types.push_back(AnyValUtil::column_type_to_type_desc(child->type()));
-    }
 
     // todo: varargs use for allocate slice memory, need compute buffer size
     //  for varargs in vectorized engine?

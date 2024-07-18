@@ -960,13 +960,15 @@ public class AstBuilder extends StarRocksBaseVisitor<ParseNode> {
         String charsetName = context.charsetName() != null ?
                 ((Identifier) visit(context.charsetName().identifier())).getValue() : null;
         boolean isKey = context.KEY() != null;
-        AggregateType aggregateType =
-                context.aggDesc() != null ? AggregateType.valueOf(context.aggDesc().getText().toUpperCase()) : null;
+        AggregateType aggregateType = context.aggDescWithNullable() != null ?
+                AggregateType.valueOf(context.aggDescWithNullable().getText().toUpperCase()) : null;
         Boolean isAllowNull = null;
-        if (context.NOT() != null && context.NULL() != null) {
-            isAllowNull = false;
-        } else if (context.NULL() != null) {
-            isAllowNull = true;
+        if (context.aggDescWithNullable() != null) {
+            if (context.aggDescWithNullable().columnNullable().NOT() != null) {
+                isAllowNull = false;
+            } else if (context.aggDescWithNullable().columnNullable().NULL() != null) {
+                isAllowNull = true;
+            }
         }
         Boolean isAutoIncrement = null;
         if (context.AUTO_INCREMENT() != null) {

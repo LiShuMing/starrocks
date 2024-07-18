@@ -33,8 +33,12 @@ StorageAggregateType get_aggregation_type_by_string(const std::string& str) {
     if (upper_str == "hll_union") return STORAGE_AGGREGATE_HLL_UNION;
     if (upper_str == "bitmap_union") return STORAGE_AGGREGATE_BITMAP_UNION;
     if (upper_str == "percentile_union") return STORAGE_AGGREGATE_PERCENTILE_UNION;
-    LOG(WARNING) << "invalid aggregation type string. [aggregation='" << str << "']";
-    return STORAGE_AGGREGATE_UNKNOWN;
+    if (!upper_str.empty()) {
+        return STORAGE_AGGREGATE_AGG_STATE_UNION;
+    } else {
+        LOG(WARNING) << "invalid aggregation type string. [aggregation='" << str << "']";
+        return STORAGE_AGGREGATE_UNKNOWN;
+    }
 }
 
 std::string get_string_by_aggregation_type(StorageAggregateType type) {
@@ -59,6 +63,8 @@ std::string get_string_by_aggregation_type(StorageAggregateType type) {
         return "percentile_union";
     case STORAGE_AGGREGATE_UNKNOWN:
         return "unknown";
+    case STORAGE_AGGREGATE_AGG_STATE_UNION:
+        return "agg_state_union";
     }
     return "";
 }

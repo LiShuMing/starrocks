@@ -15,6 +15,8 @@
 #pragma once
 
 #include "common/object_pool.h"
+#include "exprs/agg_state_desc.h"
+#include "exprs/agg_state_function.h"
 #include "exprs/builtin_functions.h"
 #include "exprs/expr.h"
 
@@ -55,9 +57,18 @@ protected:
     [[nodiscard]] StatusOr<ColumnPtr> evaluate_checked(ExprContext* context, Chunk* ptr) override;
 
 private:
+    StatusOr<FunctionDescriptor*> _get_function_by_fid(TFunction fn);
+
+    StatusOr<FunctionDescriptor*> _get_function(TFunction fn, std::vector<TypeDescriptor> arg_types,
+                                                TypeDescriptor result_type);
     const FunctionDescriptor* _fn_desc{nullptr};
 
     bool _is_returning_random_value = false;
+
+    // only set when it's a agg state combinator function to track its lifecycle be with the expr
+    std::unique_ptr<AggStateFunction> _agg_state_func = nullptr;
+    // only set when it's a agg state combinator function to track its lifecycle be with the expr
+    std::unique_ptr<FunctionDescriptor> _agg_func_desc = nullptr;
 };
 
 } // namespace starrocks

@@ -68,6 +68,8 @@ message ColumnPB {
     optional bool visible = 16 [default=true];
     repeated ColumnPB children_columns = 17;
     optional bool is_auto_increment = 18;
+    // agg_state type
+    optional string function_name = 19;
 }
 
 message TabletSchemaPB {

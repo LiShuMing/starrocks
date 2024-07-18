@@ -42,6 +42,9 @@ import com.google.common.collect.Maps;
 import com.starrocks.analysis.ArithmeticExpr;
 import com.starrocks.analysis.FunctionName;
 import com.starrocks.builtins.VectorizedBuiltinFunctions;
+import com.starrocks.catalog.combinator.AggStateCombinator;
+import com.starrocks.catalog.combinator.AggStateMergeCombinator;
+import com.starrocks.catalog.combinator.AggStateUnionCombinator;
 import com.starrocks.sql.analyzer.PolymorphicFunctionAnalyzer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -515,6 +518,10 @@ public class FunctionSet {
 
     public static final String CURRENT_ROLE = "current_role";
 
+    public static final String AGG_STATE_SUFFIX = "_state";
+    public static final String AGG_STATE_UNION_SUFFIX = "_union";
+    public static final String AGG_STATE_MERGE_SUFFIX = "_merge";
+
     private static final Logger LOGGER = LogManager.getLogger(FunctionSet.class);
 
     private static final Set<Type> STDDEV_ARG_TYPE =
@@ -932,6 +939,12 @@ public class FunctionSet {
      */
     public void addBuiltin(Function fn) {
         addBuiltInFunction(fn);
+        if (fn instanceof AggregateFunction) {
+            AggregateFunction aggFunc = (AggregateFunction)  fn;
+            addBuiltInFunction(AggStateCombinator.of(aggFunc));
+            addBuiltInFunction(AggStateUnionCombinator.of(aggFunc));
+            addBuiltInFunction(AggStateMergeCombinator.of(aggFunc));
+        }
     }
 
     // Populate all the aggregate builtins in the globalStateMgr.

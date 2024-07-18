@@ -36,6 +36,7 @@ class Slice;
 struct JavaUDAFContext;
 struct NgramBloomFilterState;
 using ColumnPtr = std::shared_ptr<Column>;
+class TypeDescriptor;
 
 class FunctionContext {
 public:

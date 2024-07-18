@@ -40,11 +40,7 @@ DEFINE_FAIL_POINT(expr_prepare_fragment_thread_local_call_failed);
 
 VectorizedFunctionCallExpr::VectorizedFunctionCallExpr(const TExprNode& node) : Expr(node) {}
 
-StatusOr<FunctionDescriptor*> VectorizedFunctionCallExpr::_get_function_by_fid(TFunction fn) {
-    if (!fn.__isset.fid &&) {
-        return Status::InternalError("Vectorized engine doesn't implement function " + fn.name.function_name);
-    }
-
+const FunctionDescriptor* VectorizedFunctionCallExpr::_get_function_by_fid(TFunction fn) {
     // branch-3.0 is 150102~150104, branch-3.1 is 150103~150105
     // refs: https://github.com/StarRocks/starrocks/pull/17803
     // @todo: remove this code when branch-3.0 is deprecated
@@ -59,26 +55,22 @@ StatusOr<FunctionDescriptor*> VectorizedFunctionCallExpr::_get_function_by_fid(T
     return BuiltinFunctions::find_builtin_function(fid);
 }
 
-StatusOr<FunctionDescriptor*> VectorizedFunctionCallExpr::_get_function(TFunction fn,
-                                                                        std::vector<TypeDescriptor> arg_types,
-                                                                        TypeDescriptor result_type) {
-    if (!result_type.has_extra_type_desc()) {
+const FunctionDescriptor* VectorizedFunctionCallExpr::_get_function(TFunction fn, std::vector<TypeDescriptor> arg_types,
+                                                                    TypeDescriptor return_type) {
+    if (!return_type.has_agg_state_type()) {
         return _get_function_by_fid(fn);
     } else {
-        auto extra_type_desc = result_type.extra_type_info;
-        if (extra_type_desc->agg_state_desc == nullptr) {
-            return Status::InternalError("Vectorized engine doesn't implement agg state function " +
-                                         fn.name.function_name);
-        }
-        auto agg_state_desc = extra.agg_type_desc;
-        _agg_state_func = std::make_unique<AggStateFunction>(agg_state_desc->return_type, agg_state_desc);
-
-        auto execute_func = std::bind(&AggStateFunction::execute, agg_state_func.get(), std::placeholders::_1);
-        auto prepare_func = std::bind(&AggStateFunction::prepare, agg_state_func.get(), std::placeholders::_1);
-        auto close_func = std::bind(&AggStateFunction::close, agg_state_func.get(), std::placeholders::_1);
-        _agg_func_desc = std::make_unique<FunctionDescriptor>(fn.name.function_name, arg_types.size(), exec_func,
+        auto agg_state_type = return_type.agg_state_type;
+        _agg_state_func = std::make_shared<AggStateFunction>(return_type, agg_state_type);
+        auto execute_func = std::bind(&AggStateFunction::execute, _agg_state_func.get(), std::placeholders::_1,
+                                      std::placeholders::_2);
+        auto prepare_func = std::bind(&AggStateFunction::prepare, _agg_state_func.get(), std::placeholders::_1,
+                                      std::placeholders::_2);
+        auto close_func = std::bind(&AggStateFunction::close, _agg_state_func.get(), std::placeholders::_1,
+                                    std::placeholders::_2);
+        _agg_func_desc = std::make_shared<FunctionDescriptor>(fn.name.function_name, arg_types.size(), execute_func,
                                                               prepare_func, close_func, true, false);
-        return func_desc.get();
+        return _agg_func_desc.get();
     }
 }
 
@@ -87,13 +79,17 @@ Status VectorizedFunctionCallExpr::prepare(starrocks::RuntimeState* state, starr
 
     // parpare result type and arg types
     FunctionContext::TypeDesc return_type = AnyValUtil::column_type_to_type_desc(_type);
+    if (!_fn.__isset.fid && return_type.agg_state_type == nullptr) {
+        return Status::InternalError("Vectorized engine doesn't implement agg state function " +
+                                     _fn.name.function_name);
+    }
     std::vector<FunctionContext::TypeDesc> args_types;
     for (Expr* child : _children) {
         args_types.push_back(AnyValUtil::column_type_to_type_desc(child->type()));
     }
 
     // initialize function descriptor
-    _fn_desc = _get_function(_fn);
+    _fn_desc = _get_function(_fn, args_types, return_type);
     if (_fn_desc == nullptr || _fn_desc->scalar_function == nullptr) {
         return Status::InternalError("Vectorized engine doesn't implement function " + _fn.name.function_name);
     }

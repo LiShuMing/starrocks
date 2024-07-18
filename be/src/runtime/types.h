@@ -265,6 +265,8 @@ struct TypeDescriptor {
 
     bool operator!=(const TypeDescriptor& other) const { return !(*this == other); }
 
+    inline bool has_agg_state_type() const { return agg_state_type != nullptr; }
+
     TTypeDesc to_thrift() const {
         TTypeDesc thrift_type;
         to_thrift(&thrift_type);

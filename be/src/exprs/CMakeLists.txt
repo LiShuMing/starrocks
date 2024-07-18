@@ -40,6 +40,7 @@ set(EXPR_FILES
   binary_functions.cpp
   expr_context.cpp
   expr.cpp
+  agg_state_desc.cpp
   function_context.cpp
   table_function/table_function_factory.cpp
   table_function/json_each.cpp

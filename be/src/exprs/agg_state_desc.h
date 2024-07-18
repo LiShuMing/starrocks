@@ -20,11 +20,11 @@
 #include "column/column_helper.h"
 #include "common/logging.h"
 #include "exprs/agg/aggregate.h"
+#include "runtime/agg_state_type_desc.h"
+#include "runtime/types.h"
 #include "types/logical_type.h"
 
 namespace starrocks {
-
-class TypeDescriptor;
 
 class AggStateDesc;
 using AggStateDescPtr = std::shared_ptr<AggStateDesc>;
@@ -34,20 +34,10 @@ using AggStateDescPtr = std::shared_ptr<AggStateDesc>;
  */
 class AggStateDesc {
 public:
-    AggStateDesc(AggStateTypeDescPtr agg_state_type, TypeDescriptor return_type)
-            : _agg_state_type(agg_state_type), _return_type(return_type) {
-        DCHECK(_agg_state_type != nullptr);
-        _agg_function =
-                AggregateFunctionBuilder::build(_agg_state_type->get_func_name(), _return_type,
-                                                _agg_state_type->get_arg_types(), _agg_state_type->is_result_nullable(),
-                                                TFunctionBinaryType::BUILDIN, _agg_state_type->get_func_version());
-        if (_agg_function == nullptr) {
-            LOG(WARNING) << "Failed to get aggregate function for " << _func_name;
-        }
-    }
+    AggStateDesc(AggStateTypeDescPtr agg_state_type, TypeDescriptor return_type);
 
     ColumnPtr create_serialize_column() const { return ColumnHelper::create_column(_return_type, false); }
-    std::string get_func_name() const { return _ag_state_type->get_func_name(); }
+    std::string get_func_name() const { return _agg_state_type->get_func_name(); }
     AggregateFunction* get_agg_function() const { return _agg_function; }
 
 private:

@@ -448,9 +448,8 @@ TypeDescriptor TypeDescriptor::from_thrift(const TTypeDesc& t) {
     TypeDescriptor result(t.types, &idx);
     DCHECK_EQ(idx, t.types.size());
 
-    // initialize extra_type_desc
-    if (t.__isset.agg_state_desc) {
-        result.extra_type_desc = AggStateTypeDesc::from_thrift(t);
+    if (t.__isset.agg_state_type) {
+        result.agg_state_type = AggStateTypeDesc::from_thrift(t.agg_state_type);
     }
     return result;
 }

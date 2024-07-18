@@ -41,7 +41,7 @@ namespace starrocks {
 
 FunctionContext::TypeDesc AnyValUtil::column_type_to_type_desc(const TypeDescriptor& type) {
     FunctionContext::TypeDesc out;
-    out.extra_type_desc = type.extra_type_info;
+    out.agg_state_type = type.agg_state_type;
     switch (type.type) {
     case TYPE_BOOLEAN:
         out.type = TYPE_BOOLEAN;

@@ -21,37 +21,41 @@
 #include "common/status.h"
 #include "exprs/agg_state_desc.h"
 #include "exprs/function_context.h"
+#include "runtime/agg_state_type_desc.h"
 
 namespace starrocks {
 
 class AggStateFunction {
 public:
-    AggStateFunction(TypeDescriptor return_type, AggStateDescPtr agg_state_desc)
-            : _agg_state_desc(std::move(agg_state_desc)) {}
+    AggStateFunction(TypeDescriptor return_type, AggStateTypeDescPtr agg_state_type) {
+        _agg_state_desc = std::make_shared<AggStateDesc>(agg_state_type, return_type);
+        DCHECK(_agg_state_desc != nullptr);
+        _function = _agg_state_desc->get_agg_function();
+    }
 
-    static Status prepare(FunctionContext* context, FunctionContext::FunctionStateScope scope) {
-        auto* agg_func = _agg_state_desc->get_agg_function();
-        if (agg_func == nullptr) {
+    Status prepare(FunctionContext* context, FunctionContext::FunctionStateScope scope) {
+        if (_function == nullptr) {
             return Status::InternalError("AggStateFunction is nullptr  for " + _agg_state_desc->get_func_name());
         }
         return Status::OK();
     }
 
-    static Status close(FunctionContext* context, FunctionContext::FunctionStateScope scope) { return Status::OK(); }
+    Status close(FunctionContext* context, FunctionContext::FunctionStateScope scope) { return Status::OK(); }
 
-    static StatusOr<ColumnPtr> execute(FunctionContext* context, const Columns& columns) {
+    StatusOr<ColumnPtr> execute(FunctionContext* context, const Columns& columns) {
         if (columns.size() == 0) {
             return Status::InternalError("AggStateFunction execute columns is empty");
         }
         auto result = _agg_state_desc->create_serialize_column();
         auto chunk_size = columns[0]->size();
         // ensure columns' nullable are expected
-        _funtion->convert_to_serialize_format(context, columns, chunk_size, result);
+        _function->convert_to_serialize_format(context, columns, chunk_size, &result);
         return result;
     }
 
 private:
     AggStateDescPtr _agg_state_desc;
+    AggregateFunction* _function;
 };
 using AggStateFunctionPtr = std::shared_ptr<starrocks::AggStateFunction>;
 

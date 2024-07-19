@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-namespace starrocks {
-
 #include "runtime/agg_state_type_desc.h"
 
 #include <memory>
 
 #include "runtime/types.h"
 
+namespace starrocks {
+
 // Create a new AggStateDesc from a thrift TTypeDesc.
-static AggStateTypeDescPtr AggStateTypeDesc::from_thrift(const TAggStateTypeDesc& desc) {
+AggStateTypeDescPtr AggStateTypeDesc::from_thrift(const TAggStateTypeDesc& desc) {
     std::string agg_func_name = desc.agg_func_name;
     std::vector<TypeDescriptor> arg_types;
     for (auto& arg_type : desc.arg_types) {

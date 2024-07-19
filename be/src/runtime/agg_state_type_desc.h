@@ -13,12 +13,12 @@
 // limitations under the License.
 #pragma once
 
-namespace starrocks {
-
 #include <memory>
 
 #include "gen_cpp/Types_types.h" // for TPrimitiveType
 #include "gen_cpp/types.pb.h"    // for PTypeDesc
+
+namespace starrocks {
 
 class TypeDescriptor;
 

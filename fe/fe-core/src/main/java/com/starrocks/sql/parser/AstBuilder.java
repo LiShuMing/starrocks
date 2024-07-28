@@ -82,8 +82,10 @@ import com.starrocks.analysis.UserDesc;
 import com.starrocks.analysis.UserVariableExpr;
 import com.starrocks.analysis.VarBinaryLiteral;
 import com.starrocks.analysis.VariableExpr;
+import com.starrocks.catalog.AggregateFunction;
 import com.starrocks.catalog.AggregateType;
 import com.starrocks.catalog.ArrayType;
+import com.starrocks.catalog.Function;
 import com.starrocks.catalog.FunctionSet;
 import com.starrocks.catalog.KeysType;
 import com.starrocks.catalog.MapType;
@@ -93,6 +95,7 @@ import com.starrocks.catalog.ScalarType;
 import com.starrocks.catalog.StructField;
 import com.starrocks.catalog.StructType;
 import com.starrocks.catalog.Type;
+import com.starrocks.catalog.combinator.AggStateDesc;
 import com.starrocks.common.AnalysisException;
 import com.starrocks.common.Config;
 import com.starrocks.common.CsvFormat;
@@ -107,6 +110,7 @@ import com.starrocks.connector.TagOptions;
 import com.starrocks.mysql.MysqlPassword;
 import com.starrocks.qe.SqlModeHelper;
 import com.starrocks.scheduler.persist.TaskSchedule;
+import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.ShowTemporaryTableStmt;
 import com.starrocks.sql.analyzer.AnalyzerUtils;
 import com.starrocks.sql.analyzer.RelationId;
@@ -475,6 +479,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -965,13 +970,15 @@ public class AstBuilder extends StarRocksBaseVisitor<ParseNode> {
         String charsetName = context.charsetName() != null ?
                 ((Identifier) visit(context.charsetName().identifier())).getValue() : null;
         boolean isKey = context.KEY() != null;
-        AggregateType aggregateType =
-                context.aggDesc() != null ? AggregateType.valueOf(context.aggDesc().getText().toUpperCase()) : null;
+        AggregateType aggregateType = context.aggDesc() != null ?
+                AggregateType.valueOf(context.aggDesc().getText().toUpperCase()) : null;
         Boolean isAllowNull = null;
-        if (context.NOT() != null && context.NULL() != null) {
-            isAllowNull = false;
-        } else if (context.NULL() != null) {
-            isAllowNull = true;
+        if (context.columnNullable() != null) {
+            if (context.columnNullable().NOT() != null) {
+                isAllowNull = false;
+            } else if (context.columnNullable().NULL() != null) {
+                isAllowNull = true;
+            }
         }
         Boolean isAutoIncrement = null;
         if (context.AUTO_INCREMENT() != null) {
@@ -7624,9 +7631,42 @@ public class AstBuilder extends StarRocksBaseVisitor<ParseNode> {
             return getArrayType(context.arrayType());
         } else if (context.structType() != null) {
             return getStructType(context.structType());
-        } else {
+        } else if (context.mapType() != null) {
             return getMapType(context.mapType());
+        } else {
+            Preconditions.checkState(context.aggStateType() != null);
+            return getAggStateType(context.aggStateType());
         }
+    }
+
+    public Type getAggStateType(StarRocksParser.AggStateTypeContext context) {
+        Identifier aggFuncNameId = (Identifier) visit(context.identifier());
+        String aggFuncName = aggFuncNameId.getValue();
+        List<StarRocksParser.TypeWithNullableContext> typeWithNullables = context.typeWithNullable();
+
+        List<Type> argTypes = Lists.newArrayList();
+        boolean hasNullableChild = false;
+        for (StarRocksParser.TypeWithNullableContext typeWithNullableContext : typeWithNullables) {
+            Type argType = getType(typeWithNullableContext.type());
+            boolean isNotNullable = typeWithNullableContext.columnNullable() != null &&
+                    typeWithNullableContext.columnNullable().NOT() != null;
+            hasNullableChild |= !isNotNullable;
+            argTypes.add(argType);
+        }
+        Function desc = new Function(new FunctionName(aggFuncName), argTypes.toArray(new Type[0]), Type.INVALID, false);
+        Function result = GlobalStateMgr.getCurrentState().getFunction(desc, Function.CompareMode.IS_IDENTICAL);
+        if (result == null) {
+            throw new ParsingException(String.format("AggStateType function %s with input %s not found", aggFuncName,
+                    argTypes), createPos(context));
+        }
+        if (!(result instanceof AggregateFunction)) {
+            throw new ParsingException(String.format("AggStateType function %s with input %s found but not an aggregate " +
+                            "function", aggFuncName, argTypes), createPos(context));
+        }
+        AggregateFunction aggFunc = (AggregateFunction) result;
+        AggStateDesc aggStateDesc = new AggStateDesc(aggFunc.functionName(), aggFunc.getReturnType(),
+                Arrays.asList(aggFunc.getArgs()), aggFunc.isNullable() | hasNullableChild);
+        return aggFunc.getIntermediateTypeOrReturnType().withAggStateDesc(aggStateDesc);
     }
 
     private Type getBaseType(StarRocksParser.BaseTypeContext context) {

@@ -33,6 +33,7 @@ TEST_F(TypeDescriptorTest, test_from_thrift) {
         ttype_desc.types.back().__set_type(TTypeNodeType::SCALAR);
         ttype_desc.types.back().__set_scalar_type(TScalarType());
         ttype_desc.types.back().scalar_type.__set_type(TPrimitiveType::INT);
+        ttype_desc.types.back().scalar_type.__set_len(-1);
 
         auto t = TypeDescriptor::from_thrift(ttype_desc);
         ASSERT_FALSE(t.is_complex_type());

@@ -108,11 +108,12 @@ import com.starrocks.common.util.TimeUtils;
 import com.starrocks.connector.BranchOptions;
 import com.starrocks.connector.TagOptions;
 import com.starrocks.mysql.MysqlPassword;
+import com.starrocks.qe.ConnectContext;
 import com.starrocks.qe.SqlModeHelper;
 import com.starrocks.scheduler.persist.TaskSchedule;
-import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.ShowTemporaryTableStmt;
 import com.starrocks.sql.analyzer.AnalyzerUtils;
+import com.starrocks.sql.analyzer.FunctionAnalyzer;
 import com.starrocks.sql.analyzer.RelationId;
 import com.starrocks.sql.analyzer.SemanticException;
 import com.starrocks.sql.ast.AddBackendBlackListStmt;
@@ -479,7 +480,6 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -979,6 +979,9 @@ public class AstBuilder extends StarRocksBaseVisitor<ParseNode> {
             } else if (context.columnNullable().NULL() != null) {
                 isAllowNull = true;
             }
+        }
+        if (aggregateType != null && isAllowNull != null && !isAllowNull) {
+            throw new ParsingException(PARSER_ERROR_MSG.foundNotNull("Agg state column " + columnName), colIdentifier.getPos());
         }
         Boolean isAutoIncrement = null;
         if (context.AUTO_INCREMENT() != null) {
@@ -7643,7 +7646,6 @@ public class AstBuilder extends StarRocksBaseVisitor<ParseNode> {
         Identifier aggFuncNameId = (Identifier) visit(context.identifier());
         String aggFuncName = aggFuncNameId.getValue();
         List<StarRocksParser.TypeWithNullableContext> typeWithNullables = context.typeWithNullable();
-
         List<Type> argTypes = Lists.newArrayList();
         boolean hasNullableChild = false;
         for (StarRocksParser.TypeWithNullableContext typeWithNullableContext : typeWithNullables) {
@@ -7653,8 +7655,11 @@ public class AstBuilder extends StarRocksBaseVisitor<ParseNode> {
             hasNullableChild |= !isNotNullable;
             argTypes.add(argType);
         }
-        Function desc = new Function(new FunctionName(aggFuncName), argTypes.toArray(new Type[0]), Type.INVALID, false);
-        Function result = GlobalStateMgr.getCurrentState().getFunction(desc, Function.CompareMode.IS_IDENTICAL);
+        FunctionParams params = new FunctionParams(false, Lists.newArrayList());
+        Type[] argumentTypes = argTypes.toArray(Type[]::new);
+        Boolean[] isArgumentConstants = argTypes.stream().map(x -> new Boolean(false)).toArray(Boolean[]::new);
+        Function result = FunctionAnalyzer.getAggregateFunction(ConnectContext.get(), aggFuncName, params, argumentTypes,
+                isArgumentConstants, createPos(context));
         if (result == null) {
             throw new ParsingException(String.format("AggStateType function %s with input %s not found", aggFuncName,
                     argTypes), createPos(context));
@@ -7665,8 +7670,10 @@ public class AstBuilder extends StarRocksBaseVisitor<ParseNode> {
         }
         AggregateFunction aggFunc = (AggregateFunction) result;
         AggStateDesc aggStateDesc = new AggStateDesc(aggFunc.functionName(), aggFunc.getReturnType(),
-                Arrays.asList(aggFunc.getArgs()), aggFunc.isNullable() | hasNullableChild);
-        return aggFunc.getIntermediateTypeOrReturnType().withAggStateDesc(aggStateDesc);
+                argTypes, aggFunc.isNullable() | hasNullableChild);
+        Type intermediateType = aggFunc.getIntermediateTypeOrReturnType();
+        Type finalType = AnalyzerUtils.transformTableColumnType(intermediateType, false);
+        return finalType.withAggStateDesc(aggStateDesc);
     }
 
     private Type getBaseType(StarRocksParser.BaseTypeContext context) {

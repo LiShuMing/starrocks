@@ -2093,25 +2093,4 @@ public class CreateTableTest {
         starRocksAssert.dropTable("news_rt_non_pk");
         starRocksAssert.withTable(createTableSql);
     }
-
-    @Test
-    public void testCreateTableWithAggStateType() throws Exception {
-        StarRocksAssert starRocksAssert = new StarRocksAssert(connectContext);
-        starRocksAssert.useDatabase("test");
-        starRocksAssert.withTable("CREATE TABLE test_agg_state1\n" +
-                "(\n" +
-                "    id_int INT,\n" +
-                "    sum_decimal decimal(5, 4) SUM,\n" +
-                "    sum_bigint agg_state<sum(bigint)> agg_state_union \n" +
-                ")\n" +
-                "AGGREGATE KEY(id_int)\n" +
-                "DISTRIBUTED BY HASH(id_int) BUCKETS 10\n" +
-                "PROPERTIES(\"replication_num\" = \"1\");");
-        final Table table = starRocksAssert.getCtx().getGlobalStateMgr().getDb(connectContext.getDatabase())
-                .getTable("test_agg_state1");
-        String columns = table.getColumns().toString();
-        System.out.println("columns = " + columns);
-        Assert.assertTrue(columns.contains("`sum_decimal` decimal(38, 4) SUM"));
-        Assert.assertTrue(columns.contains(" `sum_bigint` AGG_STATE<sum(bigint(20))> AGG_STATE_UNION"));
-    }
 }

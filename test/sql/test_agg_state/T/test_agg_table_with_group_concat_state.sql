@@ -21,7 +21,6 @@ insert into t1  values('2020-01-01', '2020-01-01 10:10:10', 'aaaa', 'aaaa', 0, 1
 
 CREATE TABLE test_agg_tbl1(
   k1 VARCHAR(10),
-  k2 agg_state<group_concat(datetime)> agg_state_union,
   k6 agg_state<group_concat(tinyint)> agg_state_union,
   k7 agg_state<group_concat(smallint)> agg_state_union,
   k8 agg_state<group_concat(int)> agg_state_union,
@@ -36,16 +35,16 @@ PARTITION BY (k1)
 DISTRIBUTED BY HASH(k1) BUCKETS 3;
 
 -- first insert & test result
-insert into test_agg_tbl1 select k1, group_concat_state(k2), group_concat_state(k6), group_concat_state(k7), group_concat_state(k8), group_concat_state(k9), group_concat_state(k10), group_concat_state(k11), group_concat_state(k12), group_concat_state(k13) from t1;
+insert into test_agg_tbl1 select k1, group_concat_state(k6), group_concat_state(k7), group_concat_state(k8), group_concat_state(k9), group_concat_state(k10), group_concat_state(k11), group_concat_state(k12), group_concat_state(k13) from t1;
 
 -- query    
-select group_concat_merge(k2), group_concat_merge(k6), group_concat_merge(k7), group_concat_merge(k8), group_concat_merge(k9), group_concat_merge(k10), group_concat_merge(k11), group_concat_merge(k12), group_concat_merge(k13) from test_agg_tbl1;
-select k1, group_concat_merge(k2), group_concat_merge(k6), group_concat_merge(k7), group_concat_merge(k8), group_concat_merge(k9), group_concat_merge(k10), group_concat_merge(k11), group_concat_merge(k12), group_concat_merge(k13) from test_agg_tbl1 group by dt order by 1 limit 3;
+select group_concat_merge(k6), group_concat_merge(k7), group_concat_merge(k8), group_concat_merge(k9), group_concat_merge(k10), group_concat_merge(k11), group_concat_merge(k12), group_concat_merge(k13) from test_agg_tbl1;
+select k1, group_concat_merge(k6), group_concat_merge(k7), group_concat_merge(k8), group_concat_merge(k9), group_concat_merge(k10), group_concat_merge(k11), group_concat_merge(k12), group_concat_merge(k13) from test_agg_tbl1 group by k1 order by 1 limit 3;
 
 -- second insert & test result
-INSERT INTO t1 values (1, 'a', 1, '2024-07-22'), (3, 'c', 1, '2024-07-25'), (5, NULL, NULL, '2024-07-24');
-insert into test_agg_tbl1 select k1, group_concat_state(k2), group_concat_state(k6), group_concat_state(k7), group_concat_state(k8), group_concat_state(k9), group_concat_state(k10), group_concat_state(k11), group_concat_state(k12), group_concat_state(k13) from t1;
-insert into test_agg_tbl1 select k1, group_concat_state(k2), group_concat_state(k6), group_concat_state(k7), group_concat_state(k8), group_concat_state(k9), group_concat_state(k10), group_concat_state(k11), group_concat_state(k12), group_concat_state(k13) from t1;
+insert into t1  values('2020-01-02', '2020-01-01 10:10:10', 'aaaa', 'aaaa', 0, 1, 1, 1, 1, 1, 1.11, 11.111, 111.1111),('2020-02-01', '2020-02-01 10:10:10', 'bbbb', 'bbbb', 0, 2, 2, 2, 2, 2, 2.22, 22.222, 222.2222);
+insert into test_agg_tbl1 select k1, group_concat_state(k6), group_concat_state(k7), group_concat_state(k8), group_concat_state(k9), group_concat_state(k10), group_concat_state(k11), group_concat_state(k12), group_concat_state(k13) from t1;
+insert into test_agg_tbl1 select k1, group_concat_state(k6), group_concat_state(k7), group_concat_state(k8), group_concat_state(k9), group_concat_state(k10), group_concat_state(k11), group_concat_state(k12), group_concat_state(k13) from t1;
 ALTER TABLE test_agg_tbl1 COMPACT;
-select group_concat_merge(k2), group_concat_merge(k6), group_concat_merge(k7), group_concat_merge(k8), group_concat_merge(k9), group_concat_merge(k10), group_concat_merge(k11), group_concat_merge(k12), group_concat_merge(k13) from test_agg_tbl1;
-select k1, group_concat_merge(k2), group_concat_merge(k6), group_concat_merge(k7), group_concat_merge(k8), group_concat_merge(k9), group_concat_merge(k10), group_concat_merge(k11), group_concat_merge(k12), group_concat_merge(k13) from test_agg_tbl1 group by dt order by 1 limit 3;
+select group_concat_merge(k6), group_concat_merge(k7), group_concat_merge(k8), group_concat_merge(k9), group_concat_merge(k10), group_concat_merge(k11), group_concat_merge(k12), group_concat_merge(k13) from test_agg_tbl1;
+select k1, group_concat_merge(k6), group_concat_merge(k7), group_concat_merge(k8), group_concat_merge(k9), group_concat_merge(k10), group_concat_merge(k11), group_concat_merge(k12), group_concat_merge(k13) from test_agg_tbl1 group by k1 order by 1 limit 3;

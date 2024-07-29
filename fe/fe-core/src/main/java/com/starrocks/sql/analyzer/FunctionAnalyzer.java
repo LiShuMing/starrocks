@@ -812,38 +812,59 @@ public class FunctionAnalyzer {
                 newFn.setisAnalyticFn(((AggregateFunction) fn).isAnalyticFn());
                 fn = newFn;
             }
-        } else if (fnName.endsWith(FunctionSet.AGG_STATE_SUFFIX)
-                || fnName.endsWith(FunctionSet.AGG_STATE_UNION_SUFFIX)
-                || fnName.endsWith(FunctionSet.AGG_STATE_MERGE_SUFFIX)) {
+        } else if (fnName.endsWith(FunctionSet.AGG_STATE_SUFFIX)) {
             fn = Expr.getBuiltinFunction(fnName, argumentTypes, Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF);
             if (fn == null) {
                 return fn;
             }
-            String aggFuncName = "";
+            String aggFuncName = fnName.substring(0, fnName.length() - FunctionSet.AGG_STATE_SUFFIX.length());
             // correct aggregate function for type correction
             Optional<Function> result = Optional.empty();
             if (fn instanceof AggStateCombinator) {
-                aggFuncName = fnName.substring(0, fnName.length() - FunctionSet.AGG_STATE_SUFFIX.length());
                 AggregateFunction aggFunc = (AggregateFunction) getAggregateFunction(session, aggFuncName, params,
                         argumentTypes, argumentIsConstants, pos);
                 result = AggStateCombinator.of(aggFunc);
-            } else if (fn instanceof AggStateUnionCombinator) {
-                aggFuncName = fnName.substring(0, fnName.length() - FunctionSet.AGG_STATE_UNION_SUFFIX.length());
-                AggregateFunction aggFunc = (AggregateFunction) getAggregateFunction(session, aggFuncName, params,
-                        argumentTypes, argumentIsConstants, pos);
-                result = AggStateUnionCombinator.of(aggFunc);
-            } else if (fn instanceof AggStateMergeCombinator) {
-                aggFuncName = fnName.substring(0, fnName.length() - FunctionSet.AGG_STATE_MERGE_SUFFIX.length());
-                AggregateFunction aggFunc = (AggregateFunction) getAggregateFunction(session, aggFuncName, params,
-                        argumentTypes, argumentIsConstants, pos);
-                result = AggStateMergeCombinator.of(aggFunc);
             }
             if (result.isEmpty()) {
                 return null;
             }
             return result.get();
+        } else if (fnName.endsWith(FunctionSet.AGG_STATE_UNION_SUFFIX) || fnName.endsWith(FunctionSet.AGG_STATE_MERGE_SUFFIX)) {
+            fn = Expr.getBuiltinFunction(fnName, argumentTypes, Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF);
+            if (fn == null) {
+                return fn;
+            }
+            String aggFuncName = getAggFuncNameOfCombinator(fnName);
+            if (fnName.equals(FunctionSet.SUM) || fnName.equals(FunctionSet.MIN) || fnName.equals(FunctionSet.MAX)) {
+                AggregateFunction aggFunc = (AggregateFunction) getAggregateFunction(session, aggFuncName, params,
+                        argumentTypes, argumentIsConstants, pos);
+                // correct aggregate function for type correction
+                Optional<Function> result = Optional.empty();
+                if (fn instanceof AggStateUnionCombinator) {
+                    result = AggStateUnionCombinator.of(aggFunc);
+                } else if (fn instanceof AggStateMergeCombinator) {
+                    result = AggStateMergeCombinator.of(aggFunc);
+                }
+                if (result.isEmpty()) {
+                    return null;
+                }
+                return result.get();
+            }
+            return fn;
         }
         return fn;
+    }
+
+    private static String getAggFuncNameOfCombinator(String fnName) {
+        if (fnName.endsWith(FunctionSet.AGG_STATE_SUFFIX)) {
+            return fnName.substring(0, fnName.length() - FunctionSet.AGG_STATE_SUFFIX.length());
+        } else if (fnName.endsWith(FunctionSet.AGG_STATE_UNION_SUFFIX)) {
+            return fnName.substring(0, fnName.length() - FunctionSet.AGG_STATE_UNION_SUFFIX.length());
+        } else if (fnName.endsWith(FunctionSet.AGG_STATE_MERGE_SUFFIX)) {
+            return fnName.substring(0, fnName.length() - FunctionSet.AGG_STATE_MERGE_SUFFIX.length());
+        } else {
+            return fnName;
+        }
     }
 
     public static Function getAggregateFunction(ConnectContext session,

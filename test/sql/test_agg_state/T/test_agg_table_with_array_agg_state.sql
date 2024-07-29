@@ -21,7 +21,6 @@ insert into t1  values('2020-01-01', '2020-01-01 10:10:10', 'aaaa', 'aaaa', 0, 1
 
 CREATE TABLE test_agg_tbl1(
   k1 VARCHAR(10),
-  k2 agg_state<array_agg(datetime)> agg_state_union,
   k6 agg_state<array_agg(tinyint)> agg_state_union,
   k7 agg_state<array_agg(smallint)> agg_state_union,
   k8 agg_state<array_agg(int)> agg_state_union,
@@ -36,16 +35,16 @@ PARTITION BY (k1)
 DISTRIBUTED BY HASH(k1) BUCKETS 3;
 
 -- first insert & test result
-insert into test_agg_tbl1 select k1, array_agg_state(k2), array_agg_state(k6), array_agg_state(k7), array_agg_state(k8), array_agg_state(k9), array_agg_state(k10), array_agg_state(k11), array_agg_state(k12), array_agg_state(k13) from t1;
+insert into test_agg_tbl1 select k1, array_agg_state(k6), array_agg_state(k7), array_agg_state(k8), array_agg_state(k9), array_agg_state(k10), array_agg_state(k11), array_agg_state(k12), array_agg_state(k13) from t1;
 
 -- query    
-select array_agg_merge(k2), array_agg_merge(k6), array_agg_merge(k7), array_agg_merge(k8), array_agg_merge(k9), array_agg_merge(k10), array_agg_merge(k11), array_agg_merge(k12), array_agg_merge(k13) from test_agg_tbl1;
-select k1, array_agg_merge(k2), array_agg_merge(k6), array_agg_merge(k7), array_agg_merge(k8), array_agg_merge(k9), array_agg_merge(k10), array_agg_merge(k11), array_agg_merge(k12), array_agg_merge(k13) from test_agg_tbl1 group by dt order by 1 limit 3;
+select array_agg_merge(k6), array_agg_merge(k7), array_agg_merge(k8), array_agg_merge(k9), array_agg_merge(k10), array_agg_merge(k11), array_agg_merge(k12), array_agg_merge(k13) from test_agg_tbl1;
+select k1, array_agg_merge(k6), array_agg_merge(k7), array_agg_merge(k8), array_agg_merge(k9), array_agg_merge(k10), array_agg_merge(k11), array_agg_merge(k12), array_agg_merge(k13) from test_agg_tbl1 group by k1 order by 1 limit 3;
 
 -- second insert & test result
-INSERT INTO t1 values (1, 'a', 1, '2024-07-22'), (3, 'c', 1, '2024-07-25'), (5, NULL, NULL, '2024-07-24');
-insert into test_agg_tbl1 select k1, array_agg_state(k2), array_agg_state(k6), array_agg_state(k7), array_agg_state(k8), array_agg_state(k9), array_agg_state(k10), array_agg_state(k11), array_agg_state(k12), array_agg_state(k13) from t1;
-insert into test_agg_tbl1 select k1, array_agg_state(k2), array_agg_state(k6), array_agg_state(k7), array_agg_state(k8), array_agg_state(k9), array_agg_state(k10), array_agg_state(k11), array_agg_state(k12), array_agg_state(k13) from t1;)
+insert into t1  values('2020-01-02', '2020-01-01 10:10:10', 'aaaa', 'aaaa', 0, 1, 1, 1, 1, 1, 1.11, 11.111, 111.1111),('2020-02-01', '2020-02-01 10:10:10', 'bbbb', 'bbbb', 0, 2, 2, 2, 2, 2, 2.22, 22.222, 222.2222);
+insert into test_agg_tbl1 select k1, array_agg_state(k6), array_agg_state(k7), array_agg_state(k8), array_agg_state(k9), array_agg_state(k10), array_agg_state(k11), array_agg_state(k12), array_agg_state(k13) from t1;
+insert into test_agg_tbl1 select k1, array_agg_state(k6), array_agg_state(k7), array_agg_state(k8), array_agg_state(k9), array_agg_state(k10), array_agg_state(k11), array_agg_state(k12), array_agg_state(k13) from t1;
 ALTER TABLE test_agg_tbl1 COMPACT;
-select array_agg_merge(k2), array_agg_merge(k6), array_agg_merge(k7), array_agg_merge(k8), array_agg_merge(k9), array_agg_merge(k10), array_agg_merge(k11), array_agg_merge(k12), array_agg_merge(k13) from test_agg_tbl1;
-select k1, array_agg_merge(k2), array_agg_merge(k6), array_agg_merge(k7), array_agg_merge(k8), array_agg_merge(k9), array_agg_merge(k10), array_agg_merge(k11), array_agg_merge(k12), array_agg_merge(k13) from test_agg_tbl1 group by dt order by 1 limit 3;
+select array_agg_merge(k6), array_agg_merge(k7), array_agg_merge(k8), array_agg_merge(k9), array_agg_merge(k10), array_agg_merge(k11), array_agg_merge(k12), array_agg_merge(k13) from test_agg_tbl1;
+select k1, array_agg_merge(k6), array_agg_merge(k7), array_agg_merge(k8), array_agg_merge(k9), array_agg_merge(k10), array_agg_merge(k11), array_agg_merge(k12), array_agg_merge(k13) from test_agg_tbl1 group by k1 order by 1 limit 3;

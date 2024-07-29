@@ -57,7 +57,7 @@ public:
                                          " not match with arg_nullables size " + std::to_string(_arg_nullables.size()));
         }
         Columns new_columns;
-        for (auto i = 0; i < columns.size(); ++i) {
+        for (auto i = 0; i < columns.size(); i++) {
             bool arg_nullable = _arg_nullables[i];
             auto& column = columns[i];
             if (!arg_nullable && column->is_nullable()) {

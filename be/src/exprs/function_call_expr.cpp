@@ -58,12 +58,13 @@ const FunctionDescriptor* VectorizedFunctionCallExpr::_get_function_by_fid(const
 const FunctionDescriptor* VectorizedFunctionCallExpr::_get_function(const TFunction& fn,
                                                                     const std::vector<TypeDescriptor>& arg_types,
                                                                     const TypeDescriptor& return_type,
-                                                                    bool has_nullable_child) {
+                                                                    std::vector<bool> arg_nullables) {
     if (!return_type.has_agg_state_desc()) {
         return _get_function_by_fid(fn);
     } else {
         auto agg_state_desc = return_type.agg_state_desc;
-        _agg_state_func = std::make_shared<AggStateFunction>(agg_state_desc.get(), return_type, has_nullable_child);
+        _agg_state_func =
+                std::make_shared<AggStateFunction>(agg_state_desc.get(), return_type, std::move(arg_nullables));
         auto execute_func = std::bind(&AggStateFunction::execute, _agg_state_func.get(), std::placeholders::_1,
                                       std::placeholders::_2);
         auto prepare_func = std::bind(&AggStateFunction::prepare, _agg_state_func.get(), std::placeholders::_1,
@@ -86,14 +87,14 @@ Status VectorizedFunctionCallExpr::prepare(starrocks::RuntimeState* state, starr
                                      _fn.name.function_name);
     }
     std::vector<FunctionContext::TypeDesc> args_types;
-    bool has_nullable_child = false;
+    std::vector<bool> arg_nullblaes;
     for (Expr* child : _children) {
         args_types.push_back(AnyValUtil::column_type_to_type_desc(child->type()));
-        has_nullable_child |= child->is_nullable();
+        arg_nullblaes.emplace_back(child->is_nullable());
     }
 
     // initialize function descriptor
-    _fn_desc = _get_function(_fn, args_types, return_type, has_nullable_child);
+    _fn_desc = _get_function(_fn, args_types, return_type, arg_nullblaes);
     if (_fn_desc == nullptr || _fn_desc->scalar_function == nullptr) {
         return Status::InternalError("Vectorized engine doesn't implement function " + _fn.name.function_name);
     }

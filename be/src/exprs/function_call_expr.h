@@ -58,7 +58,7 @@ protected:
 private:
     const FunctionDescriptor* _get_function_by_fid(const TFunction& fn);
     const FunctionDescriptor* _get_function(const TFunction& fn, const std::vector<TypeDescriptor>& arg_types,
-                                            const TypeDescriptor& result_type, bool has_nullable_child);
+                                            const TypeDescriptor& result_type, std::vector<bool> arg_nullables);
 
     const FunctionDescriptor* _fn_desc{nullptr};
 

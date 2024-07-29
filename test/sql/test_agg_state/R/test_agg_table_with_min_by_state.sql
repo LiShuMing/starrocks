@@ -14,11 +14,13 @@
     `k12` double not null, 
     `k13` decimal(27,9)
 ) DUPLICATE KEY(`k1`, `k2`, `k3`, `k4`, `k5`) 
--- PARTITION BY date_trunc('day', %s) 
 DISTRIBUTED BY HASH(`k1`, `k2`, `k3`) 
 PROPERTIES (  "replication_num" = "1");
+-- result:
+-- !result
 insert into t1  values('2020-01-01', '2020-01-01 10:10:10', 'aaaa', 'aaaa', 0, 1, 1, 1, 1, 1, 1.11, 11.111, 111.1111),('2020-02-01', '2020-02-01 10:10:10', 'bbbb', 'bbbb', 0, 2, 2, 2, 2, 2, 2.22, 22.222, 222.2222);
-
+-- result:
+-- !result
 CREATE TABLE test_agg_tbl1(
   k1 VARCHAR(10),
   k6 agg_state<min_by(tinyint, datetime)> agg_state_union,
@@ -33,18 +35,36 @@ CREATE TABLE test_agg_tbl1(
 AGGREGATE KEY(k1)
 PARTITION BY (k1) 
 DISTRIBUTED BY HASH(k1) BUCKETS 3;
-
--- first insert & test result
+-- result:
+-- !result
 insert into test_agg_tbl1 select k1, min_by_state(k6, k2), min_by_state(k7, k2), min_by_state(k8, k2), min_by_state(k9, k2), min_by_state(k10, k2), min_by_state(k11, k2), min_by_state(k12, k2), min_by_state(k13, k2) from t1;
-
--- query    
+-- result:
+-- !result
 select min_by_merge(k6), min_by_merge(k7), min_by_merge(k8), min_by_merge(k9), min_by_merge(k10), min_by_merge(k11), min_by_merge(k12), min_by_merge(k13) from test_agg_tbl1;
+-- result:
+E: (1064, 'Cannot invoke "com.starrocks.catalog.AggregateFunction.functionName()" because "aggFunc" is null')
+-- !result
 select k1, min_by_merge(k6), min_by_merge(k7), min_by_merge(k8), min_by_merge(k9), min_by_merge(k10), min_by_merge(k11), min_by_merge(k12), min_by_merge(k13) from test_agg_tbl1 group by k1 order by 1 limit 3;
-
--- second insert & test result
+-- result:
+E: (1064, 'Cannot invoke "com.starrocks.catalog.AggregateFunction.functionName()" because "aggFunc" is null')
+-- !result
 insert into t1  values('2020-01-02', '2020-01-01 10:10:10', 'aaaa', 'aaaa', 0, 1, 1, 1, 1, 1, 1.11, 11.111, 111.1111),('2020-02-01', '2020-02-01 10:10:10', 'bbbb', 'bbbb', 0, 2, 2, 2, 2, 2, 2.22, 22.222, 222.2222);
+-- result:
+-- !result
 insert into test_agg_tbl1 select k1, min_by_state(k6, k2), min_by_state(k7, k2), min_by_state(k8, k2), min_by_state(k9, k2), min_by_state(k10, k2), min_by_state(k11, k2), min_by_state(k12, k2), min_by_state(k13, k2) from t1;
+-- result:
+-- !result
 insert into test_agg_tbl1 select k1, min_by_state(k6, k2), min_by_state(k7, k2), min_by_state(k8, k2), min_by_state(k9, k2), min_by_state(k10, k2), min_by_state(k11, k2), min_by_state(k12, k2), min_by_state(k13, k2) from t1;
+-- result:
+-- !result
 ALTER TABLE test_agg_tbl1 COMPACT;
+-- result:
+-- !result
 select min_by_merge(k6), min_by_merge(k7), min_by_merge(k8), min_by_merge(k9), min_by_merge(k10), min_by_merge(k11), min_by_merge(k12), min_by_merge(k13) from test_agg_tbl1;
+-- result:
+E: (1064, 'Cannot invoke "com.starrocks.catalog.AggregateFunction.functionName()" because "aggFunc" is null')
+-- !result
 select k1, min_by_merge(k6), min_by_merge(k7), min_by_merge(k8), min_by_merge(k9), min_by_merge(k10), min_by_merge(k11), min_by_merge(k12), min_by_merge(k13) from test_agg_tbl1 group by k1 order by 1 limit 3;
+-- result:
+E: (1064, 'Cannot invoke "com.starrocks.catalog.AggregateFunction.functionName()" because "aggFunc" is null')
+-- !result

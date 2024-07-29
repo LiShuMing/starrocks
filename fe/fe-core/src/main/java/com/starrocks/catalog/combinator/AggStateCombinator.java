@@ -16,6 +16,7 @@ package com.starrocks.catalog.combinator;
 
 import com.starrocks.analysis.FunctionName;
 import com.starrocks.catalog.AggregateFunction;
+import com.starrocks.catalog.Function;
 import com.starrocks.catalog.FunctionSet;
 import com.starrocks.catalog.ScalarFunction;
 import com.starrocks.catalog.Type;
@@ -40,7 +41,7 @@ public final class AggStateCombinator extends ScalarFunction  {
         super(new FunctionName(funcName + FunctionSet.AGG_STATE_SUFFIX), argTypes, intermediateType, false);
     }
 
-    public static Optional<ScalarFunction> of(AggregateFunction aggFunc) {
+    public static Optional<Function> of(AggregateFunction aggFunc) {
         try {
             Type intermediateType = aggFunc.getIntermediateTypeOrReturnType().withAggStateDesc(new AggStateDesc(aggFunc));
             ScalarFunction aggStateFunc = new AggStateCombinator(aggFunc.functionName(), Arrays.asList(aggFunc.getArgs()),

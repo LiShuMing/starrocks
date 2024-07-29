@@ -29,7 +29,7 @@ CREATE TABLE test_agg_tbl1(
   k10 agg_state<array_agg(largeint)> agg_state_union,
   k11 agg_state<array_agg(float)> agg_state_union,
   k12 agg_state<array_agg(double)> agg_state_union,
-  k13 agg_state<array_agg(decimal)> agg_state_union
+  k13 agg_state<array_agg(decimal(27, 9))> agg_state_union
 )
 AGGREGATE KEY(k1)
 PARTITION BY (k1) 

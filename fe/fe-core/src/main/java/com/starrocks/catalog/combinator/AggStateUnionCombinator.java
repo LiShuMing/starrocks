@@ -17,6 +17,7 @@ package com.starrocks.catalog.combinator;
 import com.google.common.collect.ImmutableList;
 import com.starrocks.analysis.FunctionName;
 import com.starrocks.catalog.AggregateFunction;
+import com.starrocks.catalog.Function;
 import com.starrocks.catalog.FunctionSet;
 import com.starrocks.catalog.Type;
 import com.starrocks.thrift.TFunctionBinaryType;
@@ -42,7 +43,7 @@ public class AggStateUnionCombinator extends AggregateFunction {
                 ImmutableList.of(intermediateType), intermediateType, intermediateType, false);
     }
 
-    public static Optional<AggregateFunction> of(AggregateFunction aggFunc) {
+    public static Optional<Function> of(AggregateFunction aggFunc) {
         try {
             Type intermediateType = aggFunc.getIntermediateTypeOrReturnType().withAggStateDesc(new AggStateDesc(aggFunc));
             AggregateFunction aggStateUnionFunc = new AggStateUnionCombinator(aggFunc.functionName(), intermediateType);

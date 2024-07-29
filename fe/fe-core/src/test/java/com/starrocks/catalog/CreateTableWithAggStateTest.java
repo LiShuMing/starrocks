@@ -15,6 +15,7 @@
 package com.starrocks.catalog;
 
 import com.starrocks.common.Config;
+import com.starrocks.common.FeConstants;
 import com.starrocks.qe.ConnectContext;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.ast.CreateDbStmt;
@@ -35,6 +36,7 @@ public class CreateTableWithAggStateTest {
         Config.enable_auto_tablet_distribution = true;
         Config.enable_experimental_rowstore = true;
         Config.default_replication_num = 1;
+        FeConstants.enablePruneEmptyOutputScan = false;
         // create connect context
         connectContext = UtFrameUtils.createDefaultCtx();
         starRocksAssert = new StarRocksAssert(connectContext);
@@ -276,6 +278,54 @@ public class CreateTableWithAggStateTest {
                     for (String exp : expects) {
                         Assert.assertTrue(columns.contains(exp));
                     }
+                });
+    }
+
+    @Test
+    public void testCreateTableWithAggStateBadCase1() {
+        try {
+            starRocksAssert.withTable("\n" +
+                    "CREATE TABLE test_agg_tbl1(\n" +
+                    "  k1 VARCHAR(10),\n" +
+                    "  k2 agg_state<group_concat(datetime)> agg_state_union,\n" +
+                    "  k13 agg_state<group_concat(decimal)> agg_state_union\n" +
+                    ")\n" +
+                    "AGGREGATE KEY(k1)\n" +
+                    "PARTITION BY (k1) \n" +
+                    "DISTRIBUTED BY HASH(k1) BUCKETS 3;");
+            final Table table = starRocksAssert.getCtx().getGlobalStateMgr().getDb(connectContext.getDatabase())
+                    .getTable("test_agg_tbl1");
+            Assert.assertEquals(null, table);
+        } catch (Exception e) {
+            Assert.assertTrue(e.getMessage().contains("AggStateType function group_concat with input DECIMAL64(10,0) has " +
+                    "wildcard decimal."));
+        }
+    }
+
+    @Test
+    public void testAggStateFuncExpr() {
+        starRocksAssert.withTable("\n" +
+                        " CREATE TABLE `t1` ( \n" +
+                        "    `k1`  date, \n" +
+                        "    `k2`  datetime not null,\n" +
+                        "    `k3`  char(20), \n" +
+                        "    `k4`  varchar(20) not null, \n" +
+                        "    `k5`  boolean, \n" +
+                        "    `k6`  tinyint not null, \n" +
+                        "    `k7`  smallint, \n" +
+                        "    `k8`  int not null, \n" +
+                        "    `k9`  bigint, \n" +
+                        "    `k10` largeint not null, \n" +
+                        "    `k11` float, \n" +
+                        "    `k12` double not null, \n" +
+                        "    `k13` decimal(27,9)\n" +
+                        ") DUPLICATE KEY(`k1`, `k2`, `k3`, `k4`, `k5`) \n" +
+                        "DISTRIBUTED BY HASH(`k1`, `k2`, `k3`) \n" +
+                        "PROPERTIES (  \"replication_num\" = \"1\");",
+                () -> {
+                    String sql = "select k1, k2, sum_state(k13) from t1;";
+                    String plan = UtFrameUtils.getVerboseFragmentPlan(starRocksAssert.getCtx(), sql);
+                    Assert.assertTrue(plan.contains("result: DECIMAL128(38,9)"));
                 });
     }
 }

@@ -37,6 +37,9 @@ import com.starrocks.catalog.FunctionSet;
 import com.starrocks.catalog.StructField;
 import com.starrocks.catalog.StructType;
 import com.starrocks.catalog.Type;
+import com.starrocks.catalog.combinator.AggStateCombinator;
+import com.starrocks.catalog.combinator.AggStateMergeCombinator;
+import com.starrocks.catalog.combinator.AggStateUnionCombinator;
 import com.starrocks.common.FeConstants;
 import com.starrocks.qe.ConnectContext;
 import com.starrocks.sql.ast.ArrayExpr;
@@ -543,7 +546,7 @@ public class FunctionAnalyzer {
         String fnName = node.getFnName().getFunction();
         FunctionParams params = node.getParams();
         Boolean[] isArgumentConstants = node.getChildren().stream().map(Expr::isConstant).toArray(Boolean[]::new);
-        fn = getKnownAggregateFunction(fnName, params, argumentTypes, isArgumentConstants, node.getPos());
+        fn = getKnownAggregateFunction(session, fnName, params, argumentTypes, isArgumentConstants, node.getPos());
         if (fn != null) {
             return fn;
         }
@@ -723,7 +726,8 @@ public class FunctionAnalyzer {
                 Function.CompareMode.IS_SUPERTYPE_OF);
     }
 
-    public static Function getKnownAggregateFunction(String fnName,
+    public static Function getKnownAggregateFunction(ConnectContext session,
+                                                     String fnName,
                                                      FunctionParams params,
                                                      Type[] argumentTypes,
                                                      Boolean[] argumentIsConstants,
@@ -788,8 +792,7 @@ public class FunctionAnalyzer {
                 }
             }
             // need to distinct output columns in finalize phase
-            ((AggregateFunction) fn).setIsDistinct(isDistinct &&
-                    (!isAscOrder.isEmpty() || outputConst));
+            ((AggregateFunction) fn).setIsDistinct(isDistinct && (!isAscOrder.isEmpty() || outputConst));
         } else if (FunctionSet.PERCENTILE_DISC.equals(fnName) || FunctionSet.LC_PERCENTILE_DISC.equals(fnName)) {
             argumentTypes[1] = Type.DOUBLE;
             fn = Expr.getBuiltinFunction(fnName, argumentTypes, Function.CompareMode.IS_IDENTICAL);
@@ -809,6 +812,36 @@ public class FunctionAnalyzer {
                 newFn.setisAnalyticFn(((AggregateFunction) fn).isAnalyticFn());
                 fn = newFn;
             }
+        } else if (fnName.endsWith(FunctionSet.AGG_STATE_SUFFIX)
+                || fnName.endsWith(FunctionSet.AGG_STATE_UNION_SUFFIX)
+                || fnName.endsWith(FunctionSet.AGG_STATE_MERGE_SUFFIX)) {
+            fn = Expr.getBuiltinFunction(fnName, argumentTypes, Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF);
+            if (fn == null) {
+                return fn;
+            }
+            String aggFuncName = "";
+            // correct aggregate function for type correction
+            Optional<Function> result = Optional.empty();
+            if (fn instanceof AggStateCombinator) {
+                aggFuncName = fnName.substring(0, fnName.length() - FunctionSet.AGG_STATE_SUFFIX.length());
+                AggregateFunction aggFunc = (AggregateFunction) getAggregateFunction(session, aggFuncName, params,
+                        argumentTypes, argumentIsConstants, pos);
+                result = AggStateCombinator.of(aggFunc);
+            } else if (fn instanceof AggStateUnionCombinator) {
+                aggFuncName = fnName.substring(0, fnName.length() - FunctionSet.AGG_STATE_UNION_SUFFIX.length());
+                AggregateFunction aggFunc = (AggregateFunction) getAggregateFunction(session, aggFuncName, params,
+                        argumentTypes, argumentIsConstants, pos);
+                result = AggStateUnionCombinator.of(aggFunc);
+            } else if (fn instanceof AggStateMergeCombinator) {
+                aggFuncName = fnName.substring(0, fnName.length() - FunctionSet.AGG_STATE_MERGE_SUFFIX.length());
+                AggregateFunction aggFunc = (AggregateFunction) getAggregateFunction(session, aggFuncName, params,
+                        argumentTypes, argumentIsConstants, pos);
+                result = AggStateMergeCombinator.of(aggFunc);
+            }
+            if (result.isEmpty()) {
+                return null;
+            }
+            return result.get();
         }
         return fn;
     }
@@ -819,7 +852,7 @@ public class FunctionAnalyzer {
                                                 Type[] argumentTypes,
                                                 Boolean[] argumentIsConstants,
                                                 NodePosition pos) {
-        Function fn = getKnownAggregateFunction(fnName, params, argumentTypes, argumentIsConstants, pos);
+        Function fn = getKnownAggregateFunction(session, fnName, params, argumentTypes, argumentIsConstants, pos);
         if (fn != null) {
             return fn;
         }

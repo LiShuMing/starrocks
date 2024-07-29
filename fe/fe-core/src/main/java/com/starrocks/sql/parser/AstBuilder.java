@@ -7642,6 +7642,19 @@ public class AstBuilder extends StarRocksBaseVisitor<ParseNode> {
         }
     }
 
+    private boolean isWildcardDecimalType(Type argType) {
+        if (argType.isWildcardDecimal()) {
+            return true;
+        }
+        if (argType.isDecimalV2() || argType.isDecimalV3()) {
+            ScalarType scalarType = (ScalarType) argType;
+            if (scalarType.decimalPrecision() == 10 && scalarType.decimalScale() == 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public Type getAggStateType(StarRocksParser.AggStateTypeContext context) {
         Identifier aggFuncNameId = (Identifier) visit(context.identifier());
         String aggFuncName = aggFuncNameId.getValue();
@@ -7650,6 +7663,10 @@ public class AstBuilder extends StarRocksBaseVisitor<ParseNode> {
         boolean hasNullableChild = false;
         for (StarRocksParser.TypeWithNullableContext typeWithNullableContext : typeWithNullables) {
             Type argType = getType(typeWithNullableContext.type());
+            if (isWildcardDecimalType(argType)) {
+                throw new ParsingException(String.format("AggStateType function %s with input %s has wildcard decimal",
+                        aggFuncName, argType), createPos(context));
+            }
             boolean isNotNullable = typeWithNullableContext.columnNullable() != null &&
                     typeWithNullableContext.columnNullable().NOT() != null;
             hasNullableChild |= !isNotNullable;

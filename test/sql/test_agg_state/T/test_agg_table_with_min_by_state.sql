@@ -29,7 +29,7 @@ CREATE TABLE test_agg_tbl1(
   k10 agg_state<min_by(largeint, date)> agg_state_union,
   k11 agg_state<min_by(float, date)> agg_state_union,
   k12 agg_state<min_by(double, date)> agg_state_union,
-  k13 agg_state<min_by(decimal, date)> agg_state_union
+  k13 agg_state<min_by(decimal(27, 9), date)> agg_state_union
 )
 AGGREGATE KEY(k1)
 PARTITION BY (k1) 
@@ -39,7 +39,7 @@ DISTRIBUTED BY HASH(k1) BUCKETS 3;
 insert into test_agg_tbl1 select k1, min_by_state(k2, k1), min_by_state(k3, k1), min_by_state(k4, k1), min_by_state(k5, k1), min_by_state(k6, k1), min_by_state(k7, k1), min_by_state(k8, k1), min_by_state(k9, k1), min_by_state(k10, k1), min_by_state(k11, k1), min_by_state(k12, k1), min_by_state(k13, k1) from t1;
 -- query
 select min_by_merge(k2), min_by_merge(k6), min_by_merge(k7), min_by_merge(k8), min_by_merge(k9), min_by_merge(k10), min_by_merge(k11), min_by_merge(k12), min_by_merge(k13) from test_agg_tbl1;
-select k1, min_by_merge(k2), min_by_merge(k6), min_by_merge(k7), min_by_merge(k8), min_by_merge(k9), min_by_merge(k10), min_by_merge(k11), min_by_merge(k12), min_by_merge(k13) from test_agg_tbl1 group by dt order by 1 limit 3;
+select k1, min_by_merge(k2), min_by_merge(k6), min_by_merge(k7), min_by_merge(k8), min_by_merge(k9), min_by_merge(k10), min_by_merge(k11), min_by_merge(k12), min_by_merge(k13) from test_agg_tbl1 group by 1 order by 1 limit 3;
 
 -- second insert & test result
 INSERT INTO t1 values (1, 'a', 1, '2024-07-22'), (3, 'c', 1, '2024-07-25'), (5, NULL, NULL, '2024-07-24');
@@ -49,4 +49,4 @@ insert into test_agg_tbl1 select k1, min_by_state(k2, k1), min_by_state(k3, k1),
 ALTER TABLE test_agg_tbl1 COMPACT;
 -- query
 select min_by_merge(k2), min_by_merge(k6), min_by_merge(k7), min_by_merge(k8), min_by_merge(k9), min_by_merge(k10), min_by_merge(k11), min_by_merge(k12), min_by_merge(k13) from test_agg_tbl1;
-select k1, min_by_merge(k2), min_by_merge(k6), min_by_merge(k7), min_by_merge(k8), min_by_merge(k9), min_by_merge(k10), min_by_merge(k11), min_by_merge(k12), min_by_merge(k13) from test_agg_tbl1 group by dt order by 1 limit 3;
+select k1, min_by_merge(k2), min_by_merge(k6), min_by_merge(k7), min_by_merge(k8), min_by_merge(k9), min_by_merge(k10), min_by_merge(k11), min_by_merge(k12), min_by_merge(k13) from test_agg_tbl1 group by 1 order by 1 limit 3;

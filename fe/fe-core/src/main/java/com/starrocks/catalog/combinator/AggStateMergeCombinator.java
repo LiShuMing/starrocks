@@ -49,11 +49,27 @@ public class AggStateMergeCombinator extends AggregateFunction {
             AggregateFunction aggStateMergeFunc = new AggStateMergeCombinator(aggFunc.functionName(), imtermediateType,
                     aggFunc.getReturnType());
             aggStateMergeFunc.setBinaryType(TFunctionBinaryType.BUILTIN);
+            aggStateMergeFunc.setPolymorphic(aggFunc.isPolymorphic());
             LOG.info("Register agg state function: {}", aggStateMergeFunc.functionName());
             return Optional.of(aggStateMergeFunc);
         } catch (Exception e) {
             LOG.warn("Failed to create AggStateMergeCombinator for function: {}", aggFunc.functionName(), e);
             return Optional.empty();
         }
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(functionName());
+        sb.append("(");
+        for (int i = 0; i < getNumArgs(); i++) {
+            if (i > 0) {
+                sb.append(", ");
+            }
+            sb.append(getArgs()[i].toSql());
+        }
+        sb.append(")");
+        return sb.toString();
     }
 }

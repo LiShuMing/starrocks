@@ -47,11 +47,27 @@ public final class AggStateCombinator extends ScalarFunction  {
             ScalarFunction aggStateFunc = new AggStateCombinator(aggFunc.functionName(), Arrays.asList(aggFunc.getArgs()),
                     intermediateType);
             aggStateFunc.setBinaryType(TFunctionBinaryType.BUILTIN);
+            aggStateFunc.setPolymorphic(aggFunc.isPolymorphic());
             LOG.info("Register agg state function: {}", aggStateFunc.functionName());
             return Optional.of(aggStateFunc);
         } catch (Exception e) {
             LOG.warn("Failed to create AggStateCombinator for function: {}", aggFunc.functionName(), e);
             return Optional.empty();
         }
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(functionName());
+        sb.append("(");
+        for (int i = 0; i < getNumArgs(); i++) {
+            if (i > 0) {
+                sb.append(", ");
+            }
+            sb.append(getArgs()[i].toSql());
+        }
+        sb.append(")");
+        return sb.toString();
     }
 }

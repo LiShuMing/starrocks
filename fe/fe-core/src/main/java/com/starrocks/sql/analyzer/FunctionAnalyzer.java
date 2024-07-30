@@ -878,44 +878,41 @@ public class FunctionAnalyzer {
                 fn = newFn;
             }
         } else if (fnName.endsWith(FunctionSet.AGG_STATE_SUFFIX)) {
-            fn = Expr.getBuiltinFunction(fnName, argumentTypes, Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF);
-            if (fn == null) {
-                return fn;
-            }
             // correct aggregate function for type correction
-            Optional<Function> result = Optional.empty();
             String aggFuncName = getAggFuncNameOfCombinator(fnName);
-            if (fn instanceof AggStateCombinator) {
-                AggregateFunction aggFunc = (AggregateFunction) getAggregateFunction(session, aggFuncName, params,
-                        argumentTypes, argumentIsConstants, pos);
-                result = AggStateCombinator.of(aggFunc);
+            Function argFn = getNormalizedFunction(session, aggFuncName, params, argumentTypes, argumentIsConstants, pos);
+            if (argFn == null) {
+                return null;
             }
+            AggregateFunction aggFunc = (AggregateFunction) argFn;
+            Optional<Function> result = AggStateCombinator.of(aggFunc);
             if (result.isEmpty()) {
                 return null;
             }
             return result.get();
         } else if (fnName.endsWith(FunctionSet.AGG_STATE_UNION_SUFFIX) || fnName.endsWith(FunctionSet.AGG_STATE_MERGE_SUFFIX)) {
-            fn = Expr.getBuiltinFunction(fnName, argumentTypes, Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF);
-            if (fn == null) {
-                return fn;
-            }
             String aggFuncName = getAggFuncNameOfCombinator(fnName);
-            if (TYPE_UNCHANGED_FUNCTIONS.contains(aggFuncName)) {
-                AggregateFunction aggFunc = (AggregateFunction) getAggregateFunction(session, aggFuncName, params,
-                        argumentTypes, argumentIsConstants, pos);
-                // correct aggregate function for type correction
-                Optional<Function> result = Optional.empty();
-                if (fn instanceof AggStateUnionCombinator) {
-                    result = AggStateUnionCombinator.of(aggFunc);
-                } else if (fn instanceof AggStateMergeCombinator) {
-                    result = AggStateMergeCombinator.of(aggFunc);
-                }
-                if (result.isEmpty()) {
-                    return null;
-                }
-                return result.get();
+            // It's safe to return here because we can get fn from builtin functions
+            if (!TYPE_UNCHANGED_FUNCTIONS.contains(aggFuncName)) {
+                return null;
             }
-            return fn;
+            Function argFn = getNormalizedFunction(session, aggFuncName, params,
+                    argumentTypes, argumentIsConstants, pos);
+            if (argFn == null) {
+                return null;
+            }
+            AggregateFunction aggFunc = (AggregateFunction) argFn;
+            // correct aggregate function for type correction
+            Optional<Function> result;
+            if (fnName.endsWith(FunctionSet.AGG_STATE_UNION_SUFFIX)) {
+                result = AggStateUnionCombinator.of(aggFunc);
+            } else {
+                result = AggStateMergeCombinator.of(aggFunc);
+            }
+            if (result.isEmpty()) {
+                return null;
+            }
+            return result.get();
         }
         return fn;
     }

@@ -20,8 +20,8 @@ import com.google.common.base.Preconditions;
 import com.google.gson.annotations.SerializedName;
 import com.starrocks.catalog.AggregateFunction;
 import com.starrocks.catalog.Type;
-import com.starrocks.common.FeConstants;
 import com.starrocks.thrift.TAggStateDesc;
+import com.starrocks.thrift.TFunctionVersion;
 import com.starrocks.thrift.TTypeDesc;
 import com.starrocks.thrift.TTypeNode;
 
@@ -108,7 +108,7 @@ public class AggStateDesc {
             tAggStateDesc.addToArg_types(tTypeDesc);
         }
         tAggStateDesc.setResult_nullable(resultNullable);
-        tAggStateDesc.setFunc_version(FeConstants.AGG_FUNC_VERSION);
+        tAggStateDesc.setFunc_version(TFunctionVersion.RUNTIME_FILTER_SERIALIZE_VERSION_2.getValue());
 
         // ret type
         TTypeDesc tTypeDesc = new TTypeDesc();
@@ -144,4 +144,3 @@ public class AggStateDesc {
         return sb.toString();
     }
 }
-

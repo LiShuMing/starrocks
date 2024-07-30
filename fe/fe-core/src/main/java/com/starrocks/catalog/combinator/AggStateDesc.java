@@ -33,6 +33,9 @@ import java.util.List;
  * It's a wrapper for the result type with extra information for the aggregate function.
  */
 public class AggStateDesc {
+    // agg function's name
+    @SerializedName(value = "functionName")
+    private String functionName;
     // argument types
     @SerializedName(value = "argTypes")
     private List<Type> argTypes;
@@ -42,9 +45,6 @@ public class AggStateDesc {
     // result nullable
     @SerializedName(value = "resultNullable")
     private Boolean resultNullable;
-    // agg function's name
-    @SerializedName(value = "functionName")
-    private String functionName;
 
     public AggStateDesc(AggregateFunction aggFunc) {
         this(aggFunc.functionName(), aggFunc.getReturnType(), Arrays.asList(aggFunc.getArgs()),

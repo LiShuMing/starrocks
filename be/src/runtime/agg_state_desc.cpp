@@ -64,7 +64,7 @@ void AggStateDesc::to_thrift(TTypeDesc* t) {
 AggStateDesc AggStateDesc::from_protobuf(const AggStateDescPB& desc) {
     auto& agg_func_name = desc.agg_func_name();
     bool is_result_nullable = desc.is_result_nullable();
-    bool func_version = desc.func_version();
+    int func_version = desc.func_version();
     std::vector<TypeDescriptor> arg_types;
     // arg types
     for (auto& arg_type : desc.arg_types()) {

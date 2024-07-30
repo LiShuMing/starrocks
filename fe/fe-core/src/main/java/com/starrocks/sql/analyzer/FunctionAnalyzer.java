@@ -880,7 +880,7 @@ public class FunctionAnalyzer {
         } else if (fnName.endsWith(FunctionSet.AGG_STATE_SUFFIX)) {
             // correct aggregate function for type correction
             String aggFuncName = getAggFuncNameOfCombinator(fnName);
-            Function argFn = getNormalizedFunction(session, aggFuncName, params, argumentTypes, argumentIsConstants, pos);
+            Function argFn = getAggregateFunction(session, aggFuncName, params, argumentTypes, argumentIsConstants, pos);
             if (argFn == null) {
                 return null;
             }
@@ -896,7 +896,7 @@ public class FunctionAnalyzer {
             if (!TYPE_UNCHANGED_FUNCTIONS.contains(aggFuncName)) {
                 return null;
             }
-            Function argFn = getNormalizedFunction(session, aggFuncName, params,
+            Function argFn = getAggregateFunction(session, aggFuncName, params,
                     argumentTypes, argumentIsConstants, pos);
             if (argFn == null) {
                 return null;

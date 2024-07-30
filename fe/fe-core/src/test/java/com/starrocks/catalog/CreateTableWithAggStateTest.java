@@ -19,6 +19,7 @@ import com.starrocks.common.FeConstants;
 import com.starrocks.qe.ConnectContext;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.ast.CreateDbStmt;
+import com.starrocks.sql.plan.PlanTestBase;
 import com.starrocks.utframe.StarRocksAssert;
 import com.starrocks.utframe.UtFrameUtils;
 import org.junit.Assert;
@@ -325,7 +326,7 @@ public class CreateTableWithAggStateTest {
                 () -> {
                     String sql = "select k1, k2, sum_state(k13) from t1;";
                     String plan = UtFrameUtils.getVerboseFragmentPlan(starRocksAssert.getCtx(), sql);
-                    Assert.assertTrue(plan.contains("result: DECIMAL128(38,9)"));
+                    PlanTestBase.assertContains(plan, "result: DECIMAL128(38,9)");
                 });
     }
 }

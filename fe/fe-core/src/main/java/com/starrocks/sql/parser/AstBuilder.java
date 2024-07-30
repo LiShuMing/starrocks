@@ -980,7 +980,8 @@ public class AstBuilder extends StarRocksBaseVisitor<ParseNode> {
                 isAllowNull = true;
             }
         }
-        if (aggregateType != null && isAllowNull != null && !isAllowNull) {
+        // TODO: AGG_STATE_UNION can only be nullable for now, optimize it later.
+        if (aggregateType != null && aggregateType.equals(AggregateType.AGG_STATE_UNION) && isAllowNull != null && !isAllowNull) {
             throw new ParsingException(PARSER_ERROR_MSG.foundNotNull("Agg state column " + columnName), colIdentifier.getPos());
         }
         Boolean isAutoIncrement = null;
@@ -7642,17 +7643,21 @@ public class AstBuilder extends StarRocksBaseVisitor<ParseNode> {
         }
     }
 
-    private boolean isWildcardDecimalType(Type argType) {
-        if (argType.isWildcardDecimal()) {
-            return true;
+    private boolean isWildcardDecimalType(StarRocksParser.TypeContext typeContext) {
+        if (typeContext.decimalType() == null) {
+            return false;
         }
-        if (argType.isDecimalV2() || argType.isDecimalV3()) {
-            ScalarType scalarType = (ScalarType) argType;
-            if (scalarType.decimalPrecision() == 10 && scalarType.decimalScale() == 0) {
-                return true;
+        StarRocksParser.DecimalTypeContext context = typeContext.decimalType();
+
+        Integer precision = null;
+        Integer scale = null;
+        if (context.precision != null) {
+            precision = Integer.parseInt(context.precision.getText());
+            if (context.scale != null) {
+                scale = Integer.parseInt(context.scale.getText());
             }
         }
-        return false;
+        return precision == null && scale == null;
     }
 
     public Type getAggStateType(StarRocksParser.AggStateTypeContext context) {
@@ -7663,7 +7668,7 @@ public class AstBuilder extends StarRocksBaseVisitor<ParseNode> {
         boolean hasNullableChild = false;
         for (StarRocksParser.TypeWithNullableContext typeWithNullableContext : typeWithNullables) {
             Type argType = getType(typeWithNullableContext.type());
-            if (isWildcardDecimalType(argType)) {
+            if (isWildcardDecimalType(typeWithNullableContext.type())) {
                 throw new ParsingException(String.format("AggStateType function %s with input %s has wildcard decimal",
                         aggFuncName, argType), createPos(context));
             }

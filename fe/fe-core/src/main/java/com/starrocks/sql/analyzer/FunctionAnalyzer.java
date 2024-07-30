@@ -36,6 +36,7 @@ import com.starrocks.catalog.Function;
 import com.starrocks.catalog.FunctionSet;
 import com.starrocks.catalog.StructField;
 import com.starrocks.catalog.StructType;
+import com.starrocks.catalog.TableFunction;
 import com.starrocks.catalog.Type;
 import com.starrocks.catalog.combinator.AggStateCombinator;
 import com.starrocks.catalog.combinator.AggStateMergeCombinator;
@@ -46,6 +47,7 @@ import com.starrocks.sql.ast.ArrayExpr;
 import com.starrocks.sql.common.TypeManager;
 import com.starrocks.sql.optimizer.base.ColumnRefFactory;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
+import com.starrocks.sql.optimizer.rewrite.ScalarOperatorEvaluator;
 import com.starrocks.sql.optimizer.transformer.ExpressionMapping;
 import com.starrocks.sql.optimizer.transformer.SqlToScalarOperatorTranslator;
 import com.starrocks.sql.parser.NodePosition;
@@ -533,11 +535,56 @@ public class FunctionAnalyzer {
 
         return Optional.empty();
     }
+
     public static Function getFunction(ConnectContext session,
                                        FunctionCallExpr node,
                                        Type[] argumentTypes) {
+        List<Type> newArgumentTypes = new ArrayList<>();
+        Function fn = getFunctionImpl(session, node, argumentTypes, newArgumentTypes);
+        if (fn == null) {
+            return null;
+        }
+
+        if (fn instanceof TableFunction) {
+            throw new SemanticException("Table function cannot be used in expression", node.getPos());
+        }
+
+        String fnName = node.getFnName().getFunction();
+        // argument type may be changed in getFunctionImpl
+        if (!newArgumentTypes.isEmpty()) {
+            argumentTypes = newArgumentTypes.toArray(new Type[0]);
+        }
+        for (int i = 0; i < fn.getNumArgs(); i++) {
+            if (!argumentTypes[i].matchesType(fn.getArgs()[i]) &&
+                    !Type.canCastTo(argumentTypes[i], fn.getArgs()[i])) {
+                String msg = String.format("No matching function with signature: %s(%s)", fnName,
+                        node.getParams().isStar() ? "*" :
+                                Arrays.stream(argumentTypes).map(Type::toSql).collect(Collectors.joining(", ")));
+                throw new SemanticException(msg, node.getPos());
+            }
+        }
+
+        if (fn.hasVarArgs()) {
+            Type varType = fn.getArgs()[fn.getNumArgs() - 1];
+            for (int i = fn.getNumArgs(); i < argumentTypes.length; i++) {
+                if (!argumentTypes[i].matchesType(varType) &&
+                        !Type.canCastTo(argumentTypes[i], varType)) {
+                    String msg = String.format("Variadic function %s(%s) can't support type: %s", fnName,
+                            Arrays.stream(fn.getArgs()).map(Type::toSql).collect(Collectors.joining(", ")),
+                            argumentTypes[i]);
+                    throw new SemanticException(msg, node.getPos());
+                }
+            }
+        }
+        return fn;
+    }
+
+    public static Function getFunctionImpl(ConnectContext session,
+                                           FunctionCallExpr node,
+                                           Type[] argumentTypes,
+                                           List<Type> newArgumentTypes) {
         // get fn from known scalar functions
-        Function fn = getKnownScalarFunction(session, node, argumentTypes, node.getPos());
+        Function fn = getFunctionVariant(session, node, argumentTypes, newArgumentTypes);
         if (fn != null) {
             return fn;
         }
@@ -546,31 +593,40 @@ public class FunctionAnalyzer {
         String fnName = node.getFnName().getFunction();
         FunctionParams params = node.getParams();
         Boolean[] isArgumentConstants = node.getChildren().stream().map(Expr::isConstant).toArray(Boolean[]::new);
-        fn = getKnownAggregateFunction(session, fnName, params, argumentTypes, isArgumentConstants, node.getPos());
+        fn = getNormalizedFunction(session, fnName, params, argumentTypes, isArgumentConstants, node.getPos());
         if (fn != null) {
             return fn;
         }
 
         // get fn from builtin functions
-        if (DecimalV3FunctionAnalyzer.argumentTypeContainDecimalV3(fnName, argumentTypes)) {
-            // Since the priority of decimal version is higher than double version (according functionId),
-            // and in `Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF` mode, `Expr.getBuiltinFunction` always
-            // return decimal version even if the input parameters are not decimal, such as (INT, INT),
-            // lacking of specific decimal type process defined in `getDecimalV3Function`. So we force round functions
-            // to go through `getDecimalV3Function` here
-            fn = DecimalV3FunctionAnalyzer.getDecimalV3Function(session, fnName, params, argumentTypes, node.getPos());
-        } else if (DecimalV3FunctionAnalyzer.argumentTypeContainDecimalV2(fnName, argumentTypes)) {
-            fn = DecimalV3FunctionAnalyzer.getDecimalV2Function(fnName, argumentTypes);
-        } else {
-            fn = Expr.getBuiltinFunction(fnName, argumentTypes, Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF);
+        fn = getBuiltInFunction(session, fnName, params, argumentTypes, node.getPos());
+        if (fn != null) {
+            return fn;
         }
-        return fn;
+
+        // get fn from udf
+        fn = AnalyzerUtils.getUdfFunction(session, node.getFnName(), argumentTypes);
+        if (fn != null) {
+            return fn;
+        }
+
+        // get fn from meta functions
+        return ScalarOperatorEvaluator.INSTANCE.getMetaFunction(node.getFnName(), argumentTypes);
     }
 
-    public static Function getKnownScalarFunction(ConnectContext session,
-                                                  FunctionCallExpr node,
-                                                  Type[] argumentTypes,
-                                                  NodePosition pos) {
+    /**
+     * Get function's variant from known scalar functions by function name and argument types.
+     * NOTE: Function's argument types may be changed in this method.
+     * @param session  connect context
+     * @param node function call expr
+     * @param argumentTypes original argument types
+     * @param newArgumentTypes new argument types
+     * @return function's variant
+     */
+    public static Function getFunctionVariant(ConnectContext session,
+                                              FunctionCallExpr node,
+                                              Type[] argumentTypes,
+                                              List<Type> newArgumentTypes) {
         Function fn = null;
         String fnName = node.getFnName().getFunction();
         // throw exception direct
@@ -605,6 +661,7 @@ public class FunctionAnalyzer {
                 }
             }
 
+            argumentTypes = node.getChildren().stream().map(Expr::getType).toArray(Type[]::new);
             node.resetFnName(null, FunctionSet.ARRAY_CONCAT);
             if (DecimalV3FunctionAnalyzer.argumentTypeContainDecimalV3(FunctionSet.ARRAY_CONCAT, argumentTypes)) {
                 fn = DecimalV3FunctionAnalyzer.getDecimalV3Function(session, node, argumentTypes);
@@ -623,16 +680,11 @@ public class FunctionAnalyzer {
                 sf.add(new StructField(literal.getStringValue(), node.getChild(i + 1).getType()));
             }
             fn.setRetType(new StructType(sf));
-
-        } else if (Arrays.stream(argumentTypes).anyMatch(arg -> arg.matchesType(Type.TIME))) {
-            fn = Expr.getBuiltinFunction(fnName, argumentTypes, Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF);
-            if (fn instanceof AggregateFunction) {
-                throw new SemanticException("Time Type can not used in" + fnName + " function", node.getPos());
-            }
         } else if (FunctionSet.STR_TO_DATE.equals(fnName)) {
             fn = getStrToDateFunction(node, argumentTypes);
         } else if (FunctionSet.ARRAY_GENERATE.equals(fnName)) {
             fn = getArrayGenerateFunction(node);
+            argumentTypes = node.getChildren().stream().map(Expr::getType).toArray(Type[]::new);
         } else if (FunctionSet.BITMAP_UNION.equals(fnName)) {
             fn = Expr.getBuiltinFunction(fnName, argumentTypes, Function.CompareMode.IS_IDENTICAL);
             if (session.getSessionVariable().isEnableRewriteBitmapUnionToBitmapAgg() &&
@@ -651,9 +703,10 @@ public class FunctionAnalyzer {
                 }
             }
         }
+        // add new argument types
+        Arrays.stream(argumentTypes).forEach(newArgumentTypes::add);
         return fn;
     }
-
 
     private static Function getStrToDateFunction(FunctionCallExpr node, Type[] argumentTypes) {
         /*
@@ -726,12 +779,22 @@ public class FunctionAnalyzer {
                 Function.CompareMode.IS_SUPERTYPE_OF);
     }
 
-    public static Function getKnownAggregateFunction(ConnectContext session,
-                                                     String fnName,
-                                                     FunctionParams params,
-                                                     Type[] argumentTypes,
-                                                     Boolean[] argumentIsConstants,
-                                                     NodePosition pos) {
+    /**
+     * Get and normalize function to make its argument/result type correct.
+     * @param session connect context
+     * @param fnName function name
+     * @param params function's params(eg: is distinct or not, order by elements)
+     * @param argumentTypes function's argument types
+     * @param argumentIsConstants function's argument is constant or not
+     * @param pos function's syntax position
+     * @return normalized function
+     */
+    public static Function getNormalizedFunction(ConnectContext session,
+                                                 String fnName,
+                                                 FunctionParams params,
+                                                 Type[] argumentTypes,
+                                                 Boolean[] argumentIsConstants,
+                                                 NodePosition pos) {
         io.delta.kernel.internal.util.Preconditions.checkArgument(fnName != null);
         io.delta.kernel.internal.util.Preconditions.checkArgument(argumentTypes != null);
         io.delta.kernel.internal.util.Preconditions.checkArgument(argumentIsConstants != null);
@@ -873,10 +936,19 @@ public class FunctionAnalyzer {
                                                 Type[] argumentTypes,
                                                 Boolean[] argumentIsConstants,
                                                 NodePosition pos) {
-        Function fn = getKnownAggregateFunction(session, fnName, params, argumentTypes, argumentIsConstants, pos);
+        Function fn = getNormalizedFunction(session, fnName, params, argumentTypes, argumentIsConstants, pos);
         if (fn != null) {
             return fn;
         }
+        return getBuiltInFunction(session, fnName, params, argumentTypes, pos);
+    }
+
+    public static Function getBuiltInFunction(ConnectContext session,
+                                              String fnName,
+                                              FunctionParams params,
+                                              Type[] argumentTypes,
+                                              NodePosition pos) {
+        Function fn = null;
         if (DecimalV3FunctionAnalyzer.argumentTypeContainDecimalV3(fnName, argumentTypes)) {
             // Since the priority of decimal version is higher than double version (according functionId),
             // and in `Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF` mode, `Expr.getBuiltinFunction` always
@@ -886,6 +958,11 @@ public class FunctionAnalyzer {
             fn = DecimalV3FunctionAnalyzer.getDecimalV3Function(session, fnName, params, argumentTypes, pos);
         } else if (DecimalV3FunctionAnalyzer.argumentTypeContainDecimalV2(fnName, argumentTypes)) {
             fn = DecimalV3FunctionAnalyzer.getDecimalV2Function(fnName, argumentTypes);
+        } else if (Arrays.stream(argumentTypes).anyMatch(arg -> arg.matchesType(Type.TIME))) {
+            fn = Expr.getBuiltinFunction(fnName, argumentTypes, Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF);
+            if (fn instanceof AggregateFunction) {
+                throw new SemanticException("Time Type can not used in" + fnName + " function", pos);
+            }
         } else {
             fn = Expr.getBuiltinFunction(fnName, argumentTypes, Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF);
         }

@@ -78,7 +78,6 @@ import com.starrocks.catalog.ScalarType;
 import com.starrocks.catalog.StructField;
 import com.starrocks.catalog.StructType;
 import com.starrocks.catalog.Table;
-import com.starrocks.catalog.TableFunction;
 import com.starrocks.catalog.Type;
 import com.starrocks.cluster.ClusterNamespace;
 import com.starrocks.common.AnalysisException;
@@ -103,7 +102,6 @@ import com.starrocks.sql.ast.MapExpr;
 import com.starrocks.sql.ast.UserIdentity;
 import com.starrocks.sql.ast.UserVariable;
 import com.starrocks.sql.common.TypeManager;
-import com.starrocks.sql.optimizer.rewrite.ScalarOperatorEvaluator;
 import com.starrocks.thrift.TDictQueryExpr;
 import com.starrocks.thrift.TFunctionBinaryType;
 
@@ -1012,26 +1010,17 @@ public class ExpressionAnalyzer {
 
         @Override
         public Void visitFunctionCall(FunctionCallExpr node, Scope scope) {
-            Type[] argumentTypes = node.getChildren().stream().map(Expr::getType).toArray(Type[]::new);
-
             if (node.isNondeterministicBuiltinFnName()) {
                 ExprId exprId = analyzeState.getNextNondeterministicId();
                 node.setNondeterministicId(exprId);
             }
 
+            Type[] argumentTypes = node.getChildren().stream().map(Expr::getType).toArray(Type[]::new);
             String fnName = node.getFnName().getFunction();
             // check fn & throw exception direct if analyze failed
             checkFunction(fnName, node, argumentTypes);
 
-            // get fn from meta function
             Function fn = FunctionAnalyzer.getFunction(session, node, argumentTypes);
-            if (fn == null) {
-                fn = AnalyzerUtils.getUdfFunction(session, node.getFnName(), argumentTypes);
-            }
-            if (fn == null) {
-                fn = ScalarOperatorEvaluator.INSTANCE.getMetaFunction(node.getFnName(), argumentTypes);
-            }
-
             if (fn == null) {
                 String msg = String.format("No matching function with signature: %s(%s)",
                         fnName,
@@ -1039,34 +1028,6 @@ public class ExpressionAnalyzer {
                                 .join(Arrays.stream(argumentTypes).map(Type::toSql).collect(Collectors.toList())));
                 throw new SemanticException(msg, node.getPos());
             }
-
-            if (fn instanceof TableFunction) {
-                throw new SemanticException("Table function cannot be used in expression", node.getPos());
-            }
-
-            for (int i = 0; i < fn.getNumArgs(); i++) {
-                if (!argumentTypes[i].matchesType(fn.getArgs()[i]) &&
-                        !Type.canCastTo(argumentTypes[i], fn.getArgs()[i])) {
-                    String msg = String.format("No matching function with signature: %s(%s)", fnName,
-                            node.getParams().isStar() ? "*" :
-                                    Arrays.stream(argumentTypes).map(Type::toSql).collect(Collectors.joining(", ")));
-                    throw new SemanticException(msg, node.getPos());
-                }
-            }
-
-            if (fn.hasVarArgs()) {
-                Type varType = fn.getArgs()[fn.getNumArgs() - 1];
-                for (int i = fn.getNumArgs(); i < argumentTypes.length; i++) {
-                    if (!argumentTypes[i].matchesType(varType) &&
-                            !Type.canCastTo(argumentTypes[i], varType)) {
-                        String msg = String.format("Variadic function %s(%s) can't support type: %s", fnName,
-                                Arrays.stream(fn.getArgs()).map(Type::toSql).collect(Collectors.joining(", ")),
-                                argumentTypes[i]);
-                        throw new SemanticException(msg, node.getPos());
-                    }
-                }
-            }
-
             node.setFn(fn);
             node.setType(fn.getReturnType());
             FunctionAnalyzer.analyze(node);

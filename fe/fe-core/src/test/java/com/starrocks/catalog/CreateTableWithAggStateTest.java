@@ -59,7 +59,7 @@ public class CreateTableWithAggStateTest {
                         "  k10 agg_state<avg(largeint)> agg_state_union,\n" +
                         "  k11 agg_state<avg(float)> agg_state_union,\n" +
                         "  k12 agg_state<avg(double)> agg_state_union,\n" +
-                        "  k13 agg_state<avg(decimal)> agg_state_union\n" +
+                        "  k13 agg_state<avg(decimal(10, 0))> agg_state_union\n" +
                         ")\n" +
                         "AGGREGATE KEY(k1)\n" +
                         "PARTITION BY (k1) \n" +
@@ -78,7 +78,7 @@ public class CreateTableWithAggStateTest {
                             "`k10` AGG_STATE<avg(largeint(40))> AGG_STATE_UNION NULL",
                             "`k11` AGG_STATE<avg(float)> AGG_STATE_UNION NULL",
                             "`k12` AGG_STATE<avg(double)> AGG_STATE_UNION NULL",
-                            "`k13` AGG_STATE<avg(decimal(10", "0))> AGG_STATE_UNION NULL",
+                            "`k13` AGG_STATE<avg(decimal(10, 0))> AGG_STATE_UNION NULL",
                     };
                     for (String exp : expects) {
                         Assert.assertTrue(columns.contains(exp));

@@ -424,7 +424,7 @@ ColumnAggregatorPtr ColumnAggregatorFactory::create_value_column_aggregator(cons
         }
     } else if (method == STORAGE_AGGREGATE_AGG_STATE_UNION) {
         if (field->get_agg_state_desc() == nullptr) {
-            CHECK(false) << "bad agg state union method for column: " << field->name()
+            CHECK(false) << "Bad agg state union method for column: " << field->name()
                          << " for its agg state type is null";
             return nullptr;
         }

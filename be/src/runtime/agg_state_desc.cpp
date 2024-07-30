@@ -118,9 +118,9 @@ std::string AggStateDesc::debug_string() const {
     ss << "[" << _func_name << ", args:<";
     for (size_t i = 0; i < _arg_types.size(); i++) {
         if (i != _arg_types.size() - 1) {
-            ss << arg << ", ";
+            ss << _arg_types[i] << ", ";
         } else {
-            ss << arg << ">";
+            ss << _arg_types[i] << ">";
         }
     }
     ss << ", ret:" << _return_type << ", result_nullable:" << _is_result_nullable << ", func_version:" << _func_version

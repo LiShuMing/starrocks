@@ -62,6 +62,8 @@ import java.util.stream.Collectors;
 
 public class FunctionAnalyzer {
     private static final Pattern HAS_TIME_PART = Pattern.compile("^.*[HhIiklrSsT]+.*$");
+    private static final Set<String> TYPE_UNCHANGED_FUNCTIONS = Sets.newHashSet(FunctionSet.MIN, FunctionSet.MAX,
+            FunctionSet.SUM);
     private static final Set<String> SUPPORTED_TGT_TYPES = Sets.newTreeSet(String.CASE_INSENSITIVE_ORDER);
     static {
         SUPPORTED_TGT_TYPES.addAll(Lists.newArrayList("HLL_8", "HLL_6", "HLL_4"));
@@ -579,17 +581,17 @@ public class FunctionAnalyzer {
         return fn;
     }
 
-    public static Function getFunctionImpl(ConnectContext session,
-                                           FunctionCallExpr node,
-                                           Type[] argumentTypes,
-                                           List<Type> newArgumentTypes) {
-        // get fn from known scalar functions
+    private static Function getFunctionImpl(ConnectContext session,
+                                            FunctionCallExpr node,
+                                            Type[] argumentTypes,
+                                            List<Type> newArgumentTypes) {
+        // get fn from known function variants
         Function fn = getFunctionVariant(session, node, argumentTypes, newArgumentTypes);
         if (fn != null) {
             return fn;
         }
 
-        // get fn from known aggregate functions
+        // get fn from normailzied function
         String fnName = node.getFnName().getFunction();
         FunctionParams params = node.getParams();
         Boolean[] isArgumentConstants = node.getChildren().stream().map(Expr::isConstant).toArray(Boolean[]::new);
@@ -623,10 +625,10 @@ public class FunctionAnalyzer {
      * @param newArgumentTypes new argument types
      * @return function's variant
      */
-    public static Function getFunctionVariant(ConnectContext session,
-                                              FunctionCallExpr node,
-                                              Type[] argumentTypes,
-                                              List<Type> newArgumentTypes) {
+    private static Function getFunctionVariant(ConnectContext session,
+                                               FunctionCallExpr node,
+                                               Type[] argumentTypes,
+                                               List<Type> newArgumentTypes) {
         Function fn = null;
         String fnName = node.getFnName().getFunction();
         // throw exception direct
@@ -789,12 +791,12 @@ public class FunctionAnalyzer {
      * @param pos function's syntax position
      * @return normalized function
      */
-    public static Function getNormalizedFunction(ConnectContext session,
-                                                 String fnName,
-                                                 FunctionParams params,
-                                                 Type[] argumentTypes,
-                                                 Boolean[] argumentIsConstants,
-                                                 NodePosition pos) {
+    private static Function getNormalizedFunction(ConnectContext session,
+                                                  String fnName,
+                                                  FunctionParams params,
+                                                  Type[] argumentTypes,
+                                                  Boolean[] argumentIsConstants,
+                                                  NodePosition pos) {
         io.delta.kernel.internal.util.Preconditions.checkArgument(fnName != null);
         io.delta.kernel.internal.util.Preconditions.checkArgument(argumentTypes != null);
         io.delta.kernel.internal.util.Preconditions.checkArgument(argumentIsConstants != null);
@@ -880,9 +882,9 @@ public class FunctionAnalyzer {
             if (fn == null) {
                 return fn;
             }
-            String aggFuncName = fnName.substring(0, fnName.length() - FunctionSet.AGG_STATE_SUFFIX.length());
             // correct aggregate function for type correction
             Optional<Function> result = Optional.empty();
+            String aggFuncName = getAggFuncNameOfCombinator(fnName);
             if (fn instanceof AggStateCombinator) {
                 AggregateFunction aggFunc = (AggregateFunction) getAggregateFunction(session, aggFuncName, params,
                         argumentTypes, argumentIsConstants, pos);
@@ -898,7 +900,7 @@ public class FunctionAnalyzer {
                 return fn;
             }
             String aggFuncName = getAggFuncNameOfCombinator(fnName);
-            if (fnName.equals(FunctionSet.SUM) || fnName.equals(FunctionSet.MIN) || fnName.equals(FunctionSet.MAX)) {
+            if (TYPE_UNCHANGED_FUNCTIONS.contains(aggFuncName)) {
                 AggregateFunction aggFunc = (AggregateFunction) getAggregateFunction(session, aggFuncName, params,
                         argumentTypes, argumentIsConstants, pos);
                 // correct aggregate function for type correction
@@ -930,6 +932,17 @@ public class FunctionAnalyzer {
         }
     }
 
+    /**
+     * Get aggregate functions by function name and argument types.
+     * NOTE: it will first normalize function, then get builtin function.
+     * @param session  connect context
+     * @param fnName function name
+     * @param params function's params(eg: is distinct or not, order by elements)
+     * @param argumentTypes function's argument types
+     * @param argumentIsConstants function's argument is constant or not
+     * @param pos function's syntax position
+     * @return aggregate function
+     */
     public static Function getAggregateFunction(ConnectContext session,
                                                 String fnName,
                                                 FunctionParams params,
@@ -943,6 +956,15 @@ public class FunctionAnalyzer {
         return getBuiltInFunction(session, fnName, params, argumentTypes, pos);
     }
 
+    /**
+     * Get builtin function by function name and argument types without normalization.
+     * @param session connect context
+     * @param fnName function name
+     * @param params function's params(eg: is distinct or not, order by elements)
+     * @param argumentTypes function's argument types
+     * @param pos function's syntax position
+     * @return builtin function
+     */
     public static Function getBuiltInFunction(ConnectContext session,
                                               String fnName,
                                               FunctionParams params,

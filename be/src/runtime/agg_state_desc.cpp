@@ -113,13 +113,28 @@ void AggStateDesc::thrift_to_protobuf(const TAggStateDesc& desc, AggStateDescPB*
     *ret_type_pb = ret_type_desc.to_protobuf();
 }
 
+std::string AggStateDesc::debug_string() const {
+    std::stringstream ss;
+    ss << "[" << _func_name << ", args:<";
+    for (size_t i = 0; i < _arg_types.size(); i++) {
+        if (i != _arg_types.size() - 1) {
+            ss << arg << ", ";
+        } else {
+            ss << arg << ">";
+        }
+    }
+    ss << ", ret:" << _return_type << ", result_nullable:" << _is_result_nullable << ", func_version:" << _func_version
+       << "]";
+    return ss.str();
+}
+
 const AggregateFunction* AggStateDesc::get_agg_state_func(AggStateDesc* agg_state_desc, bool is_result_nullable) {
     DCHECK(agg_state_desc);
     auto* agg_function = get_aggregate_function(agg_state_desc->get_func_name(), agg_state_desc->get_return_type(),
                                                 agg_state_desc->get_arg_types(), is_result_nullable,
                                                 TFunctionBinaryType::BUILTIN, agg_state_desc->get_func_version());
     if (agg_function == nullptr) {
-        LOG(WARNING) << "Failed to get aggregate function for " << agg_state_desc->get_func_name();
+        LOG(WARNING) << "Failed to get aggregate function for " << agg_state_desc->debug_string();
     }
     return agg_function;
 }

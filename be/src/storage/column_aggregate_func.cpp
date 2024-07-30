@@ -433,7 +433,8 @@ ColumnAggregatorPtr ColumnAggregatorFactory::create_value_column_aggregator(cons
         // TODO: how to use is_result_nullable?
         auto* agg_func = AggStateDesc::get_agg_state_func(agg_state_desc, field->is_nullable());
         CHECK(agg_func != nullptr) << "Unknown aggregate function, name=" << func_name << ", type=" << type
-                                   << ", is_nullable=" << field->is_nullable();
+                                   << ", is_nullable=" << field->is_nullable()
+                                   << ", agg_state_desc=" << agg_state_desc->debug_string();
         auto agg_state_union = std::make_unique<AggStateUnion>(agg_func);
         return std::make_unique<AggFuncBasedValueAggregator>(std::move(agg_state_union));
     } else {

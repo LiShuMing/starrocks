@@ -169,11 +169,11 @@ const AggregateFunction* get_window_function(const std::string& name, LogicalTyp
 }
 
 const AggregateFunction* get_aggregate_function(const std::string& agg_func_name, const TypeDescriptor& return_type,
-                                                const std::vector<TypeDescriptor>& arg_types, bool is_input_nullable,
+                                                const std::vector<TypeDescriptor>& arg_types, bool is_result_nullable,
                                                 TFunctionBinaryType::type binary_type, int func_version) {
     // get function
     if (agg_func_name == "count") {
-        return get_aggregate_function("count", TYPE_BIGINT, TYPE_BIGINT, is_input_nullable);
+        return get_aggregate_function("count", TYPE_BIGINT, TYPE_BIGINT, is_result_nullable);
     } else {
         DCHECK_GE(arg_types.size(), 1);
         TypeDescriptor arg_type = arg_types[0];
@@ -204,7 +204,7 @@ const AggregateFunction* get_aggregate_function(const std::string& agg_func_name
         if (agg_func_name == "array_union_agg" || agg_func_name == "array_unique_agg") {
             arg_type = arg_type.children[0];
         }
-        return get_aggregate_function(agg_func_name, arg_type.type, return_type.type, is_input_nullable, binary_type,
+        return get_aggregate_function(agg_func_name, arg_type.type, return_type.type, is_result_nullable, binary_type,
                                       func_version);
     }
 }

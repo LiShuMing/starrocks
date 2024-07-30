@@ -82,6 +82,7 @@ public:
     const std::vector<TypeDescriptor>& get_arg_types() const { return _arg_types; }
     bool is_result_nullable() const { return _is_result_nullable; }
     int get_func_version() const { return _func_version; }
+    std::string debug_string() const;
 
     // Transform this AggStateDesc to a thrift TTypeDesc.
     void to_thrift(TTypeDesc* t);

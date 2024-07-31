@@ -309,7 +309,7 @@ public class FunctionAnalyzer {
                 || fnName.getFunction().equals(FunctionSet.MAX)
                 || fnName.getFunction().equals(FunctionSet.NDV)
                 || fnName.getFunction().equals(FunctionSet.APPROX_COUNT_DISTINCT)
-                || fnName.getFunction().equals(FunctionSet.HLL_SKETCH_COUNT))
+                || fnName.getFunction().equals(FunctionSet.DS_HLL_COUNT_DISTINCT))
                 && !arg.getType().canApplyToNumeric()) {
             throw new SemanticException(Type.NOT_SUPPORT_AGG_ERROR_MSG);
         }
@@ -482,11 +482,11 @@ public class FunctionAnalyzer {
             }
         }
 
-        // hll_sketch_count
-        if (fnName.getFunction().equals(FunctionSet.HLL_SKETCH_COUNT)) {
+        // ds_hll_count_distinct
+        if (fnName.getFunction().equals(FunctionSet.DS_HLL_COUNT_DISTINCT)) {
             int argSize = functionCallExpr.getChildren().size();
             if (argSize > 3) {
-                throw new SemanticException(fnName + " requires one/two/three parameters: hll_sketch_count(col, <log_k>, " +
+                throw new SemanticException(fnName + " requires one/two/three parameters: ds_hll_count_distinct(col, <log_k>, " +
                         "<tgt_type>)");
             }
 
@@ -877,7 +877,7 @@ public class FunctionAnalyzer {
                 newFn.setisAnalyticFn(((AggregateFunction) fn).isAnalyticFn());
                 fn = newFn;
             }
-        } else if (fnName.equals(FunctionSet.HLL_SKETCH_COUNT)) {
+        } else if (fnName.equals(FunctionSet.DS_HLL_COUNT_DISTINCT)) {
             if (argumentTypes.length > 1) {
                 argumentTypes[1] = Type.INT;
             }

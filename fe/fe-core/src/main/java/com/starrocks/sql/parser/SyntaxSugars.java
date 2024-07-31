@@ -73,9 +73,9 @@ public class SyntaxSugars {
     }
 
     /*
-     * approx_count_distinct_hll_sketch(col) -> hll_sketch_count(col)
+     * approx_count_distinct_hll_sketch(col) -> ds_hll_count_distinct(col)
      */
     private static FunctionCallExpr hllSketchCount(FunctionCallExpr call) {
-        return new FunctionCallExpr(FunctionSet.HLL_SKETCH_COUNT, call.getChildren());
+        return new FunctionCallExpr(FunctionSet.DS_HLL_COUNT_DISTINCT, call.getChildren());
     }
 }

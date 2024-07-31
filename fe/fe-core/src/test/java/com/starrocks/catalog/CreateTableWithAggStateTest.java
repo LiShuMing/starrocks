@@ -133,10 +133,10 @@ public class CreateTableWithAggStateTest {
         starRocksAssert.withTable("\n" +
                         "CREATE TABLE test_agg_tbl1 (\n" +
                         "  dt VARCHAR(10),\n" +
-                        "  hll_id agg_state<hll_sketch_count(varchar not null)> agg_state_union,\n" +
-                        "  hll_province agg_state<hll_sketch_count(varchar)> agg_state_union,\n" +
-                        "  hll_age agg_state<hll_sketch_count(varchar, int)> agg_state_union,\n" +
-                        "  hll_dt agg_state<hll_sketch_count(varchar not null, int, varchar)> agg_state_union\n" +
+                        "  hll_id agg_state<ds_hll_count_distinct(varchar not null)> agg_state_union,\n" +
+                        "  hll_province agg_state<ds_hll_count_distinct(varchar)> agg_state_union,\n" +
+                        "  hll_age agg_state<ds_hll_count_distinct(varchar, int)> agg_state_union,\n" +
+                        "  hll_dt agg_state<ds_hll_count_distinct(varchar not null, int, varchar)> agg_state_union\n" +
                         ")\n" +
                         "AGGREGATE KEY(dt)\n" +
                         "PARTITION BY (dt) \n" +
@@ -148,10 +148,10 @@ public class CreateTableWithAggStateTest {
                     System.out.println("columns = " + columns);
                     String[] expects = {
                             "`dt` varchar(10) NULL",
-                            "`hll_province` AGG_STATE<hll_sketch_count(varchar)> AGG_STATE_UNION NULL",
-                            "`hll_age` AGG_STATE<hll_sketch_count(varchar, int(11))> AGG_STATE_UNION NULL",
-                            "`hll_dt` AGG_STATE<hll_sketch_count(varchar, int(11), varchar)> AGG_STATE_UNION NULL",
-                            "`hll_id` AGG_STATE<hll_sketch_count(varchar)> AGG_STATE_UNION NULL",
+                            "`hll_province` AGG_STATE<ds_hll_count_distinct(varchar)> AGG_STATE_UNION NULL",
+                            "`hll_age` AGG_STATE<ds_hll_count_distinct(varchar, int(11))> AGG_STATE_UNION NULL",
+                            "`hll_dt` AGG_STATE<ds_hll_count_distinct(varchar, int(11), varchar)> AGG_STATE_UNION NULL",
+                            "`hll_id` AGG_STATE<ds_hll_count_distinct(varchar)> AGG_STATE_UNION NULL",
                     };
                     for (String exp : expects) {
                         Assert.assertTrue(columns.contains(exp));

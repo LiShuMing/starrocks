@@ -40,7 +40,7 @@ struct HLLUnionBuilder {
                     "approx_count_distinct", false, AggregateFactory::MakeHllNdvAggregateFunction<lt>());
 
             resolver->add_aggregate_mapping_variadic<lt, TYPE_BIGINT, HLLSketchState>(
-                    "hll_sketch_count", false, AggregateFactory::MakeHllSketchAggregateFunction<lt>());
+                    "ds_hll_count_distinct", false, AggregateFactory::MakeHllSketchAggregateFunction<lt>());
         }
     }
 };

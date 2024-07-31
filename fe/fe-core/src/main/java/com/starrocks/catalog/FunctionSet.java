@@ -245,7 +245,7 @@ public class FunctionSet {
     // Aggregate functions:
     public static final String APPROX_COUNT_DISTINCT = "approx_count_distinct";
     public static final String APPROX_COUNT_DISTINCT_HLL_SKETCH = "approx_count_distinct_hll_sketch";
-    public static final String HLL_SKETCH_COUNT = "hll_sketch_count";
+    public static final String DS_HLL_COUNT_DISTINCT = "ds_hll_count_distinct";
     public static final String APPROX_TOP_K = "approx_top_k";
     public static final String AVG = "avg";
     public static final String COUNT = "count";
@@ -609,7 +609,7 @@ public class FunctionSet {
                     .add(FunctionSet.NOW)
                     .add(FunctionSet.UTC_TIMESTAMP)
                     .add(FunctionSet.MD5_SUM)
-                    .add(FunctionSet.HLL_SKETCH_COUNT)
+                    .add(FunctionSet.DS_HLL_COUNT_DISTINCT)
                     .add(FunctionSet.MD5_SUM_NUMERIC)
                     .add(FunctionSet.BITMAP_EMPTY)
                     .add(FunctionSet.HLL_EMPTY)
@@ -1048,16 +1048,16 @@ public class FunctionSet {
                     Lists.newArrayList(t), Type.BIGINT, Type.VARBINARY,
                     true, false, true));
 
-            // hll_sketch_count(col)
-            addBuiltinAggregateFunction(AggregateFunction.createBuiltin(HLL_SKETCH_COUNT,
+            // ds_hll_count_distinct(col)
+            addBuiltinAggregateFunction(AggregateFunction.createBuiltin(DS_HLL_COUNT_DISTINCT,
                     Lists.newArrayList(t), Type.BIGINT, Type.VARBINARY,
                     true, false, true));
-            // hll_sketch_count(col, log_k)
-            addBuiltinAggregateFunction(AggregateFunction.createBuiltin(HLL_SKETCH_COUNT,
+            // ds_hll_count_distinct(col, log_k)
+            addBuiltinAggregateFunction(AggregateFunction.createBuiltin(DS_HLL_COUNT_DISTINCT,
                     Lists.newArrayList(t, Type.INT), Type.BIGINT, Type.VARBINARY,
                     true, false, true));
-            // hll_sketch_count(col, log_k, tgt_type)
-            addBuiltinAggregateFunction(AggregateFunction.createBuiltin(HLL_SKETCH_COUNT,
+            // ds_hll_count_distinct(col, log_k, tgt_type)
+            addBuiltinAggregateFunction(AggregateFunction.createBuiltin(DS_HLL_COUNT_DISTINCT,
                     Lists.newArrayList(t, Type.INT, Type.VARCHAR), Type.BIGINT, Type.VARBINARY,
                     true, false, true));
 

@@ -184,7 +184,7 @@ public:
         }
     }
 
-    std::string get_name() const override { return "hll_sketch_count"; }
+    std::string get_name() const override { return "ds_hll_count_distinct"; }
 
 private:
     void _init_if_needed(FunctionContext* ctx, const Column** columns, AggDataPtr __restrict state) const {

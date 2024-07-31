@@ -57,6 +57,7 @@ public:
                                          " not match with arg_nullables size " + std::to_string(_arg_nullables.size()));
         }
         Columns new_columns;
+        new_columns.reserve(columns.size());
         for (auto i = 0; i < columns.size(); i++) {
             bool arg_nullable = _arg_nullables[i];
             auto& column = columns[i];
@@ -65,9 +66,9 @@ public:
                         "AggStateFunction input column is nullable but agg function is not nullable");
             }
             if (arg_nullable && !column->is_nullable()) {
-                new_columns.emplace_back(ColumnHelper::cast_to_nullable_column(column));
+                new_columns.push_back(ColumnHelper::cast_to_nullable_column(column));
             } else {
-                new_columns.emplace_back(column);
+                new_columns.push_back(column);
             }
         }
         // TODO(fixme): intermdiated column

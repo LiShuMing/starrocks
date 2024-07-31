@@ -130,9 +130,9 @@ public:
         }
     }
 
-    void convert_to_serialize_format([[maybe_unused]] FunctionContext* ctx, const Columns& src, size_t chunk_size,
+    void convert_to_serialize_format([[maybe_unused]] FunctionContext* ctx, const Columns& columns, size_t chunk_size,
                                      ColumnPtr* dst) const override {
-        const ColumnType* column = down_cast<const ColumnType*>(src[0].get());
+        const ColumnType* column = down_cast<const ColumnType*>(columns[0].get());
         auto* result = down_cast<BinaryColumn*>((*dst).get());
 
         Bytes& bytes = result->get_bytes();
@@ -144,8 +144,8 @@ public:
         uint8_t log_k;
         datasketches::target_hll_type tgt_type;
         std::vector<const Column*> src_datas;
-        src_datas.reserve(src.size());
-        for (const auto& col : src) {
+        src_datas.reserve(columns.size());
+        for (const auto& col : columns) {
             src_datas.push_back(col.get());
         }
         const Column** src_datas_ptr = src_datas.data();

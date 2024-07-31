@@ -35,8 +35,10 @@ insert into t1 select generate_series, generate_series, generate_series % 100, "
 insert into test_hll_sketch select dt, hll_sketch_count_state(id), hll_sketch_count_state(province), hll_sketch_count_state(age), hll_sketch_count_state(dt) from t1;
 insert into t1 select generate_series, generate_series, generate_series % 100, "2024-07-24" from table(generate_series(1, 1000));
 insert into test_hll_sketch select dt, hll_sketch_count_state(id), hll_sketch_count_state(province), hll_sketch_count_state(age), hll_sketch_count_state(dt) from t1;
-insert into t1 select generate_series, generate_series, generate_series % 100, "2024-07-24" from table(generate_series(1, 1000));
+insert into t1 select generate_series, generate_series, generate_series % 100, "2024-07-25" from table(generate_series(1, 1000));
 insert into test_hll_sketch select dt, hll_sketch_count_state(id), hll_sketch_count_state(province), hll_sketch_count_state(age), hll_sketch_count_state(dt) from t1;
+-- insert with different sketch size
+insert into test_hll_sketch select dt, hll_sketch_count_state(id, 20), hll_sketch_count_state(province, 19), hll_sketch_count_state(age, 18), hll_sketch_count_state(dt, 17) from t1;
 ALTER TABLE test_hll_sketch COMPACT;
 
 -- query    

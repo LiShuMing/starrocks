@@ -877,6 +877,11 @@ public class FunctionAnalyzer {
                 newFn.setisAnalyticFn(((AggregateFunction) fn).isAnalyticFn());
                 fn = newFn;
             }
+        } else if (fnName.equals(FunctionSet.HLL_SKETCH_COUNT)) {
+            if (argumentTypes.length > 1) {
+                argumentTypes[1] = Type.INT;
+            }
+            fn = Expr.getBuiltinFunction(fnName, argumentTypes, Function.CompareMode.IS_IDENTICAL);
         } else if (fnName.endsWith(FunctionSet.AGG_STATE_SUFFIX)) {
             // correct aggregate function for type correction
             String aggFuncName = getAggFuncNameOfCombinator(fnName);

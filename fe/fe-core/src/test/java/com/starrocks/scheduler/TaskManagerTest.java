@@ -138,16 +138,11 @@ public class TaskManagerTest {
         Constants.TaskRunState state = null;
 
         int retryCount = 0;
-<<<<<<< HEAD
-        int maxRetry = 5;
-        while (retryCount < maxRetry) {
-=======
         int maxRetry = 30;
         TGetTasksParams getTasksParams = new TGetTasksParams();
         getTasksParams.setDb(realDbName);
         while (retryCount < maxRetry) {
             taskRuns = taskManager.getMatchedTaskRunStatus(getTasksParams);
->>>>>>> 927f0a6616 ([Enhancement] [Refactor] Refactor schema scanner & support push predicates into fe for materialized views/task run status (#44981))
             if (taskRuns.size() > 0) {
                 state = taskRuns.get(0).getState();
             }

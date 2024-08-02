@@ -87,27 +87,10 @@ Status SchemaHelper::get_tables_info(const SchemaScannerState& state, const TGet
     });
 }
 
-<<<<<<< HEAD
-Status SchemaHelper::describe_table(const std::string& ip, const int32_t port, const TDescribeTableParams& request,
-                                    TDescribeTableResult* result, const int timeout_ms) {
-    return ThriftRpcHelper::rpc<FrontendServiceClient>(
-            ip, port,
-            [&request, &result](FrontendServiceConnection& client) { client->describeTable(*result, request); },
-            timeout_ms);
-=======
-Status SchemaHelper::get_temporary_tables_info(const SchemaScannerState& state,
-                                               const TGetTemporaryTablesInfoRequest& request,
-                                               TGetTemporaryTablesInfoResponse* response) {
-    return _call_rpc(state, [&request, &response](FrontendServiceConnection& client) {
-        client->getTemporaryTablesInfo(*response, request);
-    });
-}
-
 Status SchemaHelper::describe_table(const SchemaScannerState& state, const TDescribeTableParams& request,
                                     TDescribeTableResult* result) {
     return _call_rpc(
             state, [&request, &result](FrontendServiceConnection& client) { client->describeTable(*result, request); });
->>>>>>> 927f0a6616 ([Enhancement] [Refactor] Refactor schema scanner & support push predicates into fe for materialized views/task run status (#44981))
 }
 
 Status SchemaHelper::show_variables(const SchemaScannerState& state, const TShowVariableRequest& request,

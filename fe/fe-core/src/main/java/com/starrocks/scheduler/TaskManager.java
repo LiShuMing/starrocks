@@ -614,12 +614,8 @@ public class TaskManager implements MemoryTrackable {
 
     public void saveTasksV2(DataOutputStream dos) throws IOException, SRMetaBlockException {
         taskRunManager.getTaskRunHistory().forceGC();
-<<<<<<< HEAD
-        List<TaskRunStatus> runStatusList = showTaskRunStatus(null);
-=======
         List<TaskRunStatus> runStatusList = getMatchedTaskRunStatus(null);
         LOG.info("saveTasksV2, nameToTaskMap size:{}, runStatusList size: {}", nameToTaskMap.size(), runStatusList.size());
->>>>>>> 927f0a6616 ([Enhancement] [Refactor] Refactor schema scanner & support push predicates into fe for materialized views/task run status (#44981))
         SRMetaBlockWriter writer = new SRMetaBlockWriter(dos, SRMetaBlockID.TASK_MGR,
                 2 + nameToTaskMap.size() + runStatusList.size());
         writer.writeJson(nameToTaskMap.size());

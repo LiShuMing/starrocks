@@ -56,17 +56,8 @@ public:
     static Status get_tables_info(const SchemaScannerState& state, const TGetTablesInfoRequest& request,
                                   TGetTablesInfoResponse* response);
 
-<<<<<<< HEAD
-    static Status describe_table(const std::string& ip, const int32_t port, const TDescribeTableParams& desc_params,
-                                 TDescribeTableResult* desc_result, const int timeout_ms);
-=======
-    static Status get_temporary_tables_info(const SchemaScannerState& state,
-                                            const TGetTemporaryTablesInfoRequest& request,
-                                            TGetTemporaryTablesInfoResponse* response);
-
     static Status describe_table(const SchemaScannerState& state, const TDescribeTableParams& desc_params,
                                  TDescribeTableResult* desc_result);
->>>>>>> 927f0a6616 ([Enhancement] [Refactor] Refactor schema scanner & support push predicates into fe for materialized views/task run status (#44981))
 
     static Status show_variables(const SchemaScannerState& state, const TShowVariableRequest& var_params,
                                  TShowVariableResult* var_result);

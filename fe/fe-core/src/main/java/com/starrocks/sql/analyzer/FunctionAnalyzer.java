@@ -590,8 +590,9 @@ public class FunctionAnalyzer {
         if (fn != null) {
             return fn;
         }
+        newArgumentTypes.clear();
 
-        // get fn from normailzied function
+        // get fn from normalized function
         String fnName = node.getFnName().getFunction();
         FunctionParams params = node.getParams();
         Boolean[] isArgumentConstants = node.getChildren().stream().map(Expr::isConstant).toArray(Boolean[]::new);

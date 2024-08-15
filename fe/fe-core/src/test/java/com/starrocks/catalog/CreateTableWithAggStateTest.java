@@ -308,9 +308,23 @@ public class CreateTableWithAggStateTest {
                         "DISTRIBUTED BY HASH(`k1`, `k2`, `k3`) \n" +
                         "PROPERTIES (  \"replication_num\" = \"1\");",
                 () -> {
-                    String sql = "select k1, k2, sum_state(k13) from t1;";
-                    String plan = UtFrameUtils.getVerboseFragmentPlan(starRocksAssert.getCtx(), sql);
-                    PlanTestBase.assertContains(plan, "result: DECIMAL128(38,9)");
+                    {
+                        String sql = "select k1, k2, sum_state(k13) from t1;";
+                        String plan = UtFrameUtils.getVerboseFragmentPlan(starRocksAssert.getCtx(), sql);
+                        PlanTestBase.assertContains(plan, "result: DECIMAL128(38,9)");
+                    }
+                    {
+                        String sql = "select k1, k2, group_concat(k13) from t1 group by k1, k2;";
+                        String plan = UtFrameUtils.getVerboseFragmentPlan(starRocksAssert.getCtx(), sql);
+                        PlanTestBase.assertContains(plan, "group_concat[(cast([13: k13, DECIMAL128(27,9), " +
+                                "true] as VARCHAR), ',');");
+                    }
+                    {
+                        String sql = "select k1, k2, group_concat_state(k13) from t1;";
+                        String plan = UtFrameUtils.getVerboseFragmentPlan(starRocksAssert.getCtx(), sql);
+                        PlanTestBase.assertContains(plan, "group_concat_state[(cast([13: k13, DECIMAL128(27,9), " +
+                                "true] as VARCHAR));");
+                    }
                 });
     }
 }

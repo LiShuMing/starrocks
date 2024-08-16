@@ -244,25 +244,31 @@ class AggFuncBasedValueAggregator : public ValueColumnAggregatorBase {
 public:
     AggFuncBasedValueAggregator(const AggregateFunction* agg_func) : _agg_func(agg_func) {
         _state = static_cast<AggDataPtr>(std::aligned_alloc(_agg_func->alignof_size(), _agg_func->size()));
-        _agg_func->create(_ctx.get(), _state);
+        _agg_func->create(_ctx, _state);
     }
 
-    AggFuncBasedValueAggregator(std::unique_ptr<AggregateFunction> agg_state_unoin) : _agg_func(agg_state_unoin.get()) {
-        _state = static_cast<AggDataPtr>(std::aligned_alloc(_agg_func->alignof_size(), _agg_func->size()));
-        _agg_func->create(_ctx.get(), _state);
+    AggFuncBasedValueAggregator(AggStateDesc* agg_state_desc, std::unique_ptr<AggregateFunction> agg_state_unoin)
+            : _agg_func(agg_state_unoin.get()) {
         _agg_state_unoin = std::move(agg_state_unoin);
+        _ctx = FunctionContext::create_context(nullptr, nullptr, agg_state_desc->get_return_type(),
+                                               agg_state_desc->get_arg_types());
+        _state = static_cast<AggDataPtr>(std::aligned_alloc(_agg_func->alignof_size(), _agg_func->size()));
+        _agg_func->create(_ctx, _state);
     }
 
     ~AggFuncBasedValueAggregator() override {
         if (_state != nullptr) {
-            _agg_func->destroy(_ctx.get(), _state);
+            _agg_func->destroy(_ctx, _state);
             std::free(_state);
+        }
+        if (_ctx != nullptr) {
+            delete _ctx;
         }
     }
 
     void reset() override {
-        _agg_func->destroy(_ctx.get(), _state);
-        _agg_func->create(_ctx.get(), _state);
+        _agg_func->destroy(_ctx, _state);
+        _agg_func->create(_ctx, _state);
     }
 
     void update_aggregate(Column* agg) override {
@@ -270,16 +276,14 @@ public:
         reset();
     }
 
-    void append_data(Column* agg) override { _agg_func->finalize_to_column(_ctx.get(), _state, agg); }
+    void append_data(Column* agg) override { _agg_func->finalize_to_column(_ctx, _state, agg); }
 
     // |data| is readonly.
-    void aggregate_impl(int row, const ColumnPtr& data) override {
-        _agg_func->merge(_ctx.get(), data.get(), _state, row);
-    }
+    void aggregate_impl(int row, const ColumnPtr& data) override { _agg_func->merge(_ctx, data.get(), _state, row); }
 
     // |data| is readonly.
     void aggregate_batch_impl(int start, int end, const ColumnPtr& input) override {
-        _agg_func->merge_batch_single_state(_ctx.get(), _state, input.get(), start, end - start);
+        _agg_func->merge_batch_single_state(_ctx, _state, input.get(), start, end - start);
     }
 
     bool need_deep_copy() const override { return false; };
@@ -315,7 +319,7 @@ private:
     const AggregateFunction* _agg_func;
     AggDataPtr _state{nullptr};
     std::unique_ptr<AggregateFunction> _agg_state_unoin = nullptr;
-    std::unique_ptr<FunctionContext> _ctx = std::make_unique<FunctionContext>();
+    FunctionContext* _ctx;
 };
 
 #define CASE_DEFAULT_WARNING(TYPE)                                             \
@@ -438,7 +442,7 @@ ColumnAggregatorPtr ColumnAggregatorFactory::create_value_column_aggregator(cons
                                    << ", is_nullable=" << field->is_nullable()
                                    << ", agg_state_desc=" << agg_state_desc->debug_string();
         auto agg_state_union = std::make_unique<AggStateUnion>(agg_func);
-        return std::make_unique<AggFuncBasedValueAggregator>(std::move(agg_state_union));
+        return std::make_unique<AggFuncBasedValueAggregator>(agg_state_desc, std::move(agg_state_union));
     } else {
         auto func_name = get_string_by_aggregation_type(method);
         // TODO(alvin): To keep compatible with old code, when type must not be the legacy type,

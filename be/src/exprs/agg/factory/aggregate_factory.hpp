@@ -116,6 +116,10 @@ public:
         return std::make_shared<ArrayAggAggregateFunctionV2>();
     }
 
+    static AggregateFunctionPtr MakeGroupConcatAggregateFunction() {
+        return std::make_shared<GroupConcatAggregateFunction>();
+    }
+
     static AggregateFunctionPtr MakeGroupConcatAggregateFunctionV2() {
         return std::make_shared<GroupConcatAggregateFunctionV2>();
     }

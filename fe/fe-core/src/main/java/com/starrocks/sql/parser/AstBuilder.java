@@ -6490,6 +6490,7 @@ public class AstBuilder extends StarRocksBaseVisitor<ParseNode> {
         }
         List<Expr> exprs = visit(context.aggregationFunction().expression(), Expr.class);
         if (isGroupConcat && !exprs.isEmpty() && context.aggregationFunction().SEPARATOR() == null) {
+            // TODO: AST should not be changed directly, otherwise AggState needs to be compatible with this.
             if (isLegacyGroupConcat) {
                 if (exprs.size() == 1) {
                     Expr sepExpr;
@@ -7714,6 +7715,11 @@ public class AstBuilder extends StarRocksBaseVisitor<ParseNode> {
         FunctionParams params = new FunctionParams(false, Lists.newArrayList());
         Type[] argumentTypes = argTypes.toArray(Type[]::new);
         Boolean[] isArgumentConstants = argTypes.stream().map(x -> new Boolean(false)).toArray(Boolean[]::new);
+        if (FunctionSet.GROUP_CONCAT.equalsIgnoreCase(aggFuncName) && argumentTypes.length == 1) {
+            // group_concat has only one argument, which is string type
+            argumentTypes = new Type[] {Type.VARCHAR, Type.VARCHAR};
+            isArgumentConstants = new Boolean[] {false, true};
+        }
         Function result = FunctionAnalyzer.getAggregateFunction(ConnectContext.get(), aggFuncName, params, argumentTypes,
                 isArgumentConstants, createPos(context));
         if (result == null) {

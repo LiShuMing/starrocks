@@ -209,6 +209,132 @@ public class MaterializedViewManualTest extends MaterializedViewTestBase {
     }
 
     @Test
+    public void testRewriteWithPushDownEquivalent1() throws Exception {
+        starRocksAssert.withTable("CREATE TABLE `tbl1` (\n" +
+                "  `k1` date,\n" +
+                "  `k2` decimal64(18, 2),\n" +
+                "  `k3` varchar(255),\n" +
+                "  `v1` bigint \n" +
+                ") ENGINE=OLAP \n" +
+                "DUPLICATE KEY(`k1`, `k2`, `k3`)\n" +
+                "DISTRIBUTED BY RANDOM\n" +
+                "PROPERTIES (\n" +
+                "\"replication_num\" = \"1\"\n" +
+                ");");
+        starRocksAssert.withMaterializedView("CREATE MATERIALIZED VIEW `mv1` \n" +
+                "DISTRIBUTED BY RANDOM\n" +
+                "REFRESH ASYNC\n" +
+                "PROPERTIES (\n" +
+                "\"replication_num\" = \"1\"\n" +
+                ")\n" +
+                "AS SELECT k1, k2, k3, sum(v1) from tbl1 group by k1, k2, k3");
+        {
+            String sql = "select t1.k1, " +
+                    "    sum(case when t1.k1 between date_add('2024-07-20', interval -1 month) and " +
+                    " date_add('2024-07-20', interval 1 month) then t1.v1 else 0 end) " +
+                    "    from tbl1 t1 group by t1.k1";
+            sql(sql).contains("mv1")
+                    .contains("  1:AGGREGATE (update serialize)\n" +
+                            "  |  STREAMING\n" +
+                            "  |  output: sum(if((7: k1 >= '2024-06-20') AND (7: k1 <= '2024-08-20'), 10: sum(v1), 0))\n" +
+                            "  |  group by: 7: k1\n" +
+                            "  |  \n" +
+                            "  0:OlapScanNode\n" +
+                            "     TABLE: mv1");
+        }
+        {
+            String sql = "select t1.k1, " +
+                    "    2 * sum(case when t1.k1 between date_add('2024-07-20', interval -1 month) and " +
+                    " date_add('2024-07-20', interval 1 month) then t1.v1 else 0 end) " +
+                    "    from tbl1 t1 group by t1.k1";
+            sql(sql).contains("mv1")
+                    .contains("  1:AGGREGATE (update serialize)\n" +
+                            "  |  STREAMING\n" +
+                            "  |  output: sum(if((7: k1 >= '2024-06-20') AND (7: k1 <= '2024-08-20'), 10: sum(v1), 0))\n" +
+                            "  |  group by: 7: k1\n" +
+                            "  |  \n" +
+                            "  0:OlapScanNode\n" +
+                            "     TABLE: mv1")
+                    .contains("  4:Project\n" +
+                            "  |  <slot 1> : 8: k1\n" +
+                            "  |  <slot 7> : 2 * 12: sum");
+        }
+        starRocksAssert.dropMaterializedView("mv1");
+        starRocksAssert.dropTable("tbl1");
+    }
+
+    @Test
+    public void testRewriteWithPushDownEquivalent2() throws Exception {
+        starRocksAssert.withTable("CREATE TABLE `tbl1` (\n" +
+                "  `k1` date,\n" +
+                "  `k2` decimal64(18, 2),\n" +
+                "  `k3` varchar(255),\n" +
+                "  `v1` bigint \n" +
+                ") ENGINE=OLAP \n" +
+                "DUPLICATE KEY(`k1`, `k2`, `k3`)\n" +
+                "DISTRIBUTED BY RANDOM\n" +
+                "PROPERTIES (\n" +
+                "\"replication_num\" = \"1\"\n" +
+                ");");
+        starRocksAssert.withMaterializedView("CREATE MATERIALIZED VIEW `mv1` \n" +
+                "DISTRIBUTED BY RANDOM\n" +
+                "REFRESH ASYNC\n" +
+                "PROPERTIES (\n" +
+                "\"replication_num\" = \"1\"\n" +
+                ")\n" +
+                "AS SELECT k1, k2, k3, sum(2 * v1) from tbl1 group by k1, k2, k3");
+        {
+            // mv's sum doesn't contain column ref which cannot be used for rewrite
+            String sql = "select t1.k1, " +
+                    "    sum(case when t1.k1 between date_add('2024-07-20', interval -1 month) and " +
+                    " date_add('2024-07-20', interval 1 month) then 2 * t1.v1 else 0 end) " +
+                    "    from tbl1 t1 group by t1.k1";
+            sql(sql).notContain("mv1");
+        }
+        starRocksAssert.dropMaterializedView("mv1");
+        starRocksAssert.dropTable("tbl1");
+    }
+
+    @Test
+    public void testRewriteWithPushDownEquivalent3() throws Exception {
+        starRocksAssert.withTable("CREATE TABLE `tbl1` (\n" +
+                "  `k1` date,\n" +
+                "  `k2` decimal64(18, 2),\n" +
+                "  `k3` varchar(255),\n" +
+                "  `v1` bigint \n" +
+                ") ENGINE=OLAP \n" +
+                "DUPLICATE KEY(`k1`, `k2`, `k3`)\n" +
+                "DISTRIBUTED BY RANDOM\n" +
+                "PROPERTIES (\n" +
+                "\"replication_num\" = \"1\"\n" +
+                ");");
+        starRocksAssert.withMaterializedView("CREATE MATERIALIZED VIEW `mv1` \n" +
+                "DISTRIBUTED BY RANDOM\n" +
+                "REFRESH ASYNC\n" +
+                "PROPERTIES (\n" +
+                "\"replication_num\" = \"1\"\n" +
+                ")\n" +
+                "AS SELECT k1, k2, k3, sum(v1), max(v1) from tbl1 group by k1, k2, k3");
+        {
+            String sql = "select t1.k1, 2 * min(v1 + 1) from tbl1 t1 group by t1.k1";
+            sql(sql).notContain("mv1");
+        }
+        {
+            String sql = "select t1.k1, 2 * sum(case when t1.v1 > 10 then t1.v1 else 0 end) " +
+                    "    from tbl1 t1 group by t1.k1";
+            sql(sql).notContain("mv1");
+        }
+        {
+            String sql = "select t1.k1, " +
+                    "    2 * sum(v1 + cast(k3 as int)) " +
+                    "    from tbl1 t1 group by t1.k1";
+            sql(sql).notContain("mv1");
+        }
+        starRocksAssert.dropMaterializedView("mv1");
+        starRocksAssert.dropTable("tbl1");
+    }
+
+    @Test
     public void testNullableTestCase2() throws Exception {
         String mv = "create materialized view join_null_mv\n" +
                 "distributed by hash(empid)\n" +

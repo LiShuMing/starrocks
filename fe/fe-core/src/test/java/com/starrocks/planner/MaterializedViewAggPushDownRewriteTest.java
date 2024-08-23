@@ -36,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.starrocks.sql.optimizer.rule.transformation.materialization.AggregateFunctionRollupUtils.MV_REWRITE_PUSH_DOWN_FUNCTION_MAP;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.AggregateFunctionRollupUtils.REWRITE_ROLLUP_FUNCTION_MAP;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.AggregateFunctionRollupUtils.SAFE_REWRITE_ROLLUP_FUNCTION_MAP;
 
@@ -163,11 +162,7 @@ public class MaterializedViewAggPushDownRewriteTest extends MaterializedViewTest
                 String query = String.format("select LO_ORDERDATE, %s as revenue_sum\n" +
                         "   from lineorder l join dates d on l.LO_ORDERDATE = d.d_datekey\n" +
                         "   group by LO_ORDERDATE", queryAggFunc);
-                if (MV_REWRITE_PUSH_DOWN_FUNCTION_MAP.containsKey(funcName)) {
-                    sql(query).contains("mv0");
-                } else {
-                    sql(query).nonMatch("mv0");
-                }
+                sql(query).nonMatch("mv0");
             });
         }
     }

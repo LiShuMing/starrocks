@@ -14,6 +14,7 @@
 
 package com.starrocks.planner;
 
+import com.starrocks.sql.plan.PlanTestBase;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -454,7 +455,6 @@ public class MaterializedViewManualTest extends MaterializedViewTestBase {
         starRocksAssert.dropTable("test_partition_expr_tbl1");
     }
 
-
     @Test
     public void testRewriteWithPushDownEquivalent4() throws Exception {
         starRocksAssert.withTable("CREATE TABLE `tbl1` (\n" +
@@ -482,7 +482,65 @@ public class MaterializedViewManualTest extends MaterializedViewTestBase {
                     " date_add('2024-07-20', interval 1 month) then t1.k2 else 0 end) " +
                     "    from tbl1 t1 group by t1.k1";
             String plan = getCostExplain(sql);
-            System.out.println(plan);
+            PlanTestBase.assertContains(plan, "mv1");
+            PlanTestBase.assertContains(plan, "|  aggregate: sum[(if[((8: k1 >= '2024-06-20') " +
+                    "AND (8: k1 <= '2024-08-20'), [10: sum(k2), DECIMAL128(38,2), true], 0); " +
+                    "args: BOOLEAN,DECIMAL128,DECIMAL128; result: DECIMAL128(38,2); " +
+                    "args nullable: true; result nullable: true]); args: DECIMAL128; " +
+                    "result: DECIMAL128; args nullable: true; result nullable: true]");
+        }
+        {
+            String sql = "select t1.k1, " +
+                    "    2 * sum(case when t1.k1 between date_add('2024-07-20', interval -1 month) and " +
+                    " date_add('2024-07-20', interval 1 month) then 2 * t1.k2 else 0 end) " +
+                    "    from tbl1 t1 group by t1.k1";
+            String plan = getCostExplain(sql);
+            PlanTestBase.assertNotContains(plan, "mv1");
+        }
+        starRocksAssert.dropMaterializedView("mv1");
+        starRocksAssert.dropTable("tbl1");
+    }
+
+    @Test
+    public void testRewriteWithPushDownEquivalent5() throws Exception {
+        starRocksAssert.withTable("CREATE TABLE `tbl1` (\n" +
+                "  `k1` date,\n" +
+                "  `k2` decimal64(18, 2),\n" +
+                "  `k3` varchar(255),\n" +
+                "  `v1` bigint \n" +
+                ") ENGINE=OLAP \n" +
+                "DUPLICATE KEY(`k1`, `k2`, `k3`)\n" +
+                "DISTRIBUTED BY RANDOM\n" +
+                "PROPERTIES (\n" +
+                "\"replication_num\" = \"1\"\n" +
+                ");");
+        starRocksAssert.withMaterializedView("CREATE MATERIALIZED VIEW `mv1` \n" +
+                "DISTRIBUTED BY RANDOM\n" +
+                "REFRESH ASYNC\n" +
+                "PROPERTIES (\n" +
+                "\"replication_num\" = \"1\"\n" +
+                ")\n" +
+                "AS SELECT k1, k3, sum(k2) from tbl1 group by k1, k3");
+        // sum(decimal)
+        {
+            String sql = "select t1.k1, " +
+                    "    2 * sum(case when t1.k1 between date_add('2024-07-20', interval -1 month) and " +
+                    " date_add('2024-07-20', interval 1 month) then t1.k2 when t1.k3 ='xxxx' then k2  else 0 end) " +
+                    "    from tbl1 t1 group by t1.k1";
+            String plan = getVerboseExplain(sql);
+            PlanTestBase.assertContains(plan, "mv1");
+            PlanTestBase.assertContains(plan, "aggregate: sum[(CASE WHEN (8: k1 >= '2024-06-20') " +
+                    "AND (8: k1 <= '2024-08-20') THEN 10: sum(k2) WHEN 9: k3 = 'xxxx' THEN 10: sum(k2) ELSE 0 END); " +
+                    "args: DECIMAL128; result: DECIMAL128; args nullable: true; result nullable: true]");
+        }
+
+        {
+            String sql = "select t1.k1, " +
+                    "    2 * sum(case when t1.k1 between date_add('2024-07-20', interval -1 month) and " +
+                    " date_add('2024-07-20', interval 1 month) then t1.k2 when t1.k3 ='xxxx' then k2 + 1 else 0 end) " +
+                    "    from tbl1 t1 group by t1.k1";
+            String plan = getVerboseExplain(sql);
+            PlanTestBase.assertNotContains(plan, "mv1");
         }
         starRocksAssert.dropMaterializedView("mv1");
         starRocksAssert.dropTable("tbl1");
@@ -513,7 +571,7 @@ public class MaterializedViewManualTest extends MaterializedViewTestBase {
                 " as select t1a, t1b, sum(t1f) as total from test.test_all_type group by t1a, t1b;", () -> {
             {
                 String query = "select t1a, sum(if(t1b=0, t1f, 0)) as total from test.test_all_type group by t1a;";
-                sql(query).notContain("mv0");
+                sql(query).contains("mv0");
             }
             {
                 String query = "select t1a, sum(if(t1b=0, t1b, 0)) as total from test.test_all_type group by t1a;";

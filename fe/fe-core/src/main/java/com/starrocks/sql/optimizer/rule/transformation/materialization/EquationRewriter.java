@@ -24,6 +24,8 @@ import com.starrocks.catalog.Function;
 import com.starrocks.catalog.FunctionSet;
 import com.starrocks.catalog.Type;
 import com.starrocks.common.Pair;
+import com.starrocks.qe.ConnectContext;
+import com.starrocks.sql.analyzer.FunctionAnalyzer;
 import com.starrocks.sql.optimizer.operator.scalar.BinaryPredicateOperator;
 import com.starrocks.sql.optimizer.operator.scalar.CallOperator;
 import com.starrocks.sql.optimizer.operator.scalar.CaseWhenOperator;
@@ -35,10 +37,12 @@ import com.starrocks.sql.optimizer.rewrite.ReplaceColumnRefRewriter;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.equivalent.EquivalentShuttleContext;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.equivalent.IRewriteEquivalent;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.equivalent.RewriteEquivalent;
+import com.starrocks.sql.parser.NodePosition;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.equivalent.RewriteEquivalent.EQUIVALENTS;
 
@@ -187,7 +191,7 @@ public class EquationRewriter {
                 }
                 // push down aggregate now only supports one child
                 // it's fine since rewrite will clone argo
-                ScalarOperator pdCall = pushDownAggregationToArg0(arg0, operatorMap);
+                ScalarOperator pdCall = pushDownAggregationToArg0(call, arg0, operatorMap);
                 if (pdCall == null || pdCall.equals(arg0)) {
                     return null;
                 }
@@ -211,14 +215,14 @@ public class EquationRewriter {
          * - If the argument is a call operator and contains multi-column refs(Ony IF/CaseWhen is supported),
          *  ensure the aggregate column does not appear in the condition clause.
          */
-        private ScalarOperator pushDownAggregationToArg0(ScalarOperator arg0,
-                                                  Map<ColumnRefOperator, CallOperator> operatorMap) {
+        private ScalarOperator pushDownAggregationToArg0(ScalarOperator call,
+                                                         ScalarOperator arg0,
+                                                         Map<ColumnRefOperator, CallOperator> operatorMap) {
             if (arg0 == null || !(arg0 instanceof CallOperator)) {
                 return null;
             }
-            CallOperator call = (CallOperator) arg0;
+            CallOperator arg0Call = (CallOperator) arg0;
             List<ColumnRefOperator> columnRefs = arg0.getColumnRefs();
-            ReplaceColumnRefRewriter rewriter = new ReplaceColumnRefRewriter(operatorMap);
             if (columnRefs.size() == 1) {
                 ColumnRefOperator child0 = columnRefs.get(0);
                 if (!operatorMap.containsKey(child0)) {
@@ -230,52 +234,71 @@ public class EquationRewriter {
                 if (!aggFunc.getType().equals(child0.getType())) {
                     return null;
                 }
+                ReplaceColumnRefRewriter rewriter = new ReplaceColumnRefRewriter(operatorMap);
                 return rewriter.rewrite(arg0);
             } else {
                 // if there are many column refs in arg0, the agg column must be the same.
-                if (call.getFnName().equalsIgnoreCase(FunctionSet.IF)) {
-                    if (call.getChildren().size() != 3) {
+                if (arg0Call.getFnName().equalsIgnoreCase(FunctionSet.IF)) {
+                    if (arg0Call.getChildren().size() != 3) {
                         return null;
                     }
                     // if the first column ref is in the operatorMap, means the agg column maybe as condition which
                     // cannot be rewritten
-                    if (isContainAggregateColumn(call.getChild(0), operatorMap)) {
+                    if (isContainAggregateColumn(arg0Call.getChild(0), operatorMap)) {
                         return null;
                     }
-                    ScalarOperator child1 = call.getChild(1);
-                    if (!isOnlyContainAggregateColumn(child1, operatorMap)) {
+                    ScalarOperator child1 = arg0Call.getChild(1);
+                    ScalarOperator rewritten1 = rewriteIfOnlyContianAggregateColumn(child1, operatorMap);
+                    if (rewritten1 == null) {
                         return null;
                     }
-                    ScalarOperator child2 = call.getChild(2);
-                    if (!isOnlyContainAggregateColumn(child2, operatorMap)) {
+                    ScalarOperator child2 = arg0Call.getChild(2);
+                    ScalarOperator rewritten2 = rewriteIfOnlyContianAggregateColumn(child2, operatorMap);
+                    if (rewritten2 == null) {
                         return null;
                     }
-                    return rewriter.rewrite(arg0);
-                } else if (call instanceof CaseWhenOperator) {
-                    CaseWhenOperator caseWhen = (CaseWhenOperator) call;
+                    ConnectContext ctx = ConnectContext.get() == null ? new ConnectContext() : ConnectContext.get();
+                    List<ScalarOperator> args = Lists.newArrayList(arg0Call.getChild(0), rewritten1, rewritten2);
+                    Type[] argTypes = args.stream().map(x -> x.getType()).collect(Collectors.toList()).toArray(new Type[0]);
+                    Function newFn = FunctionAnalyzer.getAnalyzedBuiltInFunction(ctx, FunctionSet.IF, null, argTypes,
+                            NodePosition.ZERO);
+                    if (newFn == null) {
+                        return null;
+                    }
+                    return new CallOperator(FunctionSet.IF, newFn.getReturnType(), args, newFn);
+                } else if (arg0Call instanceof CaseWhenOperator) {
+                    CaseWhenOperator caseClause = (CaseWhenOperator) arg0Call;
                     // if case condition contains any agg column ref, return false
-                    if (caseWhen.getCaseClause() != null && isContainAggregateColumn(caseWhen.getCaseClause(), operatorMap)) {
+                    ScalarOperator caseExpr = caseClause.hasCase() ? caseClause.getCaseClause() : null;
+                    if (caseExpr != null && isContainAggregateColumn(caseExpr, operatorMap)) {
                         return null;
                     }
-                    for (int i = 0; i < caseWhen.getWhenClauseSize(); i++) {
-                        ScalarOperator when = caseWhen.getWhenClause(i);
+                    List<ScalarOperator> newCaseWhens = Lists.newArrayList();
+                    for (int i = 0; i < caseClause.getWhenClauseSize(); i++) {
+                        ScalarOperator when = caseClause.getWhenClause(i);
                         if (isContainAggregateColumn(when, operatorMap)) {
                             return null;
                         }
-                    }
+                        newCaseWhens.add(when);
 
-                    // when clause or else clause can only contains aggregate column ref
-                    for (int i = 0; i < caseWhen.getWhenClauseSize(); i++) {
-                        ScalarOperator then = caseWhen.getThenClause(i);
-                        if (!isOnlyContainAggregateColumn(then, operatorMap)) {
+                        // when clause or else clause can only contain aggregate column ref
+                        ScalarOperator then = caseClause.getThenClause(i);
+                        ScalarOperator newThen = rewriteIfOnlyContianAggregateColumn(then, operatorMap);
+                        if (newThen == null) {
+                            return null;
+                        }
+                        newCaseWhens.add(newThen);
+                    }
+                    ScalarOperator elseClause = caseClause.hasElse() ? caseClause.getElseClause() : null;
+                    ScalarOperator newElseClause = elseClause;
+                    if (elseClause != null) {
+                        newElseClause = rewriteIfOnlyContianAggregateColumn(elseClause, operatorMap);
+                        if (newElseClause == null) {
                             return null;
                         }
                     }
-                    if (caseWhen.getElseClause()  != null && !isOnlyContainAggregateColumn(caseWhen.getElseClause(),
-                            operatorMap)) {
-                        return null;
-                    }
-                    return rewriter.rewrite(arg0);
+                    // NOTE: use call's result type as its input.
+                    return new CaseWhenOperator(call.getType(), caseExpr, newElseClause, newCaseWhens);
                 }
             }
             return null;
@@ -286,16 +309,25 @@ public class EquationRewriter {
             return child.getColumnRefs().stream().anyMatch(x -> operatorMap.containsKey(x));
         }
 
-        private boolean isOnlyContainAggregateColumn(ScalarOperator child,
-                                                     Map<ColumnRefOperator, CallOperator> operatorMap) {
+        private ScalarOperator rewriteIfOnlyContianAggregateColumn(ScalarOperator child,
+                                                                   Map<ColumnRefOperator, CallOperator> operatorMap) {
             List<ColumnRefOperator> colRefs = child.getColumnRefs();
             if (colRefs.size() > 1) {
-                return false;
+                return null;
             }
-            if (colRefs.size() == 1 && !operatorMap.containsKey(colRefs.get(0))) {
-                return false;
+            // constant operator
+            if (colRefs.size() == 0) {
+                return child;
             }
-            return true;
+            // TODO: only supports column ref now, support common expression later.
+            if (!(child instanceof ColumnRefOperator)) {
+                return null;
+
+            }
+            if (!operatorMap.containsKey(colRefs.get(0))) {
+                return null;
+            }
+            return operatorMap.get(colRefs.get(0));
         }
 
         Optional<ScalarOperator> replace(ScalarOperator scalarOperator) {

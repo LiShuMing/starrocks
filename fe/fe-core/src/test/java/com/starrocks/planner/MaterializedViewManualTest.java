@@ -454,6 +454,40 @@ public class MaterializedViewManualTest extends MaterializedViewTestBase {
         starRocksAssert.dropTable("test_partition_expr_tbl1");
     }
 
+
+    @Test
+    public void testRewriteWithPushDownEquivalent4() throws Exception {
+        starRocksAssert.withTable("CREATE TABLE `tbl1` (\n" +
+                "  `k1` date,\n" +
+                "  `k2` decimal64(18, 2),\n" +
+                "  `k3` varchar(255),\n" +
+                "  `v1` bigint \n" +
+                ") ENGINE=OLAP \n" +
+                "DUPLICATE KEY(`k1`, `k2`, `k3`)\n" +
+                "DISTRIBUTED BY RANDOM\n" +
+                "PROPERTIES (\n" +
+                "\"replication_num\" = \"1\"\n" +
+                ");");
+        starRocksAssert.withMaterializedView("CREATE MATERIALIZED VIEW `mv1` \n" +
+                "DISTRIBUTED BY RANDOM\n" +
+                "REFRESH ASYNC\n" +
+                "PROPERTIES (\n" +
+                "\"replication_num\" = \"1\"\n" +
+                ")\n" +
+                "AS SELECT k1, k3, sum(k2) from tbl1 group by k1, k3");
+        // sum(decimal)
+        {
+            String sql = "select t1.k1, " +
+                    "    2 * sum(case when t1.k1 between date_add('2024-07-20', interval -1 month) and " +
+                    " date_add('2024-07-20', interval 1 month) then t1.k2 else 0 end) " +
+                    "    from tbl1 t1 group by t1.k1";
+            String plan = getCostExplain(sql);
+            System.out.println(plan);
+        }
+        starRocksAssert.dropMaterializedView("mv1");
+        starRocksAssert.dropTable("tbl1");
+    }
+
     @Test
     public void testMvRewriteForColumnReorder() throws Exception {
         {

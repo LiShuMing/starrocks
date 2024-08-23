@@ -22,6 +22,7 @@ import com.google.common.collect.Multimap;
 import com.starrocks.analysis.Expr;
 import com.starrocks.catalog.Function;
 import com.starrocks.catalog.FunctionSet;
+import com.starrocks.catalog.Type;
 import com.starrocks.common.Pair;
 import com.starrocks.sql.optimizer.operator.scalar.BinaryPredicateOperator;
 import com.starrocks.sql.optimizer.operator.scalar.CallOperator;
@@ -51,7 +52,7 @@ public class EquationRewriter {
     boolean underAggFunctionRewriteContext;
 
     // Replace the corresponding ColumnRef with ScalarOperator if this call operator can be pushed down.
-    private Map<String, Map<ColumnRefOperator, CallOperator>> pushDownAggOperatorMap = Maps.newHashMap();
+    private Map<String, Map<ColumnRefOperator, CallOperator>> aggPushDownOperatorMap = Maps.newHashMap();
 
     public EquationRewriter() {
         this.equationMap = ArrayListMultimap.create();
@@ -178,75 +179,123 @@ public class EquationRewriter {
 
         private ScalarOperator rewriteByPushDownAggregation(CallOperator call) {
             if (AggregateFunctionRollupUtils.MV_REWRITE_PUSH_DOWN_FUNCTION_MAP.containsKey(call.getFnName()) &&
-                    pushDownAggOperatorMap.containsKey(call.getFnName())) {
-                Map<ColumnRefOperator, CallOperator> operatorMap = pushDownAggOperatorMap.get(call.getFnName());
+                    aggPushDownOperatorMap.containsKey(call.getFnName())) {
+                Map<ColumnRefOperator, CallOperator> operatorMap = aggPushDownOperatorMap.get(call.getFnName());
                 ScalarOperator arg0 = call.getChild(0);
                 if (call.getChildren().size() != 1) {
                     return null;
                 }
                 // push down aggregate now only supports one child
-                if (!canPushDownCallOperator(arg0, operatorMap)) {
-                    return null;
-                }
-
-                ReplaceColumnRefRewriter rewriter = new ReplaceColumnRefRewriter(operatorMap);
-                ScalarOperator pdCall = rewriter.rewrite(arg0);
+                // it's fine since rewrite will clone argo
+                ScalarOperator pdCall = pushDownAggregationToArg0(arg0, operatorMap);
                 if (pdCall == null || pdCall.equals(arg0)) {
                     return null;
                 }
                 ScalarOperator rewritten = pdCall.accept(this, null);
-                if (rewritten != null) {
+                // only can be used if pdCall is rewritten
+                if (rewritten != null && !rewritten.equals(pdCall)) {
                     shuttleContext.setRewrittenByEquivalent(true);
-                    return new CallOperator(call.getFnName(), call.getType(), Lists.newArrayList(rewritten),
-                            call.getFunction());
+                    // Since the argument type may be changed, needs to create a new CallOperator.
+                    Type[] newArgTypes = {rewritten.getType()};
+                    Function newFn = Expr.getBuiltinFunction(call.getFnName(), newArgTypes, Function.CompareMode.IS_IDENTICAL);
+                    return new CallOperator(call.getFnName(), call.getType(), Lists.newArrayList(rewritten), newFn);
                 }
             }
             return null;
         }
 
-        private boolean canPushDownCallOperator(ScalarOperator arg0,
-                                                Map<ColumnRefOperator, CallOperator> operatorMap) {
+        /**
+         * Whether the call operator can be pushed down:
+         * - Only supports to push down min/max/sum aggregate function
+         * - If the argument is a column ref, and operator map contains the column ref, return true
+         * - If the argument is a call operator and contains multi-column refs(Ony IF/CaseWhen is supported),
+         *  ensure the aggregate column does not appear in the condition clause.
+         */
+        private ScalarOperator pushDownAggregationToArg0(ScalarOperator arg0,
+                                                  Map<ColumnRefOperator, CallOperator> operatorMap) {
             if (arg0 == null || !(arg0 instanceof CallOperator)) {
-                return false;
+                return null;
             }
             CallOperator call = (CallOperator) arg0;
             List<ColumnRefOperator> columnRefs = arg0.getColumnRefs();
+            ReplaceColumnRefRewriter rewriter = new ReplaceColumnRefRewriter(operatorMap);
             if (columnRefs.size() == 1) {
-                return operatorMap.containsKey(columnRefs.get(0));
+                ColumnRefOperator child0 = columnRefs.get(0);
+                if (!operatorMap.containsKey(child0)) {
+                    return null;
+                }
+                CallOperator aggFunc = operatorMap.get(child0);
+                // strict mode, only supports col's type and agg(col)'s type are strict equal; otherwise we should
+                // refresh the call operator's argument/result type recursively.
+                if (!aggFunc.getType().equals(child0.getType())) {
+                    return null;
+                }
+                return rewriter.rewrite(arg0);
             } else {
                 // if there are many column refs in arg0, the agg column must be the same.
                 if (call.getFnName().equalsIgnoreCase(FunctionSet.IF)) {
-                    if (columnRefs.size() != 3) {
-                        return false;
+                    if (call.getChildren().size() != 3) {
+                        return null;
                     }
                     // if the first column ref is in the operatorMap, means the agg column maybe as condition which
                     // cannot be rewritten
-                    if (operatorMap.containsKey(columnRefs.get(0))) {
-                        return false;
+                    if (isContainAggregateColumn(call.getChild(0), operatorMap)) {
+                        return null;
                     }
-                    return true;
+                    ScalarOperator child1 = call.getChild(1);
+                    if (!isOnlyContainAggregateColumn(child1, operatorMap)) {
+                        return null;
+                    }
+                    ScalarOperator child2 = call.getChild(2);
+                    if (!isOnlyContainAggregateColumn(child2, operatorMap)) {
+                        return null;
+                    }
+                    return rewriter.rewrite(arg0);
                 } else if (call instanceof CaseWhenOperator) {
                     CaseWhenOperator caseWhen = (CaseWhenOperator) call;
                     // if case condition contains any agg column ref, return false
-                    if (caseWhen.getCaseClause() != null) {
-                        List<ColumnRefOperator> caseColumnRefs = caseWhen.getCaseClause().getColumnRefs();
-                        if (caseColumnRefs.stream().anyMatch(x -> operatorMap.containsKey(x))) {
-                            return false;
-                        }
+                    if (caseWhen.getCaseClause() != null && isContainAggregateColumn(caseWhen.getCaseClause(), operatorMap)) {
+                        return null;
                     }
-                    // if case condition contains any agg column ref, return false
                     for (int i = 0; i < caseWhen.getWhenClauseSize(); i++) {
                         ScalarOperator when = caseWhen.getWhenClause(i);
-                        if (when != null) {
-                            List<ColumnRefOperator> whenColumnRefs = when.getColumnRefs();
-                            if (whenColumnRefs.stream().anyMatch(x -> operatorMap.containsKey(x))) {
-                                return false;
-                            }
+                        if (isContainAggregateColumn(when, operatorMap)) {
+                            return null;
                         }
                     }
+
+                    // when clause or else clause can only contains aggregate column ref
+                    for (int i = 0; i < caseWhen.getWhenClauseSize(); i++) {
+                        ScalarOperator then = caseWhen.getThenClause(i);
+                        if (!isOnlyContainAggregateColumn(then, operatorMap)) {
+                            return null;
+                        }
+                    }
+                    if (caseWhen.getElseClause()  != null && !isOnlyContainAggregateColumn(caseWhen.getElseClause(),
+                            operatorMap)) {
+                        return null;
+                    }
+                    return rewriter.rewrite(arg0);
                 }
+            }
+            return null;
+        }
+
+        private boolean isContainAggregateColumn(ScalarOperator child,
+                                                 Map<ColumnRefOperator, CallOperator> operatorMap) {
+            return child.getColumnRefs().stream().anyMatch(x -> operatorMap.containsKey(x));
+        }
+
+        private boolean isOnlyContainAggregateColumn(ScalarOperator child,
+                                                     Map<ColumnRefOperator, CallOperator> operatorMap) {
+            List<ColumnRefOperator> colRefs = child.getColumnRefs();
+            if (colRefs.size() > 1) {
                 return false;
             }
+            if (colRefs.size() == 1 && !operatorMap.containsKey(colRefs.get(0))) {
+                return false;
+            }
+            return true;
         }
 
         Optional<ScalarOperator> replace(ScalarOperator scalarOperator) {
@@ -339,7 +388,7 @@ public class EquationRewriter {
                 // query: 2 * sum(col)
                 // query cannot be used to push down, because the argument is not a column ref.
                 if (arg0 != null && arg0.isColumnRef()) {
-                    pushDownAggOperatorMap
+                    aggPushDownOperatorMap
                             .computeIfAbsent(fnName, x -> Maps.newHashMap())
                             .put((ColumnRefOperator) arg0, call);
                 }

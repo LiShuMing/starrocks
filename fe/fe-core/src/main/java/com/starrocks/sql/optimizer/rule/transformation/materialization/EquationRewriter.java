@@ -87,9 +87,12 @@ public class EquationRewriter {
 
     private final class EquivalentShuttle extends BaseScalarOperatorShuttle {
         private final EquivalentShuttleContext shuttleContext;
+        private final IRewriteEquivalent.RewriteEquivalentType equivalentType;
 
-        public EquivalentShuttle(EquivalentShuttleContext eqContext) {
+        public EquivalentShuttle(EquivalentShuttleContext eqContext,
+                                 IRewriteEquivalent.RewriteEquivalentType equivalentType) {
             this.shuttleContext = eqContext;
+            this.equivalentType = equivalentType;
         }
 
         @Override
@@ -109,11 +112,13 @@ public class EquationRewriter {
                 return tmp.get();
             }
 
-            // rewrite by equivalent
-            ScalarOperator rewritten = rewriteByEquivalent(predicate, IRewriteEquivalent.RewriteEquivalentType.PREDICATE);
-            if (rewritten != null) {
-                shuttleContext.setRewrittenByEquivalent(true);
-                return rewritten;
+            // rewrite by equivalent which only can be predicate type here.
+            if (equivalentType.equals(IRewriteEquivalent.RewriteEquivalentType.PREDICATE)) {
+                ScalarOperator rewritten = rewriteByEquivalent(predicate, equivalentType);
+                if (rewritten != null) {
+                    shuttleContext.setRewrittenByEquivalent(true);
+                    return rewritten;
+                }
             }
 
             return super.visitBinaryPredicate(predicate, context);
@@ -142,7 +147,7 @@ public class EquationRewriter {
             }
 
             // rewrite by equivalent
-            ScalarOperator rewritten = rewriteByEquivalent(call, IRewriteEquivalent.RewriteEquivalentType.AGGREGATE);
+            ScalarOperator rewritten = rewriteByEquivalent(call, equivalentType);
             if (rewritten != null) {
                 shuttleContext.setRewrittenByEquivalent(true);
                 return rewritten;
@@ -213,17 +218,27 @@ public class EquationRewriter {
         }
     }
 
-    private final EquivalentShuttle shuttle = new EquivalentShuttle(new EquivalentShuttleContext(null, false, true));
+    private final EquivalentShuttle shuttle = new EquivalentShuttle(
+            new EquivalentShuttleContext(null, false, true),
+            IRewriteEquivalent.RewriteEquivalentType.PREDICATE);
 
     protected ScalarOperator replaceExprWithTarget(ScalarOperator expr) {
         return expr.accept(shuttle, null);
     }
 
-    protected Pair<ScalarOperator, EquivalentShuttleContext> replaceExprWithRollup(RewriteContext rewriteContext,
-                                                                                   ScalarOperator expr) {
+    /**
+     * Rewrite expr with equivalent shuttle which can be more robust/powerful than `replaceExprWithTarget`
+     * @param rewriteContext
+     * @param expr
+     * @return
+     */
+    protected Pair<ScalarOperator, EquivalentShuttleContext> replaceExprWithEquivalentShuttle(
+            RewriteContext rewriteContext,
+            ScalarOperator expr,
+            IRewriteEquivalent.RewriteEquivalentType equivalentType) {
         final EquivalentShuttleContext shuttleContext = new EquivalentShuttleContext(rewriteContext,
                 true, true);
-        final EquivalentShuttle shuttle = new EquivalentShuttle(shuttleContext);
+        final EquivalentShuttle shuttle = new EquivalentShuttle(shuttleContext, equivalentType);
         return Pair.create(expr.accept(shuttle, null), shuttleContext);
     }
 

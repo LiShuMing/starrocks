@@ -25,6 +25,7 @@ import java.util.Objects;
  * with multi partition columns
  *  partitionItems  : ((1, 'a'), (2, 'b'))
  */
+
 public final class PListCell extends PCell implements Comparable<PListCell> {
     // multi values: the order is only associated comparing.
     private final List<List<String>> partitionItems;

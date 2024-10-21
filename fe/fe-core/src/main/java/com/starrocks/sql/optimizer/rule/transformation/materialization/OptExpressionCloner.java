@@ -36,6 +36,7 @@ import com.starrocks.sql.optimizer.operator.logical.LogicalCTEProduceOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalFilterOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalJoinOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalOlapScanOperator;
+import com.starrocks.sql.optimizer.operator.logical.LogicalOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalProjectOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalRepeatOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalScanOperator;
@@ -128,7 +129,7 @@ public class OptExpressionCloner {
                 }
             }
 
-            processCommon(opBuilder);
+            processCommon(opBuilder, scanOperator);
 
             ImmutableMap<ColumnRefOperator, Column> newColumnRefColumnMap = columnRefColumnMapBuilder.build();
             scanBuilder.setColRefToColumnMetaMap(newColumnRefColumnMap);
@@ -155,7 +156,7 @@ public class OptExpressionCloner {
             List<OptExpression> inputs = processChildren(optExpression);
             Operator.Builder opBuilder = OperatorBuilderFactory.build(optExpression.getOp());
             opBuilder.withOperator(optExpression.getOp());
-            processCommon(opBuilder);
+            processCommon(opBuilder, (LogicalOperator) optExpression.getOp());
 
             LogicalProjectOperator projectOperator = (LogicalProjectOperator) optExpression.getOp();
             Map<ColumnRefOperator, ScalarOperator> newColumnRefMap = projectOperator.getColumnRefMap()
@@ -193,7 +194,7 @@ public class OptExpressionCloner {
                 List<ColumnRefOperator> newPartitionColumns = cloneColumnRefs(partitionColumns);
                 aggregationBuilder.setPartitionByColumns(newPartitionColumns);
             }
-            processCommon(opBuilder);
+            processCommon(opBuilder, aggregationOperator);
 
             return OptExpression.create(opBuilder.build(), inputs);
         }
@@ -205,7 +206,7 @@ public class OptExpressionCloner {
             Operator.Builder opBuilder = OperatorBuilderFactory.build(optExpression.getOp());
             opBuilder.withOperator(optExpression.getOp());
 
-            processCommon(opBuilder);
+            processCommon(opBuilder, joinOperator);
 
             ScalarOperator onPredicate = joinOperator.getOnPredicate();
             if (onPredicate != null) {
@@ -227,6 +228,15 @@ public class OptExpressionCloner {
             return OptExpression.create(opBuilder.build(), inputs);
         }
 
+        @Override
+        public OptExpression visitLogicalAssertOneRow(OptExpression optExpression, Void context) {
+            List<OptExpression> inputs = processChildren(optExpression);
+            Operator.Builder opBuilder = OperatorBuilderFactory.build(optExpression.getOp());
+            opBuilder.withOperator(optExpression.getOp());
+            processCommon(opBuilder, (LogicalOperator) optExpression.getOp());
+            return OptExpression.create(opBuilder.build(), inputs);
+        }
+
         private void processSetOperator(LogicalSetOperator setOperator,
                                         LogicalSetOperator.Builder opBuilder) {
             List<List<ColumnRefOperator>> newChildOutputColumns = Lists.newArrayList(setOperator.getChildOutputColumns());
@@ -243,7 +253,7 @@ public class OptExpressionCloner {
             LogicalSetOperator.Builder opBuilder = OperatorBuilderFactory.build(optExpression.getOp());
             opBuilder.withOperator(setOperator);
             processSetOperator(setOperator, opBuilder);
-            processCommon(opBuilder);
+            processCommon(opBuilder, setOperator);
             return OptExpression.create(opBuilder.build(), inputs);
         }
 
@@ -254,7 +264,7 @@ public class OptExpressionCloner {
             LogicalSetOperator.Builder opBuilder = OperatorBuilderFactory.build(optExpression.getOp());
             opBuilder.withOperator(setOperator);
             processSetOperator(setOperator, opBuilder);
-            processCommon(opBuilder);
+            processCommon(opBuilder, setOperator);
 
             return OptExpression.create(opBuilder.build(), inputs);
         }
@@ -266,7 +276,7 @@ public class OptExpressionCloner {
             LogicalSetOperator.Builder opBuilder = OperatorBuilderFactory.build(optExpression.getOp());
             opBuilder.withOperator(setOperator);
             processSetOperator(setOperator, opBuilder);
-            processCommon(opBuilder);
+            processCommon(opBuilder, setOperator);
             return OptExpression.create(opBuilder.build(), inputs);
         }
 
@@ -300,7 +310,7 @@ public class OptExpressionCloner {
                     .collect(Collectors.toMap(x -> (ColumnRefOperator) x.first, x -> (CallOperator) x.second));
             opBuilder.setWindowCall(newWindowCalls);
 
-            processCommon(opBuilder);
+            processCommon(opBuilder, windowOperator);
 
             return OptExpression.create(opBuilder.build(), inputs);
         }
@@ -322,18 +332,18 @@ public class OptExpressionCloner {
             List<Ordering> newOrderings = Lists.newArrayList(topNOperator.getOrderByElements());
             opBuilder.setOrderByElements(newOrderings);
 
-            processCommon(opBuilder);
+            processCommon(opBuilder, topNOperator);
             return OptExpression.create(opBuilder.build(), inputs);
         }
 
         @Override
         public OptExpression visitLogicalLimit(OptExpression optExpression, Void context) {
             List<OptExpression> inputs = processChildren(optExpression);
-            LogicalSetOperator setOperator = (LogicalSetOperator) optExpression.getOp();
+            LogicalSetOperator limitOperator = (LogicalSetOperator) optExpression.getOp();
             LogicalSetOperator.Builder opBuilder = OperatorBuilderFactory.build(optExpression.getOp());
-            opBuilder.withOperator(setOperator);
-            processSetOperator(setOperator, opBuilder);
-            processCommon(opBuilder);
+            opBuilder.withOperator(limitOperator);
+            processSetOperator(limitOperator, opBuilder);
+            processCommon(opBuilder, limitOperator);
             return OptExpression.create(opBuilder.build(), inputs);
         }
 
@@ -347,7 +357,7 @@ public class OptExpressionCloner {
             // column refs
             List<ColumnRefOperator> newColRefs = cloneColumnRefs(valuesOperator.getColumnRefSet());
             opBuilder.setColumnRefSet(newColRefs);
-            processCommon(opBuilder);
+            processCommon(opBuilder, valuesOperator);
             return OptExpression.create(opBuilder.build(), inputs);
         }
 
@@ -374,7 +384,7 @@ public class OptExpressionCloner {
                             .collect(Collectors.toList());
             opBuilder.setFnParamColumnProject(newFnParamColumnProject);
 
-            processCommon(opBuilder);
+            processCommon(opBuilder, tableFunctionOperator);
             return OptExpression.create(opBuilder.build(), inputs);
         }
 
@@ -397,7 +407,7 @@ public class OptExpressionCloner {
             }
             opBuilder.setRepeatColumnRefList(newRepeatColumnRefList);
 
-            processCommon(opBuilder);
+            processCommon(opBuilder, repeatOperator);
             return OptExpression.create(opBuilder.build(), inputs);
         }
 
@@ -408,7 +418,7 @@ public class OptExpressionCloner {
             LogicalCTEAnchorOperator.Builder opBuilder = OperatorBuilderFactory.build(optExpression.getOp());
             opBuilder.withOperator(cteAnchorOperator);
             opBuilder.setCteId(cteAnchorOperator.getCteId());
-            processCommon(opBuilder);
+            processCommon(opBuilder, cteAnchorOperator);
             return OptExpression.create(opBuilder.build(), inputs);
         }
 
@@ -419,7 +429,7 @@ public class OptExpressionCloner {
             LogicalCTEProduceOperator.Builder opBuilder = OperatorBuilderFactory.build(optExpression.getOp());
             opBuilder.withOperator(cteProduceOperator);
             opBuilder.setCteId(cteProduceOperator.getCteId());
-            processCommon(opBuilder);
+            processCommon(opBuilder, cteProduceOperator);
             return OptExpression.create(opBuilder.build(), inputs);
         }
 
@@ -441,7 +451,7 @@ public class OptExpressionCloner {
                             .collect(Collectors.toMap(x -> x.first, x -> x.second));
             opBuilder.setCteOutputColumnRefMap(newCteOutputColumnRefMap);
 
-            processCommon(opBuilder);
+            processCommon(opBuilder, cteConsumeOperator);
             return OptExpression.create(opBuilder.build(), inputs);
         }
 
@@ -461,13 +471,13 @@ public class OptExpressionCloner {
                     .collect(Collectors.toList());
         }
 
-        private void processCommon(Operator.Builder opBuilder) {
+        private void processCommon(Operator.Builder opBuilder, LogicalOperator op) {
             // first process predicate, then projection
-            ScalarOperator predicate = opBuilder.getPredicate();
+            ScalarOperator predicate = op.getPredicate();
             if (predicate != null) {
                 opBuilder.setPredicate(predicate.clone());
             }
-            Projection projection = opBuilder.getProjection();
+            Projection projection = op.getProjection();
             if (projection != null) {
                 Map<ColumnRefOperator, ScalarOperator> newColumnRefMap = Maps.newHashMap(projection.getColumnRefMap());
                 Projection newProjection = new Projection(newColumnRefMap);

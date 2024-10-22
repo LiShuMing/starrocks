@@ -848,45 +848,6 @@ public class Utils {
     }
 
     /**
-     * Check if the operator has applied the rule
-     * @param op input operator to be checked
-     * @param ruleMask specific rule mask
-     * @return true if the operator has applied the rule, false otherwise
-     */
-    public static boolean isOpAppliedRule(Operator op, int ruleMask) {
-        if (op == null) {
-            return false;
-        }
-        // TODO: support cte inline
-        int opRuleMask = op.getOpRuleMask();
-        return (opRuleMask & ruleMask) != 0;
-    }
-
-    /**
-     * Set the rule mask to the operator
-     * @param op input operator
-     * @param ruleMask specific rule mask
-     */
-    public static void setOpAppliedRule(Operator op, int ruleMask) {
-        if (op == null) {
-            return;
-        }
-        op.setOpRuleMask(op.getOpRuleMask() | ruleMask);
-    }
-
-    /**
-     * Reset the rule mask to the operator
-     * @param op input operator
-     * @param ruleMask specific rule mask
-     */
-    public static void resetOpAppliedRule(Operator op, int ruleMask) {
-        if (op == null) {
-            return;
-        }
-        op.resetOpRuleMask(ruleMask);
-    }
-
-    /**
      * Check if the optExpression has applied the rule in recursively
      * @param optExpression input optExpression to be checked
      * @param ruleMask specific rule mask
@@ -896,7 +857,7 @@ public class Utils {
         if (optExpression == null) {
             return false;
         }
-        if (isOpAppliedRule(optExpression.getOp(), ruleMask)) {
+        if (optExpression.getOp().isOpRuleMaskSet(ruleMask)) {
             return true;
         }
         for (OptExpression child : optExpression.getInputs()) {
@@ -907,16 +868,15 @@ public class Utils {
         return false;
     }
 
-
-    public static void setOptScanOpsBit(OptExpression input,
-                                        int bit) {
-        List<LogicalScanOperator> scanOps = MvUtils.getScanOperator(input);
-        scanOps.stream().forEach(op -> op.setOpRuleMask(op.getOpRuleMask() | bit));
+    public static boolean isNeedsPartitionPrune(OptExpression input) {
+        return MvUtils.getScanOperator(input)
+                .stream()
+                .anyMatch(s -> !s.isOpRuleMaskSet(Operator.OP_PARTITION_PRUNE_BIT));
     }
 
-    public static void setOpBit(OptExpression input,
-                                int bit) {
-        input.getOp().setOpRuleMask(input.getOp().getOpRuleMask() | bit);
+    public static void setAppliedMVIds(OptExpression input, long mvId) {
+        List<LogicalScanOperator> scanOps = MvUtils.getScanOperator(input);
+        scanOps.stream().forEach(op -> op.setOpAppliedMV(mvId));
     }
 
     @SuppressWarnings("unchecked")

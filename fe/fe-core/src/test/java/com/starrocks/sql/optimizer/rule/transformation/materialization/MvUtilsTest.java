@@ -212,12 +212,12 @@ public class MvUtilsTest {
     public void testResetOpAppliedRule() {
         LogicalScanOperator.Builder builder = new LogicalOlapScanOperator.Builder();
         Operator op = builder.build();
-        Assert.assertFalse(Utils.isOpAppliedRule(op, Operator.OP_PARTITION_PRUNE_BIT));
+        Assert.assertFalse(op.isOpRuleMaskSet(Operator.OP_PARTITION_PRUNE_BIT));
         // set
-        Utils.setOpAppliedRule(op, Operator.OP_PARTITION_PRUNE_BIT);
-        Assert.assertTrue(Utils.isOpAppliedRule(op, Operator.OP_PARTITION_PRUNE_BIT));
+        op.setOpRuleMask(Operator.OP_PARTITION_PRUNE_BIT);
+        Assert.assertTrue(op.isOpRuleMaskSet(Operator.OP_PARTITION_PRUNE_BIT));
         // reset
-        Utils.resetOpAppliedRule(op, Operator.OP_PARTITION_PRUNE_BIT);
-        Assert.assertFalse(Utils.isOpAppliedRule(op, Operator.OP_PARTITION_PRUNE_BIT));
+        op.resetOpRuleMask(Operator.OP_PARTITION_PRUNE_BIT);
+        Assert.assertFalse(op.isOpRuleMaskSet(Operator.OP_PARTITION_PRUNE_BIT));
     }
 }

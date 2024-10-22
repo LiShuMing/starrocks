@@ -25,9 +25,12 @@ import com.starrocks.sql.optimizer.operator.physical.PhysicalScanOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
 import com.starrocks.sql.optimizer.property.DomainProperty;
 
+import java.util.BitSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 public abstract class Operator {
     public static final long DEFAULT_LIMIT = -1;
@@ -55,7 +58,6 @@ public abstract class Operator {
     // or self reference of groups
     protected long salt = 0;
 
-    protected int opRuleMask = 0;
     // Like LogicalJoinOperator#transformMask, add a mask to avoid one operator's dead-loop in one transform rule.
     // eg: MV's UNION-ALL RULE:
     //                 UNION                         UNION
@@ -64,11 +66,16 @@ public abstract class Operator {
     //                                       /      \
     //                                  EXTRA-OP    MV-SCAN
     // Operator's rule mask: operator that has been union rewrite and no needs to rewrite again.
-    public static final int OP_UNION_ALL_BIT = 1 << 0;
+    public static final int OP_UNION_ALL_BIT = 0;
     // Operator's rule mask: operator that has been push down rewrite and no needs to rewrite again.
-    public static final int OP_PUSH_DOWN_BIT = 1 << 1;
-    public static final int OP_TRANSPARENT_MV_BIT = 1 << 2;
-    public static final int OP_PARTITION_PRUNE_BIT = 1 << 3;
+    public static final int OP_PUSH_DOWN_BIT = 1;
+    public static final int OP_TRANSPARENT_MV_BIT = 2;
+    public static final int OP_PARTITION_PRUNE_BIT = 3;
+
+    // `opRuleMask` is used to mark which rule(bit) has been applied to the operator.
+    protected BitSet opRuleMask = new BitSet();
+    // `opAppliedMVs` is used to mark which MV has been applied to the operator.
+    protected Set<Long> opMVMask = new HashSet<>();
 
     // an operator logically equivalent to 'this' operator
     // used by view based mv rewrite
@@ -159,20 +166,24 @@ public abstract class Operator {
         return salt;
     }
 
-    public int getOpRuleMask() {
-        return opRuleMask;
-    }
-
     public void setOpRuleMask(int bit) {
-        this.opRuleMask |= bit;
+        this.opRuleMask.set(bit);
     }
 
     public void resetOpRuleMask(int bit) {
-        this.opRuleMask &= (~ bit);
+        this.opRuleMask.clear(bit);
     }
 
     public boolean isOpRuleMaskSet(int bit) {
-        return (opRuleMask & bit) != 0;
+        return opRuleMask.get(bit);
+    }
+
+    public void setOpAppliedMV(long mvId) {
+        this.opMVMask.add(mvId);
+    }
+
+    public boolean isOpAppliedMV(long mvId) {
+        return opMVMask.contains(mvId);
     }
 
     public Operator getEquivalentOp() {
@@ -281,6 +292,7 @@ public abstract class Operator {
             builder.salt = operator.salt;
             builder.opRuleMask = operator.opRuleMask;
             builder.equivalentOp = operator.equivalentOp;
+            builder.opMVMask = operator.opMVMask;
             return (B) this;
         }
 
@@ -326,7 +338,7 @@ public abstract class Operator {
             return (B) this;
         }
 
-        public B setOpBitSet(int opRuleMask) {
+        public B setOpBitSet(BitSet opRuleMask) {
             builder.opRuleMask = opRuleMask;
             return (B) this;
         }

@@ -18,7 +18,6 @@ package com.starrocks.sql.optimizer.rule.transformation;
 import com.google.common.collect.Lists;
 import com.starrocks.sql.optimizer.OptExpression;
 import com.starrocks.sql.optimizer.OptimizerContext;
-import com.starrocks.sql.optimizer.Utils;
 import com.starrocks.sql.optimizer.operator.Operator;
 import com.starrocks.sql.optimizer.operator.OperatorType;
 import com.starrocks.sql.optimizer.operator.logical.LogicalScanOperator;
@@ -60,7 +59,7 @@ public class ExternalScanPartitionPruneRule extends TransformationRule {
     public boolean check(final OptExpression input, OptimizerContext context) {
         Operator op = input.getOp();
         // if the partition id is already selected, no need to prune again
-        if (Utils.isOpAppliedRule(op, Operator.OP_PARTITION_PRUNE_BIT)) {
+        if (op.isOpRuleMaskSet(Operator.OP_PARTITION_PRUNE_BIT)) {
             return false;
         }
         return true;
@@ -70,7 +69,7 @@ public class ExternalScanPartitionPruneRule extends TransformationRule {
     public List<OptExpression> transform(OptExpression input, OptimizerContext context) {
         LogicalScanOperator operator = (LogicalScanOperator) input.getOp();
         OptExternalPartitionPruner.prunePartitions(context, operator);
-        Utils.setOpAppliedRule(operator, Operator.OP_PARTITION_PRUNE_BIT);
+        operator.setOpRuleMask(Operator.OP_PARTITION_PRUNE_BIT);
         return Lists.newArrayList();
     }
 }

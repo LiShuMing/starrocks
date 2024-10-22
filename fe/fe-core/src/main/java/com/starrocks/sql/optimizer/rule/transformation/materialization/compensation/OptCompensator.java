@@ -66,7 +66,8 @@ public class OptCompensator extends OptExpressionVisitor<OptExpression, Void> {
         Table refBaseTable = scanOperator.getTable();
 
         // reset the partition prune flag to be pruned again.
-        Utils.resetOpAppliedRule(scanOperator, Operator.OP_PARTITION_PRUNE_BIT);
+        scanOperator.resetOpRuleMask(Operator.OP_PARTITION_PRUNE_BIT);
+
         if (refBaseTable.isNativeTableOrMaterializedView()) {
             List<Long> olapTableCompensatePartitionIds = Lists.newArrayList();
             if (compensations.containsKey(refBaseTable)) {

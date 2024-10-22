@@ -67,7 +67,7 @@ public class MaterializedViewTransparentRewriteRule extends TransformationRule {
 
     public boolean check(final OptExpression input, OptimizerContext context) {
         // To avoid dead-loop rewrite, no rewrite when query extra predicate is not changed
-        if (Utils.isOpAppliedRule(input.getOp(), Operator.OP_TRANSPARENT_MV_BIT)) {
+        if (input.getOp().isOpRuleMaskSet(Operator.OP_TRANSPARENT_MV_BIT)) {
             return false;
         }
         return true;

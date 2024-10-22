@@ -425,7 +425,7 @@ public class Optimizer {
         // NOTE: Since union rewrite will generate Filter -> Union -> OlapScan -> OlapScan, need to push filter below Union
         // and do partition predicate again.
         // TODO: Do it in CBO if needed later.
-        if (MvUtils.isAppliedMVUnionRewrite(tree)) {
+        if (Utils.isNeedsPartitionPrune(tree)) {
             // Do predicate push down if union rewrite successes.
             tree = new SeparateProjectRule().rewrite(tree, rootTaskContext);
             deriveLogicalProperty(tree);

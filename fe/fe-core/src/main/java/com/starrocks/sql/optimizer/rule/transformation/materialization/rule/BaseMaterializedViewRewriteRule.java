@@ -244,7 +244,7 @@ public abstract class BaseMaterializedViewRewriteRule extends TransformationRule
             }
 
             // mark this mv has applied this query
-            //Utils.setAppliedMVIds(candidate, mvContext.getMv().getId());
+            Utils.setAppliedMVIds(candidate, mvContext.getMv().getId());
 
             // Give up rewrite if it exceeds the optimizer timeout
             context.checkTimeout();

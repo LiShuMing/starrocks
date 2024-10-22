@@ -232,21 +232,6 @@ public class AggregatedTimeSeriesRewriter extends MaterializedViewRewriter {
             return null;
         }
 
-        // reset scan operator predicates
-        if (scanOp instanceof LogicalOlapScanOperator) {
-            LogicalOlapScanOperator olapScanOperator = (LogicalOlapScanOperator) scanOp;
-            if (!olapScanOperator.getPrunedPartitionPredicates().isEmpty()) {
-                olapScanOperator.getPrunedPartitionPredicates().clear();
-            }
-        } else {
-            try {
-                scanOp.setScanOperatorPredicates(new ScanOperatorPredicates());
-            } catch (Exception e) {
-                logMVRewrite(mvRewriteContext, "AggTimeSeriesRewriter: cannot set scan operator predicates");
-                return null;
-            }
-        }
-
         // why generate push-down aggregate opt rather to use the original aggregate operator?
         // 1. aggregate's predicates/projects cannot be pushed down.
         // 2. if the original aggregate doesn't contain group by keys, add it into projection to be used in the final stage
@@ -307,7 +292,6 @@ public class AggregatedTimeSeriesRewriter extends MaterializedViewRewriter {
         LogicalAggregationOperator aggOperator = (LogicalAggregationOperator) queryExpression.getOp();
         Map<ColumnRefOperator, CallOperator>  aggregations = aggOperator.getAggregations();
         Map<CallOperator, ColumnRefOperator> uniqueAggregations = Maps.newHashMap();
-        // agg remappings
         for (Map.Entry<ColumnRefOperator, CallOperator> entry : aggregations.entrySet()) {
             ColumnRefOperator aggColRef = entry.getKey();
             CallOperator aggCall = entry.getValue();
@@ -349,6 +333,7 @@ public class AggregatedTimeSeriesRewriter extends MaterializedViewRewriter {
         if (scanOperator instanceof LogicalOlapScanOperator) {
             newScanOperator = new LogicalOlapScanOperator.Builder()
                     .withOperator((LogicalOlapScanOperator) scanOperator)
+                    .setPrunedPartitionPredicates(Lists.newArrayList())
                     .build();
         } else if (scanOperator instanceof LogicalHiveScanOperator) {
             newScanOperator = new LogicalHiveScanOperator.Builder()
@@ -372,6 +357,16 @@ public class AggregatedTimeSeriesRewriter extends MaterializedViewRewriter {
                     .build();
         } else {
             return null;
+        }
+
+        // reset scan operator predicates
+        if (!(newScanOperator instanceof LogicalOlapScanOperator)) {
+            try {
+                newScanOperator.setScanOperatorPredicates(new ScanOperatorPredicates());
+            } catch (Exception e) {
+                logMVRewrite(mvRewriteContext, "AggTimeSeriesRewriter: cannot set scan operator predicates");
+                return null;
+            }
         }
         return newScanOperator;
     }

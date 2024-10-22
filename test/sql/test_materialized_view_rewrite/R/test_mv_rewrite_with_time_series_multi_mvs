@@ -194,7 +194,7 @@ test_mv2
 -- !result
 select sum(v1), sum(v2) from t0 where ts > '2020-02-23 12:12:00' order by 1;
 -- result:
-11	16
+12	17
 -- !result
 select sum(v1), sum(v2) from t0 where ts >= '2020-03-23 12:12:00' order by 1;
 -- result:

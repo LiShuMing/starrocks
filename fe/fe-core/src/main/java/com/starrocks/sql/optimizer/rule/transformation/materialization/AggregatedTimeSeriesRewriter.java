@@ -80,6 +80,7 @@ import static com.starrocks.sql.common.TimeUnitUtils.QUARTER;
 import static com.starrocks.sql.common.TimeUnitUtils.SECOND;
 import static com.starrocks.sql.common.TimeUnitUtils.YEAR;
 import static com.starrocks.sql.optimizer.OptimizerTraceUtil.logMVRewrite;
+import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_PARTITION_PRUNE_BIT;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils.deriveLogicalProperty;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.common.AggregateFunctionRollupUtils.isSupportedAggFunctionPushDown;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.common.AggregatePushDownUtils.doRewritePushDownAgg;
@@ -465,7 +466,7 @@ public class AggregatedTimeSeriesRewriter extends MaterializedViewRewriter {
         List<LogicalScanOperator> scanOperators = MvUtils.getScanOperator(queryExpression);
         LogicalScanOperator logicalOlapScanOp = scanOperators.get(0);
         logicalOlapScanOp.setPredicate(newPredicate);
-        logicalOlapScanOp.resetOpRuleMask(Operator.OP_PARTITION_PRUNE_BIT);
+        logicalOlapScanOp.resetOpRuleMask(OP_PARTITION_PRUNE_BIT);
 
         LogicalAggregationOperator aggregateOp = (LogicalAggregationOperator) queryExpression.getOp();
         Map<ColumnRefOperator, CallOperator> newAggregations = Maps.newHashMap();

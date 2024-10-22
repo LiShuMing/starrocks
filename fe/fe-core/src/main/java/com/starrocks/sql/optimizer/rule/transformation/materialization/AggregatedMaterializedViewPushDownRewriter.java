@@ -52,6 +52,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.starrocks.sql.optimizer.OptimizerTraceUtil.logMVRewrite;
+import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_PUSH_DOWN_BIT;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils.deriveLogicalProperty;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.common.AggregateFunctionRollupUtils.isSupportedAggFunctionPushDown;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.common.AggregatePushDownUtils.doRewritePushDownAgg;
@@ -87,11 +88,11 @@ public final class AggregatedMaterializedViewPushDownRewriter extends Materializ
             Optional<OptExpression> res = rewriteInfo.getOp();
             logMVRewrite(mvContext, "AggregateJoin pushdown rewrite success");
             OptExpression result = res.get();
-            result.getOp().setOpRuleMask(Operator.OP_PUSH_DOWN_BIT);
+            result.getOp().setOpAppliedRules(OP_PUSH_DOWN_BIT);
             return result;
         } else {
             logMVRewrite(mvContext, "AggregateJoin pushdown rewrite failed");
-            input.getOp().setOpRuleMask(Operator.OP_PUSH_DOWN_BIT);
+            input.getOp().setOpAppliedRules(OP_PUSH_DOWN_BIT);
             return null;
         }
     }

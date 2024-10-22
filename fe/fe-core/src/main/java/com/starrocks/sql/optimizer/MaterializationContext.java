@@ -362,6 +362,10 @@ public class MaterializationContext {
             return LOWEST_ORDERING;
         }
 
+        /**
+         * If mv is partitioned by time, prefer the one with the larger time granularity.
+         * eg: mv partitioned by date_trunc('day', ts) is preferred over mv partitioned by date_trunc('hour', ts)
+         */
         private int orderingTimeGranularity(MaterializationContext materializationContext) {
             if (materializationContext.getMvExpression().getOp().getOpType() == OperatorType.LOGICAL_AGGR) {
                 MaterializedView mv = materializationContext.getMv();

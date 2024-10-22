@@ -27,6 +27,8 @@ import com.starrocks.sql.optimizer.rule.RuleType;
 
 import java.util.List;
 
+import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_PARTITION_PRUNE_BIT;
+
 /**
  * This class does:
  * 1. Prune the Olap table partition ids, Dependency predicates push down scan node
@@ -60,7 +62,7 @@ public class PartitionPruneRule extends TransformationRule {
     public boolean check(final OptExpression input, OptimizerContext context) {
         Operator op = input.getOp();
         // if the partition id is already selected, no need to prune again
-        if (op.isOpRuleMaskSet(Operator.OP_PARTITION_PRUNE_BIT)) {
+        if (op.isOpRuleMaskSet(OP_PARTITION_PRUNE_BIT)) {
             return false;
         }
         return true;
@@ -76,7 +78,7 @@ public class PartitionPruneRule extends TransformationRule {
             // do merge pruned partitions with new pruned partitions
             prunedOlapScanOperator = OptOlapPartitionPruner.mergePartitionPrune(logicalOlapScanOperator);
         }
-        prunedOlapScanOperator.setOpRuleMask(Operator.OP_PARTITION_PRUNE_BIT);
+        prunedOlapScanOperator.setOpAppliedRules(OP_PARTITION_PRUNE_BIT);
         return Lists.newArrayList(OptExpression.create(prunedOlapScanOperator, input.getInputs()));
     }
 }

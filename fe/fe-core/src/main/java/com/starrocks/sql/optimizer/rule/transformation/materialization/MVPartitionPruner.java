@@ -38,6 +38,8 @@ import com.starrocks.sql.optimizer.rewrite.OptOlapPartitionPruner;
 
 import java.util.List;
 
+import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_PARTITION_PRUNE_BIT;
+
 public class MVPartitionPruner {
     private final OptimizerContext optimizerContext;
     private final MvRewriteContext mvRewriteContext;
@@ -62,7 +64,7 @@ public class MVPartitionPruner {
                 .setPrunedPartitionPredicates(Lists.newArrayList())
                 .setSelectedTabletId(Lists.newArrayList());
         LogicalOlapScanOperator result = mvScanBuilder.build();
-        result.resetOpRuleMask(Operator.OP_PARTITION_PRUNE_BIT);
+        result.resetOpRuleMask(OP_PARTITION_PRUNE_BIT);
         return result;
     }
 
@@ -140,6 +142,7 @@ public class MVPartitionPruner {
                 scanOperator = OptExternalPartitionPruner.prunePartitions(optimizerContext,
                         copiedScanOperator);
             }
+            scanOperator.setOpAppliedRules(OP_PARTITION_PRUNE_BIT);
             return OptExpression.create(scanOperator);
         }
 

@@ -58,24 +58,10 @@ public abstract class Operator {
     // or self reference of groups
     protected long salt = 0;
 
-    // Like LogicalJoinOperator#transformMask, add a mask to avoid one operator's dead-loop in one transform rule.
-    // eg: MV's UNION-ALL RULE:
-    //                 UNION                         UNION
-    //               /        \                    /       \
-    //  OP -->   EXTRA-OP    MV-SCAN  -->     UNION    MV-SCAN     ---> ....
-    //                                       /      \
-    //                                  EXTRA-OP    MV-SCAN
-    // Operator's rule mask: operator that has been union rewrite and no needs to rewrite again.
-    public static final int OP_UNION_ALL_BIT = 0;
-    // Operator's rule mask: operator that has been push down rewrite and no needs to rewrite again.
-    public static final int OP_PUSH_DOWN_BIT = 1;
-    public static final int OP_TRANSPARENT_MV_BIT = 2;
-    public static final int OP_PARTITION_PRUNE_BIT = 3;
-
-    // `opRuleMask` is used to mark which rule(bit) has been applied to the operator.
-    protected BitSet opRuleMask = new BitSet();
-    // `opAppliedMVs` is used to mark which MV has been applied to the operator.
-    protected Set<Long> opMVMask = new HashSet<>();
+    // mark which rule(bit) has been applied to the operator.
+    protected BitSet opAppliedRules = new BitSet();
+    // mark which MV has been applied to the operator.
+    protected Set<Long> opAppliedMVs = new HashSet<>();
 
     // an operator logically equivalent to 'this' operator
     // used by view based mv rewrite
@@ -166,24 +152,24 @@ public abstract class Operator {
         return salt;
     }
 
-    public void setOpRuleMask(int bit) {
-        this.opRuleMask.set(bit);
+    public void setOpAppliedRules(int bit) {
+        this.opAppliedRules.set(bit);
     }
 
     public void resetOpRuleMask(int bit) {
-        this.opRuleMask.clear(bit);
+        this.opAppliedRules.clear(bit);
     }
 
     public boolean isOpRuleMaskSet(int bit) {
-        return opRuleMask.get(bit);
+        return opAppliedRules.get(bit);
     }
 
     public void setOpAppliedMV(long mvId) {
-        this.opMVMask.add(mvId);
+        this.opAppliedMVs.add(mvId);
     }
 
     public boolean isOpAppliedMV(long mvId) {
-        return opMVMask.contains(mvId);
+        return opAppliedMVs.contains(mvId);
     }
 
     public Operator getEquivalentOp() {
@@ -290,9 +276,9 @@ public abstract class Operator {
             builder.predicate = operator.predicate;
             builder.projection = operator.projection;
             builder.salt = operator.salt;
-            builder.opRuleMask = operator.opRuleMask;
             builder.equivalentOp = operator.equivalentOp;
-            builder.opMVMask = operator.opMVMask;
+            builder.opAppliedRules.and(operator.opAppliedRules);
+            builder.opAppliedMVs.addAll(operator.opAppliedMVs);
             return (B) this;
         }
 
@@ -339,7 +325,7 @@ public abstract class Operator {
         }
 
         public B setOpBitSet(BitSet opRuleMask) {
-            builder.opRuleMask = opRuleMask;
+            builder.opAppliedRules = opRuleMask;
             return (B) this;
         }
     }

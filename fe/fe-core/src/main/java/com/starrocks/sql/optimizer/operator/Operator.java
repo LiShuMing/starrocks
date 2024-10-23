@@ -276,7 +276,7 @@ public abstract class Operator {
             builder.projection = operator.projection;
             builder.salt = operator.salt;
             builder.equivalentOp = operator.equivalentOp;
-            builder.opRuleBits.and(operator.opRuleBits);
+            builder.opRuleBits.or(operator.opRuleBits);
             builder.opAppliedMVs.addAll(operator.opAppliedMVs);
             return (B) this;
         }

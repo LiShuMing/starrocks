@@ -1299,6 +1299,7 @@ public class MaterializedViewRewriter implements IMaterializedViewRewriter {
         // the rewritten expression to replace query
         // should copy the op because the op will be modified and reused
         final LogicalOlapScanOperator mvScanOperator = materializationContext.getScanMvOperator();
+        // TODO: no need to rebuild the scan operator, just reset the selected partitions?
         final LogicalOlapScanOperator newMvScanOperator = MVPartitionPruner.resetSelectedPartitions(mvScanOperator);
         OptExpression mvScanOptExpression = OptExpression.create(newMvScanOperator);
 

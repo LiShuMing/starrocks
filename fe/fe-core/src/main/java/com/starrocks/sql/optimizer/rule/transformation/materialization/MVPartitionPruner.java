@@ -131,7 +131,7 @@ public class MVPartitionPruner {
             }
             if (result != null) {
                 // TODO: What if we always do further partition pruning by PartitionPrune Rule?
-                 result.resetOpRuleBit(OpRuleBit.OP_FURTHER_PARTITION_PRUNED);
+                result.resetOpRuleBit(OpRuleBit.OP_FURTHER_PARTITION_PRUNED);
             }
             return OptExpression.create(result);
         }

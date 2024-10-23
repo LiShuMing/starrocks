@@ -47,7 +47,7 @@ import org.junit.Test;
 
 import java.util.Set;
 
-import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_PARTITION_PRUNED;
+import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_FURTHER_PARTITION_PRUNED;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.MvPartitionCompensator.convertToDateRange;
 
 public class MvUtilsTest {
@@ -213,12 +213,12 @@ public class MvUtilsTest {
     public void testResetOpAppliedRule() {
         LogicalScanOperator.Builder builder = new LogicalOlapScanOperator.Builder();
         Operator op = builder.build();
-        Assert.assertFalse(op.isOpRuleMaskSet(OP_PARTITION_PRUNED));
+        Assert.assertFalse(op.isOpRuleBitSet(OP_FURTHER_PARTITION_PRUNED));
         // set
-        op.setOpAppliedRules(OP_PARTITION_PRUNED);
-        Assert.assertTrue(op.isOpRuleMaskSet(OP_PARTITION_PRUNED));
+        op.setOpRuleBit(OP_FURTHER_PARTITION_PRUNED);
+        Assert.assertTrue(op.isOpRuleBitSet(OP_FURTHER_PARTITION_PRUNED));
         // reset
-        op.resetOpRuleMask(OP_PARTITION_PRUNED);
-        Assert.assertFalse(op.isOpRuleMaskSet(OP_PARTITION_PRUNED));
+        op.resetOpRuleBit(OP_FURTHER_PARTITION_PRUNED);
+        Assert.assertFalse(op.isOpRuleBitSet(OP_FURTHER_PARTITION_PRUNED));
     }
 }

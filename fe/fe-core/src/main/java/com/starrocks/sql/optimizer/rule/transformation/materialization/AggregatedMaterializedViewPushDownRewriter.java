@@ -88,11 +88,11 @@ public final class AggregatedMaterializedViewPushDownRewriter extends Materializ
             Optional<OptExpression> res = rewriteInfo.getOp();
             logMVRewrite(mvContext, "AggregateJoin pushdown rewrite success");
             OptExpression result = res.get();
-            result.getOp().setOpAppliedRules(OP_MV_AGG_PUSH_DOWN_REWRITE);
+            result.getOp().setOpRuleBit(OP_MV_AGG_PUSH_DOWN_REWRITE);
             return result;
         } else {
             logMVRewrite(mvContext, "AggregateJoin pushdown rewrite failed");
-            input.getOp().setOpAppliedRules(OP_MV_AGG_PUSH_DOWN_REWRITE);
+            input.getOp().setOpRuleBit(OP_MV_AGG_PUSH_DOWN_REWRITE);
             return null;
         }
     }

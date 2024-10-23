@@ -207,7 +207,7 @@ public class MvTimeSeriesRewriteWithOlapTest extends MvRewriteTestBase {
                 "from test_mv1 group by date_trunc('month', dt);");
         // date column should be the same with date_trunc('day', ct)
         String query = "select sum(v1), max(v2) from t0 where k1 >= '2024-01-01 01:00:00'";
-        String plan = getFragmentPlan(query, "MV");
+        String plan = getFragmentPlan(query);
         PlanTestBase.assertContains(plan, "     TABLE: test_mv2\n" +
                 "     PREAGGREGATION: ON\n" +
                 "     PREDICATES: 36: dt >= '2024-01-01 01:00:00'\n" +
@@ -252,7 +252,7 @@ public class MvTimeSeriesRewriteWithOlapTest extends MvRewriteTestBase {
         // date column should be the same with date_trunc('day', ct)
         String query = "select sum(v1), sum(v2) from t2 where ts >= '2020-03-23 12:12:00' order by 1;";
         UtFrameUtils.mockLogicalScanIsEmptyOutputRows(false);
-        String plan = getFragmentPlan(query, "MV");
+        String plan = getFragmentPlan(query);
         PlanTestBase.assertContains(plan, "     TABLE: test_mv3\n" +
                 "     PREAGGREGATION: ON\n" +
                 "     PREDICATES: 19: dt >= '2020-03-23 12:12:00'");

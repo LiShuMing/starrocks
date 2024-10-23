@@ -97,6 +97,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.starrocks.sql.optimizer.OptimizerTraceUtil.logMVRewrite;
+import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_FURTHER_PARTITION_PRUNED;
 import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_MV_UNION_REWRITE;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.MvPartitionCompensator.getMvTransparentPlan;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils.deriveLogicalProperty;
@@ -1298,7 +1299,6 @@ public class MaterializedViewRewriter implements IMaterializedViewRewriter {
         // the rewritten expression to replace query
         // should copy the op because the op will be modified and reused
         final LogicalOlapScanOperator mvScanOperator = materializationContext.getScanMvOperator();
-        // reset original partition predicates to prune partitions/tablets again
         final LogicalOlapScanOperator newMvScanOperator = MVPartitionPruner.resetSelectedPartitions(mvScanOperator);
         OptExpression mvScanOptExpression = OptExpression.create(newMvScanOperator);
 
@@ -1883,8 +1883,8 @@ public class MaterializedViewRewriter implements IMaterializedViewRewriter {
         //  OP -->   EXTRA-OP    MV-SCAN  -->     UNION    MV-SCAN     ---> ....
         //                                       /      \
         //                                  EXTRA-OP    MV-SCAN
-        queryInput.getOp().setOpAppliedRules(OP_MV_UNION_REWRITE);
-        viewInput.getOp().setOpAppliedRules(OP_MV_UNION_REWRITE);
+        queryInput.getOp().setOpRuleBit(OP_MV_UNION_REWRITE);
+        viewInput.getOp().setOpRuleBit(OP_MV_UNION_REWRITE);
 
         // createUnion will return the union all result of queryInput and viewInput
         //           Union

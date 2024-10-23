@@ -182,7 +182,7 @@ public class MvPartitionCompensator {
         OptExpression newMvScanPlan = duplicator.duplicate(mvScanOptExpression);
         // output columns order by mv's columns
         List<ColumnRefOperator> mvScanOutputColumns = duplicator.getMappedColumns(orgMvScanOutputColumns);
-        newMvScanPlan.getOp().setOpAppliedRules(OP_MV_UNION_REWRITE);
+        newMvScanPlan.getOp().setOpRuleBit(OP_MV_UNION_REWRITE);
         return Pair.create(newMvScanPlan, mvScanOutputColumns);
     }
 
@@ -209,7 +209,7 @@ public class MvPartitionCompensator {
         deriveLogicalProperty(newMvQueryPlan);
         List<ColumnRefOperator> orgMvQueryOutputColumnRefs = mvContext.getMvOutputColumnRefs();
         List<ColumnRefOperator> mvQueryOutputColumnRefs = duplicator.getMappedColumns(orgMvQueryOutputColumnRefs);
-        newMvQueryPlan.getOp().setOpAppliedRules(OP_MV_UNION_REWRITE);
+        newMvQueryPlan.getOp().setOpRuleBit(OP_MV_UNION_REWRITE);
         return Pair.create(newMvQueryPlan, mvQueryOutputColumnRefs);
     }
 

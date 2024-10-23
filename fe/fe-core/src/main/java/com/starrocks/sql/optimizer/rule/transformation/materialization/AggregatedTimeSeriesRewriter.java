@@ -79,7 +79,7 @@ import static com.starrocks.sql.common.TimeUnitUtils.QUARTER;
 import static com.starrocks.sql.common.TimeUnitUtils.SECOND;
 import static com.starrocks.sql.common.TimeUnitUtils.YEAR;
 import static com.starrocks.sql.optimizer.OptimizerTraceUtil.logMVRewrite;
-import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_PARTITION_PRUNED;
+import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_FURTHER_PARTITION_PRUNED;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils.deriveLogicalProperty;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.common.AggregateFunctionRollupUtils.isSupportedAggFunctionPushDown;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.common.AggregatePushDownUtils.doRewritePushDownAgg;
@@ -248,6 +248,12 @@ public class AggregatedTimeSeriesRewriter extends MaterializedViewRewriter {
         // add final state aggregation above union opt
         OptExpression result = getPushDownRollupFinalAggregateOpt(mvRewriteContext, ctx, remapping,
                 queryExpression, Lists.newArrayList(pdAggOptExpression));
+
+        // reset partition predicates for mv scan operator
+        MvUtils.getScanOperator(result)
+                .stream()
+                .forEach(scanOperator -> scanOperator.setOpRuleBit(OP_FURTHER_PARTITION_PRUNED));
+
         return result;
     }
 
@@ -460,7 +466,6 @@ public class AggregatedTimeSeriesRewriter extends MaterializedViewRewriter {
         List<LogicalScanOperator> scanOperators = MvUtils.getScanOperator(queryExpression);
         LogicalScanOperator logicalOlapScanOp = scanOperators.get(0);
         logicalOlapScanOp.setPredicate(newPredicate);
-        logicalOlapScanOp.resetOpRuleMask(OP_PARTITION_PRUNED);
 
         LogicalAggregationOperator aggregateOp = (LogicalAggregationOperator) queryExpression.getOp();
         Map<ColumnRefOperator, CallOperator> newAggregations = Maps.newHashMap();

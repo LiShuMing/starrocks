@@ -18,7 +18,6 @@ package com.starrocks.sql.optimizer.rule.transformation;
 import com.google.common.collect.Lists;
 import com.starrocks.sql.optimizer.OptExpression;
 import com.starrocks.sql.optimizer.OptimizerContext;
-import com.starrocks.sql.optimizer.operator.Operator;
 import com.starrocks.sql.optimizer.operator.OperatorType;
 import com.starrocks.sql.optimizer.operator.logical.LogicalScanOperator;
 import com.starrocks.sql.optimizer.operator.pattern.Pattern;
@@ -28,8 +27,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.List;
-
-import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_PARTITION_PRUNED;
 
 public class ExternalScanPartitionPruneRule extends TransformationRule {
     private static final Logger LOG = LogManager.getLogger(ExternalScanPartitionPruneRule.class);
@@ -58,20 +55,9 @@ public class ExternalScanPartitionPruneRule extends TransformationRule {
     }
 
     @Override
-    public boolean check(final OptExpression input, OptimizerContext context) {
-        Operator op = input.getOp();
-        // if the partition id is already selected, no need to prune again
-        if (op.isOpRuleMaskSet(OP_PARTITION_PRUNED)) {
-            return false;
-        }
-        return true;
-    }
-
-    @Override
     public List<OptExpression> transform(OptExpression input, OptimizerContext context) {
         LogicalScanOperator operator = (LogicalScanOperator) input.getOp();
         OptExternalPartitionPruner.prunePartitions(context, operator);
-        operator.setOpAppliedRules(OP_PARTITION_PRUNED);
         return Lists.newArrayList();
     }
 }

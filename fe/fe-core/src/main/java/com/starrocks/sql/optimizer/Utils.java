@@ -87,7 +87,8 @@ import java.util.stream.StreamSupport;
 
 import static com.starrocks.qe.SessionVariableConstants.AggregationStage.AUTO;
 import static com.starrocks.qe.SessionVariableConstants.AggregationStage.ONE_STAGE;
-import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_PARTITION_PRUNED;
+import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_FURTHER_PARTITION_PRUNED;
+import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_MV_UNION_REWRITE;
 import static java.util.function.Function.identity;
 
 public class Utils {
@@ -858,7 +859,7 @@ public class Utils {
         if (optExpression == null) {
             return false;
         }
-        if (optExpression.getOp().isOpRuleMaskSet(ruleMask)) {
+        if (optExpression.getOp().isOpRuleBitSet(ruleMask)) {
             return true;
         }
         for (OptExpression child : optExpression.getInputs()) {
@@ -869,10 +870,13 @@ public class Utils {
         return false;
     }
 
+    /**
+     * Check if the optExpression has applied the rule in recursively
+     */
     public static boolean isNeedsPartitionPrune(OptExpression input) {
         return MvUtils.getScanOperator(input)
                 .stream()
-                .anyMatch(s -> !s.isOpRuleMaskSet(OP_PARTITION_PRUNED));
+                .anyMatch(s -> s.isOpRuleBitSet(OP_FURTHER_PARTITION_PRUNED) || s.isOpRuleBitSet(OP_MV_UNION_REWRITE));
     }
 
     public static void setAppliedMVIds(OptExpression input, long mvId) {

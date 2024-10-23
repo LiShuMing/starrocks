@@ -29,5 +29,5 @@ public class OpRuleBit {
     // Operator has been transparent mv rewrite or not, if transparent mv rewrite, no need to rewrite again.
     public static final int OP_MV_TRANSPARENT_REWRITE = 2;
     // Operator has been partition pruned or not, if partition pruned, no need to prune again.
-    public static final int OP_PARTITION_PRUNED = 3;
+    public static final int OP_FURTHER_PARTITION_PRUNED = 3;
 }

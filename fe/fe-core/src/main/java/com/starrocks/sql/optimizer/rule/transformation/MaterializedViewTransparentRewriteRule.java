@@ -67,7 +67,7 @@ public class MaterializedViewTransparentRewriteRule extends TransformationRule {
 
     public boolean check(final OptExpression input, OptimizerContext context) {
         // To avoid dead-loop rewrite, no rewrite when query extra predicate is not changed
-        if (input.getOp().isOpRuleMaskSet(OP_MV_TRANSPARENT_REWRITE)) {
+        if (input.getOp().isOpRuleBitSet(OP_MV_TRANSPARENT_REWRITE)) {
             return false;
         }
         return true;
@@ -124,7 +124,7 @@ public class MaterializedViewTransparentRewriteRule extends TransformationRule {
 
     public static void setOpRuleMask(OptExpression input) {
         List<LogicalScanOperator> scanOps = MvUtils.getScanOperator(input);
-        scanOps.stream().forEach(op -> op.setOpAppliedRules(OP_MV_TRANSPARENT_REWRITE));
+        scanOps.stream().forEach(op -> op.setOpRuleBit(OP_MV_TRANSPARENT_REWRITE));
     }
 
     /**

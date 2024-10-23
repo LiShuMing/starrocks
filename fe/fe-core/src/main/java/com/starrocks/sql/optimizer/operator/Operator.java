@@ -14,6 +14,7 @@
 
 package com.starrocks.sql.optimizer.operator;
 
+import com.google.api.client.util.Sets;
 import com.google.common.collect.Lists;
 import com.starrocks.sql.optimizer.OptExpression;
 import com.starrocks.sql.optimizer.OptExpressionVisitor;
@@ -26,7 +27,6 @@ import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
 import com.starrocks.sql.optimizer.property.DomainProperty;
 
 import java.util.BitSet;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -59,9 +59,8 @@ public abstract class Operator {
     protected long salt = 0;
 
     // mark which rule(bit) has been applied to the operator.
-    protected BitSet opAppliedRules = new BitSet();
-    // mark which MV has been applied to the operator.
-    protected Set<Long> opAppliedMVs = new HashSet<>();
+    protected BitSet opRuleBits = new BitSet();
+    protected Set<Long> opAppliedMVs = Sets.newHashSet();
 
     // an operator logically equivalent to 'this' operator
     // used by view based mv rewrite
@@ -152,16 +151,16 @@ public abstract class Operator {
         return salt;
     }
 
-    public void setOpAppliedRules(int bit) {
-        this.opAppliedRules.set(bit);
+    public void setOpRuleBit(int bit) {
+        this.opRuleBits.set(bit);
     }
 
-    public void resetOpRuleMask(int bit) {
-        this.opAppliedRules.clear(bit);
+    public void resetOpRuleBit(int bit) {
+        this.opRuleBits.clear(bit);
     }
 
-    public boolean isOpRuleMaskSet(int bit) {
-        return opAppliedRules.get(bit);
+    public boolean isOpRuleBitSet(int bit) {
+        return opRuleBits.get(bit);
     }
 
     public void setOpAppliedMV(long mvId) {
@@ -277,7 +276,7 @@ public abstract class Operator {
             builder.projection = operator.projection;
             builder.salt = operator.salt;
             builder.equivalentOp = operator.equivalentOp;
-            builder.opAppliedRules.and(operator.opAppliedRules);
+            builder.opRuleBits.and(operator.opRuleBits);
             builder.opAppliedMVs.addAll(operator.opAppliedMVs);
             return (B) this;
         }
@@ -325,7 +324,7 @@ public abstract class Operator {
         }
 
         public B setOpBitSet(BitSet opRuleMask) {
-            builder.opAppliedRules = opRuleMask;
+            builder.opRuleBits = opRuleMask;
             return (B) this;
         }
     }

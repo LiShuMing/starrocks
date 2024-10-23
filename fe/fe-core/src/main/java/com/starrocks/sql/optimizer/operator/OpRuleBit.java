@@ -22,10 +22,12 @@ public class OpRuleBit {
     //  OP -->   EXTRA-OP    MV-SCAN  -->     UNION    MV-SCAN     ---> ....
     //                                       /      \
     //                                  EXTRA-OP    MV-SCAN
-    // Operator's rule mask: operator that has been union rewrite and no needs to rewrite again.
-    public static final int OP_UNION_ALL_BIT = 0;
-    // Operator's rule mask: operator that has been push down rewrite and no needs to rewrite again.
-    public static final int OP_PUSH_DOWN_BIT = 1;
-    public static final int OP_TRANSPARENT_MV_BIT = 2;
-    public static final int OP_PARTITION_PRUNE_BIT = 3;
+    // Operator has been union rewrite or not, if union all, no need to union again.
+    public static final int OP_MV_UNION_REWRITE = 0;
+    // Operator has been push down predicates or not, if push down predicates, no need to push down again.
+    public static final int OP_MV_AGG_PUSH_DOWN_REWRITE = 1;
+    // Operator has been transparent mv rewrite or not, if transparent mv rewrite, no need to rewrite again.
+    public static final int OP_MV_TRANSPARENT_REWRITE = 2;
+    // Operator has been partition pruned or not, if partition pruned, no need to prune again.
+    public static final int OP_PARTITION_PRUNED = 3;
 }

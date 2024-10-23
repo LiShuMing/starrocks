@@ -29,7 +29,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 
-import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_PARTITION_PRUNE_BIT;
+import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_PARTITION_PRUNED;
 
 public class ExternalScanPartitionPruneRule extends TransformationRule {
     private static final Logger LOG = LogManager.getLogger(ExternalScanPartitionPruneRule.class);
@@ -61,7 +61,7 @@ public class ExternalScanPartitionPruneRule extends TransformationRule {
     public boolean check(final OptExpression input, OptimizerContext context) {
         Operator op = input.getOp();
         // if the partition id is already selected, no need to prune again
-        if (op.isOpRuleMaskSet(OP_PARTITION_PRUNE_BIT)) {
+        if (op.isOpRuleMaskSet(OP_PARTITION_PRUNED)) {
             return false;
         }
         return true;
@@ -71,7 +71,7 @@ public class ExternalScanPartitionPruneRule extends TransformationRule {
     public List<OptExpression> transform(OptExpression input, OptimizerContext context) {
         LogicalScanOperator operator = (LogicalScanOperator) input.getOp();
         OptExternalPartitionPruner.prunePartitions(context, operator);
-        operator.setOpAppliedRules(OP_PARTITION_PRUNE_BIT);
+        operator.setOpAppliedRules(OP_PARTITION_PRUNED);
         return Lists.newArrayList();
     }
 }

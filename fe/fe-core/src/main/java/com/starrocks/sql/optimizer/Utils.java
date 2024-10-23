@@ -87,7 +87,7 @@ import java.util.stream.StreamSupport;
 
 import static com.starrocks.qe.SessionVariableConstants.AggregationStage.AUTO;
 import static com.starrocks.qe.SessionVariableConstants.AggregationStage.ONE_STAGE;
-import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_PARTITION_PRUNE_BIT;
+import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_PARTITION_PRUNED;
 import static java.util.function.Function.identity;
 
 public class Utils {
@@ -872,7 +872,7 @@ public class Utils {
     public static boolean isNeedsPartitionPrune(OptExpression input) {
         return MvUtils.getScanOperator(input)
                 .stream()
-                .anyMatch(s -> !s.isOpRuleMaskSet(OP_PARTITION_PRUNE_BIT));
+                .anyMatch(s -> !s.isOpRuleMaskSet(OP_PARTITION_PRUNED));
     }
 
     public static void setAppliedMVIds(OptExpression input, long mvId) {

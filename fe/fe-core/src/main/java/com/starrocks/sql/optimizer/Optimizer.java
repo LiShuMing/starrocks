@@ -128,7 +128,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_TRANSPARENT_MV_BIT;
+import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_MV_TRANSPARENT_REWRITE;
 import static com.starrocks.sql.optimizer.rule.RuleType.TF_MATERIALIZED_VIEW;
 
 /**
@@ -407,7 +407,7 @@ public class Optimizer {
      */
     private OptExpression transparentMVRewrite(OptExpression tree, TaskContext rootTaskContext) {
         ruleRewriteOnlyOnce(tree, rootTaskContext, new MaterializedViewTransparentRewriteRule());
-        if (Utils.isOptHasAppliedRule(tree, OP_TRANSPARENT_MV_BIT)) {
+        if (Utils.isOptHasAppliedRule(tree, OP_MV_TRANSPARENT_REWRITE)) {
             tree = new SeparateProjectRule().rewrite(tree, rootTaskContext);
         }
         return tree;

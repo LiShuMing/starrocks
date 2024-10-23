@@ -47,7 +47,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static com.starrocks.sql.optimizer.OptimizerTraceUtil.logMVRewrite;
-import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_UNION_ALL_BIT;
+import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_MV_UNION_REWRITE;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils.deriveLogicalProperty;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils.getQuerySplitPredicate;
 
@@ -79,7 +79,7 @@ public abstract class BaseMaterializedViewRewriteRule extends TransformationRule
     @Override
     public boolean check(OptExpression input, OptimizerContext context) {
         // To avoid dead-loop rewrite, no rewrite when query extra predicate is not changed
-        if (Utils.isOptHasAppliedRule(input, OP_UNION_ALL_BIT)) {
+        if (Utils.isOptHasAppliedRule(input, OP_MV_UNION_REWRITE)) {
             return false;
         }
         return !context.getCandidateMvs().isEmpty() && checkOlapScanWithoutTabletOrPartitionHints(input);

@@ -97,7 +97,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.starrocks.sql.optimizer.OptimizerTraceUtil.logMVRewrite;
-import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_UNION_ALL_BIT;
+import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_MV_UNION_REWRITE;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.MvPartitionCompensator.getMvTransparentPlan;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils.deriveLogicalProperty;
 
@@ -1883,8 +1883,8 @@ public class MaterializedViewRewriter implements IMaterializedViewRewriter {
         //  OP -->   EXTRA-OP    MV-SCAN  -->     UNION    MV-SCAN     ---> ....
         //                                       /      \
         //                                  EXTRA-OP    MV-SCAN
-        queryInput.getOp().setOpAppliedRules(OP_UNION_ALL_BIT);
-        viewInput.getOp().setOpAppliedRules(OP_UNION_ALL_BIT);
+        queryInput.getOp().setOpAppliedRules(OP_MV_UNION_REWRITE);
+        viewInput.getOp().setOpAppliedRules(OP_MV_UNION_REWRITE);
 
         // createUnion will return the union all result of queryInput and viewInput
         //           Union

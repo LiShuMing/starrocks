@@ -55,7 +55,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.starrocks.sql.optimizer.OptimizerTraceUtil.logMVRewrite;
-import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_TRANSPARENT_MV_BIT;
+import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_MV_TRANSPARENT_REWRITE;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils.deriveLogicalProperty;
 
 public class MaterializedViewTransparentRewriteRule extends TransformationRule {
@@ -67,7 +67,7 @@ public class MaterializedViewTransparentRewriteRule extends TransformationRule {
 
     public boolean check(final OptExpression input, OptimizerContext context) {
         // To avoid dead-loop rewrite, no rewrite when query extra predicate is not changed
-        if (input.getOp().isOpRuleMaskSet(OP_TRANSPARENT_MV_BIT)) {
+        if (input.getOp().isOpRuleMaskSet(OP_MV_TRANSPARENT_REWRITE)) {
             return false;
         }
         return true;
@@ -124,7 +124,7 @@ public class MaterializedViewTransparentRewriteRule extends TransformationRule {
 
     public static void setOpRuleMask(OptExpression input) {
         List<LogicalScanOperator> scanOps = MvUtils.getScanOperator(input);
-        scanOps.stream().forEach(op -> op.setOpAppliedRules(OP_TRANSPARENT_MV_BIT));
+        scanOps.stream().forEach(op -> op.setOpAppliedRules(OP_MV_TRANSPARENT_REWRITE));
     }
 
     /**

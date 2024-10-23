@@ -40,7 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_PARTITION_PRUNE_BIT;
+import static com.starrocks.sql.optimizer.operator.OpRuleBit.OP_PARTITION_PRUNED;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.MvPartitionCompensator.SUPPORTED_PARTITION_COMPENSATE_EXTERNAL_SCAN_TYPES;
 import static com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils.convertPartitionKeysToListPredicate;
 
@@ -66,7 +66,7 @@ public class OptCompensator extends OptExpressionVisitor<OptExpression, Void> {
         Table refBaseTable = scanOperator.getTable();
 
         // reset the partition prune flag to be pruned again.
-        scanOperator.resetOpRuleMask(OP_PARTITION_PRUNE_BIT);
+        scanOperator.resetOpRuleMask(OP_PARTITION_PRUNED);
 
         if (refBaseTable.isNativeTableOrMaterializedView()) {
             List<Long> olapTableCompensatePartitionIds = Lists.newArrayList();

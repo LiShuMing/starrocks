@@ -22,16 +22,26 @@ import com.starrocks.analysis.BinaryType;
 import com.starrocks.analysis.Expr;
 import com.starrocks.analysis.LiteralExpr;
 import com.starrocks.analysis.SlotRef;
+import com.starrocks.analysis.TableName;
 import com.starrocks.catalog.Column;
 import com.starrocks.catalog.ListPartitionInfo;
+import com.starrocks.catalog.OlapTable;
+import com.starrocks.catalog.PartitionInfo;
 import com.starrocks.catalog.Type;
 import com.starrocks.common.AnalysisException;
 import com.starrocks.common.Pair;
 import com.starrocks.connector.exception.StarRocksConnectorException;
 import com.starrocks.planner.PartitionPruner;
 import com.starrocks.qe.ConnectContext;
+import com.starrocks.sql.analyzer.AnalyzeState;
 import com.starrocks.sql.analyzer.ExpressionAnalyzer;
+import com.starrocks.sql.analyzer.Field;
+import com.starrocks.sql.analyzer.RelationFields;
+import com.starrocks.sql.analyzer.RelationId;
+import com.starrocks.sql.analyzer.Scope;
+import com.starrocks.sql.analyzer.SemanticException;
 import com.starrocks.sql.optimizer.Utils;
+import com.starrocks.sql.optimizer.base.ColumnRefFactory;
 import com.starrocks.sql.optimizer.operator.logical.LogicalScanOperator;
 import com.starrocks.sql.optimizer.operator.scalar.BinaryPredicateOperator;
 import com.starrocks.sql.optimizer.operator.scalar.CallOperator;
@@ -47,14 +57,16 @@ import com.starrocks.sql.optimizer.operator.scalar.ScalarOperatorVisitor;
 import com.starrocks.sql.optimizer.rewrite.ReplaceColumnRefRewriter;
 import com.starrocks.sql.optimizer.rewrite.ScalarOperatorEvaluator;
 import com.starrocks.sql.optimizer.rewrite.ScalarOperatorRewriter;
+import com.starrocks.sql.optimizer.transformer.ExpressionMapping;
 import com.starrocks.sql.optimizer.transformer.SqlToScalarOperatorTranslator;
 import com.starrocks.sql.plan.ScalarOperatorToExpr;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -784,5 +796,180 @@ public class ListPartitionPruner implements PartitionPruner {
             }
         }
         return Pair.create(lefts, existNoEval);
+    }
+
+    public static void collectOlapTablePartitionValuesMap(
+            OlapTable olapTable,
+            Set<Long> partitionIds,
+            Map<Column, ColumnRefOperator> columnRefOperatorMap,
+            Map<ColumnRefOperator, ConcurrentNavigableMap<LiteralExpr, Set<Long>>> columnToPartitionValuesMap,
+            Map<ColumnRefOperator, Set<Long>> columnToNullPartitions) {
+        PartitionInfo partitionInfo = olapTable.getPartitionInfo();
+        if (!partitionInfo.isListPartition()) {
+            return;
+        }
+        ListPartitionInfo listPartitionInfo = (ListPartitionInfo) partitionInfo;
+        // single item list partition has only one column mapper
+        Map<Long, List<LiteralExpr>> literalExprValuesMap = listPartitionInfo.getLiteralExprValues();
+        List<Column> partitionColumns = listPartitionInfo.getPartitionColumns(olapTable.getIdToColumn());
+        if (literalExprValuesMap != null && literalExprValuesMap.size() > 0) {
+            ConcurrentNavigableMap<LiteralExpr, Set<Long>> partitionValueToIds = new ConcurrentSkipListMap<>();
+            for (Map.Entry<Long, List<LiteralExpr>> entry : literalExprValuesMap.entrySet()) {
+                Long partitionId = entry.getKey();
+                if (!partitionIds.contains(partitionId)) {
+                    continue;
+                }
+                List<LiteralExpr> values = entry.getValue();
+                if (values == null || values.isEmpty()) {
+                    continue;
+                }
+                values.forEach(value -> putValueMapItem(partitionValueToIds, partitionId, value));
+            }
+            // single item list partition has only one column
+            Column column = partitionColumns.get(0);
+            ColumnRefOperator columnRefOperator = columnRefOperatorMap.get(column);
+            columnToPartitionValuesMap.put(columnRefOperator, partitionValueToIds);
+            columnToNullPartitions.put(columnRefOperator, new HashSet<>());
+        }
+
+        // multiItem list partition mapper
+        Map<Long, List<List<LiteralExpr>>> multiLiteralExprValues = listPartitionInfo.getMultiLiteralExprValues();
+        if (multiLiteralExprValues != null && multiLiteralExprValues.size() > 0) {
+            for (int i = 0; i < partitionColumns.size(); i++) {
+                ConcurrentNavigableMap<LiteralExpr, Set<Long>> partitionValueToIds = new ConcurrentSkipListMap<>();
+                Set<Long> nullPartitionIds = new HashSet<>();
+                for (Map.Entry<Long, List<List<LiteralExpr>>> entry : multiLiteralExprValues.entrySet()) {
+                    Long partitionId = entry.getKey();
+                    if (!partitionIds.contains(partitionId)) {
+                        continue;
+                    }
+                    List<List<LiteralExpr>> multiValues = entry.getValue();
+                    if (multiValues == null || multiValues.isEmpty()) {
+                        continue;
+                    }
+                    for (List<LiteralExpr> values : multiValues) {
+                        LiteralExpr value = values.get(i);
+                        // store null partition value seperated from non-null partition values
+                        if (value.isConstantNull()) {
+                            nullPartitionIds.add(partitionId);
+                        } else {
+                            putValueMapItem(partitionValueToIds, partitionId, value);
+                        }
+                    }
+                }
+                Column column = partitionColumns.get(i);
+                ColumnRefOperator columnRefOperator = columnRefOperatorMap.get(column);
+                columnToPartitionValuesMap.put(columnRefOperator, partitionValueToIds);
+                columnToNullPartitions.put(columnRefOperator, nullPartitionIds);
+            }
+        }
+    }
+
+    private static void putValueMapItem(ConcurrentNavigableMap<LiteralExpr, Set<Long>> partitionValueToIds,
+                                        Long partitionId,
+                                        LiteralExpr value) {
+        Set<Long> partitionIdSet = partitionValueToIds.get(value);
+        if (partitionIdSet == null) {
+            partitionIdSet = new HashSet<>();
+        }
+        partitionIdSet.add(partitionId);
+        partitionValueToIds.put(value, partitionIdSet);
+    }
+
+    /**
+     * Return filtered partition names by whereExpr.
+     */
+    public static List<String> getPartitionNamesByExpr(OlapTable olapTable,
+                                                       TableName tableName,
+                                                       Expr whereExpr,
+                                                       ConnectContext context) {
+        PartitionInfo partitionInfo = olapTable.getPartitionInfo();
+        if (!partitionInfo.isListPartition()) {
+            throw new SemanticException("Can't drop partitions with where expression since it is not list partition");
+        }
+        ListPartitionInfo listPartitionInfo = (ListPartitionInfo) partitionInfo;
+        Scope scope = new Scope(RelationId.anonymous(), new RelationFields(
+                olapTable.getBaseSchema().stream()
+                        .map(col -> new Field(col.getName(), col.getType(), tableName, null))
+                        .collect(Collectors.toList())));
+        ExpressionAnalyzer.analyzeExpression(whereExpr, new AnalyzeState(), scope, context);
+
+        ColumnRefFactory columnRefFactory = new ColumnRefFactory();
+        Map<Column, ColumnRefOperator> columnRefOperatorMap = Maps.newHashMap();
+        List<ColumnRefOperator> columnRefOperators = Lists.newArrayList();
+        for (Column col : olapTable.getBaseSchema()) {
+            ColumnRefOperator columnRefOperator = columnRefFactory.create(col.getName(),
+                    col.getType(), col.isAllowNull());
+            columnRefOperatorMap.put(col, columnRefOperator);
+            columnRefOperators.add(columnRefOperator);
+        }
+        // NOTE: columnRefOperators's order should be same with olapTable.getBaseSchema()
+        ExpressionMapping expressionMapping = new ExpressionMapping(scope, columnRefOperators);
+        // add generated column expr to expressionMapping
+        Map<Expr, SlotRef> generatedExprToColumnRef = Maps.newHashMap();
+        Map<ScalarOperator, ColumnRefOperator> gcExprToColRefMap = Maps.newHashMap();
+        for (Column column : olapTable.getBaseSchema()) {
+            Expr gcExpr = column.getGeneratedColumnExpr(olapTable.getIdToColumn());
+            if (gcExpr == null) {
+                continue;
+            }
+            SlotRef slotRef = new SlotRef(tableName, column.getName());
+            slotRef.setType(column.getType());
+
+            ExpressionAnalyzer.analyzeExpression(gcExpr, new AnalyzeState(), scope, context);
+            ExpressionAnalyzer.analyzeExpression(slotRef, new AnalyzeState(), scope, context);
+            generatedExprToColumnRef.put(gcExpr, slotRef);
+
+            ScalarOperator scalarOperator = SqlToScalarOperatorTranslator.translate(gcExpr,
+                    expressionMapping, columnRefFactory);
+            gcExprToColRefMap.put(scalarOperator, columnRefOperatorMap.get(column));
+        }
+        expressionMapping.addGeneratedColumnExprOpToColumnRef(gcExprToColRefMap);
+        // translate whereExpr to scalarOperator and replace whereExpr's generatedColumnExpr to partition slotRef.
+        ScalarOperator scalarOperator =
+                SqlToScalarOperatorTranslator.translate(whereExpr, expressionMapping, Lists.newArrayList(),
+                        columnRefFactory, context, null, null, null, false);
+        if (scalarOperator == null) {
+            throw new SemanticException("Failed to translate where expression to scalar operator:" + whereExpr.toSql());
+        }
+
+        List<ColumnRefOperator> usedColumnRefs = Lists.newArrayList();
+        scalarOperator.getColumnRefs(usedColumnRefs);
+        // check if all used columns are partition columns
+        List<Column> partitionCols = olapTable.getPartitionColumns();
+        Set<String> partitionColNames = partitionCols
+                .stream()
+                .map(Column::getName)
+                .collect(Collectors.toSet());
+        for (ColumnRefOperator colRef : usedColumnRefs) {
+            if (!partitionColNames.contains(colRef.getName())) {
+                throw new SemanticException("Column is not a partition column which can not" +
+                        " be used in where clause for drop partition: " + colRef.getName());
+            }
+        }
+        List<ScalarOperator> conjuncts = Utils.extractConjuncts(scalarOperator);
+        Set<Long> partitionIds = Sets.newHashSet(listPartitionInfo.getPartitionIds(false));
+        Map<ColumnRefOperator, ConcurrentNavigableMap<LiteralExpr, Set<Long>>> columnToPartitionValuesMap =
+                Maps.newConcurrentMap();
+        Map<ColumnRefOperator, Set<Long>> columnToNullPartitions = new HashMap<>();
+        collectOlapTablePartitionValuesMap(olapTable, partitionIds, columnRefOperatorMap,
+                columnToPartitionValuesMap, columnToNullPartitions);
+        ListPartitionPruner partitionPruner = new ListPartitionPruner(columnToPartitionValuesMap,
+                columnToNullPartitions, conjuncts, null, listPartitionInfo);
+        try {
+            List<Long> dropPartitionIds = partitionPruner.prune();
+            List<ScalarOperator> noEvalConjuncts = partitionPruner.getNoEvalConjuncts();
+            if (CollectionUtils.isNotEmpty(noEvalConjuncts)) {
+                throw new SemanticException("Drop expression cannot be pruned, please use other expressions: " +
+                        noEvalConjuncts.stream().map(ScalarOperator::toString).collect(Collectors.joining(", ")));
+            }
+            List<String> dropPartitionNames = Lists.newArrayList();
+            for (Long partitionId : dropPartitionIds) {
+                dropPartitionNames.add(olapTable.getPartition(partitionId).getName());
+            }
+            return dropPartitionNames;
+        } catch (Exception e) {
+            throw new SemanticException("Failed to prune partitions with where expression: " + e.getMessage());
+        }
     }
 }

@@ -30,6 +30,7 @@ import com.starrocks.catalog.AggregateType;
 import com.starrocks.catalog.CatalogUtils;
 import com.starrocks.catalog.Column;
 import com.starrocks.catalog.DataProperty;
+import com.starrocks.catalog.Database;
 import com.starrocks.catalog.DynamicPartitionProperty;
 import com.starrocks.catalog.ExpressionRangePartitionInfo;
 import com.starrocks.catalog.HashDistributionInfo;
@@ -104,6 +105,7 @@ import com.starrocks.sql.common.MetaUtils;
 import com.starrocks.sql.optimizer.base.ColumnRefFactory;
 import com.starrocks.sql.optimizer.operator.scalar.ConstantOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
+import com.starrocks.sql.optimizer.rule.transformation.ListPartitionPruner;
 import com.starrocks.sql.optimizer.transformer.ExpressionMapping;
 import com.starrocks.sql.optimizer.transformer.SqlToScalarOperatorTranslator;
 import org.apache.commons.collections4.CollectionUtils;
@@ -1229,13 +1231,12 @@ public class AlterTableClauseAnalyzer implements AstVisitor<Void, ConnectContext
     @Override
     public Void visitDropPartitionClause(DropPartitionClause clause, ConnectContext context) {
         if (clause.getMultiRangePartitionDesc() != null) {
-            MultiRangePartitionDesc multiRangePartitionDesc = clause.getMultiRangePartitionDesc();
-            PartitionDescAnalyzer.analyze(multiRangePartitionDesc);
-
             if (!(table instanceof OlapTable)) {
-                throw new SemanticException("Can't add multi-range partition to table type is not olap");
+                throw new SemanticException("Can't drop partitions with multi-range since it is not olap table");
             }
             OlapTable olapTable = (OlapTable) table;
+            MultiRangePartitionDesc multiRangePartitionDesc = clause.getMultiRangePartitionDesc();
+            PartitionDescAnalyzer.analyze(multiRangePartitionDesc);
             PartitionDescAnalyzer.analyzePartitionDescWithExistsTable(multiRangePartitionDesc, olapTable);
 
             PartitionInfo partitionInfo = olapTable.getPartitionInfo();
@@ -1254,6 +1255,18 @@ public class AlterTableClauseAnalyzer implements AstVisitor<Void, ConnectContext
             clause.setResolvedPartitionNames(Lists.newArrayList(clause.getPartitionName()));
         } else if (clause.getPartitionNames() != null) {
             clause.setResolvedPartitionNames(clause.getPartitionNames());
+        } else if (clause.getDropWhereExpr() != null) {
+            // do check drop partition expression
+            if (!(table instanceof OlapTable)) {
+                throw new SemanticException("Can't drop partitions with where expression since it is not olap table");
+            }
+            OlapTable olapTable = (OlapTable) table;
+            Expr expr = clause.getDropWhereExpr();
+            Database db = context.getGlobalStateMgr().getMetadataMgr()
+                    .getDb(context.getCurrentCatalog(), context.getDatabase());
+            TableName tableName = new TableName(db.getFullName(), table.getName());
+            List<String> dropPartitionNames = ListPartitionPruner.getPartitionNamesByExpr(olapTable, tableName, expr, context);
+            clause.setResolvedPartitionNames(dropPartitionNames);
         }
 
         if (table instanceof OlapTable) {

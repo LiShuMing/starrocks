@@ -194,6 +194,8 @@ public class TableProperty implements Writable, GsonPostProcessable {
 
     private PeriodDuration partitionTTL = PeriodDuration.ZERO;
 
+    private String partitionRecyclingPolicy = null;
+
     // This property only applies to materialized views
     // It represents the maximum number of partitions that will be refreshed by a TaskRun refresh
     private int partitionRefreshNumber = Config.default_mv_partition_refresh_number;
@@ -387,6 +389,7 @@ public class TableProperty implements Writable, GsonPostProcessable {
             case OperationType.OP_ALTER_TABLE_PROPERTIES:
                 buildPartitionTTL();
                 buildPartitionLiveNumber();
+                buildPartitionRecyclingPolicy();
                 buildDataCachePartitionDuration();
                 buildLocation();
                 buildStorageCoolDownTTL();
@@ -493,6 +496,11 @@ public class TableProperty implements Writable, GsonPostProcessable {
         partitionRefreshNumber =
                 Integer.parseInt(properties.getOrDefault(PropertyAnalyzer.PROPERTIES_PARTITION_REFRESH_NUMBER,
                         String.valueOf(INVALID)));
+        return this;
+    }
+
+    public TableProperty buildPartitionRecyclingPolicy() {
+        partitionRecyclingPolicy = properties.getOrDefault(PropertyAnalyzer.PROPERTIES_PARTITION_RECYCLING_POLICY, "");
         return this;
     }
 
@@ -837,6 +845,14 @@ public class TableProperty implements Writable, GsonPostProcessable {
         return partitionTTL;
     }
 
+    public String getPartitionRecyclingPolicy() {
+        return partitionRecyclingPolicy;
+    }
+
+    public void setPartitionRecyclingPolicy(String partitionRecyclingPolicy) {
+        this.partitionRecyclingPolicy = partitionRecyclingPolicy;
+    }
+
     public int getAutoRefreshPartitionsLimit() {
         return autoRefreshPartitionsLimit;
     }
@@ -1083,6 +1099,7 @@ public class TableProperty implements Writable, GsonPostProcessable {
         buildCompressionType();
         buildWriteQuorum();
         buildPartitionLiveNumber();
+        buildPartitionRecyclingPolicy();
         buildReplicatedStorage();
         buildBucketSize();
         buildEnableLoadProfile();

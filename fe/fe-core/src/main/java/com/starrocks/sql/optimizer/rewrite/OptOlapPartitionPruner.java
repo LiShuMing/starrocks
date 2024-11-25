@@ -57,8 +57,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentNavigableMap;
-import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.stream.Collectors;
+
+import static com.starrocks.sql.optimizer.rule.transformation.ListPartitionPruner.collectOlapTablePartitionValuesMap;
 
 public class OptOlapPartitionPruner {
     private static final Logger LOG = LogManager.getLogger(OptOlapPartitionPruner.class);
@@ -275,8 +276,6 @@ public class OptOlapPartitionPruner {
         // where two partitions are checked at the same time
         boolean isTemporaryPartitionPrune = false;
         List<Long> specifyPartitionIds = null;
-        // single item list partition has only one column mapper
-        Map<Long, List<LiteralExpr>> literalExprValuesMap = listPartitionInfo.getLiteralExprValues();
         Set<Long> partitionIds = Sets.newHashSet();
         if (operator.getPartitionNames() != null) {
             for (String partName : operator.getPartitionNames().getPartitionNames()) {
@@ -294,59 +293,11 @@ public class OptOlapPartitionPruner {
         } else {
             partitionIds = Sets.newHashSet(listPartitionInfo.getPartitionIds(false));
         }
+        Map<Column, ColumnRefOperator> columnRefMap = operator.getColumnMetaToColRefMap();
 
-        List<Column> partitionColumns = listPartitionInfo.getPartitionColumns(olapTable.getIdToColumn());
-        if (literalExprValuesMap != null && literalExprValuesMap.size() > 0) {
-            ConcurrentNavigableMap<LiteralExpr, Set<Long>> partitionValueToIds = new ConcurrentSkipListMap<>();
-            for (Map.Entry<Long, List<LiteralExpr>> entry : literalExprValuesMap.entrySet()) {
-                Long partitionId = entry.getKey();
-                if (!partitionIds.contains(partitionId)) {
-                    continue;
-                }
-                List<LiteralExpr> values = entry.getValue();
-                if (values == null || values.isEmpty()) {
-                    continue;
-                }
-                values.forEach(value -> putValueMapItem(partitionValueToIds, partitionId, value));
-            }
-            // single item list partition has only one column
-            Column column = partitionColumns.get(0);
-            ColumnRefOperator columnRefOperator = operator.getColumnReference(column);
-            columnToPartitionValuesMap.put(columnRefOperator, partitionValueToIds);
-            columnToNullPartitions.put(columnRefOperator, new HashSet<>());
-        }
-
-        // multiItem list partition mapper
-        Map<Long, List<List<LiteralExpr>>> multiLiteralExprValues = listPartitionInfo.getMultiLiteralExprValues();
-        if (multiLiteralExprValues != null && multiLiteralExprValues.size() > 0) {
-            for (int i = 0; i < partitionColumns.size(); i++) {
-                ConcurrentNavigableMap<LiteralExpr, Set<Long>> partitionValueToIds = new ConcurrentSkipListMap<>();
-                Set<Long> nullPartitionIds = new HashSet<>();
-                for (Map.Entry<Long, List<List<LiteralExpr>>> entry : multiLiteralExprValues.entrySet()) {
-                    Long partitionId = entry.getKey();
-                    if (!partitionIds.contains(partitionId)) {
-                        continue;
-                    }
-                    List<List<LiteralExpr>> multiValues = entry.getValue();
-                    if (multiValues == null || multiValues.isEmpty()) {
-                        continue;
-                    }
-                    for (List<LiteralExpr> values : multiValues) {
-                        LiteralExpr value = values.get(i);
-                        // store null partition value seperated from non-null partition values
-                        if (value.isConstantNull()) {
-                            nullPartitionIds.add(partitionId);
-                        } else {
-                            putValueMapItem(partitionValueToIds, partitionId, value);
-                        }
-                    }
-                }
-                Column column = partitionColumns.get(i);
-                ColumnRefOperator columnRefOperator = operator.getColumnReference(column);
-                columnToPartitionValuesMap.put(columnRefOperator, partitionValueToIds);
-                columnToNullPartitions.put(columnRefOperator, nullPartitionIds);
-            }
-        }
+        // collect partition values map
+        collectOlapTablePartitionValuesMap(olapTable, partitionIds, columnRefMap,
+                columnToPartitionValuesMap, columnToNullPartitions);
 
         List<ScalarOperator> scalarOperatorList = Utils.extractConjuncts(operator.getPredicate());
         ListPartitionPruner partitionPruner = new ListPartitionPruner(columnToPartitionValuesMap,

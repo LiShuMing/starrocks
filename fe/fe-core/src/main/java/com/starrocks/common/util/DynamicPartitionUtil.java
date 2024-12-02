@@ -499,7 +499,8 @@ public class DynamicPartitionUtil {
             Map<String, String> properties = tableProperty.getProperties();
             if (!properties.containsKey(PROPERTIES_PARTITION_TTL_NUMBER) &&
                     !properties.containsKey(PROPERTIES_PARTITION_LIVE_NUMBER) &&
-                    !properties.containsKey(PROPERTIES_PARTITION_TTL)) {
+                    !properties.containsKey(PROPERTIES_PARTITION_TTL) ||
+                    !properties.containsKey(PROPERTIES_PARTITION_TTL_CONDITION)) {
                 return false;
             }
             return true;
@@ -526,6 +527,9 @@ public class DynamicPartitionUtil {
             // if ttl is not set in table property, return false
             if (tableProperty.getPartitionTTLNumber() > 0 || !tableProperty.getPartitionTTL().isZero()) {
                 return true;
+            }
+            if (Strings.isNullOrEmpty(tableProperty.getPartitionTTLCondition())) {
+                return false;
             }
             return false;
         } else if (partitionInfo instanceof ListPartitionInfo) {

@@ -42,7 +42,7 @@ import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.analyzer.AlterTableClauseAnalyzer;
 import com.starrocks.sql.analyzer.SemanticException;
 import com.starrocks.sql.ast.DropPartitionClause;
-import com.starrocks.sql.optimizer.rule.transformation.ListPartitionPruner;
+import com.starrocks.sql.optimizer.rule.transformation.partition.PartitionSelector;
 import com.starrocks.sql.parser.SqlParser;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.logging.log4j.LogManager;
@@ -177,16 +177,18 @@ public class PartitionTTLScheduler {
         long tableId = olapTable.getId();
         List<String> dropPartitionNames = null;
         try {
+            String ttlCondition = olapTable.getTableProperty().getPartitionTTLCondition();
             if (partitionInfo instanceof RangePartitionInfo) {
                 int ttlNumber = olapTable.getTableProperty().getPartitionTTLNumber();
                 PeriodDuration ttlDuration = olapTable.getTableProperty().getPartitionTTL();
                 if (!ttlDuration.isZero()) {
                     dropPartitionNames = buildDropPartitionClauseByTTLDuration(olapTable, ttlDuration);
-                } else {
+                } else if (ttlNumber != INVALID) {
                     dropPartitionNames = buildDropPartitionClauseByTTLNumber(olapTable, ttlNumber);
+                } else if (Strings.isNullOrEmpty(ttlCondition)) {
+                    dropPartitionNames = buildDropPartitionCauseByTTLCondition(db, olapTable, ttlCondition);
                 }
             } else if (partitionInfo instanceof ListPartitionInfo) {
-                String ttlCondition = olapTable.getTableProperty().getPartitionTTLCondition();
                 dropPartitionNames = buildDropPartitionCauseByTTLCondition(db, olapTable, ttlCondition);
             }
         } catch (AnalysisException e) {
@@ -197,8 +199,8 @@ public class PartitionTTLScheduler {
     }
 
     private List<String> buildDropPartitionCauseByTTLCondition(Database db,
-                                                                  OlapTable olapTable,
-                                                                  String ttlCondition) {
+                                                               OlapTable olapTable,
+                                                               String ttlCondition) {
         TableName tableName = new TableName(db.getFullName(), olapTable.getName());
         ConnectContext context = ConnectContext.get() != null ? ConnectContext.get() : new ConnectContext();
         // needs to parse the expr each schedule because it can be changed dynamically
@@ -209,7 +211,7 @@ public class PartitionTTLScheduler {
                     ttlCondition);
             return Lists.newArrayList();
         }
-        return ListPartitionPruner.getPartitionNamesByExpr(olapTable, tableName, whereExpr, context);
+        return PartitionSelector.getPartitionNamesByExpr(context, tableName, olapTable, whereExpr, false);
     }
 
     /**

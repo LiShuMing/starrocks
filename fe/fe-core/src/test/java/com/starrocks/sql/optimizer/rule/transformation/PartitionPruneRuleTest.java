@@ -329,6 +329,9 @@ public class PartitionPruneRuleTest {
                 partitionInfo.isListPartition();
                 result = true;
 
+                partitionInfo.isListPartition();
+                result = true;
+
                 partitionInfo.getType();
                 result = PartitionType.LIST;
 

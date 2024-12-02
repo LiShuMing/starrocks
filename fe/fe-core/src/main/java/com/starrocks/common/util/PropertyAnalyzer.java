@@ -191,6 +191,8 @@ public class PropertyAnalyzer {
     public static final String PROPERTIES_PARTITION_TTL_NUMBER = "partition_ttl_number";
     public static final String PROPERTIES_PARTITION_TTL = "partition_ttl";
     public static final String PROPERTIES_PARTITION_LIVE_NUMBER = "partition_live_number";
+    public static final String PROPERTIES_PARTITION_TTL_CONDITION = "partition_ttl_condition";
+
     public static final String PROPERTIES_AUTO_REFRESH_PARTITIONS_LIMIT = "auto_refresh_partitions_limit";
     public static final String PROPERTIES_PARTITION_REFRESH_NUMBER = "partition_refresh_number";
     public static final String PROPERTIES_EXCLUDED_TRIGGER_TABLES = "excluded_trigger_tables";
@@ -415,6 +417,20 @@ public class PropertyAnalyzer {
             }
         }
         return partitionLiveNumber;
+    }
+
+    public static String analyzePartitionTTLCondition(Map<String, String> properties, boolean removeProperties) {
+        String partitionTTLCondition = "";
+        if (properties != null && properties.containsKey(PROPERTIES_PARTITION_TTL_CONDITION)) {
+            partitionTTLCondition = properties.get(PROPERTIES_PARTITION_TTL_CONDITION);
+            if (Strings.isNullOrEmpty(partitionTTLCondition)) {
+                throw new SemanticException("Illegal Partition Recycling policy: " + partitionTTLCondition);
+            }
+            if (removeProperties) {
+                properties.remove(PROPERTIES_PARTITION_TTL_CONDITION);
+            }
+        }
+        return partitionTTLCondition;
     }
 
     public static long analyzeBucketSize(Map<String, String> properties) {
@@ -1425,6 +1441,17 @@ public class PropertyAnalyzer {
                 materializedView.getTableProperty().getProperties()
                         .put(PropertyAnalyzer.PROPERTIES_PARTITION_TTL, ttlDuration.first);
                 materializedView.getTableProperty().setPartitionTTL(ttlDuration.second);
+            }
+            // partition recycling policy
+            if (properties.containsKey(PropertyAnalyzer.PROPERTIES_PARTITION_TTL_CONDITION)) {
+                if (isNonPartitioned) {
+                    throw new AnalysisException(PropertyAnalyzer.PROPERTIES_PARTITION_TTL_CONDITION
+                            + " is only supported by partitioned materialized-view");
+                }
+                String ttlTTLCondition = PropertyAnalyzer.analyzePartitionTTLCondition(properties, true);
+                materializedView.getTableProperty().getProperties()
+                        .put(PropertyAnalyzer.PROPERTIES_PARTITION_TTL_CONDITION, ttlTTLCondition);
+                materializedView.getTableProperty().setPartitionTTLCondition(ttlTTLCondition);
             }
 
             // partition ttl number

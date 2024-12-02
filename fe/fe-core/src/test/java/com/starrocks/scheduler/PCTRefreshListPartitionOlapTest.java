@@ -1340,4 +1340,24 @@ public class PCTRefreshListPartitionOlapTest extends MVRefreshTestBase {
                     });
         });
     }
+
+    @Test
+    public void testRefreshListPartitionMVWithExprs() {
+        starRocksAssert.withTables(ImmutableList.of(T1, T2), () -> {
+            starRocksAssert.withMaterializedView("create materialized view test_mv1\n" +
+                            "partition by (province) \n" +
+                            "distributed by random \n" +
+                            "REFRESH DEFERRED MANUAL \n" +
+                            "properties ('partition_refresh_number' = '1')" +
+                            "as " +
+                            "   select t1.dt, t1.province, concat(`t1`.`age`, '[', `t1`.`id`, ']') as v1 from t1 " +
+                            "   UNION ALL" +
+                            "   select t2.dt, t2.province, concat(`t2`.`age`, '[', `t2`.`id`, ']') as v1 from t2 ",
+                    (obj) -> {
+                        MaterializedView mv = starRocksAssert.getMv("test", "test_mv1");
+                        refreshMV("test", mv);
+                        starRocksAssert.dropMaterializedView("mv1");
+                    });
+        });
+    }
 }

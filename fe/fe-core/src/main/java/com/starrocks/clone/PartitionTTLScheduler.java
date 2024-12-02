@@ -18,6 +18,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
+import com.starrocks.analysis.Expr;
+import com.starrocks.analysis.TableName;
 import com.starrocks.catalog.Column;
 import com.starrocks.catalog.Database;
 import com.starrocks.catalog.ListPartitionInfo;
@@ -35,13 +37,17 @@ import com.starrocks.common.util.concurrent.lock.AutoCloseableLock;
 import com.starrocks.common.util.concurrent.lock.LockType;
 import com.starrocks.common.util.concurrent.lock.Locker;
 import com.starrocks.qe.ConnectContext;
+import com.starrocks.qe.SqlModeHelper;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.analyzer.AlterTableClauseAnalyzer;
 import com.starrocks.sql.analyzer.SemanticException;
 import com.starrocks.sql.ast.DropPartitionClause;
+import com.starrocks.sql.optimizer.rule.transformation.ListPartitionPruner;
+import com.starrocks.sql.parser.SqlParser;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.parquet.Strings;
 import org.threeten.extra.PeriodDuration;
 
 import java.time.LocalDate;
@@ -155,7 +161,11 @@ public class PartitionTTLScheduler {
                 return false;
             }
         } else if (partitionInfo instanceof ListPartitionInfo) {
-            return false;
+            String ttlCondition = olapTable.getTableProperty().getPartitionTTLCondition();
+            if (Strings.isNullOrEmpty(ttlCondition)) {
+                LOG.warn("database={}, table={} have no recycling policy. remove it from scheduler", dbId, tableId);
+                return false;
+            }
         }
         return true;
     }
@@ -176,13 +186,30 @@ public class PartitionTTLScheduler {
                     dropPartitionNames = buildDropPartitionClauseByTTLNumber(olapTable, ttlNumber);
                 }
             } else if (partitionInfo instanceof ListPartitionInfo) {
-                return dropPartitionNames;
+                String ttlCondition = olapTable.getTableProperty().getPartitionTTLCondition();
+                dropPartitionNames = buildDropPartitionCauseByTTLCondition(db, olapTable, ttlCondition);
             }
         } catch (AnalysisException e) {
             LOG.warn("database={}-{}, table={}-{} failed to build drop partition statement.",
                     db.getFullName(), dbId, olapTable.getName(), tableId, e);
         }
         return dropPartitionNames;
+    }
+
+    private List<String> buildDropPartitionCauseByTTLCondition(Database db,
+                                                                  OlapTable olapTable,
+                                                                  String ttlCondition) {
+        TableName tableName = new TableName(db.getFullName(), olapTable.getName());
+        ConnectContext context = ConnectContext.get() != null ? ConnectContext.get() : new ConnectContext();
+        // needs to parse the expr each schedule because it can be changed dynamically
+        // TODO: cache the parsed expr to avoid parsing it every time later.
+        Expr whereExpr = SqlParser.parseSqlToExpr(ttlCondition, SqlModeHelper.MODE_DEFAULT);
+        if (whereExpr == null) {
+            LOG.warn("database={}, table={} failed to parse recycling policy: {}", db.getFullName(), olapTable.getName(),
+                    ttlCondition);
+            return Lists.newArrayList();
+        }
+        return ListPartitionPruner.getPartitionNamesByExpr(olapTable, tableName, whereExpr, context);
     }
 
     /**

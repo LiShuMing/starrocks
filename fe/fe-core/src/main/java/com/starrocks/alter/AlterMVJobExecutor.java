@@ -102,6 +102,10 @@ public class AlterMVJobExecutor extends AlterJobExecutor {
         if (properties.containsKey(PropertyAnalyzer.PROPERTIES_PARTITION_TTL)) {
             ttlDuration = PropertyAnalyzer.analyzePartitionTTL(properties, true);
         }
+        String ttlTTLCondition = null;
+        if (properties.containsKey(PropertyAnalyzer.PROPERTIES_PARTITION_TTL_CONDITION)) {
+            ttlTTLCondition = PropertyAnalyzer.analyzePartitionTTLCondition(properties, true);
+        }
         int partitionRefreshNumber = INVALID;
         if (properties.containsKey(PropertyAnalyzer.PROPERTIES_PARTITION_REFRESH_NUMBER)) {
             partitionRefreshNumber = PropertyAnalyzer.analyzePartitionRefreshNumber(properties);
@@ -220,6 +224,12 @@ public class AlterMVJobExecutor extends AlterJobExecutor {
             curProp.put(PropertyAnalyzer.PROPERTIES_PARTITION_TTL_NUMBER, String.valueOf(partitionTTL));
             materializedView.getTableProperty().setPartitionTTLNumber(partitionTTL);
             isChanged = true;
+        } else if (propClone.containsKey(PropertyAnalyzer.PROPERTIES_PARTITION_TTL_CONDITION) &&
+                ttlTTLCondition != null &&
+                !ttlTTLCondition.equalsIgnoreCase(materializedView.getTableProperty().getPartitionTTLCondition())) {
+            curProp.put(PropertyAnalyzer.PROPERTIES_PARTITION_TTL_CONDITION, ttlTTLCondition);
+            materializedView.getTableProperty().setPartitionTTLCondition(ttlTTLCondition);
+            isChanged = true;
         } else if (propClone.containsKey(PropertyAnalyzer.PROPERTIES_PARTITION_REFRESH_NUMBER) &&
                 materializedView.getTableProperty().getPartitionRefreshNumber() != partitionRefreshNumber) {
             curProp.put(PropertyAnalyzer.PROPERTIES_PARTITION_REFRESH_NUMBER, String.valueOf(partitionRefreshNumber));
@@ -250,7 +260,7 @@ public class AlterMVJobExecutor extends AlterJobExecutor {
         if (propClone.containsKey(PropertyAnalyzer.PROPERTIES_EXCLUDED_REFRESH_TABLES)) {
             curProp.put(PropertyAnalyzer.PROPERTIES_EXCLUDED_REFRESH_TABLES,
                     propClone.get(PropertyAnalyzer.PROPERTIES_EXCLUDED_REFRESH_TABLES));
-            materializedView.getTableProperty().setExcludedRefreshTables(excludedTriggerTables);
+            materializedView.getTableProperty().setExcludedRefreshTables(excludedRefreshBaseTables);
             isChanged = true;
         }
         if (propClone.containsKey(PropertyAnalyzer.PROPERTIES_UNIQUE_CONSTRAINT)) {

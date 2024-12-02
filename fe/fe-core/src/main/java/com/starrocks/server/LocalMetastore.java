@@ -244,6 +244,7 @@ import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.parquet.Strings;
 import org.threeten.extra.PeriodDuration;
 
 import java.io.IOException;
@@ -3623,21 +3624,58 @@ public class LocalMetastore implements ConnectorMetadata, MVRepairHandler, Memor
                                 ImmutableMap.of(key, propertiesToPersist.get(key)));
                 GlobalStateMgr.getCurrentState().getEditLog().logAlterTableProperties(info);
             }
+            if (propertiesToPersist.containsKey(PropertyAnalyzer.PROPERTIES_PARTITION_TTL_CONDITION)) {
+                String ttlTTLCondition = propertiesToPersist.get(PropertyAnalyzer.PROPERTIES_PARTITION_TTL_CONDITION);
+                tableProperty.getProperties().put(PropertyAnalyzer.PROPERTIES_PARTITION_TTL_CONDITION, ttlTTLCondition);
+                tableProperty.setPartitionTTLCondition(ttlTTLCondition);
+                // register or remove ttl partition table
+                if (Strings.isNullOrEmpty(ttlTTLCondition)) {
+                    GlobalStateMgr.getCurrentState().getDynamicPartitionScheduler().removeTtlPartitionTable(db.getId(),
+                            table.getId());
+                } else {
+                    GlobalStateMgr.getCurrentState().getDynamicPartitionScheduler().registerTtlPartitionTable(db.getId(),
+                            table.getId());
+                }
+                ModifyTablePropertyOperationLog info =
+                        new ModifyTablePropertyOperationLog(db.getId(), table.getId(),
+                                ImmutableMap.of(key, propertiesToPersist.get(key)));
+                GlobalStateMgr.getCurrentState().getEditLog().logAlterTableProperties(info);
+            }
         }
     }
 
     private Map<String, Object> validateToBeModifiedProps(Map<String, String> properties, OlapTable table) throws DdlException {
         Map<String, Object> results = Maps.newHashMap();
         if (properties.containsKey(PropertyAnalyzer.PROPERTIES_PARTITION_LIVE_NUMBER)) {
+            if (!table.getPartitionInfo().isRangePartition()) {
+                throw new DdlException("Table[" + table.getName() + "] is not range partitioned. "
+                        + "no need to set partition live number.");
+            }
             int partitionLiveNumber = PropertyAnalyzer.analyzePartitionLiveNumber(properties, true);
             results.put(PropertyAnalyzer.PROPERTIES_PARTITION_LIVE_NUMBER, partitionLiveNumber);
         }
         if (properties.containsKey(PropertyAnalyzer.PROPERTIES_PARTITION_TTL)) {
+            if (!table.getPartitionInfo().isRangePartition()) {
+                throw new DdlException("Table[" + table.getName() + "] is not range partitioned. "
+                        + "no need to set partition live number.");
+            }
             Pair<String, PeriodDuration> ttlDuration = PropertyAnalyzer.analyzePartitionTTL(properties, true);
             if (ttlDuration == null) {
                 throw new DdlException("Invalid partition ttl duration");
             }
             results.put(PropertyAnalyzer.PROPERTIES_PARTITION_TTL, ttlDuration);
+        }
+        // partition recycling policy
+        if (properties.containsKey(PropertyAnalyzer.PROPERTIES_PARTITION_TTL_CONDITION)) {
+            if (!table.getPartitionInfo().isListPartition()) {
+                throw new DdlException("Table[" + table.getName() + "] is not list partitioned. "
+                        + "no need to set partition recycling policy.");
+            }
+            String partitionTTLCondition = PropertyAnalyzer.analyzePartitionTTLCondition(properties, true);
+            if (Strings.isNullOrEmpty(partitionTTLCondition)) {
+                throw new DdlException("Invalid partition recycling policy");
+            }
+            results.put(PropertyAnalyzer.PROPERTIES_PARTITION_TTL_CONDITION, partitionTTLCondition);
         }
         if (properties.containsKey(PropertyAnalyzer.PROPERTIES_STORAGE_MEDIUM)) {
             try {

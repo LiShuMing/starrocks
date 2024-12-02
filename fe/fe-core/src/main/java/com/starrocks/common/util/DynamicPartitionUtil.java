@@ -79,6 +79,7 @@ import java.util.TimeZone;
 
 import static com.starrocks.common.util.PropertyAnalyzer.PROPERTIES_PARTITION_LIVE_NUMBER;
 import static com.starrocks.common.util.PropertyAnalyzer.PROPERTIES_PARTITION_TTL;
+import static com.starrocks.common.util.PropertyAnalyzer.PROPERTIES_PARTITION_TTL_CONDITION;
 import static com.starrocks.common.util.PropertyAnalyzer.PROPERTIES_PARTITION_TTL_NUMBER;
 
 public class DynamicPartitionUtil {
@@ -503,7 +504,12 @@ public class DynamicPartitionUtil {
             }
             return true;
         } else if (partitionInfo instanceof ListPartitionInfo) {
-            return false;
+            // if ttl is not set in table property, return false
+            Map<String, String> properties = tableProperty.getProperties();
+            if (!properties.containsKey(PROPERTIES_PARTITION_TTL_CONDITION)) {
+                return false;
+            }
+            return true;
         } else {
             return false;
         }
@@ -523,7 +529,10 @@ public class DynamicPartitionUtil {
             }
             return false;
         } else if (partitionInfo instanceof ListPartitionInfo) {
-            return false;
+            if (Strings.isNullOrEmpty(tableProperty.getPartitionTTLCondition())) {
+                return false;
+            }
+            return true;
         } else {
             return false;
         }

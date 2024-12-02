@@ -215,6 +215,8 @@ public class AlterTableClauseAnalyzer implements AstVisitor<Void, ConnectContext
             PropertyAnalyzer.analyzePartitionLiveNumber(properties, false);
         } else if (properties.containsKey(PropertyAnalyzer.PROPERTIES_PARTITION_TTL)) {
             PropertyAnalyzer.analyzePartitionTTL(properties, false);
+        } else if (properties.containsKey(PropertyAnalyzer.PROPERTIES_PARTITION_TTL_CONDITION)) {
+            PropertyAnalyzer.analyzePartitionTTLCondition(properties, false);
         } else if (properties.containsKey(PropertyAnalyzer.PROPERTIES_REPLICATION_NUM)) {
             PropertyAnalyzer.analyzeReplicationNum(properties, false);
         } else if (properties.containsKey(PropertyAnalyzer.PROPERTIES_STORAGE_COOLDOWN_TTL)) {

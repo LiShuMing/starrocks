@@ -22,9 +22,13 @@ import com.starrocks.catalog.OlapTable;
 import com.starrocks.catalog.Partition;
 import com.starrocks.catalog.PartitionKey;
 import com.starrocks.common.util.TimeUtils;
+import com.starrocks.common.util.UUIDUtil;
 import com.starrocks.qe.ConnectContext;
+import com.starrocks.qe.StmtExecutor;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.ast.CreateMaterializedViewStatement;
+import com.starrocks.sql.ast.StatementBase;
+import com.starrocks.sql.parser.SqlParser;
 import com.starrocks.utframe.StarRocksAssert;
 import com.starrocks.utframe.UtFrameUtils;
 import mockit.Mock;
@@ -46,6 +50,8 @@ public class DynamicPartitionSchedulerTest {
 
     private static ConnectContext connectContext;
     private static StarRocksAssert starRocksAssert;
+    private static String T1;
+    private static String T2;
 
     @BeforeClass
     public static void beforeClass() throws Exception {
@@ -58,7 +64,64 @@ public class DynamicPartitionSchedulerTest {
         // set default config for async mvs
         UtFrameUtils.setDefaultConfigForAsyncMVTest(connectContext);
 
+        T1 = "CREATE TABLE t1 (\n" +
+                " id BIGINT,\n" +
+                " age SMALLINT,\n" +
+                " dt VARCHAR(10) not null,\n" +
+                " province VARCHAR(64) not null\n" +
+                ")\n" +
+                "PARTITION BY (province, dt) \n" +
+                "DISTRIBUTED BY RANDOM\n";
+        // table whose partitions have multi columns
+        T2 = "CREATE TABLE t2 (\n" +
+                " id BIGINT,\n" +
+                " age SMALLINT,\n" +
+                " dt VARCHAR(10) not null,\n" +
+                " province VARCHAR(64) not null\n" +
+                ")\n" +
+                "PARTITION BY LIST (province, dt) (\n" +
+                "     PARTITION p1 VALUES IN ((\"beijing\", \"2024-01-01\")),\n" +
+                "     PARTITION p2 VALUES IN ((\"guangdong\", \"2024-01-01\")), \n" +
+                "     PARTITION p3 VALUES IN ((\"beijing\", \"2024-01-02\")),\n" +
+                "     PARTITION p4 VALUES IN ((\"guangdong\", \"2024-01-02\")) \n" +
+                ")\n" +
+                "DISTRIBUTED BY RANDOM\n";
         starRocksAssert = new StarRocksAssert(connectContext);
+        starRocksAssert.withDatabase("test").useDatabase("test");
+    }
+
+
+    public static void executeInsertSql(String sql) throws Exception {
+        connectContext.setQueryId(UUIDUtil.genUUID());
+        StatementBase statement = SqlParser.parseSingleStatement(sql, connectContext.getSessionVariable().getSqlMode());
+        new StmtExecutor(connectContext, statement).execute();
+    }
+
+    private String toPartitionVal(String val) {
+        return val == null ? "NULL" : String.format("'%s'", val);
+    }
+
+    private void addListPartition(String tbl, String pName, String pVal1, String pVal2) {
+        String addPartitionSql = String.format("ALTER TABLE %s ADD PARTITION IF NOT EXISTS %s VALUES IN ((%s, %s))",
+                tbl, pName, toPartitionVal(pVal1), toPartitionVal(pVal2));
+        StatementBase stmt = SqlParser.parseSingleStatement(addPartitionSql, connectContext.getSessionVariable().getSqlMode());
+        try {
+            new StmtExecutor(connectContext, stmt).execute();
+        } catch (Exception e) {
+            Assert.fail("add partition failed:" + e);
+        }
+    }
+
+    private void withTablePartitions(String tableName) {
+        // Automatic partition creation is not supported in FE UTs
+        //String insertSql = String.format("insert into %s values " +
+        //        "(1, 1, '2024-01-01', 'beijing'), (1, 1, '2024-01-01', 'guangdong')," +
+        //        "(2, 1, '2024-01-02', 'beijing'), (2, 1, '2024-01-02', 'guangdong');", tableName);
+        //executeInsertSql(insertSql);
+        addListPartition(tableName, "p1", "beijing", "2024-01-01");
+        addListPartition(tableName, "p2", "guangdong", "2024-01-01");
+        addListPartition(tableName, "p3", "beijing", "2024-01-02");
+        addListPartition(tableName, "p4", "guangdong", "2024-01-02");
     }
 
     @Test
@@ -354,5 +417,82 @@ public class DynamicPartitionSchedulerTest {
         } catch (Exception e) {
             fail("Should not throw exception: " + e.getMessage());
         }
+    }
+
+    @Test
+    public void testPartitionTTLCondition1() {
+        starRocksAssert.withTable(T1,
+                (obj) -> {
+                    String tableName = (String) obj;
+                    withTablePartitions(tableName);
+                    OlapTable olapTable = (OlapTable) starRocksAssert.getTable("test", tableName);
+                    Assert.assertEquals(4, olapTable.getVisiblePartitions().size());
+                    String dropPartitionSql = String.format("alter table %s set ('partition_ttl_condition' = " +
+                            "'dt > current_date() - interval 1 month');", tableName);
+                    starRocksAssert.alterTable(dropPartitionSql);
+                    DynamicPartitionScheduler scheduler = GlobalStateMgr.getCurrentState()
+                            .getDynamicPartitionScheduler();
+                    Database db = GlobalStateMgr.getCurrentState().getLocalMetastore().getDb("test");
+                    OlapTable tbl = (OlapTable) GlobalStateMgr.getCurrentState().getLocalMetastore()
+                            .getTable(db.getFullName(), tableName);
+                    try {
+                        scheduler.runOnceForTest();
+                        Assert.assertTrue(tbl.getVisiblePartitions().size() == 0);
+
+                        // add a new partition and an expired partition
+                        LocalDateTime now = LocalDateTime.now();
+                        addListPartition(tableName, "p5", "guangdong",
+                                now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+                        addListPartition(tableName, "p6", "guangdong",
+                                now.minusMonths(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+                        Assert.assertTrue(tbl.getVisiblePartitions().size() == 2);
+
+                        scheduler.runOnceForTest();
+                        Assert.assertTrue(tbl.getVisiblePartitions().size() == 1);
+                    } catch (Exception e) {
+                        fail("Should not throw exception: " + e.getMessage());
+                    }
+                });
+    }
+
+    @Test
+    public void testPartitionTTLCondition2() {
+        starRocksAssert.withTable("CREATE TABLE t1 (\n" +
+                " id BIGINT,\n" +
+                " age SMALLINT,\n" +
+                " dt VARCHAR(10) not null,\n" +
+                " province VARCHAR(64) not null\n" +
+                ")\n" +
+                "PARTITION BY (province, dt) \n" +
+                "DISTRIBUTED BY RANDOM\n" +
+                "PROPERTIES ('partition_ttl_condition' = 'dt > current_date() - interval 1 month')",
+                (obj) -> {
+                    String tableName = (String) obj;
+                    withTablePartitions(tableName);
+                    OlapTable olapTable = (OlapTable) starRocksAssert.getTable("test", tableName);
+                    Assert.assertEquals(4, olapTable.getVisiblePartitions().size());
+
+                    DynamicPartitionScheduler scheduler = GlobalStateMgr.getCurrentState()
+                            .getDynamicPartitionScheduler();
+                    Database db = GlobalStateMgr.getCurrentState().getLocalMetastore().getDb("test");
+                    OlapTable tbl = (OlapTable) GlobalStateMgr.getCurrentState().getLocalMetastore()
+                            .getTable(db.getFullName(), tableName);
+                    try {
+                        scheduler.runOnceForTest();
+                        Assert.assertTrue(tbl.getVisiblePartitions().size() == 0);
+                        // add a new partition and an expired partition
+                        LocalDateTime now = LocalDateTime.now();
+                        addListPartition(tableName, "p5", "guangdong",
+                                now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+                        addListPartition(tableName, "p6", "guangdong",
+                                now.minusMonths(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+                        Assert.assertTrue(tbl.getVisiblePartitions().size() == 2);
+
+                        scheduler.runOnceForTest();
+                        Assert.assertTrue(tbl.getVisiblePartitions().size() == 1);
+                    } catch (Exception e) {
+                        fail("Should not throw exception: " + e.getMessage());
+                    }
+                });
     }
 }

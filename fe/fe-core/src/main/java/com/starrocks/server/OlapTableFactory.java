@@ -654,21 +654,30 @@ public class OlapTableFactory implements AbstractTableFactory {
             table.setCompressionLevel(compressionLevel);
 
             // partition live number
-            int partitionLiveNumber;
             if (properties != null && properties.containsKey(PropertyAnalyzer.PROPERTIES_PARTITION_LIVE_NUMBER)) {
-                partitionLiveNumber = PropertyAnalyzer.analyzePartitionLiveNumber(properties, true);
+                int partitionLiveNumber = PropertyAnalyzer.analyzePartitionLiveNumber(properties, true);
                 table.setPartitionLiveNumber(partitionLiveNumber);
             }
 
             // analyze partition ttl duration
-            Pair<String, PeriodDuration> ttlDuration = null;
             if (properties != null && properties.containsKey(PropertyAnalyzer.PROPERTIES_PARTITION_TTL)) {
-                ttlDuration = PropertyAnalyzer.analyzePartitionTTL(properties, true);
+                Pair<String, PeriodDuration> ttlDuration = PropertyAnalyzer.analyzePartitionTTL(properties, true);
                 if (ttlDuration == null) {
                     throw new DdlException("Invalid partition ttl duration");
                 }
                 table.getTableProperty().getProperties().put(PropertyAnalyzer.PROPERTIES_PARTITION_TTL, ttlDuration.first);
                 table.getTableProperty().setPartitionTTL(ttlDuration.second);
+            }
+
+            // analyze partition recycling policy
+            if (properties != null && properties.containsKey(PropertyAnalyzer.PROPERTIES_PARTITION_TTL_CONDITION)) {
+                String ttlTTLCondition = PropertyAnalyzer.analyzePartitionTTLCondition(properties, true);
+                if (ttlTTLCondition == null) {
+                    throw new DdlException("Invalid partition ttl duration");
+                }
+                table.getTableProperty().getProperties()
+                        .put(PropertyAnalyzer.PROPERTIES_PARTITION_TTL_CONDITION, ttlTTLCondition);
+                table.getTableProperty().setPartitionTTLCondition(ttlTTLCondition);
             }
 
             try {

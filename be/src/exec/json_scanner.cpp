@@ -262,7 +262,7 @@ Status JsonScanner::_create_src_chunk(ChunkPtr* chunk) {
 
         // The columns in source chunk are all in AdaptiveNullableColumn type;
         auto col = ColumnHelper::create_column(_json_types[column_pos], true, false, 0, true);
-        (*chunk)->append_column(col, slot_desc->id());
+        (*chunk)->append_column(std::move(col), slot_desc->id());
     }
 
     return Status::OK();

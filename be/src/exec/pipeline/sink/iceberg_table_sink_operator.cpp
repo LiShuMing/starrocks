@@ -330,7 +330,7 @@ void IcebergTableSinkOperator::add_iceberg_commit_info(starrocks::parquet::Async
     state->update_num_rows_load_sink(iceberg_data_file.record_count);
 }
 
-Status IcebergTableSinkOperator::partition_value_to_string(Column* column, std::string& partition_value) {
+Status IcebergTableSinkOperator::partition_value_to_string(const Column* column, std::string& partition_value) {
     auto v = column->get(0);
     if (column->is_date()) {
         partition_value = v.get_date().to_string();

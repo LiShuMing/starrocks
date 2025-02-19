@@ -207,8 +207,8 @@ bool FileReader::_filter_group_with_min_max_conjuncts(const GroupReaderPtr& grou
                 // maybe one of the conjuncts encounter error when dealing statistics, just ignore it and continue
                 continue;
             }
-            const auto& min_column = res_min.value();
-            const auto& max_column = res_max.value();
+            auto& min_column = res_min.value();
+            auto& max_column = res_max.value();
             auto f = [&](Column* c) {
                 // is_null(0) only when something unexpected happens
                 if (c->is_null(0)) return (int8_t)0;
@@ -426,7 +426,8 @@ Status FileReader::_read_has_nulls(const GroupReaderPtr& group_reader, const std
 Status FileReader::_read_min_max_chunk(const GroupReaderPtr& group_reader, const std::vector<SlotDescriptor*>& slots,
                                        ChunkPtr* min_chunk, ChunkPtr* max_chunk) const {
     const HdfsScannerContext& ctx = *_scanner_ctx;
-
+    MutableColumns min_cols = (*min_chunk)->mutable_columns();
+    MutableColumns max_cols = (*max_chunk)->mutable_columns();
     for (size_t i = 0; i < slots.size(); i++) {
         const SlotDescriptor* slot = slots[i];
         const tparquet::ColumnMetaData* column_meta = nullptr;
@@ -438,18 +439,18 @@ Status FileReader::_read_min_max_chunk(const GroupReaderPtr& group_reader, const
             int col_idx = _get_partition_column_idx(slot->col_name());
             if (col_idx < 0) {
                 // column not exist in parquet file
-                (*min_chunk)->columns()[i]->append_nulls(1);
-                (*max_chunk)->columns()[i]->append_nulls(1);
+                min_cols[i]->append_nulls(1);
+                max_cols[i]->append_nulls(1);
             } else {
                 // is partition column
                 auto* const_column = ColumnHelper::as_raw_column<ConstColumn>(ctx.partition_values[col_idx]);
                 ColumnPtr data_column = const_column->data_column();
                 if (data_column->is_nullable()) {
-                    (*min_chunk)->columns()[i]->append_nulls(1);
-                    (*max_chunk)->columns()[i]->append_nulls(1);
+                    min_cols[i]->append_nulls(1);
+                    max_cols[i]->append_nulls(1);
                 } else {
-                    (*min_chunk)->columns()[i]->append(*data_column, 0, 1);
-                    (*max_chunk)->columns()[i]->append(*data_column, 0, 1);
+                    min_cols[i]->append(*data_column, 0, 1);
+                    max_cols[i]->append(*data_column, 0, 1);
                 }
             }
         } else if (!column_meta->__isset.statistics) {
@@ -464,8 +465,8 @@ Status FileReader::_read_min_max_chunk(const GroupReaderPtr& group_reader, const
             // If all values of one group is null, the statistics is like this:
             // max=<null>, min=<null>, null_count=3, distinct_count=<null>, max_value=<null>, min_value=<null>
             if (column_meta->statistics.__isset.null_count && column_meta->statistics.null_count == num_rows) {
-                (*min_chunk)->columns()[i]->append_nulls(1);
-                (*max_chunk)->columns()[i]->append_nulls(1);
+                min_cols[i]->append_nulls(1);
+                max_cols[i]->append_nulls(1);
                 continue;
             }
 
@@ -478,10 +479,10 @@ Status FileReader::_read_min_max_chunk(const GroupReaderPtr& group_reader, const
             RETURN_IF_ERROR(StatisticsHelper::get_min_max_value(_file_metadata.get(), slot->type(), column_meta, field,
                                                                 min_values, max_values));
             null_pages.emplace_back(false);
-            RETURN_IF_ERROR(StatisticsHelper::decode_value_into_column((*min_chunk)->columns()[i], min_values,
-                                                                       null_pages, slot->type(), field, ctx.timezone));
-            RETURN_IF_ERROR(StatisticsHelper::decode_value_into_column((*max_chunk)->columns()[i], max_values,
-                                                                       null_pages, slot->type(), field, ctx.timezone));
+            RETURN_IF_ERROR(StatisticsHelper::decode_value_into_column(min_cols[i], min_values, null_pages,
+                                                                       slot->type(), field, ctx.timezone));
+            RETURN_IF_ERROR(StatisticsHelper::decode_value_into_column(max_cols[i], max_values, null_pages,
+                                                                       slot->type(), field, ctx.timezone));
         }
     }
 

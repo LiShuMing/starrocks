@@ -217,8 +217,8 @@ StatusOr<bool> RawColumnReader::_row_group_zone_map_filter(const std::vector<con
     std::optional<ZoneMapDetail> zone_map_detail = std::nullopt;
 
     // used to hold min/max slice values
-    const ColumnPtr min_column = ColumnHelper::create_column(col_type, true);
-    const ColumnPtr max_column = ColumnHelper::create_column(col_type, true);
+    const MutableColumnPtr min_column = ColumnHelper::create_column(col_type, true);
+    const MutableColumnPtr max_column = ColumnHelper::create_column(col_type, true);
     if (is_all_null) {
         // if the entire column's value is null, the min/max value not existed
         zone_map_detail = ZoneMapDetail{Datum{}, Datum{}, true};
@@ -279,8 +279,8 @@ StatusOr<bool> RawColumnReader::_page_index_zone_map_filter(const std::vector<co
     const size_t page_num = column_index.min_values.size();
     const std::vector<bool> null_pages = column_index.null_pages;
 
-    ColumnPtr min_column = ColumnHelper::create_column(col_type, true);
-    ColumnPtr max_column = ColumnHelper::create_column(col_type, true);
+    MutableColumnPtr min_column = ColumnHelper::create_column(col_type, true);
+    MutableColumnPtr max_column = ColumnHelper::create_column(col_type, true);
     // deal with min_values
     auto st = StatisticsHelper::decode_value_into_column(min_column, column_index.min_values, null_pages, col_type,
                                                          get_column_parquet_field(), _opts.timezone);
@@ -404,7 +404,7 @@ Status ScalarColumnReader::fill_dst_column(ColumnPtr& dst, ColumnPtr& src) {
 
             // decode dict code to dict values.
             // note that in dict code, there could be null value.
-            const ColumnPtr& dict_codes = src;
+            ColumnPtr& dict_codes = src;
             auto* codes_nullable_column = ColumnHelper::as_raw_column<NullableColumn>(dict_codes);
             auto* codes_column =
                     ColumnHelper::as_raw_column<FixedLengthColumn<int32_t>>(codes_nullable_column->data_column());

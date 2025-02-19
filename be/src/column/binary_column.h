@@ -24,8 +24,8 @@
 namespace starrocks {
 
 template <typename T>
-class BinaryColumnBase final : public ColumnFactory<Column, BinaryColumnBase<T>> {
-    friend class ColumnFactory<Column, BinaryColumnBase<T>>;
+class BinaryColumnBase final : public COWHelper<ColumnFactory<Column, BinaryColumnBase<T>>, BinaryColumnBase<T>> {
+    friend class COWHelper<ColumnFactory<Column, BinaryColumnBase<T>>, BinaryColumnBase<T>>;
 
 public:
     using ValueType = Slice;
@@ -224,12 +224,12 @@ public:
 
     uint32_t max_one_element_serialize_size() const override;
 
-    uint32_t serialize(size_t idx, uint8_t* pos) override;
+    uint32_t serialize(size_t idx, uint8_t* pos) const override;
 
-    uint32_t serialize_default(uint8_t* pos) override;
+    uint32_t serialize_default(uint8_t* pos) const override;
 
     void serialize_batch(uint8_t* dst, Buffer<uint32_t>& slice_sizes, size_t chunk_size,
-                         uint32_t max_one_row_size) override;
+                         uint32_t max_one_row_size) const override;
 
     const uint8_t* deserialize_and_append(const uint8_t* pos) override;
 
@@ -240,7 +240,7 @@ public:
         return static_cast<uint32_t>(sizeof(uint32_t) + _offsets[idx + 1] - _offsets[idx]);
     }
 
-    MutableColumnPtr clone_empty() const override { return BinaryColumnBase<T>::create_mutable(); }
+    MutableColumnPtr clone_empty() const override { return BinaryColumnBase<T>::create(); }
 
     ColumnPtr cut(size_t start, size_t length) const;
     size_t filter_range(const Filter& filter, size_t start, size_t to) override;

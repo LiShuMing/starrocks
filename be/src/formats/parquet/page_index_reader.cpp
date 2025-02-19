@@ -90,12 +90,8 @@ bool PageIndexReader::_more_conjunct_for_statistics(SlotId id) {
 Status PageIndexReader::_deal_with_min_max_conjuncts(const std::vector<ExprContext*>& ctxs,
                                                      const tparquet::ColumnIndex& column_index, SlotId id,
                                                      const TypeDescriptor& type, Filter& page_filter) {
-    auto min_chunk = std::make_unique<Chunk>();
-    ColumnPtr min_column = ColumnHelper::create_column(type, true);
-    min_chunk->append_column(min_column, id);
-    auto max_chunk = std::make_unique<Chunk>();
-    ColumnPtr max_column = ColumnHelper::create_column(type, true);
-    max_chunk->append_column(max_column, id);
+    MutableColumnPtr min_column = ColumnHelper::create_column(type, true);
+    MutableColumnPtr max_column = ColumnHelper::create_column(type, true);
     // deal with min_values
     auto st = StatisticsHelper::decode_value_into_column(min_column, column_index.min_values, column_index.null_pages,
                                                          type, _column_readers.at(id)->get_column_parquet_field(),
@@ -105,6 +101,8 @@ Status PageIndexReader::_deal_with_min_max_conjuncts(const std::vector<ExprConte
         LOG(INFO) << "Error when decode min/max statistics, slotid " << id << ", type " << type.debug_string();
         return Status::OK();
     }
+    auto min_chunk = std::make_unique<Chunk>();
+    min_chunk->append_column(std::move(min_column), id);
 
     // deal with max_values
     st = StatisticsHelper::decode_value_into_column(max_column, column_index.max_values, column_index.null_pages, type,
@@ -115,6 +113,8 @@ Status PageIndexReader::_deal_with_min_max_conjuncts(const std::vector<ExprConte
         LOG(INFO) << "Error when decode min/max statistics, slotid " << id << ", type " << type.debug_string();
         return Status::OK();
     }
+    auto max_chunk = std::make_unique<Chunk>();
+    max_chunk->append_column(std::move(max_column), id);
 
     size_t page_num = column_index.min_values.size();
     // both min and max value are filtered, the page is filtered.

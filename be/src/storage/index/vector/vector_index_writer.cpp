@@ -51,12 +51,12 @@ Status VectorIndexWriter::append(const Column& src) {
                 if (!_buffer_column.get()) {
                     if (is_nullable()) {
                         if (src.is_nullable()) {
-                            _buffer_column = std::make_unique<NullableColumn>(down_cast<const NullableColumn&>(src));
+                            _buffer_column = (down_cast<const NullableColumn*>(&src))->get_ptr();
                         } else {
-                            _buffer_column = NullableColumn::wrap_if_necessary(src.clone_shared());
+                            _buffer_column = NullableColumn::wrap_if_necessary(src.clone());
                         }
                     } else {
-                        _buffer_column = std::make_unique<ArrayColumn>(down_cast<const ArrayColumn&>(src));
+                        _buffer_column = (down_cast<const ArrayColumn*>(&src))->get_ptr();
                     }
                 } else {
                     _buffer_column->append(src, 0, src.size());

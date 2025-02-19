@@ -1209,10 +1209,10 @@ Status OrcChunkReader::build_search_argument_by_predicates(const OrcPredicates* 
     return Status::OK();
 }
 
-ColumnPtr OrcChunkReader::get_row_delete_filter(const std::set<int64_t>& deleted_pos) {
+MutableColumnPtr OrcChunkReader::get_row_delete_filter(const std::set<int64_t>& deleted_pos) {
     int64_t start_pos = _row_reader->getRowNumber();
     auto num_rows = _batch->numElements;
-    ColumnPtr filter_column = BooleanColumn::create(num_rows, 1);
+    MutableColumnPtr filter_column = BooleanColumn::create(num_rows, 1);
     auto& filter = static_cast<BooleanColumn*>(filter_column.get())->get_data();
     auto iter = deleted_pos.lower_bound(start_pos);
     auto end = deleted_pos.upper_bound(start_pos + num_rows - 1);
@@ -1252,7 +1252,7 @@ Status OrcChunkReader::apply_dict_filter_eval_cache(const std::unordered_map<Slo
         uint64_t column_id = _root_mapping->get_orc_type_child_mapping(pos_in_src_slot_descs).orc_type->getColumnId();
 
         const Filter& dict_filter = (*it.second);
-        ColumnPtr data_filter = BooleanColumn::create(size);
+        MutableColumnPtr data_filter = BooleanColumn::create(size);
         Filter& data = static_cast<BooleanColumn*>(data_filter.get())->get_data();
         DCHECK(data.size() == size);
 
@@ -1264,7 +1264,7 @@ Status OrcChunkReader::apply_dict_filter_eval_cache(const std::unordered_map<Slo
         }
 
         bool all_zero = false;
-        ColumnHelper::merge_two_filters(data_filter, filter, &all_zero);
+        ColumnHelper::merge_two_filters(std::move(data_filter), filter, &all_zero);
         if (all_zero) {
             filter_all = true;
             break;

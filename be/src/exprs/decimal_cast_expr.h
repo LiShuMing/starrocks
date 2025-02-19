@@ -39,18 +39,18 @@ struct DecimalDecimalCast {
 
         // source type and target type has the same logical type and scale
         if (to_scale == from_scale && Type == ResultType) {
-            auto result = column->clone_shared();
-            ColumnHelper::cast_to_raw<Type>(result)->set_precision(to_precision);
+            auto result = column->clone();
+            ColumnHelper::cast_to_raw<Type>(result.get())->set_precision(to_precision);
             return result;
         }
 
         const auto data = &data_column->get_data().front();
 
-        auto result = ToColumnType::create(to_precision, to_scale, num_rows);
+        MutableColumnPtr result = ToColumnType::create(to_precision, to_scale, num_rows);
         NullColumnPtr null_column;
         NullColumn::ValueType* nulls = nullptr;
         auto has_null = false;
-        auto result_data = &ColumnHelper::cast_to_raw<ResultType>(result)->get_data().front();
+        auto result_data = &ColumnHelper::cast_to_raw<ResultType>(result.get())->get_data().front();
 
         if constexpr (check_overflow<overflow_mode>) {
             null_column = NullColumn::create();
@@ -141,9 +141,9 @@ struct DecimalNonDecimalCast<overflow_mode, DecimalType, NonDecimalType, Decimal
 
     static inline ColumnPtr decimal_from(const ColumnPtr& column, int precision, int scale) {
         const auto num_rows = column->size();
-        auto result = DecimalColumnType::create(precision, scale, num_rows);
-        const auto data = &ColumnHelper::cast_to_raw<NonDecimalType>(column)->get_data().front();
-        auto result_data = &ColumnHelper::cast_to_raw<DecimalType>(result)->get_data().front();
+        MutableColumnPtr result = DecimalColumnType::create(precision, scale, num_rows);
+        const auto data = &ColumnHelper::cast_to_raw<NonDecimalType>(column.get())->get_data().front();
+        auto result_data = &ColumnHelper::cast_to_raw<DecimalType>(result.get())->get_data().front();
         NullColumnPtr null_column;
         NullColumn::ValueType* nulls = nullptr;
         bool has_null = false;
@@ -228,12 +228,12 @@ struct DecimalNonDecimalCast<overflow_mode, DecimalType, NonDecimalType, Decimal
 
     static inline ColumnPtr decimal_to(const ColumnPtr& column) {
         const auto num_rows = column->size();
-        auto result = NonDecimalColumnType::create();
+        MutableColumnPtr result = NonDecimalColumnType::create();
         result->resize(num_rows);
         const auto data_column = ColumnHelper::cast_to_raw<DecimalType>(column);
         int scale = data_column->scale();
         const auto data = &data_column->get_data().front();
-        auto result_data = &ColumnHelper::cast_to_raw<NonDecimalType>(result)->get_data().front();
+        auto result_data = &ColumnHelper::cast_to_raw<NonDecimalType>(result.get())->get_data().front();
 
         NullColumnPtr null_column;
         NullColumn::ValueType* nulls = nullptr;
@@ -345,8 +345,8 @@ struct DecimalNonDecimalCast<overflow_mode, DecimalType, StringType, DecimalLTGu
 
     static inline ColumnPtr decimal_from(const ColumnPtr& column, int precision, int scale) {
         const auto num_rows = column->size();
-        auto result = DecimalColumnType::create(precision, scale, num_rows);
-        auto result_data = &ColumnHelper::cast_to_raw<DecimalType>(result)->get_data().front();
+        MutableColumnPtr result = DecimalColumnType::create(precision, scale, num_rows);
+        auto result_data = &ColumnHelper::cast_to_raw<DecimalType>(result.get())->get_data().front();
         NullColumnPtr null_column;
         NullColumn::ValueType* nulls = nullptr;
         auto has_null = false;

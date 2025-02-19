@@ -262,7 +262,7 @@ PARALLEL_TEST(BinaryColumnTest, test_append_binary) {
 
 // NOLINTNEXTLINE
 PARALLEL_TEST(BinaryColumnTest, test_filter_range) {
-    auto column = BinaryColumn::create();
+    BinaryColumn::MutablePtr column = BinaryColumn::create();
 
     column->append(Slice("m"));
 
@@ -282,7 +282,7 @@ PARALLEL_TEST(BinaryColumnTest, test_filter_range) {
 
     column->filter_range(filter, 0, 66);
 
-    auto* binary_column = ColumnHelper::as_raw_column<BinaryColumn>(column);
+    auto* binary_column = ColumnHelper::as_raw_column<BinaryColumn>((MutableColumnPtr)column);
     auto& data = binary_column->get_data();
     for (size_t i = 0; i < 63; i++) {
         ASSERT_EQ(data[i], "a");
@@ -512,8 +512,8 @@ PARALLEL_TEST(BinaryColumnTest, test_clone_shared) {
     ASSERT_EQ("abc", slices[0]);
     ASSERT_EQ("def", slices[1]);
 
-    auto c2 = c1->clone_shared();
-    ASSERT_TRUE(c2.unique());
+    auto c2 = c1->clone();
+    ASSERT_TRUE(c2->use_count() == 1);
 
     c1.reset();
 

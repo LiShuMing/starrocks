@@ -45,14 +45,14 @@ PARALLEL_TEST(ConstColumnTest, test_const_column_downgrade) {
     auto data_column = BinaryColumn::create();
     ASSERT_FALSE(data_column->has_large_column());
     data_column->append_string("1");
-    auto const_column = ConstColumn::create(data_column, 1024);
+    auto const_column = ConstColumn::create(std::move(data_column), 1024);
     auto ret = const_column->downgrade();
     ASSERT_TRUE(ret.ok());
     ASSERT_TRUE(ret.value() == nullptr);
 
     auto large_data_column = LargeBinaryColumn::create();
     large_data_column->append_string("1");
-    const_column = ConstColumn::create(large_data_column, 1024);
+    const_column = ConstColumn::create(std::move(large_data_column), 1024);
     ASSERT_TRUE(const_column->has_large_column());
     ret = const_column->downgrade();
     ASSERT_TRUE(ret.ok());
@@ -92,7 +92,7 @@ PARALLEL_TEST(ConstColumnTest, test_compare_at) {
     auto create_const_column = [](int32_t value, size_t size) {
         auto c = Int32Column::create();
         c->append_numbers(&value, sizeof(value));
-        return ConstColumn::create(c, size);
+        return ConstColumn::create(std::move(c), size);
     };
 
     auto c1 = create_const_column(100, 10);
@@ -107,7 +107,7 @@ PARALLEL_TEST(ConstColumnTest, test_assign) {
     auto create_const_column = [](int32_t value, size_t size) {
         auto c = Int32Column::create();
         c->append_numbers(&value, sizeof(value));
-        return ConstColumn::create(c, size);
+        return ConstColumn::create(std::move(c), size);
     };
 
     auto c1 = create_const_column(100, 1);
@@ -129,7 +129,7 @@ PARALLEL_TEST(ConstColumnTest, test_reset_column) {
     auto create_const_column = [](int32_t value, size_t size) {
         auto c = Int32Column::create();
         c->append_numbers(&value, sizeof(value));
-        return ConstColumn::create(c, size);
+        return ConstColumn::create(std::move(c), size);
     };
 
     auto c = create_const_column(1, 10);
@@ -143,7 +143,7 @@ PARALLEL_TEST(ConstColumnTest, test_swap_column) {
     auto create_const_column = [](int32_t value, size_t size) {
         auto c = Int32Column::create();
         c->append_numbers(&value, sizeof(value));
-        return ConstColumn::create(c, size);
+        return ConstColumn::create(std::move(c), size);
     };
 
     auto c1 = create_const_column(1, 100);
@@ -163,7 +163,7 @@ PARALLEL_TEST(ConstColumnTest, test_copy_constructor) {
     auto create_const_column = [](int32_t value, size_t size) {
         auto c = Int32Column::create();
         c->append_numbers(&value, sizeof(value));
-        return ConstColumn::create(c, size);
+        return ConstColumn::create(std::move(c), size);
     };
 
     auto c1 = create_const_column(1, 100);
@@ -172,14 +172,14 @@ PARALLEL_TEST(ConstColumnTest, test_copy_constructor) {
 
     auto c2(*c1);
     ASSERT_EQ(100, c2.size());
-    ASSERT_TRUE(c2.data_column().unique());
+    ASSERT_TRUE(c2.data_column()->use_count() == 1);
     for (int i = 0; i < 100; i++) {
         ASSERT_EQ(1, c2.get(i).get_int32());
     }
 
     c1->reset_column();
     ASSERT_EQ(100, c2.size());
-    ASSERT_TRUE(c2.data_column().unique());
+    ASSERT_TRUE(c2.data_column()->use_count() == 1);
     for (int i = 0; i < 100; i++) {
         ASSERT_EQ(1, c2.get(i).get_int32());
     }
@@ -190,7 +190,7 @@ PARALLEL_TEST(ConstColumnTest, test_move_constructor) {
     auto create_const_column = [](int32_t value, size_t size) {
         auto c = Int32Column::create();
         c->append_numbers(&value, sizeof(value));
-        return ConstColumn::create(c, size);
+        return ConstColumn::create(std::move(c), size);
     };
 
     auto c1 = create_const_column(1, 100);
@@ -199,7 +199,7 @@ PARALLEL_TEST(ConstColumnTest, test_move_constructor) {
 
     auto c2(std::move(*c1));
     ASSERT_EQ(100, c2.size());
-    ASSERT_TRUE(c2.data_column().unique());
+    ASSERT_TRUE(c2.data_column()->use_count() == 1);
     for (int i = 0; i < 100; i++) {
         ASSERT_EQ(1, c2.get(i).get_int32());
     }
@@ -210,7 +210,7 @@ PARALLEL_TEST(ConstColumnTest, test_copy_assignment) {
     auto create_const_column = [](int32_t value, size_t size) {
         auto c = Int32Column::create();
         c->append_numbers(&value, sizeof(value));
-        return ConstColumn::create(c, size);
+        return ConstColumn::create(std::move(c), size);
     };
 
     auto c1 = create_const_column(1, 100);
@@ -221,14 +221,14 @@ PARALLEL_TEST(ConstColumnTest, test_copy_assignment) {
     *c2 = *c1;
 
     ASSERT_EQ(100, c2->size());
-    ASSERT_TRUE(c2->data_column().unique());
+    ASSERT_TRUE(c2->data_column()->use_count() == 1);
     for (int i = 0; i < 100; i++) {
         ASSERT_EQ(1, c2->get(i).get_int32());
     }
 
     c1->reset_column();
     ASSERT_EQ(100, c2->size());
-    ASSERT_TRUE(c2->data_column().unique());
+    ASSERT_TRUE(c2->data_column()->use_count() == 1);
     for (int i = 0; i < 100; i++) {
         ASSERT_EQ(1, c2->get(i).get_int32());
     }
@@ -239,7 +239,7 @@ PARALLEL_TEST(ConstColumnTest, test_move_assignment) {
     auto create_const_column = [](int32_t value, size_t size) {
         auto c = Int32Column::create();
         c->append_numbers(&value, sizeof(value));
-        return ConstColumn::create(c, size);
+        return ConstColumn::create(std::move(c), size);
     };
 
     auto c1 = create_const_column(1, 100);
@@ -250,7 +250,7 @@ PARALLEL_TEST(ConstColumnTest, test_move_assignment) {
     *c2 = std::move(*c1);
 
     ASSERT_EQ(100, c2->size());
-    ASSERT_TRUE(c2->data_column().unique());
+    ASSERT_TRUE(c2->data_column()->use_count() == 1);
     for (int i = 0; i < 100; i++) {
         ASSERT_EQ(1, c2->get(i).get_int32());
     }
@@ -261,7 +261,7 @@ PARALLEL_TEST(ConstColumnTest, test_clone) {
     auto create_const_column = [](int32_t value, size_t size) {
         auto c = Int32Column::create();
         c->append_numbers(&value, sizeof(value));
-        return ConstColumn::create(c, size);
+        return ConstColumn::create(std::move(c), size);
     };
 
     auto c1 = create_const_column(1, 100);
@@ -271,14 +271,14 @@ PARALLEL_TEST(ConstColumnTest, test_clone) {
     auto cloned_col = c1->clone();
     auto c2 = down_cast<ConstColumn*>(cloned_col.get());
     ASSERT_EQ(100, c2->size());
-    ASSERT_TRUE(c2->data_column().unique());
+    ASSERT_TRUE(c2->data_column()->use_count() == 1);
     for (int i = 0; i < 100; i++) {
         ASSERT_EQ(1, c2->get(i).get_int32());
     }
 
     c1->reset_column();
     ASSERT_EQ(100, c2->size());
-    ASSERT_TRUE(c2->data_column().unique());
+    ASSERT_TRUE(c2->data_column()->use_count() == 1);
     for (int i = 0; i < 100; i++) {
         ASSERT_EQ(1, c2->get(i).get_int32());
     }
@@ -289,25 +289,25 @@ PARALLEL_TEST(ConstColumnTest, test_clone_shared) {
     auto create_const_column = [](int32_t value, size_t size) {
         auto c = Int32Column::create();
         c->append_numbers(&value, sizeof(value));
-        return ConstColumn::create(c, size);
+        return ConstColumn::create(std::move(c), size);
     };
 
     auto c1 = create_const_column(1, 100);
 
     ASSERT_EQ(100, c1->size());
 
-    auto cloned_col = c1->clone_shared();
-    ASSERT_TRUE(cloned_col.unique());
+    auto cloned_col = c1->clone();
+    ASSERT_TRUE(cloned_col->use_count() == 1);
     auto c2 = down_cast<ConstColumn*>(cloned_col.get());
     ASSERT_EQ(100, c2->size());
-    ASSERT_TRUE(c2->data_column().unique());
+    ASSERT_TRUE(c2->data_column()->use_count() == 1);
     for (int i = 0; i < 100; i++) {
         ASSERT_EQ(1, c2->get(i).get_int32());
     }
 
     c1->reset_column();
     ASSERT_EQ(100, c2->size());
-    ASSERT_TRUE(c2->data_column().unique());
+    ASSERT_TRUE(c2->data_column()->use_count() == 1);
     for (int i = 0; i < 100; i++) {
         ASSERT_EQ(1, c2->get(i).get_int32());
     }
@@ -318,7 +318,7 @@ PARALLEL_TEST(ConstColumnTest, test_clone_empty) {
     auto create_const_column = [](int32_t value, size_t size) {
         auto c = Int32Column::create();
         c->append_numbers(&value, sizeof(value));
-        return ConstColumn::create(c, size);
+        return ConstColumn::create(std::move(c), size);
     };
 
     auto c1 = create_const_column(1, 100);
@@ -328,7 +328,7 @@ PARALLEL_TEST(ConstColumnTest, test_clone_empty) {
     auto cloned_col = c1->clone_empty();
     auto c2 = down_cast<ConstColumn*>(cloned_col.get());
     ASSERT_EQ(0, c2->size());
-    ASSERT_TRUE(c2->data_column().unique());
+    ASSERT_TRUE(c2->data_column()->use_count() == 1);
 }
 
 // NOLINTNEXTLINE
@@ -336,7 +336,7 @@ PARALLEL_TEST(ConstColumnTest, test_replicate) {
     auto create_const_column = [](int32_t value, size_t size) {
         auto c = Int32Column::create();
         c->append_numbers(&value, sizeof(value));
-        return ConstColumn::create(c, size);
+        return ConstColumn::create(std::move(c), size);
     };
 
     auto c1 = create_const_column(1, 3);
@@ -360,7 +360,7 @@ PARALLEL_TEST(ConstColumnTest, test_reference_memory_usage) {
         auto create_int_const_column = [](int32_t value, size_t size) {
             auto c = Int32Column::create();
             c->append_numbers(&value, sizeof(value));
-            return ConstColumn::create(c, size);
+            return ConstColumn::create(std::move(c), size);
         };
 
         auto column = create_int_const_column(1, 10);
@@ -371,7 +371,7 @@ PARALLEL_TEST(ConstColumnTest, test_reference_memory_usage) {
             auto c = JsonColumn::create();
             auto json_value = JsonValue::parse(json_str).value();
             c->append_datum(&json_value);
-            return ConstColumn::create(c, size);
+            return ConstColumn::create(std::move(c), size);
         };
         auto column = create_json_const_column("1", 10);
         ASSERT_EQ(2, column->reference_memory_usage());

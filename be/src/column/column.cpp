@@ -21,7 +21,8 @@
 namespace starrocks {
 
 void Column::serialize_batch_with_null_masks(uint8_t* dst, Buffer<uint32_t>& slice_sizes, size_t chunk_size,
-                                             uint32_t max_one_row_size, uint8_t* null_masks, bool has_null) {
+                                             uint32_t max_one_row_size, const uint8_t* null_masks,
+                                             bool has_null) const {
     uint32_t* sizes = slice_sizes.data();
 
     if (!has_null) {
@@ -42,26 +43,28 @@ void Column::serialize_batch_with_null_masks(uint8_t* dst, Buffer<uint32_t>& sli
     }
 }
 
-StatusOr<ColumnPtr> Column::downgrade_helper_func(ColumnPtr* col) {
-    auto ret = (*col)->downgrade();
+StatusOr<ColumnPtr> Column::downgrade_helper_func(const WrappedPtr* col) {
+    auto* mutable_col = const_cast<WrappedPtr*>(col);
+    auto ret = (*mutable_col)->downgrade();
     if (!ret.ok()) {
         return ret;
     } else if (ret.value() == nullptr) {
         return nullptr;
     } else {
-        (*col) = ret.value();
+        (*mutable_col) = ret.value();
         return nullptr;
     }
 }
 
-StatusOr<ColumnPtr> Column::upgrade_helper_func(ColumnPtr* col) {
-    auto ret = (*col)->upgrade_if_overflow();
+StatusOr<ColumnPtr> Column::upgrade_helper_func(const WrappedPtr* col) {
+    auto* mutable_col = const_cast<WrappedPtr*>(col);
+    auto ret = (*mutable_col)->upgrade_if_overflow();
     if (!ret.ok()) {
         return ret;
     } else if (ret.value() == nullptr) {
         return nullptr;
     } else {
-        (*col) = ret.value();
+        (*mutable_col) = ret.value();
         return nullptr;
     }
 }

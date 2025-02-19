@@ -1000,7 +1000,7 @@ THdfsScanRange* FileReaderTest::_create_scan_range(const std::string& file_path,
 
 void FileReaderTest::_append_column_for_chunk(LogicalType column_type, ChunkPtr* chunk) {
     auto c = ColumnHelper::create_column(TypeDescriptor::from_logical_type(column_type), true);
-    (*chunk)->append_column(c, (*chunk)->num_columns());
+    (*chunk)->append_column(std::move(c), (*chunk)->num_columns());
 }
 
 ChunkPtr FileReaderTest::_create_chunk() {
@@ -1035,7 +1035,7 @@ ChunkPtr FileReaderTest::_create_required_array_chunk() {
     _append_column_for_chunk(LogicalType::TYPE_INT, &chunk);
 
     auto c = ColumnHelper::create_column(TYPE_INT_ARRAY_DESC, true);
-    chunk->append_column(c, chunk->num_columns());
+    chunk->append_column(std::move(c), chunk->num_columns());
     return chunk;
 }
 
@@ -1377,7 +1377,7 @@ TEST_F(FileReaderTest, TestReadArray2dColumn) {
     ChunkPtr chunk = std::make_shared<Chunk>();
     _append_column_for_chunk(LogicalType::TYPE_INT, &chunk);
     auto c = ColumnHelper::create_column(TYPE_INT_ARRAY_ARRAY_DESC, true);
-    chunk->append_column(c, chunk->num_columns());
+    chunk->append_column(std::move(c), chunk->num_columns());
     status = file_reader->get_next(&chunk);
     ASSERT_TRUE(status.ok());
     EXPECT_EQ(chunk->num_rows(), 5);
@@ -1429,9 +1429,9 @@ TEST_F(FileReaderTest, TestReadMapCharKeyColumn) {
     ChunkPtr chunk = std::make_shared<Chunk>();
     _append_column_for_chunk(LogicalType::TYPE_INT, &chunk);
     auto c = ColumnHelper::create_column(TYPE_CHAR_INT_MAP_DESC, true);
-    chunk->append_column(c, chunk->num_columns());
+    chunk->append_column(std::move(c), chunk->num_columns());
     auto c_map1 = ColumnHelper::create_column(TYPE_VARCHAR_INT_MAP_DESC, true);
-    chunk->append_column(c_map1, chunk->num_columns());
+    chunk->append_column(std::move(c_map1), chunk->num_columns());
 
     status = file_reader->get_next(&chunk);
     ASSERT_TRUE(status.ok()) << status.message();
@@ -1462,11 +1462,11 @@ TEST_F(FileReaderTest, TestReadMapColumn) {
     ChunkPtr chunk = std::make_shared<Chunk>();
     _append_column_for_chunk(LogicalType::TYPE_INT, &chunk);
     auto c = ColumnHelper::create_column(TYPE_VARCHAR_INT_MAP_DESC, true);
-    chunk->append_column(c, chunk->num_columns());
+    chunk->append_column(std::move(c), chunk->num_columns());
     auto c_map_map = ColumnHelper::create_column(type_map_map, true);
-    chunk->append_column(c_map_map, chunk->num_columns());
+    chunk->append_column(std::move(c_map_map), chunk->num_columns());
     auto c_map_array = ColumnHelper::create_column(TYPE_VARCHAR_INTARRAY_MAP_DESC, true);
-    chunk->append_column(c_map_array, chunk->num_columns());
+    chunk->append_column(std::move(c_map_array), chunk->num_columns());
 
     status = file_reader->get_next(&chunk);
     ASSERT_TRUE(status.ok());
@@ -1750,11 +1750,11 @@ TEST_F(FileReaderTest, TestReadMapColumnWithPartialMaterialize) {
     ChunkPtr chunk = std::make_shared<Chunk>();
     _append_column_for_chunk(LogicalType::TYPE_INT, &chunk);
     auto c = ColumnHelper::create_column(TYPE_VARCHAR_UNKNOWN_MAP_DESC, true);
-    chunk->append_column(c, chunk->num_columns());
+    chunk->append_column(std::move(c), chunk->num_columns());
     auto c_map_map = ColumnHelper::create_column(type_map_map, true);
-    chunk->append_column(c_map_map, chunk->num_columns());
+    chunk->append_column(std::move(c_map_map), chunk->num_columns());
     auto c_map_array = ColumnHelper::create_column(type_map_array, true);
-    chunk->append_column(c_map_array, chunk->num_columns());
+    chunk->append_column(std::move(c_map_array), chunk->num_columns());
 
     status = file_reader->get_next(&chunk);
     ASSERT_TRUE(status.ok());

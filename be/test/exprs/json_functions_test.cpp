@@ -125,8 +125,8 @@ TEST_F(JsonFunctionsTest, get_json_string_casting) {
         strings2->append(strs[j]);
     }
 
-    columns.emplace_back(strings);
-    columns.emplace_back(strings2);
+    columns.emplace_back(std::move(strings));
+    columns.emplace_back(std::move(strings2));
 
     ctx.get()->set_constant_columns(columns);
     ASSERT_TRUE(JsonFunctions::native_json_path_prepare(ctx.get(), FunctionContext::FunctionStateScope::FRAGMENT_LOCAL)
@@ -161,8 +161,8 @@ TEST_F(JsonFunctionsTest, get_json_string_array) {
         strings2->append(strs[j]);
     }
 
-    columns.emplace_back(strings);
-    columns.emplace_back(strings2);
+    columns.emplace_back(std::move(strings));
+    columns.emplace_back(std::move(strings2));
 
     ctx.get()->set_constant_columns(columns);
     ASSERT_TRUE(JsonFunctions::native_json_path_prepare(ctx.get(), FunctionContext::FunctionStateScope::FRAGMENT_LOCAL)
@@ -196,8 +196,8 @@ TEST_F(JsonFunctionsTest, get_json_emptyTest) {
             doubles2->append(strs[j]);
         }
 
-        columns.emplace_back(doubles);
-        columns.emplace_back(doubles2);
+        columns.emplace_back(std::move(doubles));
+        columns.emplace_back(std::move(doubles2));
 
         ctx.get()->set_constant_columns(columns);
         ASSERT_TRUE(
@@ -231,8 +231,8 @@ TEST_F(JsonFunctionsTest, get_json_emptyTest) {
             str_values2->append(strs[j]);
         }
 
-        columns.emplace_back(str_values);
-        columns.emplace_back(str_values2);
+        columns.emplace_back(std::move(str_values));
+        columns.emplace_back(std::move(str_values2));
 
         ctx.get()->set_constant_columns(columns);
         ASSERT_TRUE(
@@ -266,8 +266,8 @@ TEST_F(JsonFunctionsTest, get_json_emptyTest) {
             ints2->append(strs[j]);
         }
 
-        columns.emplace_back(ints);
-        columns.emplace_back(ints2);
+        columns.emplace_back(std::move(ints));
+        columns.emplace_back(std::move(ints2));
 
         ctx.get()->set_constant_columns(columns);
         ASSERT_TRUE(
@@ -301,8 +301,8 @@ TEST_F(JsonFunctionsTest, get_json_emptyTest) {
             ints2->append(strs[j]);
         }
 
-        columns.emplace_back(ints);
-        columns.emplace_back(ints2);
+        columns.emplace_back(std::move(ints));
+        columns.emplace_back(std::move(ints2));
 
         ctx.get()->set_constant_columns(columns);
         ASSERT_TRUE(
@@ -357,7 +357,7 @@ TEST_P(JsonQueryTestFixture, json_query) {
         builder.append(param_path);
     }
 
-    Columns columns{ints, builder.build(true)};
+    Columns columns{std::move(ints), builder.build(true)};
 
     ctx.get()->set_constant_columns(columns);
     std::ignore =
@@ -500,7 +500,7 @@ TEST_P(FlatJsonQueryTestFixture, json_query) {
     jf.flatten(json_col.get());
     flat_json_ptr->set_flat_columns(param_flat_path, param_flat_type, jf.mutable_result());
 
-    Columns columns{flat_json, builder.build(true)};
+    Columns columns{std::move(flat_json), builder.build(true)};
 
     ctx.get()->set_constant_columns(columns);
     std::ignore =
@@ -608,7 +608,7 @@ TEST_P(JsonExistTestFixture, json_exists) {
         builder.append(param_result);
     }
 
-    Columns columns{ints, builder.build(true)};
+    Columns columns{std::move(ints), builder.build(true)};
 
     ctx.get()->set_constant_columns(columns);
     Status st = JsonFunctions::native_json_path_prepare(ctx.get(), FunctionContext::FunctionStateScope::FRAGMENT_LOCAL);
@@ -692,11 +692,11 @@ TEST_P(FlatJsonExistsTestFixture, flat_json_exists_test) {
     flat_json_ptr->set_flat_columns(param_flat_path, param_flat_type, jf.mutable_result());
 
     Columns columns;
-    columns.push_back(flat_json);
+    columns.emplace_back(std::move(flat_json));
     if (!param_path.empty()) {
         auto path_column = BinaryColumn::create();
         path_column->append(param_path);
-        columns.push_back(path_column);
+        columns.emplace_back(std::move(path_column));
     }
 
     ctx.get()->set_constant_columns(columns);
@@ -767,11 +767,11 @@ TEST_F(JsonFunctionsTest, flat_json_invalid_path_test) {
     flat_json_ptr->set_flat_columns(param_flat_path, param_flat_type, jf.mutable_result());
 
     Columns columns;
-    columns.push_back(flat_json);
+    columns.emplace_back(std::move(flat_json));
     if (!param_path.empty()) {
         auto path_column = BinaryColumn::create();
         path_column->append(param_path);
-        columns.push_back(ConstColumn::create(path_column));
+        columns.push_back(ConstColumn::create(std::move(path_column)));
     }
 
     ctx.get()->set_constant_columns(columns);
@@ -816,11 +816,11 @@ TEST_F(JsonFunctionsTest, flat_json_invalid_constant_json_test) {
     flat_json_ptr->set_flat_columns(param_flat_path, param_flat_type, jf.mutable_result());
 
     Columns columns;
-    columns.push_back(ConstColumn::create(flat_json, 2));
+    columns.push_back(ConstColumn::create(std::move(flat_json), 2));
     if (!param_path.empty()) {
         auto path_column = BinaryColumn::create();
         path_column->append(param_path);
-        columns.push_back(ConstColumn::create(path_column, 2));
+        columns.push_back(ConstColumn::create(std::move(path_column), 2));
     }
 
     ctx.get()->set_constant_columns(columns);
@@ -861,14 +861,14 @@ TEST_F(JsonFunctionsTest, flat_json_variable_path_test) {
     flat_json_ptr->set_flat_columns(param_flat_path, param_flat_type, jf.mutable_result());
 
     Columns columns;
-    columns.push_back(flat_json);
+    columns.emplace_back(std::move(flat_json));
     flat_json->assign(10, 0);
 
     if (!param_path.empty()) {
         auto path_column = BinaryColumn::create();
         path_column->append(param_path);
         path_column->assign(10, 0);
-        columns.push_back(path_column);
+        columns.emplace_back(std::move(path_column));
     }
 
     ASSERT_TRUE(JsonFunctions::native_json_path_prepare(ctx.get(), FunctionContext::FunctionStateScope::FRAGMENT_LOCAL)
@@ -907,14 +907,14 @@ TEST_F(JsonFunctionsTest, flat_json_invalid_variable_path_test) {
     flat_json_ptr->set_flat_columns(param_flat_path, param_flat_type, jf.mutable_result());
 
     Columns columns;
-    columns.push_back(flat_json);
+    columns.emplace_back(std::move(flat_json));
     flat_json->assign(2, 0);
 
     if (!param_path.empty()) {
         auto path_column = BinaryColumn::create();
         path_column->append(param_path);
         path_column->append("$.k3");
-        columns.push_back(path_column);
+        columns.emplace_back(std::move(path_column));
     }
 
     ASSERT_TRUE(JsonFunctions::native_json_path_prepare(ctx.get(), FunctionContext::FunctionStateScope::FRAGMENT_LOCAL)
@@ -955,13 +955,13 @@ TEST_F(JsonFunctionsTest, flat_json_invalid_null_path_test) {
     flat_json_ptr->set_flat_columns(param_flat_path, param_flat_type, jf.mutable_result());
 
     Columns columns;
-    columns.push_back(flat_json);
+    columns.emplace_back(std::move(flat_json));
     flat_json->assign(2, 0);
 
     if (!param_path.empty()) {
         auto path_column = NullableColumn::create(BinaryColumn::create(), NullColumn::create());
         path_column->append_nulls(2);
-        columns.push_back(path_column);
+        columns.emplace_back(std::move(path_column));
     }
 
     ASSERT_TRUE(JsonFunctions::native_json_path_prepare(ctx.get(), FunctionContext::FunctionStateScope::FRAGMENT_LOCAL)
@@ -1002,12 +1002,12 @@ TEST_F(JsonFunctionsTest, flat_json_constant_path_test) {
     flat_json_ptr->set_flat_columns(param_flat_path, param_flat_type, jf.mutable_result());
 
     Columns columns;
-    columns.push_back(flat_json);
+    columns.emplace_back(std::move(flat_json));
 
     if (!param_path.empty()) {
         auto path_column = BinaryColumn::create();
         path_column->append(param_path);
-        columns.push_back(ConstColumn::create(path_column, 1));
+        columns.push_back(ConstColumn::create(std::move(path_column), 1));
     }
 
     ASSERT_TRUE(JsonFunctions::native_json_path_prepare(ctx.get(), FunctionContext::FunctionStateScope::FRAGMENT_LOCAL)
@@ -1029,7 +1029,7 @@ TEST_P(JsonParseTestFixture, json_parse) {
 
     auto ints = BinaryColumn::create();
     ints->append(param_json);
-    Columns columns{ints};
+    Columns columns{std::move(ints)};
     ctx.get()->set_constant_columns(columns);
 
     ColumnPtr result = JsonFunctions::parse_json(ctx.get(), columns).value();
@@ -1246,11 +1246,11 @@ TEST_P(JsonLengthTestFixture, json_length_test) {
     json_column->append(&*json);
 
     Columns columns;
-    columns.push_back(json_column);
+    columns.emplace_back(std::move(json_column));
     if (!param_path.empty()) {
         auto path_column = BinaryColumn::create();
         path_column->append(param_path);
-        columns.push_back(path_column);
+        columns.emplace_back(std::move(path_column));
     }
 
     // ctx.get()->set_constant_columns(columns);
@@ -1311,11 +1311,11 @@ TEST_P(FlatJsonLengthTestFixture, flat_json_length_test) {
     flat_json_ptr->set_flat_columns(param_flat_path, param_flat_type, jf.mutable_result());
 
     Columns columns;
-    columns.push_back(flat_json);
+    columns.emplace_back(std::move(flat_json));
     if (!param_path.empty()) {
         auto path_column = BinaryColumn::create();
         path_column->append(param_path);
-        columns.push_back(path_column);
+        columns.emplace_back(std::move(path_column));
     }
 
     // ctx.get()->set_constant_columns(columns);
@@ -1356,11 +1356,11 @@ TEST_P(JsonKeysTestFixture, json_keys) {
     json_column->append(&*json);
 
     Columns columns;
-    columns.push_back(json_column);
+    columns.emplace_back(std::move(json_column));
     if (!param_path.empty()) {
         auto path_column = BinaryColumn::create();
         path_column->append(param_path);
-        columns.push_back(path_column);
+        columns.emplace_back(std::move(path_column));
     }
 
     Status st = JsonFunctions::native_json_path_prepare(ctx.get(), FunctionContext::FunctionStateScope::FRAGMENT_LOCAL);
@@ -1426,7 +1426,7 @@ public:
         } else {
             builder.append(param_path);
         }
-        Columns columns{ints, builder.build(true)};
+        Columns columns{std::move(ints), builder.build(true)};
 
         _ctx->set_constant_columns(columns);
         std::ignore = JsonFunctions::native_json_path_prepare(_ctx.get(),
@@ -1544,12 +1544,12 @@ TEST_F(JsonFunctionsTest, struct_to_json) {
     // Build struct column
     Columns fields{NullableColumn::create(Int64Column::create(), NullColumn::create()),
                    NullableColumn::create(BinaryColumn::create(), NullColumn::create())};
-    auto struct_column = StructColumn::create(fields, names);
+    auto struct_column = StructColumn::create(std::move(fields), std::move(names));
     struct_column->append_datum(DatumStruct{int64_t(1), Slice("park")});
     struct_column->append_datum(DatumStruct{int64_t(2), Slice("menlo")});
 
     // Cast to JSON
-    Columns input_columns{struct_column};
+    Columns input_columns{std::move(struct_column)};
     auto maybe_res = JsonFunctions::to_json(ctx.get(), input_columns);
     ASSERT_TRUE(maybe_res.ok());
     ColumnPtr ptr = maybe_res.value();
@@ -1571,7 +1571,7 @@ TEST_F(JsonFunctionsTest, map_to_json) {
     {
         auto key_column = NullableColumn::create(Int64Column::create(), NullColumn::create());
         auto val_column = NullableColumn::create(BinaryColumn::create(), NullColumn::create());
-        auto struct_column = MapColumn::create(key_column, val_column, UInt32Column::create());
+        auto struct_column = MapColumn::create(std::move(key_column), std::move(val_column), UInt32Column::create());
 
         DatumMap map1;
         map1[int64_t(1)] = Slice("menlo");
@@ -1583,7 +1583,7 @@ TEST_F(JsonFunctionsTest, map_to_json) {
         struct_column->append_datum(map2);
 
         // Call to_json
-        Columns input_columns{struct_column};
+        Columns input_columns{std::move(struct_column)};
         auto maybe_res = JsonFunctions::to_json(ctx.get(), input_columns);
         ASSERT_TRUE(maybe_res.ok());
         ColumnPtr ptr = maybe_res.value();
@@ -1602,7 +1602,7 @@ TEST_F(JsonFunctionsTest, map_to_json) {
     {
         auto key_column = NullableColumn::create(BinaryColumn::create(), NullColumn::create());
         auto val_column = NullableColumn::create(Int64Column::create(), NullColumn::create());
-        auto struct_column = MapColumn::create(key_column, val_column, UInt32Column::create());
+        auto struct_column = MapColumn::create(std::move(key_column), std::move(val_column), UInt32Column::create());
 
         DatumMap map1;
         map1[Slice("menlo")] = int64_t(1);
@@ -1614,7 +1614,7 @@ TEST_F(JsonFunctionsTest, map_to_json) {
         struct_column->append_datum(map2);
 
         // Call to_json
-        Columns input_columns{struct_column};
+        Columns input_columns{std::move(struct_column)};
         auto maybe_res = JsonFunctions::to_json(ctx.get(), input_columns);
         ASSERT_TRUE(maybe_res.ok());
         ColumnPtr ptr = maybe_res.value();

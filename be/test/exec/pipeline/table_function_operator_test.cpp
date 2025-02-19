@@ -147,13 +147,13 @@ void TableFunctionOperatorTest::SetUp() {
     _tnode.table_function_node.table_function.nodes.push_back(expr_node);
 
     _tnode.table_function_node.__isset.param_columns = true;
-    _tnode.table_function_node.param_columns.emplace_back(1);
+    _tnode.table_function_node.param_columns.emplace_back(std::move(1));
 
     _tnode.table_function_node.__isset.outer_columns = true;
-    _tnode.table_function_node.outer_columns.emplace_back(2);
+    _tnode.table_function_node.outer_columns.emplace_back(std::move(2));
 
     _tnode.table_function_node.__isset.fn_result_columns = true;
-    _tnode.table_function_node.fn_result_columns.emplace_back(3);
+    _tnode.table_function_node.fn_result_columns.emplace_back(std::move(3));
 }
 
 TEST_F(TableFunctionOperatorTest, check_mem_leak) {

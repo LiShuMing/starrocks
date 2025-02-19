@@ -234,8 +234,8 @@ bool OrcRowReaderFilter::filterOnPickStringDictionary(
         ChunkPtr dict_value_chunk = std::make_shared<Chunk>();
         // always assume there is a possibility of null value in ORC column.
         // and we evaluate with null always.
-        ColumnPtr column_ptr = ColumnHelper::create_column(slot_desc->type(), true);
-        dict_value_chunk->append_column(column_ptr, slot_id);
+        MutableColumnPtr column_ptr = ColumnHelper::create_column(slot_desc->type(), true);
+        dict_value_chunk->append_column(std::move(column_ptr), slot_id);
 
         auto* nullable_column = down_cast<NullableColumn*>(column_ptr.get());
         auto* dict_value_column = down_cast<BinaryColumn*>(nullable_column->data_column().get());
@@ -613,7 +613,7 @@ StatusOr<size_t> HdfsOrcScanner::_do_get_next(ChunkPtr* chunk) {
         orc::RowReader::ReadPosition position;
         size_t read_num_values = 0;
         bool has_used_dict_filter = false;
-        ColumnPtr row_delete_filter = BooleanColumn::create();
+        MutableColumnPtr row_delete_filter = BooleanColumn::create();
         {
             SCOPED_RAW_TIMER(&_app_stats.column_read_ns);
             RETURN_IF_ERROR(_orc_reader->read_next(&position));
@@ -672,7 +672,7 @@ StatusOr<size_t> HdfsOrcScanner::_do_get_next(ChunkPtr* chunk) {
             }
 
             if (rows_read != 0) {
-                ColumnHelper::merge_two_filters(row_delete_filter, &_chunk_filter, nullptr);
+                ColumnHelper::merge_two_filters(std::move(row_delete_filter), &_chunk_filter, nullptr);
                 rows_read = SIMD::count_nonzero(_chunk_filter);
                 if (rows_read == 0) {
                     // If rows_read = 0, we need to set chunk size = 0 and bypass filter chunk directly

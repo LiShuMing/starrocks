@@ -60,7 +60,7 @@ TEST_F(VectorizedIfExprTest, ifArray) {
     target->append_datum(Datum{(int8_t)0});
     target->append_datum(Datum{(int8_t)1});
     target->append_datum(Datum{(int8_t)0});
-    auto cond = MockExpr(TypeDescriptor(TYPE_BOOLEAN), target);
+    auto cond = MockExpr(TypeDescriptor(TYPE_BOOLEAN), std::move(target));
 
     TypeDescriptor type_arr_int = array_type(TYPE_INT);
 
@@ -68,13 +68,13 @@ TEST_F(VectorizedIfExprTest, ifArray) {
     array0->append_datum(DatumArray{Datum((int32_t)1), Datum((int32_t)4)}); // [1,4]
     array0->append_datum(DatumArray{Datum(), Datum()});                     // [NULL, NULL]
     array0->append_datum(DatumArray{Datum(), Datum((int32_t)12)});          // [NULL, 12]
-    auto array_expr0 = MockExpr(type_arr_int, array0);
+    auto array_expr0 = MockExpr(type_arr_int, std::move(array0));
 
     auto array1 = ColumnHelper::create_column(type_arr_int, false);
     array1->append_datum(DatumArray{Datum((int32_t)11), Datum((int32_t)41)}); // [11,41]
     array1->append_datum(DatumArray{Datum(), Datum()});                       // [NULL, NULL]
     array1->append_datum(DatumArray{Datum(), Datum((int32_t)1)});             // [NULL, 1]
-    auto array_expr1 = MockExpr(type_arr_int, array1);
+    auto array_expr1 = MockExpr(type_arr_int, std::move(array1));
 
     expr->_children.push_back(&cond);
     expr->_children.push_back(&array_expr0);

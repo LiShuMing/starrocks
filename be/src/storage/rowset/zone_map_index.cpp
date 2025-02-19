@@ -320,7 +320,7 @@ Status ZoneMapIndexReader::_do_load(const IndexReadOptions& opts, const ZoneMapI
         RETURN_IF_ERROR(iter->next_batch(&num_read, column.get()));
         DCHECK(num_to_read == num_read);
 
-        ColumnViewer<TYPE_VARCHAR> viewer(column);
+        ColumnViewer<TYPE_VARCHAR> viewer(std::move(column));
         auto value = viewer.value(0);
         if (!_page_zone_maps[i].ParseFromArray(value.data, value.size)) {
             return Status::Corruption("Failed to parse zone map");

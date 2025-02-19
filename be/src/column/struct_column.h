@@ -19,50 +19,71 @@
 #include "column/fixed_length_column.h"
 
 namespace starrocks {
-class StructColumn final : public ColumnFactory<Column, StructColumn> {
-    friend class ColumnFactory<Column, StructColumn>;
+class StructColumn final : public COWHelper<ColumnFactory<Column, StructColumn>, StructColumn> {
+    friend class COWHelper<ColumnFactory<Column, StructColumn>, StructColumn>;
+    using Base = COWHelper<ColumnFactory<Column, StructColumn>, StructColumn>;
 
 public:
     using ValueType = void;
     using Container = Buffer<std::string>;
 
     // Used to construct an unnamed struct
-    StructColumn(Columns fields) : _fields(std::move(fields)) {
-        DCHECK(_fields.size() > 0);
+    StructColumn(MutableColumns&& fields) {
         for (auto& f : fields) {
             DCHECK(f->is_nullable());
             DCHECK_EQ(f->size(), size());
             f->check_or_die();
+            _fields.emplace_back(std::move(f));
         }
+        DCHECK(_fields.size() > 0);
     }
 
-    StructColumn(Columns fields, std::vector<std::string> field_names)
-            : _fields(std::move(fields)), _field_names(std::move(field_names)) {
+    StructColumn(MutableColumns&& fields, std::vector<std::string> field_names) : _field_names(std::move(field_names)) {
         // Struct must have at least one field.
-        DCHECK(_fields.size() > 0);
         DCHECK(_field_names.size() > 0);
-
-        // fields and field_names must have the same size.
-        DCHECK(_fields.size() == _field_names.size());
-
         for (auto& f : fields) {
             DCHECK(f->is_nullable());
             DCHECK_EQ(f->size(), size());
             f->check_or_die();
+            _fields.emplace_back(std::move(f));
         }
+        DCHECK(_fields.size() > 0);
+        // fields and field_names must have the same size.
+        DCHECK(_fields.size() == _field_names.size());
     }
 
     StructColumn(const StructColumn& rhs) {
-        Columns fields;
         for (const auto& field : rhs._fields) {
-            fields.emplace_back(field->clone_shared());
+            _fields.emplace_back(field->clone());
         }
-        _fields = fields;
         _field_names = rhs._field_names;
     }
 
     StructColumn(StructColumn&& rhs) noexcept
             : _fields(std::move(rhs._fields)), _field_names(std::move(rhs._field_names)) {}
+
+    /** Create immutable column using immutable arguments. This arguments may be shared with other columns.
+      */
+    static Ptr create(const Columns& columns, std::vector<std::string> field_names) {
+        MutableColumns cols;
+        cols.reserve(columns.size());
+        for (const auto& col : columns) {
+            cols.emplace_back(col->assume_mutable());
+        }
+        return StructColumn::create(std::move(cols), std::move(field_names));
+    }
+    static Ptr create(const Columns& columns) {
+        MutableColumns cols;
+        cols.reserve(columns.size());
+        for (const auto& col : columns) {
+            cols.emplace_back(col->assume_mutable());
+        }
+        return StructColumn::create(std::move(cols));
+    }
+    static MutablePtr create(MutableColumns&& columns, std::vector<std::string> field_names) {
+        return Base::create(std::move(columns), std::move(field_names));
+    }
+    static MutablePtr create(MutableColumns&& columns) { return Base::create(std::move(columns)); }
 
     ~StructColumn() override = default;
 
@@ -120,12 +141,12 @@ public:
 
     void append_default(size_t count) override;
 
-    uint32_t serialize(size_t idx, uint8_t* pos) override;
+    uint32_t serialize(size_t idx, uint8_t* pos) const override;
 
-    uint32_t serialize_default(uint8_t* pos) override;
+    uint32_t serialize_default(uint8_t* pos) const override;
 
     void serialize_batch(uint8_t* dst, Buffer<uint32_t>& slice_sizes, size_t chunk_size,
-                         uint32_t max_one_row_size) override;
+                         uint32_t max_one_row_size) const override;
 
     const uint8_t* deserialize_and_append(const uint8_t* pos) override;
 
@@ -173,22 +194,27 @@ public:
 
     void check_or_die() const override;
 
-    // Struct Column own functions
-    const Columns& fields() const;
+    const WrappedColumns& fields() const { return _fields; }
 
-    Columns& fields_column();
+    const WrappedColumns& fields_column() const { return _fields; }
+    WrappedColumns& fields_column() { return _fields; }
 
-    ColumnPtr field_column(const std::string& field_name) const;
+    const Column& get_field_column(const std::string& field_name) const;
+    Column& get_field_column(const std::string& field_name);
 
+    const ColumnPtr& field_column(const std::string& field_name) const;
     ColumnPtr& field_column(const std::string& field_name);
+    MutableColumnPtr mutable_field_column(const std::string& field_name);
 
     const std::vector<std::string>& field_names() const { return _field_names; }
 
     Status unfold_const_children(const TypeDescriptor& type) override;
 
 private:
+    size_t _find_field_idx_by_name(const std::string& field_name) const;
+
     // A collection that contains StructType's subfield column.
-    Columns _fields;
+    WrappedColumns _fields;
 
     // A collection that contains each struct subfield name.
     // _fields and _field_names should have the same size (_fields.size() == _field_names.size()).

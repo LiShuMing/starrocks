@@ -228,8 +228,8 @@ static std::string alphabet0 =
 
 static std::string alphabet1 = "~!@#$%^&*()_+{}|:\"<>?[]\\;',./";
 
-static std::shared_ptr<BinaryColumn> gen_random_binary_column(const std::string& alphabet, size_t avg_length,
-                                                              size_t num_rows) {
+static BinaryColumn::MutablePtr gen_random_binary_column(const std::string& alphabet, size_t avg_length,
+                                                         size_t num_rows) {
     auto col = BinaryColumn::create();
     col->reserve(num_rows);
     std::random_device rd;
@@ -269,13 +269,13 @@ TEST_F(RuntimeFilterTest, TestJoinRuntimeFilter) {
 
     // test evaluate.
     TypeDescriptor type_desc(TYPE_INT);
-    ColumnPtr column = ColumnHelper::create_column(type_desc, false);
+    MutableColumnPtr column = ColumnHelper::create_column(type_desc, false);
     auto* col = ColumnHelper::as_raw_column<RunTimeTypeTraits<TYPE_INT>::ColumnType>(column);
     for (int i = 0; i <= 200; i += 1) {
         col->append(i);
     }
     Chunk chunk;
-    chunk.append_column(column, 0);
+    chunk.append_column(std::move(column), 0);
     JoinRuntimeFilter::RunningContext ctx;
     ctx.use_merged_selection = false;
     auto& selection = ctx.selection;
@@ -589,7 +589,7 @@ void split_merged_rf(const RuntimeFilterLayout& layout, const std::vector<JoinRu
         rfs_per_instance.reserve(1);
         DCHECK(rfs.size() == num_instances);
         rfs_per_instance.push_back(std::vector<JoinRuntimeFilter*>{rfs[0]});
-        columns_per_instance.push_back(Columns{columns[0]});
+        columns_per_instance.push_back(Columns{std::move(columns[0])});
     } else if (local_layout == TRuntimeFilterLayoutMode::PIPELINE_SHUFFLE) {
         num_instances = layout.num_instances();
         DCHECK(rfs.size() == num_instances * layout.num_drivers_per_instance());
@@ -601,7 +601,7 @@ void split_merged_rf(const RuntimeFilterLayout& layout, const std::vector<JoinRu
             for (auto d = 0; d < layout.num_drivers_per_instance(); ++d) {
                 auto idx = i * layout.num_drivers_per_instance() + d;
                 current_rfs.push_back(rfs[idx]);
-                current_columns.push_back(columns[idx]);
+                current_columns.emplace_back(std::move(columns[idx]));
             }
         }
     } else if (local_layout == TRuntimeFilterLayoutMode::PIPELINE_BUCKET ||
@@ -637,7 +637,7 @@ void split_merged_rf(const RuntimeFilterLayout& layout, const std::vector<JoinRu
                 for (auto d = 0; d < num_drivers; ++d) {
                     auto idx = next_rf_idx++;
                     current_rfs.push_back(rfs[idx]);
-                    current_columns.push_back(columns[idx]);
+                    current_columns.emplace_back(std::move(columns[idx]));
                 }
             }
         } else {
@@ -650,7 +650,7 @@ void split_merged_rf(const RuntimeFilterLayout& layout, const std::vector<JoinRu
                 for (auto d = 0; d < layout.num_drivers_per_instance(); ++d) {
                     auto idx = i * layout.num_drivers_per_instance() + d;
                     current_rfs.push_back(rfs[idx]);
-                    current_columns.push_back(columns[idx]);
+                    current_columns.emplace_back(std::move(columns[idx]));
                 }
             }
         }
@@ -1120,7 +1120,7 @@ void TestMultiColumnsOnRuntimeFilter(TRuntimeFilterBuildJoinMode::type join_mode
 
 ColumnPtr CreateSeriesColumnInt32(int32_t num_rows, bool nullable) {
     auto type_desc = TypeDescriptor(TYPE_INT);
-    ColumnPtr column = ColumnHelper::create_column(type_desc, nullable);
+    MutableColumnPtr column = ColumnHelper::create_column(type_desc, nullable);
     std::vector<int32_t> elements(num_rows);
     std::iota(elements.begin(), elements.end(), 0);
     for (auto& x : elements) {

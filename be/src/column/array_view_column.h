@@ -26,19 +26,20 @@
 
 namespace starrocks {
 
-class ArrayViewColumn final : public ColumnFactory<Column, ArrayViewColumn> {
-    friend class ColumnFactory<Column, ArrayViewColumn>;
+class ArrayViewColumn final : public COWHelper<ColumnFactory<Column, ArrayViewColumn>, ArrayViewColumn> {
+    friend class COWHelper<ColumnFactory<Column, ArrayViewColumn>, ArrayViewColumn>;
 
 public:
     using ValueType = void;
+    using UInt32ColumnWrappedPtr = UInt32Column::DerivedWrappedPtr;
 
     ArrayViewColumn(ColumnPtr elements, UInt32Column::Ptr offsets, UInt32Column::Ptr lengths)
             : _elements(std::move(elements)), _offsets(std::move(offsets)), _lengths(std::move(lengths)) {}
 
     ArrayViewColumn(const ArrayViewColumn& rhs)
             : _elements(rhs._elements),
-              _offsets(std::static_pointer_cast<UInt32Column>(rhs._offsets->clone_shared())),
-              _lengths(std::static_pointer_cast<UInt32Column>(rhs._lengths->clone_shared())) {}
+              _offsets(UInt32Column::static_pointer_cast(rhs._offsets->clone())),
+              _lengths(UInt32Column::static_pointer_cast(rhs._lengths->clone())) {}
 
     ArrayViewColumn(ArrayViewColumn&& rhs) noexcept
             : _elements(std::move(rhs._elements)),
@@ -129,12 +130,12 @@ public:
 
     uint32_t max_one_element_serialize_size() const override;
 
-    uint32_t serialize(size_t idx, uint8_t* pos) override;
+    uint32_t serialize(size_t idx, uint8_t* pos) const override;
 
-    uint32_t serialize_default(uint8_t* pos) override;
+    uint32_t serialize_default(uint8_t* pos) const override;
 
     void serialize_batch(uint8_t* dst, Buffer<uint32_t>& slice_sized, size_t chunk_size,
-                         uint32_t max_one_row_size) override;
+                         uint32_t max_one_row_size) const override;
 
     const uint8_t* deserialize_and_append(const uint8_t* pos) override;
 
@@ -222,8 +223,8 @@ public:
     ColumnPtr to_array_column() const;
 
 private:
-    ColumnPtr _elements;
-    UInt32Column::Ptr _offsets;
-    UInt32Column::Ptr _lengths;
+    WrappedPtr _elements;
+    UInt32ColumnWrappedPtr _offsets;
+    UInt32ColumnWrappedPtr _lengths;
 };
 } // namespace starrocks

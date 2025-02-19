@@ -305,7 +305,7 @@ TEST_P(SchemaChangeAddColumnTest, test_add_column) {
         c0->append_datum(Datum(i * 1));
         c1->append_datum(Datum(i * 2));
 
-        VChunk chunk0({c0, c1}, _base_schema);
+        VChunk chunk0({std::move(c0), std::move(c1)}, _base_schema);
         uint32_t indexes[1] = {0};
 
         ASSIGN_OR_ABORT(auto delta_writer, DeltaWriterBuilder()
@@ -350,7 +350,7 @@ TEST_P(SchemaChangeAddColumnTest, test_add_column) {
         c1->append_datum(Datum(i * 4));
         c2->append_datum(Datum(i * 8));
 
-        VChunk chunk1({c0, c1, c2}, _new_schema);
+        VChunk chunk1({std::move(c0), std::move(c1), std::move(c2)}, _new_schema);
         uint32_t indexes[1] = {0};
 
         ASSIGN_OR_ABORT(auto delta_writer, DeltaWriterBuilder()
@@ -435,7 +435,7 @@ TEST_P(SchemaChangeAddColumnTest, test_add_generated_column) {
         c0->append_datum(Datum(i * 1));
         c1->append_datum(Datum(i * 2));
 
-        VChunk chunk0({c0, c1}, _base_schema);
+        VChunk chunk0({std::move(c0), std::move(c1)}, _base_schema);
         uint32_t indexes[1] = {0};
 
         ASSIGN_OR_ABORT(auto delta_writer, DeltaWriterBuilder()
@@ -506,7 +506,7 @@ TEST_P(SchemaChangeAddColumnTest, test_add_generated_column) {
         c1->append_datum(Datum(i * 4));
         c2->append_datum(Datum(i * 5 /* c0 + c1 */));
 
-        VChunk chunk1({c0, c1, c2}, _new_schema_with_generated_column);
+        VChunk chunk1({std::move(c0), std::move(c1), std::move(c2)}, _new_schema_with_generated_column);
         uint32_t indexes[1] = {0};
 
         ASSIGN_OR_ABORT(auto delta_writer, DeltaWriterBuilder()
@@ -716,7 +716,7 @@ TEST_P(SchemaChangeModifyColumnTypeTest, test_alter_column_type) {
         c0->append_datum(Datum(i * 1));
         c1->append_datum(Datum(i * 2));
 
-        VChunk chunk0({c0, c1}, _base_schema);
+        VChunk chunk0({std::move(c0), std::move(c1)}, _base_schema);
         uint32_t indexes[1] = {0};
 
         ASSIGN_OR_ABORT(auto delta_writer, DeltaWriterBuilder()
@@ -760,7 +760,7 @@ TEST_P(SchemaChangeModifyColumnTypeTest, test_alter_column_type) {
         c0->append_datum(Datum((int32_t)(i * 1)));
         c1->append_datum(Datum((int64_t)(i * 4)));
 
-        VChunk chunk1({c0, c1}, _new_schema);
+        VChunk chunk1({std::move(c0), std::move(c1)}, _new_schema);
         uint32_t indexes[1] = {0};
 
         ASSIGN_OR_ABORT(auto delta_writer, DeltaWriterBuilder()
@@ -986,7 +986,7 @@ TEST_P(SchemaChangeModifyColumnOrderTest, test_alter_key_order) {
     ck1->append_numbers(k1.data(), k1.size() * sizeof(int));
     cv0->append_numbers(v0.data(), v0.size() * sizeof(int));
 
-    VChunk chunk0({ck0, ck1, cv0}, _base_schema);
+    VChunk chunk0({std::move(ck0), std::move(ck1), std::move(cv0)}, _base_schema);
 
     auto indexes = std::vector<uint32_t>(k0.size());
     for (int i = 0; i < k0.size(); i++) {
@@ -1030,7 +1030,7 @@ TEST_P(SchemaChangeModifyColumnOrderTest, test_alter_key_order) {
     }
 
     for (int i = 0; i < GetParam().writes_after; i++) {
-        VChunk chunk1({ck1, ck0, cv0}, _new_schema);
+        VChunk chunk1({std::move(ck1), std::move(ck0), std::move(cv0)}, _new_schema);
 
         ASSIGN_OR_ABORT(auto delta_writer, DeltaWriterBuilder()
                                                    .set_tablet_manager(_tablet_manager.get())
@@ -1269,8 +1269,8 @@ TEST_P(SchemaChangeModifyColumnMultiSegmentOrderTest, test_alter_table) {
         // mutli segments in on rowset
         const int64_t old_size = config::write_buffer_size;
         config::write_buffer_size = 1;
-        VChunk chunk0({ck0, ck1, cv0}, _base_schema);
-        VChunk chunk1({ck0_2, ck1_2, cv0_2}, _base_schema);
+        VChunk chunk0({std::move(ck0), std::move(ck1), std::move(cv0)}, _base_schema);
+        VChunk chunk1({std::move(ck0_2), std::move(ck1_2), std::move(cv0_2)}, _base_schema);
 
         ASSIGN_OR_ABORT(auto delta_writer, DeltaWriterBuilder()
                                                    .set_tablet_manager(_tablet_manager.get())
@@ -1474,7 +1474,7 @@ TEST_P(SchemaChangeSortKeyReorderTest1, test_alter_sortkey_reorder_1) {
     ck1->append_numbers(k1.data(), k1.size() * sizeof(int));
     cv0->append_numbers(v0.data(), v0.size() * sizeof(int));
 
-    VChunk chunk0({ck0, ck1, cv0}, _base_schema);
+    VChunk chunk0({std::move(ck0), std::move(ck1), std::move(cv0)}, _base_schema);
 
     auto indexes = std::vector<uint32_t>(k0.size());
     for (int i = 0; i < k0.size(); i++) {
@@ -1517,7 +1517,7 @@ TEST_P(SchemaChangeSortKeyReorderTest1, test_alter_sortkey_reorder_1) {
     }
 
     for (int i = 0; i < GetParam().writes_after; i++) {
-        VChunk chunk1({ck0, ck1, cv0}, _new_schema);
+        VChunk chunk1({std::move(ck0), std::move(ck1), std::move(cv0)}, _new_schema);
 
         ASSIGN_OR_ABORT(auto delta_writer, DeltaWriterBuilder()
                                                    .set_tablet_manager(_tablet_manager.get())
@@ -1712,7 +1712,7 @@ TEST_P(SchemaChangeSortKeyReorderTest2, test_alter_sortkey_reorder2) {
     ck1->append_numbers(k1.data(), k1.size() * sizeof(int));
     cv0->append_numbers(v0.data(), v0.size() * sizeof(int));
 
-    VChunk chunk0({ck0, ck1, cv0}, _base_schema);
+    VChunk chunk0({std::move(ck0), std::move(ck1), std::move(cv0)}, _base_schema);
 
     auto indexes = std::vector<uint32_t>(k0.size());
     for (int i = 0; i < k0.size(); i++) {
@@ -1755,7 +1755,7 @@ TEST_P(SchemaChangeSortKeyReorderTest2, test_alter_sortkey_reorder2) {
     }
 
     for (int i = 0; i < GetParam().writes_after; i++) {
-        VChunk chunk1({ck0, ck1, cv0}, _new_schema);
+        VChunk chunk1({std::move(ck0), std::move(ck1), std::move(cv0)}, _new_schema);
 
         ASSIGN_OR_ABORT(auto delta_writer, DeltaWriterBuilder()
                                                    .set_tablet_manager(_tablet_manager.get())
@@ -1948,7 +1948,7 @@ TEST_P(SchemaChangeSortKeyReorderTest3, test_alter_sortkey_reorder3) {
     ck1->append_numbers(k1.data(), k1.size() * sizeof(int));
     cv0->append_numbers(v0.data(), v0.size() * sizeof(int));
 
-    VChunk chunk0({ck0, ck1, cv0}, _base_schema);
+    VChunk chunk0({std::move(ck0), std::move(ck1), std::move(cv0)}, _base_schema);
 
     auto indexes = std::vector<uint32_t>(k0.size());
     for (int i = 0; i < k0.size(); i++) {
@@ -1991,7 +1991,7 @@ TEST_P(SchemaChangeSortKeyReorderTest3, test_alter_sortkey_reorder3) {
     }
 
     for (int i = 0; i < GetParam().writes_after; i++) {
-        VChunk chunk1({ck0, ck1, cv0}, _new_schema);
+        VChunk chunk1({std::move(ck0), std::move(ck1), std::move(cv0)}, _new_schema);
 
         ASSIGN_OR_ABORT(auto delta_writer, DeltaWriterBuilder()
                                                    .set_tablet_manager(_tablet_manager.get())

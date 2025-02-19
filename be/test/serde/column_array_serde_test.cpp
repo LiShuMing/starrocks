@@ -274,7 +274,7 @@ PARALLEL_TEST(ColumnArraySerdeTest, const_column) {
     auto create_const_column = [](int32_t value, size_t size) {
         auto c = Int32Column::create();
         c->append_numbers(&value, sizeof(value));
-        return ConstColumn::create(c, size);
+        return ConstColumn::create(std::move(c), size);
     };
 
     auto c1 = create_const_column(100, 10);
@@ -306,7 +306,7 @@ PARALLEL_TEST(ColumnArraySerdeTest, const_column) {
 PARALLEL_TEST(ColumnArraySerdeTest, array_column) {
     auto off1 = UInt32Column::create();
     auto elem1 = NullableColumn::create(Int32Column::create(), NullColumn ::create());
-    auto c1 = ArrayColumn::create(elem1, off1);
+    auto c1 = ArrayColumn::create(std::move(elem1), std::move(off1));
 
     // insert [1, 2, 3], [4, 5, 6]
     elem1->append_datum(1);
@@ -329,7 +329,7 @@ PARALLEL_TEST(ColumnArraySerdeTest, array_column) {
 
     auto off2 = UInt32Column::create();
     auto elem2 = NullableColumn::create(Int32Column::create(), NullColumn ::create());
-    auto c2 = ArrayColumn::create(elem1, off2);
+    auto c2 = ArrayColumn::create(std::move(elem1), std::move(off2));
 
     ASSERT_EQ(buffer.data() + buffer.size(), ColumnArraySerde::deserialize(buffer.data(), c2.get()));
     ASSERT_EQ("[1,2,3]", c2->debug_item(0));
@@ -341,7 +341,7 @@ PARALLEL_TEST(ColumnArraySerdeTest, array_column) {
 
         off2 = UInt32Column::create();
         elem2 = NullableColumn::create(Int32Column::create(), NullColumn ::create());
-        c2 = ArrayColumn::create(elem1, off2);
+        c2 = ArrayColumn::create(std::move(elem1), std::move(off2));
 
         ColumnArraySerde::deserialize(buffer.data(), c2.get(), false, level);
         ASSERT_EQ("[1,2,3]", c2->debug_item(0));

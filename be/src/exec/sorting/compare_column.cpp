@@ -277,7 +277,7 @@ public:
     template <typename T>
     Status do_visit(const BinaryColumnBase<T>& column) {
         auto& data = column.get_data();
-        NullData* null_data = nullptr;
+        const NullData* null_data = nullptr;
         if (_nullable_column != nullptr) {
             null_data = &_nullable_column->get_data();
         }
@@ -292,7 +292,7 @@ public:
     template <typename T>
     Status do_visit(const FixedLengthColumnBase<T>& column) {
         auto& data = column.get_data();
-        NullData* null_data = nullptr;
+        const NullData* null_data = nullptr;
         if (_nullable_column != nullptr) {
             null_data = &_nullable_column->get_data();
         }

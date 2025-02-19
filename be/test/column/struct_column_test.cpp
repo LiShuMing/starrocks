@@ -23,12 +23,12 @@
 
 namespace starrocks {
 
-std::shared_ptr<StructColumn> create_test_column() {
+StructColumn::Ptr create_test_column() {
     std::vector<std::string> field_name{"id", "name"};
     auto id = NullableColumn::create(UInt64Column::create(), NullColumn::create());
     auto name = NullableColumn::create(BinaryColumn::create(), NullColumn::create());
-    Columns fields{id, name};
-    auto column = StructColumn::create(fields, field_name);
+    Columns fields{std::move(id), std::move(name)};
+    auto column = StructColumn::create(std::move(fields), field_name);
 
     DatumStruct struct1{uint64_t(1), Slice("smith")};
     DatumStruct struct2{uint64_t(2), Slice("cruise")};
@@ -71,8 +71,8 @@ TEST(StructColumnTest, test_column_downgrade) {
         std::vector<std::string> field_name{"id", "name"};
         auto id = NullableColumn::create(UInt64Column::create(), NullColumn::create());
         auto name = NullableColumn::create(LargeBinaryColumn::create(), NullColumn::create());
-        Columns fields{id, name};
-        auto column = StructColumn::create(fields, field_name);
+        Columns fields{std::move(id), std::move(name)};
+        auto column = StructColumn::create(std::move(fields), field_name);
 
         for (size_t i = 0; i < 10; i++) {
             column->append_datum(DatumStruct{i, Slice(std::to_string(i))});
@@ -97,8 +97,8 @@ TEST(StructColumnTest, test_append_null) {
         std::vector<std::string> field_name{"id", "name"};
         auto id = NullableColumn::create(UInt64Column::create(), NullColumn::create());
         auto name = NullableColumn::create(BinaryColumn::create(), NullColumn::create());
-        Columns fields{id, name};
-        auto column = StructColumn::create(fields, field_name);
+        Columns fields{std::move(id), std::move(name)};
+        auto column = StructColumn::create(std::move(fields), field_name);
 
         DatumStruct struct1{uint64_t(1), Slice("smith")};
         DatumStruct struct3{uint64_t(3), Slice("cruise")};
@@ -117,8 +117,8 @@ TEST(StructColumnTest, test_append_null) {
         auto id = NullableColumn::create(UInt64Column::create(), NullColumn::create());
         // one subfield is not nullable
         auto name = BinaryColumn::create();
-        Columns fields{id, name};
-        auto column = StructColumn::create(fields, field_name);
+        Columns fields{std::move(id), std::move(name)};
+        auto column = StructColumn::create(std::move(fields), field_name);
 
         DatumStruct struct1{uint64_t(1), Slice("smith")};
         DatumStruct struct3{uint64_t(3), Slice("cruise")};
@@ -136,8 +136,8 @@ TEST(StructColumnTest, test_append_defaults) {
     std::vector<std::string> field_name{"id", "name"};
     auto id = NullableColumn::create(UInt64Column::create(), NullColumn::create());
     auto name = NullableColumn::create(BinaryColumn::create(), NullColumn::create());
-    Columns fields{id, name};
-    auto column = StructColumn::create(fields, field_name);
+    Columns fields{std::move(id), std::move(name)};
+    auto column = StructColumn::create(std::move(fields), field_name);
 
     column->append_default();
     ASSERT_EQ(1, column->size());
@@ -156,7 +156,7 @@ TEST(StructColumnTest, equals) {
     {
         auto field1 = NullableColumn::create(Int32Column::create(), NullColumn::create());
         auto field2 = NullableColumn::create(Int32Column::create(), NullColumn::create());
-        Columns fields{field1, field2};
+        Columns fields{std::move(field1), std::move(field2)};
         lhs = StructColumn::create(fields);
     }
     lhs->_fields[0]->append_datum(Datum(1));
@@ -173,7 +173,7 @@ TEST(StructColumnTest, equals) {
     {
         auto field1 = Int32Column::create();
         auto field2 = Int32Column::create();
-        Columns fields{field1, field2};
+        Columns fields{std::move(field1), std::move(field2)};
         rhs = StructColumn::create(fields);
     }
     rhs->_fields[0]->append_datum(Datum(1));
@@ -230,8 +230,8 @@ TEST(StructColumnTest, test_swap_column) {
         std::vector<std::string> field_name{"id", "name"};
         auto id = NullableColumn::create(UInt64Column::create(), NullColumn::create());
         auto name = NullableColumn::create(BinaryColumn::create(), NullColumn::create());
-        Columns fields{id, name};
-        column1 = StructColumn::create(fields, field_name);
+        Columns fields{std::move(id), std::move(name)};
+        column1 = StructColumn::create(std::move(fields), field_name);
 
         DatumStruct struct1{uint64_t(1), Slice("smith")};
         column1->append_datum(struct1);
@@ -240,8 +240,8 @@ TEST(StructColumnTest, test_swap_column) {
         std::vector<std::string> field_name{"id", "name"};
         auto id = NullableColumn::create(UInt64Column::create(), NullColumn::create());
         auto name = NullableColumn::create(BinaryColumn::create(), NullColumn::create());
-        Columns fields{id, name};
-        column2 = StructColumn::create(fields, field_name);
+        Columns fields{std::move(id), std::move(name)};
+        column2 = StructColumn::create(std::move(fields), field_name);
 
         DatumStruct struct1{uint64_t(2), Slice("smith cruise")};
         DatumStruct struct2{uint64_t(3), Slice("cruise smith")};
@@ -276,8 +276,8 @@ TEST(StructColumnTest, test_copy_construtor) {
     ASSERT_EQ("{id:1,name:'smith'}", copy.debug_item(0));
     ASSERT_EQ("{id:2,name:'cruise'}", copy.debug_item(1));
 
-    ASSERT_TRUE(copy.fields().at(0).unique());
-    ASSERT_TRUE(copy.fields().at(1).unique());
+    ASSERT_TRUE(copy.fields().at(0)->use_count() == 1);
+    ASSERT_TRUE(copy.fields().at(1)->use_count() == 1);
 }
 
 TEST(StructColumnTest, test_move_construtor) {
@@ -292,8 +292,8 @@ TEST(StructColumnTest, test_move_construtor) {
     ASSERT_EQ("{id:1,name:'smith'}", copy.debug_item(0));
     ASSERT_EQ("{id:2,name:'cruise'}", copy.debug_item(1));
 
-    ASSERT_TRUE(copy.fields().at(0).unique());
-    ASSERT_TRUE(copy.fields().at(1).unique());
+    ASSERT_TRUE(copy.fields().at(0)->use_count() == 1);
+    ASSERT_TRUE(copy.fields().at(1)->use_count() == 1);
 }
 
 TEST(StructColumnTest, test_clone) {
@@ -309,8 +309,8 @@ TEST(StructColumnTest, test_clone) {
     ASSERT_EQ("{id:1,name:'smith'}", copy->debug_item(0));
     ASSERT_EQ("{id:2,name:'cruise'}", copy->debug_item(1));
 
-    ASSERT_TRUE(down_cast<StructColumn*>(copy.get())->fields().at(0).unique());
-    ASSERT_TRUE(down_cast<StructColumn*>(copy.get())->fields().at(1).unique());
+    ASSERT_TRUE(down_cast<StructColumn*>(copy.get())->fields().at(0)->use_count() == 1);
+    ASSERT_TRUE(down_cast<StructColumn*>(copy.get())->fields().at(1)->use_count() == 1);
 }
 
 TEST(StructColumnTest, test_clone_shared) {
@@ -320,14 +320,14 @@ TEST(StructColumnTest, test_clone_shared) {
     ASSERT_EQ("{id:1,name:'smith'}", col->debug_item(0));
     ASSERT_EQ("{id:2,name:'cruise'}", col->debug_item(1));
 
-    auto copy = col->clone_shared();
+    auto copy = col->clone();
     col->reset_column();
     ASSERT_EQ(2, copy->size());
     ASSERT_EQ("{id:1,name:'smith'}", copy->debug_item(0));
     ASSERT_EQ("{id:2,name:'cruise'}", copy->debug_item(1));
 
-    ASSERT_TRUE(down_cast<StructColumn*>(copy.get())->fields().at(0).unique());
-    ASSERT_TRUE(down_cast<StructColumn*>(copy.get())->fields().at(1).unique());
+    ASSERT_TRUE(down_cast<StructColumn*>(copy.get())->fields().at(0)->use_count() == 1);
+    ASSERT_TRUE(down_cast<StructColumn*>(copy.get())->fields().at(1)->use_count() == 1);
 }
 
 TEST(StructColumnTest, test_clone_empty) {
@@ -341,15 +341,15 @@ TEST(StructColumnTest, test_clone_empty) {
     col->reset_column();
     ASSERT_EQ(0, copy->size());
 
-    ASSERT_TRUE(down_cast<StructColumn*>(copy.get())->fields().at(0).unique());
-    ASSERT_TRUE(down_cast<StructColumn*>(copy.get())->fields().at(1).unique());
+    ASSERT_TRUE(down_cast<StructColumn*>(copy.get())->fields().at(0)->use_count() == 1);
+    ASSERT_TRUE(down_cast<StructColumn*>(copy.get())->fields().at(1)->use_count() == 1);
 }
 
 TEST(StructColumnTest, test_update_rows) {
     std::vector<std::string> field_name{"id", "name"};
     auto id = NullableColumn::create(UInt64Column::create(), NullColumn::create());
     auto name = NullableColumn::create(BinaryColumn::create(), NullColumn::create());
-    auto column = StructColumn::create(Columns{id, name}, field_name);
+    auto column = StructColumn::create(Columns{std::move(id), std::move(name)}, field_name);
 
     ASSERT_TRUE(column->is_struct());
     ASSERT_FALSE(column->is_nullable());
@@ -378,7 +378,7 @@ TEST(StructColumnTest, test_assign) {
     std::vector<std::string> field_name{"id", "name"};
     auto id = NullableColumn::create(UInt64Column::create(), NullColumn::create());
     auto name = NullableColumn::create(BinaryColumn::create(), NullColumn::create());
-    auto column = StructColumn::create(Columns{id, name}, field_name);
+    auto column = StructColumn::create(Columns{std::move(id), std::move(name)}, field_name);
 
     ASSERT_TRUE(column->is_struct());
     ASSERT_FALSE(column->is_nullable());
@@ -398,7 +398,7 @@ TEST(StructColumnTest, test_assign) {
 TEST(StructColumnTest, test_reference_memory_usage) {
     auto id = NullableColumn::create(UInt64Column::create(), NullColumn::create());
     auto name = NullableColumn::create(BinaryColumn::create(), NullColumn::create());
-    Columns fields{id, name};
+    Columns fields{std::move(id), std::move(name)};
     auto column = StructColumn::create(fields);
 
     column->append_datum(DatumStruct{uint64_t(1), Slice("2")});

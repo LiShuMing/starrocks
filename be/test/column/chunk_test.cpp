@@ -99,8 +99,8 @@ GROUP_SLOW_TEST_F(ChunkTest, test_chunk_upgrade_if_overflow) {
         c2->append(std::to_string(i));
     }
     auto chunk = std::make_shared<Chunk>();
-    chunk->append_column(c1, 1);
-    chunk->append_column(c2, 2);
+    chunk->append_column(std::move(c1), 1);
+    chunk->append_column(std::move(c2), 2);
 
     Status st = chunk->upgrade_if_overflow();
     ASSERT_TRUE(st.ok());
@@ -116,10 +116,10 @@ TEST_F(ChunkTest, test_remove_column_by_slot_id) {
     auto c4 = ColumnTestHelper::build_column<int32_t>({4});
 
     auto chunk = std::make_shared<Chunk>();
-    chunk->append_column(c1, 1);
-    chunk->append_column(c2, 2);
-    chunk->append_column(c3, 3);
-    chunk->append_column(c4, 4);
+    chunk->append_column(std::move(c1), 1);
+    chunk->append_column(std::move(c2), 2);
+    chunk->append_column(std::move(c3), 3);
+    chunk->append_column(std::move(c4), 4);
 
     chunk->remove_column_by_slot_id(2);
     ASSERT_EQ(chunk->get_column_by_slot_id(1)->get(0).get_int32(), 1);
@@ -135,8 +135,8 @@ TEST_F(ChunkTest, test_chunk_downgrade) {
     auto c2 = BinaryColumn::create();
     c2->append_string("11");
     auto chunk = std::make_shared<Chunk>();
-    chunk->append_column(c1, 1);
-    chunk->append_column(c2, 2);
+    chunk->append_column(std::move(c1), 1);
+    chunk->append_column(std::move(c2), 2);
     ASSERT_FALSE(chunk->has_large_column());
 
     auto ret = chunk->downgrade();
@@ -148,8 +148,8 @@ TEST_F(ChunkTest, test_chunk_downgrade) {
     auto c4 = LargeBinaryColumn::create();
     c4->append_string("2");
     chunk = std::make_shared<Chunk>();
-    chunk->append_column(c3, 1);
-    chunk->append_column(c4, 2);
+    chunk->append_column(std::move(c3), 1);
+    chunk->append_column(std::move(c4), 2);
     ASSERT_TRUE(chunk->has_large_column());
 
     ret = chunk->downgrade();
@@ -163,8 +163,8 @@ TEST_F(ChunkTest, test_is_column_nullable) {
     Chunk chunk;
     auto c1 = ColumnHelper::create_column(TypeDescriptor::from_logical_type(TYPE_INT), false);
     auto c2 = ColumnHelper::create_column(TypeDescriptor::from_logical_type(TYPE_INT), true);
-    chunk.append_column(c1, 1);
-    chunk.append_column(c2, 2);
+    chunk.append_column(std::move(c1), 1);
+    chunk.append_column(std::move(c2), 2);
 
     ASSERT_FALSE(chunk.is_column_nullable(1));
     ASSERT_TRUE(chunk.is_column_nullable(2));
@@ -322,8 +322,8 @@ TEST_F(ChunkTest, test_clone_unique) {
 
     auto c1 = make_column(0);
     auto c2 = make_column(20);
-    chunk->append_column(c1, 0);
-    chunk->append_column(c2, 1);
+    chunk->append_column(std::move(c1), 0);
+    chunk->append_column(std::move(c2), 1);
 
     auto copy = chunk->clone_unique();
     copy->check_or_die();
@@ -336,7 +336,7 @@ TEST_F(ChunkTest, test_append_chunk_with_extra_data) {
     auto extra_data1 = make_extra_data(2, 2);
     // col0: 0, 1
     // col1: 1, 2
-    auto chunk1 = std::make_unique<Chunk>(make_columns(2, 2), make_schema(2), extra_data1);
+    ChunkUniquePtr chunk1 = std::make_unique<Chunk>(make_columns(2, 2), make_schema(2), extra_data1);
 
     // col0: 0, 1
     // col1: 1, 2
@@ -372,7 +372,7 @@ TEST_F(ChunkTest, test_filter_with_extra_data) {
     auto extra_data1 = make_extra_data(2, 4);
     // 0, 1, 2, 3
     // 1, 2, 3, 4
-    auto chunk1 = std::make_unique<Chunk>(make_columns(2, 4), make_schema(2), extra_data1);
+    ChunkUniquePtr chunk1 = std::make_unique<Chunk>(make_columns(2, 4), make_schema(2), extra_data1);
     ASSERT_EQ(4, chunk1->num_rows());
 
     Buffer<uint8_t> selection{0, 1, 0, 1};
@@ -398,7 +398,7 @@ TEST_F(ChunkTest, test_filter_with_extra_data) {
 // NOLINTNEXTLINE
 TEST_F(ChunkTest, test_clone_empty_with_extra_data) {
     auto extra_data1 = make_extra_data(2);
-    auto chunk1 = std::make_unique<Chunk>(make_columns(2), make_schema(2), extra_data1);
+    ChunkUniquePtr chunk1 = std::make_unique<Chunk>(make_columns(2), make_schema(2), extra_data1);
     auto* extra_data = dynamic_cast<ChunkExtraColumnsData*>(chunk1->get_extra_data().get());
     auto copy = chunk1->clone_empty();
     copy->check_or_die();
@@ -416,7 +416,7 @@ TEST_F(ChunkTest, test_clone_empty_with_extra_data) {
 // NOLINTNEXTLINE
 TEST_F(ChunkTest, test_clone_unique_with_extra_data) {
     auto extra_data1 = make_extra_data(2);
-    auto chunk1 = std::make_unique<Chunk>(make_columns(2), make_schema(2), extra_data1);
+    ChunkUniquePtr chunk1 = std::make_unique<Chunk>(make_columns(2), make_schema(2), extra_data1);
 
     auto copy = chunk1->clone_unique();
     copy->check_or_die();
@@ -433,7 +433,7 @@ TEST_F(ChunkTest, test_clone_unique_with_extra_data) {
 // NOLINTNEXTLINE
 TEST_F(ChunkTest, test_reset_with_extra_data) {
     auto extra_data1 = make_extra_data(2);
-    auto chunk1 = std::make_unique<Chunk>(make_columns(2), make_schema(2), extra_data1);
+    ChunkUniquePtr chunk1 = std::make_unique<Chunk>(make_columns(2), make_schema(2), extra_data1);
     ASSERT_EQ(100, chunk1->num_rows());
     ASSERT_TRUE(chunk1->has_extra_data());
 

@@ -55,9 +55,9 @@ PARALLEL_TEST(VecStringFunctionsTest, substringNormalTest) {
         len->append(2);
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(pos);
-    columns.emplace_back(len);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pos));
+    columns.emplace_back(std::move(len));
 
     ColumnPtr result = StringFunctions::substring(ctx.get(), columns).value();
 
@@ -83,9 +83,9 @@ PARALLEL_TEST(VecStringFunctionsTest, substringChineseTest) {
         len->append(2);
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(pos);
-    columns.emplace_back(len);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pos));
+    columns.emplace_back(std::move(len));
 
     ColumnPtr result = StringFunctions::substring(ctx.get(), columns).value();
 
@@ -111,9 +111,9 @@ PARALLEL_TEST(VecStringFunctionsTest, substringleftTest) {
         len->append(2);
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(pos);
-    columns.emplace_back(len);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pos));
+    columns.emplace_back(std::move(len));
 
     ColumnPtr result = StringFunctions::substring(ctx.get(), columns).value();
 
@@ -142,7 +142,7 @@ PARALLEL_TEST(VecStringFunctionsTest, substrConstASCIITest) {
     auto state = std::make_unique<SubstrState>();
     ctx->set_function_state(FunctionContext::FRAGMENT_LOCAL, state.get());
     starrocks::Columns columns;
-    columns.emplace_back(str);
+    columns.emplace_back(std::move(str));
     for (auto& e : cases) {
         auto [offset, len, expect] = e;
         state->is_const = true;
@@ -190,7 +190,7 @@ PARALLEL_TEST(VecStringFunctionsTest, substrConstZhTest) {
     auto state = std::make_unique<SubstrState>();
     ctx->set_function_state(FunctionContext::FRAGMENT_LOCAL, state.get());
     starrocks::Columns columns;
-    columns.emplace_back(str);
+    columns.emplace_back(std::move(str));
     for (auto& e : cases) {
         auto [offset, len, expect] = e;
         state->is_const = true;
@@ -273,7 +273,7 @@ PARALLEL_TEST(VecStringFunctionsTest, substrConstUtf8Test) {
     auto state = std::make_unique<SubstrState>();
     ctx->set_function_state(FunctionContext::FRAGMENT_LOCAL, state.get());
     starrocks::Columns columns;
-    columns.emplace_back(str);
+    columns.emplace_back(std::move(str));
     for (auto& e : cases) {
         auto [offset, len, expect] = e;
         state->is_const = true;
@@ -299,9 +299,9 @@ PARALLEL_TEST(VecStringFunctionsTest, substringOverleftTest) {
         len->append(2);
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(pos);
-    columns.emplace_back(len);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pos));
+    columns.emplace_back(std::move(len));
 
     ColumnPtr result = StringFunctions::substring(ctx.get(), columns).value();
 
@@ -328,9 +328,9 @@ PARALLEL_TEST(VecStringFunctionsTest, substringConstTest) {
         str->append("test" + std::to_string(j));
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(ConstColumn::create(pos, 1));
-    columns.emplace_back(ConstColumn::create(len, 1));
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(ConstColumn::create(std::move(pos), 1));
+    columns.emplace_back(ConstColumn::create(std::move(len), 1));
 
     ColumnPtr result = StringFunctions::substring(ctx.get(), columns).value();
 
@@ -359,8 +359,8 @@ PARALLEL_TEST(VecStringFunctionsTest, substringNullTest) {
     }
 
     columns.emplace_back(b.build(false));
-    columns.emplace_back(ConstColumn::create(pos, 1));
-    columns.emplace_back(ConstColumn::create(len, 1));
+    columns.emplace_back(ConstColumn::create(std::move(pos), 1));
+    columns.emplace_back(ConstColumn::create(std::move(len), 1));
 
     ColumnPtr result = StringFunctions::substring(ctx.get(), columns).value();
 
@@ -393,10 +393,10 @@ PARALLEL_TEST(VecStringFunctionsTest, concatNormalTest) {
         str4->append(std::to_string(j));
     }
 
-    columns.emplace_back(str1);
-    columns.emplace_back(str2);
-    columns.emplace_back(str3);
-    columns.emplace_back(str4);
+    columns.emplace_back(std::move(str1));
+    columns.emplace_back(std::move(str2));
+    columns.emplace_back(std::move(str3));
+    columns.emplace_back(std::move(str4));
 
     ColumnPtr result = StringFunctions::concat(ctx.get(), columns).value();
 
@@ -423,10 +423,10 @@ PARALLEL_TEST(VecStringFunctionsTest, concatConstTest) {
     str3->append("_1234");
     str4->append("_道可道,非常道");
 
-    columns.emplace_back(str1);
-    columns.emplace_back(ConstColumn::create(str2, 1));
-    columns.emplace_back(ConstColumn::create(str3, 1));
-    columns.emplace_back(ConstColumn::create(str4, 1));
+    columns.emplace_back(std::move(str1));
+    columns.emplace_back(ConstColumn::create(std::move(str2), 1));
+    columns.emplace_back(ConstColumn::create(std::move(str3), 1));
+    columns.emplace_back(ConstColumn::create(std::move(str4), 1));
 
     ColumnPtr result = StringFunctions::concat(ctx.get(), columns).value();
 
@@ -455,10 +455,10 @@ PARALLEL_TEST(VecStringFunctionsTest, concatNullTest) {
         null->append(j % 2 == 0);
     }
 
-    columns.emplace_back(str1);
-    columns.emplace_back(str2);
-    columns.emplace_back(str3);
-    columns.emplace_back(NullableColumn::create(str4, null));
+    columns.emplace_back(std::move(str1));
+    columns.emplace_back(std::move(str2));
+    columns.emplace_back(std::move(str3));
+    columns.emplace_back(NullableColumn::create(std::move(str4), std::move(null)));
 
     ColumnPtr result = StringFunctions::concat(ctx.get(), columns).value();
 
@@ -486,7 +486,7 @@ PARALLEL_TEST(VecStringFunctionsTest, lowerNormalTest) {
         str->append("TEST" + std::to_string(j));
     }
 
-    columns.emplace_back(str);
+    columns.emplace_back(std::move(str));
 
     ColumnPtr result = StringFunctions::lower(ctx.get(), columns).value();
 
@@ -512,7 +512,7 @@ PARALLEL_TEST(VecStringFunctionsTest, nullOrEmpty) {
     str->append(".");
     str->append_default();
 
-    columns.emplace_back(str);
+    columns.emplace_back(std::move(str));
 
     ColumnPtr result = StringFunctions::null_or_empty(ctx.get(), columns).value();
 
@@ -550,8 +550,8 @@ PARALLEL_TEST(VecStringFunctionsTest, split) {
     delim->append("aaa");
     null->append(0);
 
-    columns.emplace_back(str);
-    columns.emplace_back(delim);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(delim));
     ColumnPtr result = StringFunctions::split(ctx.get(), columns).value();
     auto* col_array = down_cast<ArrayColumn*>(ColumnHelper::get_data_column(result.get()));
     ASSERT_EQ("[['1','2','3'], ['aa','bb','cc'], ['a','b','c'], ['','']]", col_array->debug_string());
@@ -561,9 +561,9 @@ PARALLEL_TEST(VecStringFunctionsTest, split) {
     delim->append(",");
     null->append(1);
 
-    auto null_column = NullableColumn::create(str, null);
-    columns.emplace_back(null_column);
-    columns.emplace_back(delim);
+    auto null_column = NullableColumn::create(std::move(str), std::move(null));
+    columns.emplace_back(std::move(null_column));
+    columns.emplace_back(std::move(delim));
     result = StringFunctions::split(ctx.get(), columns).value();
     ASSERT_EQ("[['1','2','3'], ['aa','bb','cc'], ['a','b','c'], ['',''], NULL]", result->debug_string());
 
@@ -573,8 +573,8 @@ PARALLEL_TEST(VecStringFunctionsTest, split) {
     str_const->append_datum("a,bc,d,eeee,f");
     delim_const->append_datum(",");
     columns.clear();
-    columns.push_back(str_const);
-    columns.push_back(delim_const);
+    columns.emplace_back(std::move(str_const));
+    columns.emplace_back(std::move(delim_const));
     ctx->set_constant_columns(columns);
     ASSERT_TRUE(StringFunctions::split_prepare(ctx.get(), FunctionContext::FunctionStateScope::FRAGMENT_LOCAL).ok());
     result = StringFunctions::split(ctx.get(), columns).value();
@@ -591,8 +591,8 @@ PARALLEL_TEST(VecStringFunctionsTest, splitConst1) {
     str_const->append_datum("a,bc,d,eeee,f");
     delim_const->append_datum(",d,");
     columns.clear();
-    columns.push_back(str_const);
-    columns.push_back(delim_const);
+    columns.emplace_back(std::move(str_const));
+    columns.emplace_back(std::move(delim_const));
     ctx->set_constant_columns(columns);
     ASSERT_TRUE(StringFunctions::split_prepare(ctx.get(), FunctionContext::FunctionStateScope::FRAGMENT_LOCAL).ok());
     ColumnPtr result = StringFunctions::split(ctx.get(), columns).value();
@@ -614,8 +614,8 @@ PARALLEL_TEST(VecStringFunctionsTest, splitConst2) {
 
     delim_const->append_datum(",");
     columns.clear();
-    columns.push_back(str_binary_column);
-    columns.push_back(delim_const);
+    columns.emplace_back(std::move(str_binary_column));
+    columns.emplace_back(std::move(delim_const));
     ctx->set_constant_columns(columns);
     ASSERT_TRUE(StringFunctions::split_prepare(ctx.get(), FunctionContext::FunctionStateScope::FRAGMENT_LOCAL).ok());
     ColumnPtr result = StringFunctions::split(ctx.get(), columns).value();
@@ -649,8 +649,8 @@ PARALLEL_TEST(VecStringFunctionsTest, splitChinese) {
         delim->append("北京");
         null->append(0);
 
-        columns.emplace_back(str);
-        columns.emplace_back(delim);
+        columns.emplace_back(std::move(str));
+        columns.emplace_back(std::move(delim));
         ColumnPtr result = StringFunctions::split(ctx.get(), columns).value();
         auto* col_array = down_cast<ArrayColumn*>(ColumnHelper::get_data_column(result.get()));
         ASSERT_EQ(
@@ -673,8 +673,8 @@ PARALLEL_TEST(VecStringFunctionsTest, splitChinese) {
 
         delim_const->append_datum("");
         columns.clear();
-        columns.push_back(str_binary_column);
-        columns.push_back(delim_const);
+        columns.emplace_back(std::move(str_binary_column));
+        columns.emplace_back(std::move(delim_const));
         ctx->set_constant_columns(columns);
         ASSERT_TRUE(
                 StringFunctions::split_prepare(ctx.get(), FunctionContext::FunctionStateScope::FRAGMENT_LOCAL).ok());
@@ -710,8 +710,8 @@ PARALLEL_TEST(VecStringFunctionsTest, splitChinese) {
             delim_const->append_datum(Slice(delimiter));
 
             columns.clear();
-            columns.push_back(src_const);
-            columns.push_back(delim_const);
+            columns.emplace_back(std::move(src_const));
+            columns.emplace_back(std::move(delim_const));
 
             ctx->set_constant_columns(columns);
             ASSERT_TRUE(StringFunctions::split_prepare(ctx.get(), FunctionContext::FunctionStateScope::FRAGMENT_LOCAL)
@@ -788,94 +788,108 @@ PARALLEL_TEST(VecStringFunctionsTest, str_to_map_v1) {
 
     auto empty_col = BinaryColumn::create();
     empty_col->append_datum("");
-    auto delim_const_empty = ConstColumn::create(empty_col, chunk_size);
+    auto delim_const_empty = ConstColumn::create(std::move(empty_col), chunk_size);
 
     auto ch_col = BinaryColumn::create();
     ch_col->append_datum("中");
-    auto delim_const_ch = ConstColumn::create(ch_col, chunk_size);
+    auto delim_const_ch = ConstColumn::create(std::move(ch_col), chunk_size);
 
     auto const_col = BinaryColumn::create();
     const_col->append_datum(":");
-    auto delim_const = ConstColumn::create(const_col, chunk_size);
+    auto delim_const = ConstColumn::create(std::move(const_col), chunk_size);
 
     {
-        Columns columns{string_column, delimiter_column, map_delimiter_nullable};
+        Columns columns{std::move(string_column), std::move(delimiter_column), map_delimiter_nullable->clone()};
         ctx->set_constant_columns(columns);
         auto res = StringFunctions::str_to_map(ctx.get(), columns).value();
         ASSERT_EQ(res->debug_string(), "[{'a':'b','c':'d'}, {'a':'1','b':'2'}]");
     }
     {
-        auto res = StringFunctions::str_to_map_v1(nullptr, {array_str_null, only_null}).value();
+        auto res = StringFunctions::str_to_map_v1(nullptr, {std::move(array_str_null), std::move(only_null)}).value();
         ASSERT_EQ(res->debug_string(), "CONST: NULL Size : 7");
     }
     {
-        auto res = StringFunctions::str_to_map_v1(nullptr, {array_str_null, map_delimiter_nullable}).value();
+        auto res =
+                StringFunctions::str_to_map_v1(nullptr, {std::move(array_str_null), std::move(map_delimiter_nullable)})
+                        .value();
         ASSERT_EQ(res->debug_string(),
                   "[{'':NULL}, NULL, {'NULL':NULL}, {'ab':'b','':NULL}, {'a':'中囸','道c:d过’':NULL}, "
                   "{'a':':c:b:d','':NULL}, NULL]");
     }
     {
-        auto res = StringFunctions::str_to_map_v1(nullptr, {array_str_null, map_delimiter_notnull}).value();
+        auto res =
+                StringFunctions::str_to_map_v1(nullptr, {std::move(array_str_null), std::move(map_delimiter_notnull)})
+                        .value();
         ASSERT_EQ(res->debug_string(),
                   "[{'':NULL}, NULL, {'NULL':NULL}, {'ab':'b','':NULL}, {'a':'中囸','道c:d过’':NULL}, "
                   "{'a':':c:b:d','':NULL}, {'a':'b:b','':NULL}]");
     }
     {
-        auto res = StringFunctions::str_to_map_v1(nullptr, {array_str_null, delim_const_empty}).value();
+        auto res = StringFunctions::str_to_map_v1(nullptr, {std::move(array_str_null), std::move(delim_const_empty)})
+                           .value();
         ASSERT_EQ(res->debug_string(),
                   "[{'':NULL}, NULL, {'N':'ULL'}, {'a':'b:b','':NULL}, {'a':':b中囸','道':'c:d过’'}, "
                   "{'a':':c:b:d','':NULL}, {'a':'b:b','':NULL}]");
     }
     {
-        auto res = StringFunctions::str_to_map_v1(nullptr, {array_str_null, delim_const_ch}).value();
+        auto res =
+                StringFunctions::str_to_map_v1(nullptr, {std::move(array_str_null), std::move(delim_const_ch)}).value();
         ASSERT_EQ(res->debug_string(),
                   "[{'':NULL}, NULL, {'NULL':NULL}, {'ab:b':NULL,'':NULL}, {'a:b':'囸','道c:d过’':NULL}, "
                   "{'a:c:b:d':NULL,'':NULL}, {'ab:b':NULL,'':NULL}]");
     }
     {
-        auto res = StringFunctions::str_to_map_v1(nullptr, {array_str_null, delim_const}).value();
+        auto res = StringFunctions::str_to_map_v1(nullptr, {std::move(array_str_null), std::move(delim_const)}).value();
         ASSERT_EQ(res->debug_string(),
                   "[{'':NULL}, NULL, {'NULL':NULL}, {'ab':'b','':NULL}, {'a':'b中囸','道c':'d过’'}, "
                   "{'a':'c:b:d','':NULL}, {'ab':'b','':NULL}]");
     }
     ///
     {
-        auto res = StringFunctions::str_to_map_v1(nullptr, {array_str_notnull, only_null}).value();
+        auto res =
+                StringFunctions::str_to_map_v1(nullptr, {std::move(array_str_notnull), std::move(only_null)}).value();
         ASSERT_EQ(res->debug_string(), "CONST: NULL Size : 7");
     }
     {
-        auto res = StringFunctions::str_to_map_v1(nullptr, {array_str_notnull, map_delimiter_nullable}).value();
+        auto res = StringFunctions::str_to_map_v1(nullptr,
+                                                  {std::move(array_str_notnull), std::move(map_delimiter_nullable)})
+                           .value();
         ASSERT_EQ(res->debug_string(),
                   "[{'':NULL}, {'中国':'shang海'}, {'':NULL}, {'ab':'b','':NULL}, "
                   "{'a':'中囸','道c:d过’':NULL,'道c:d过':NULL}, {'a':':c:b:d','':NULL}, NULL]");
     }
     {
-        auto res = StringFunctions::str_to_map_v1(nullptr, {array_str_notnull, map_delimiter_notnull}).value();
+        auto res = StringFunctions::str_to_map_v1(nullptr,
+                                                  {std::move(array_str_notnull), std::move(map_delimiter_notnull)})
+                           .value();
         ASSERT_EQ(res->debug_string(),
                   "[{'':NULL}, {'中':':shang海'}, {'':NULL}, {'ab':'b','':NULL}, "
                   "{'a':'中囸','道c:d过’':NULL,'道c:d过':NULL}, {'a':':c:b:d','':NULL}, {'a':'b:b','':NULL}]");
     }
     {
-        auto res = StringFunctions::str_to_map_v1(nullptr, {array_str_notnull, delim_const_empty}).value();
+        auto res = StringFunctions::str_to_map_v1(nullptr, {std::move(array_str_notnull), std::move(delim_const_empty)})
+                           .value();
         ASSERT_EQ(res->debug_string(),
                   "[{'':NULL}, {'中':'国:shang海'}, {'':NULL}, {'a':'b:b','':NULL}, {'a':':b中囸','道':'c:d过'}, "
                   "{'a':':c:b:d','':NULL}, {'a':'b:b','':NULL}]");
     }
     {
-        auto res = StringFunctions::str_to_map_v1(nullptr, {array_str_notnull, delim_const_ch}).value();
+        auto res = StringFunctions::str_to_map_v1(nullptr, {std::move(array_str_notnull), std::move(delim_const_ch)})
+                           .value();
         ASSERT_EQ(res->debug_string(),
                   "[{'':NULL}, {'':'国:shang海'}, {'':NULL}, {'ab:b':NULL,'':NULL}, "
                   "{'a:b':'囸','道c:d过’':NULL,'道c:d过':NULL}, {'a:c:b:d':NULL,'':NULL}, {'ab:b':NULL,'':NULL}]");
     }
     {
-        auto res = StringFunctions::str_to_map_v1(nullptr, {array_str_notnull, delim_const}).value();
+        auto res =
+                StringFunctions::str_to_map_v1(nullptr, {std::move(array_str_notnull), std::move(delim_const)}).value();
         ASSERT_EQ(res->debug_string(),
                   "[{'':NULL}, {'中国':'shang海'}, {'':NULL}, {'ab':'b','':NULL}, {'a':'b中囸','道c':'d过'}, "
                   "{'a':'c:b:d','':NULL}, {'ab':'b','':NULL}]");
     }
     ///
     {
-        auto res = StringFunctions::str_to_map_v1(nullptr, {only_null, only_null}).value();
+        auto res = StringFunctions::str_to_map_v1(nullptr, {std::move(only_null), std::move(only_null)}).value();
         ASSERT_EQ(res->debug_string(), "CONST: NULL Size : 7");
     }
 }
@@ -1033,9 +1047,9 @@ PARALLEL_TEST(VecStringFunctionsTest, splitPart) {
     delim->append("月");
     field->append(-1);
 
-    columns.emplace_back(str);
-    columns.emplace_back(delim);
-    columns.emplace_back(field);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(delim));
+    columns.emplace_back(std::move(field));
 
     ColumnPtr result = StringFunctions::split_part(ctx.get(), columns).value();
     auto v = ColumnHelper::as_column<NullableColumn>(result);
@@ -1082,8 +1096,8 @@ PARALLEL_TEST(VecStringFunctionsTest, leftTest) {
         inx->append(j);
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(inx);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(inx));
 
     ColumnPtr result = StringFunctions::left(ctx.get(), columns).value();
     ASSERT_EQ(20, result->size());
@@ -1111,8 +1125,8 @@ PARALLEL_TEST(VecStringFunctionsTest, rightTest) {
         inx->append(j);
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(inx);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(inx));
 
     ColumnPtr result = StringFunctions::right(ctx.get(), columns).value();
     ASSERT_EQ(20, result->size());
@@ -1139,8 +1153,8 @@ PARALLEL_TEST(VecStringFunctionsTest, startsWithTest) {
         prefix->append(std::to_string(j % 10) + "T");
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(prefix);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(prefix));
 
     ColumnPtr result = StringFunctions::starts_with(ctx.get(), columns).value();
     ASSERT_EQ(20, result->size());
@@ -1174,8 +1188,8 @@ PARALLEL_TEST(VecStringFunctionsTest, startsWithNullTest) {
         }
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(NullableColumn::create(prefix, null));
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(NullableColumn::create(std::move(prefix), std::move(null)));
 
     ColumnPtr result = StringFunctions::starts_with(ctx.get(), columns).value();
 
@@ -1210,8 +1224,8 @@ PARALLEL_TEST(VecStringFunctionsTest, endsWithNullTest) {
         }
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(NullableColumn::create(suffix, null));
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(NullableColumn::create(std::move(suffix), std::move(null)));
 
     ColumnPtr result = StringFunctions::ends_with(ctx.get(), columns).value();
 
@@ -1243,8 +1257,8 @@ PARALLEL_TEST(VecStringFunctionsTest, appendTrailingCharIfAbsentTest) {
     str->append("");
     pad->append("r");
 
-    columns.emplace_back(str);
-    columns.emplace_back(pad);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pad));
 
     ColumnPtr result = StringFunctions::append_trailing_char_if_absent(ctx.get(), columns).value();
     ASSERT_EQ(3, result->size());
@@ -1268,8 +1282,8 @@ PARALLEL_TEST(VecStringFunctionsTest, appendTrailingCharIfAbsentNullTest) {
     str->append("qwe");
     pad->append("er");
 
-    columns.emplace_back(str);
-    columns.emplace_back(pad);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pad));
 
     ColumnPtr result = StringFunctions::append_trailing_char_if_absent(ctx.get(), columns).value();
     ASSERT_EQ(2, result->size());
@@ -1291,8 +1305,8 @@ PARALLEL_TEST(VecStringFunctionsTest, appendTrailingCharIfAbsentUTF8Test) {
     str->append("北京");
     pad->append("b");
 
-    columns.emplace_back(str);
-    columns.emplace_back(pad);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pad));
 
     ColumnPtr result = StringFunctions::append_trailing_char_if_absent(ctx.get(), columns).value();
     ASSERT_EQ(2, result->size());
@@ -1315,8 +1329,8 @@ PARALLEL_TEST(VecStringFunctionsTest, appendTrailingCharIfAbsentUTF8NullTest) {
     str->append("北京");
     pad->append("京");
 
-    columns.emplace_back(str);
-    columns.emplace_back(pad);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pad));
 
     ColumnPtr result = StringFunctions::append_trailing_char_if_absent(ctx.get(), columns).value();
     ASSERT_EQ(2, result->size());
@@ -1334,7 +1348,7 @@ PARALLEL_TEST(VecStringFunctionsTest, lengthTest) {
         str->append(std::to_string(j));
     }
 
-    columns.emplace_back(str);
+    columns.emplace_back(std::move(str));
 
     ColumnPtr result = StringFunctions::length(ctx.get(), columns).value();
     ASSERT_EQ(20, result->size());
@@ -1358,7 +1372,7 @@ PARALLEL_TEST(VecStringFunctionsTest, lengthChineseTest) {
         str->append("中文" + std::to_string(j));
     }
 
-    columns.emplace_back(str);
+    columns.emplace_back(std::move(str));
 
     ColumnPtr result = StringFunctions::length(ctx.get(), columns).value();
     ASSERT_EQ(20, result->size());
@@ -1382,7 +1396,7 @@ PARALLEL_TEST(VecStringFunctionsTest, utf8LengthTest) {
         str->append(std::to_string(j));
     }
 
-    columns.emplace_back(str);
+    columns.emplace_back(std::move(str));
 
     ColumnPtr result = StringFunctions::utf8_length(ctx.get(), columns).value();
     ASSERT_EQ(20, result->size());
@@ -1406,7 +1420,7 @@ PARALLEL_TEST(VecStringFunctionsTest, utf8LengthChineseTest) {
         str->append("中文" + std::to_string(j));
     }
 
-    columns.emplace_back(str);
+    columns.emplace_back(std::move(str));
 
     ColumnPtr result = StringFunctions::utf8_length(ctx.get(), columns).value();
     ASSERT_EQ(20, result->size());
@@ -1430,7 +1444,7 @@ PARALLEL_TEST(VecStringFunctionsTest, upperTest) {
         str->append("abcd" + std::to_string(j));
     }
 
-    columns.emplace_back(str);
+    columns.emplace_back(std::move(str));
 
     ColumnPtr result = StringFunctions::upper(ctx.get(), columns).value();
     ASSERT_EQ(20, result->size());
@@ -1462,7 +1476,7 @@ PARALLEL_TEST(VecStringFunctionsTest, caseToggleTest) {
     src->append(
             "φημὶγὰρἐγὼεἶναιτὸABCD_EFG_HIGK_LMNδίκαιονοὐκἄλλοτιOPQRST_"
             "UVWἢτὸτοῦκρείττονοςσυμφέρονXYZ");
-    columns.push_back(src);
+    columns.emplace_back(std::move(src));
     auto upper_dst = StringFunctions::upper(ctx.get(), columns).value();
     auto lower_dst = StringFunctions::lower(ctx.get(), columns).value();
     auto binary_upper_dst = down_cast<BinaryColumn*>(upper_dst.get());
@@ -1494,7 +1508,7 @@ PARALLEL_TEST(VecStringFunctionsTest, asciiTest) {
     str->append("qwe");
     str->append("");
 
-    columns.emplace_back(str);
+    columns.emplace_back(std::move(str));
 
     ColumnPtr result = StringFunctions::ascii(ctx.get(), columns).value();
     ASSERT_EQ(3, result->size());
@@ -1518,7 +1532,7 @@ PARALLEL_TEST(VecStringFunctionsTest, charTest) {
     str->append(33);
     str->append(126);
 
-    columns.emplace_back(str);
+    columns.emplace_back(std::move(str));
 
     ColumnPtr result = StringFunctions::get_char(ctx.get(), columns).value();
     ASSERT_EQ(6, result->size());
@@ -1543,7 +1557,7 @@ PARALLEL_TEST(VecStringFunctionsTest, inetAtonInvalidIPv4Test) {
     input_column->append("192.168.1.1.1");
     input_column->append("192.168.1");
     input_column->append("");
-    columns.emplace_back(input_column);
+    columns.emplace_back(std::move(input_column));
 
     auto result = StringFunctions::inet_aton(ctx.get(), columns).value();
 
@@ -1562,7 +1576,7 @@ PARALLEL_TEST(VecStringFunctionsTest, inetAtonValidIPv4Test) {
     input_column->append("192.168.1.1");
     input_column->append("0.0.0.0");
     input_column->append("255.255.255.255");
-    columns.emplace_back(input_column);
+    columns.emplace_back(std::move(input_column));
 
     auto result = StringFunctions::inet_aton(ctx.get(), columns).value();
 
@@ -1583,8 +1597,8 @@ PARALLEL_TEST(VecStringFunctionsTest, instrTest) {
         sub->append(std::to_string(j));
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(sub);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(sub));
 
     ColumnPtr result = StringFunctions::instr(ctx.get(), columns).value();
     ASSERT_EQ(20, result->size());
@@ -1607,8 +1621,8 @@ PARALLEL_TEST(VecStringFunctionsTest, instrChineseTest) {
         sub->append(std::to_string(j));
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(sub);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(sub));
 
     ColumnPtr result = StringFunctions::instr(ctx.get(), columns).value();
     ASSERT_EQ(20, result->size());
@@ -1633,8 +1647,8 @@ PARALLEL_TEST(VecStringFunctionsTest, locateNullTest) {
         null->append(j % 2);
     }
 
-    columns.emplace_back(NullableColumn::create(sub, null));
-    columns.emplace_back(str);
+    columns.emplace_back(NullableColumn::create(std::move(sub), std::move(null)));
+    columns.emplace_back(std::move(str));
 
     ColumnPtr result = StringFunctions::locate(ctx.get(), columns).value();
     ASSERT_EQ(20, result->size());
@@ -1664,9 +1678,9 @@ PARALLEL_TEST(VecStringFunctionsTest, locatePosTest) {
         pos->append(4);
     }
 
-    columns.emplace_back(sub);
-    columns.emplace_back(str);
-    columns.emplace_back(pos);
+    columns.emplace_back(std::move(sub));
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pos));
 
     ColumnPtr result = StringFunctions::locate_pos(ctx.get(), columns).value();
     ASSERT_EQ(20, result->size());
@@ -1695,9 +1709,9 @@ PARALLEL_TEST(VecStringFunctionsTest, locatePosChineseTest) {
         pos->append(4);
     }
 
-    columns.emplace_back(sub);
-    columns.emplace_back(str);
-    columns.emplace_back(pos);
+    columns.emplace_back(std::move(sub));
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pos));
 
     ColumnPtr result = StringFunctions::locate_pos(ctx.get(), columns).value();
     ASSERT_EQ(20, result->size());
@@ -1732,10 +1746,10 @@ PARALLEL_TEST(VecStringFunctionsTest, concatWsTest) {
         null->append(j % 2);
     }
 
-    columns.emplace_back(step);
-    columns.emplace_back(str1);
-    columns.emplace_back(str2);
-    columns.emplace_back(NullableColumn::create(str3, null));
+    columns.emplace_back(std::move(step));
+    columns.emplace_back(std::move(str1));
+    columns.emplace_back(std::move(str2));
+    columns.emplace_back(NullableColumn::create(std::move(str3), std::move(null)));
 
     ColumnPtr result = StringFunctions::concat_ws(ctx.get(), columns).value();
     ASSERT_EQ(20, result->size());
@@ -1771,10 +1785,10 @@ PARALLEL_TEST(VecStringFunctionsTest, concatWs1Test) {
         null->append(j % 2);
     }
 
-    columns.emplace_back(step);
-    columns.emplace_back(str1);
-    columns.emplace_back(str2);
-    columns.emplace_back(NullableColumn::create(str3, null));
+    columns.emplace_back(std::move(step));
+    columns.emplace_back(std::move(str1));
+    columns.emplace_back(std::move(str2));
+    columns.emplace_back(NullableColumn::create(std::move(str3), std::move(null)));
 
     ColumnPtr result = StringFunctions::concat_ws(ctx.get(), columns).value();
     ASSERT_EQ(20, result->size());
@@ -1824,8 +1838,8 @@ PARALLEL_TEST(VecStringFunctionsTest, findInSetTest) {
     str->append("bc");
     strlist->append("abc");
 
-    columns.emplace_back(str);
-    columns.emplace_back(strlist);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(strlist));
 
     ColumnPtr result = StringFunctions::find_in_set(ctx.get(), columns).value();
     ASSERT_EQ(9, result->size());
@@ -1866,9 +1880,9 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpExtractNullablePattern) {
         index->append(indexs[i]);
     }
 
-    columns.push_back(str);
-    columns.push_back(NullableColumn::create(pattern, null));
-    columns.push_back(index);
+    columns.emplace_back(std::move(str));
+    columns.push_back(NullableColumn::create(std::move(pattern), std::move(null)));
+    columns.emplace_back(std::move(index));
 
     context->set_constant_columns(columns);
 
@@ -1911,9 +1925,9 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpExtractOnlyNullPattern) {
         index->append(1);
     }
 
-    columns.push_back(str);
-    columns.push_back(pattern);
-    columns.push_back(index);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pattern));
+    columns.emplace_back(std::move(index));
 
     context->set_constant_columns(columns);
 
@@ -1950,9 +1964,9 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpExtractConstPattern) {
         index->append(indexs[i]);
     }
 
-    columns.push_back(str);
-    columns.push_back(pattern);
-    columns.push_back(index);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pattern));
+    columns.emplace_back(std::move(index));
 
     context->set_constant_columns(columns);
 
@@ -1994,9 +2008,9 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpExtract) {
         index->append(indexs[i]);
     }
 
-    columns.push_back(str);
-    columns.push_back(pattern);
-    columns.push_back(index);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pattern));
+    columns.emplace_back(std::move(index));
 
     context->set_constant_columns(columns);
 
@@ -2041,9 +2055,9 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpReplaceNullablePattern) {
     null->append(0);
     null->append(1);
 
-    columns.emplace_back(str);
-    columns.emplace_back(NullableColumn::create(pattern, null));
-    columns.emplace_back(replace);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(NullableColumn::create(std::move(pattern), std::move(null)));
+    columns.emplace_back(std::move(replace));
 
     context->set_constant_columns(columns);
 
@@ -2081,9 +2095,9 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpReplaceOnlyNullPattern) {
         replace->append(replaces[i]);
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(pattern);
-    columns.emplace_back(replace);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pattern));
+    columns.emplace_back(std::move(replace));
 
     context->set_constant_columns(columns);
 
@@ -2120,9 +2134,9 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpReplaceConstPattern) {
         replace->append(replaces[i]);
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(ptn);
-    columns.emplace_back(replace);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(ptn));
+    columns.emplace_back(std::move(replace));
 
     context->set_constant_columns(columns);
 
@@ -2151,7 +2165,7 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpReplaceConstPattern) {
         auto par0 = BinaryColumn::create();
         auto par1 = ColumnHelper::create_const_column<TYPE_VARCHAR>(Slice(binary_datas.get(), binary_size), 1);
 
-        ctx0->set_constant_columns({par0, par1});
+        ctx0->set_constant_columns({par0->clone(), par1->clone()});
 
         ASSERT_ERROR(StringFunctions::regexp_replace_prepare(ctx0.get(), scope));
         ASSERT_OK(StringFunctions::regexp_close(ctx0.get(), scope));
@@ -2180,9 +2194,9 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpReplace) {
         replace->append(replaces[i]);
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(ptn);
-    columns.emplace_back(replace);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(ptn));
+    columns.emplace_back(std::move(replace));
 
     context->set_constant_columns(columns);
 
@@ -2222,9 +2236,9 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpReplaceWithEmptyPattern) {
         replace->append(replaces[i]);
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(ptn);
-    columns.emplace_back(replace);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(ptn));
+    columns.emplace_back(std::move(replace));
 
     context->set_constant_columns(columns);
 
@@ -2271,9 +2285,9 @@ PARALLEL_TEST(VecStringFunctionsTest, replaceNullablePattern) {
     null->append(1);
     null->append(0);
 
-    columns.emplace_back(str);
-    columns.emplace_back(NullableColumn::create(pattern, null));
-    columns.emplace_back(replace);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(NullableColumn::create(std::move(pattern), std::move(null)));
+    columns.emplace_back(std::move(replace));
 
     context->set_constant_columns(columns);
 
@@ -2309,9 +2323,9 @@ PARALLEL_TEST(VecStringFunctionsTest, replaceOnlyNullPattern1) {
         replace->append(strs[i]);
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(pattern);
-    columns.emplace_back(replace);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pattern));
+    columns.emplace_back(std::move(replace));
 
     context->set_constant_columns(columns);
 
@@ -2339,9 +2353,9 @@ PARALLEL_TEST(VecStringFunctionsTest, replaceOnlyNullPattern2) {
     auto pattern = ColumnHelper::create_const_null_column(1);
     auto replace = ColumnHelper::create_const_null_column(1);
 
-    columns.emplace_back(str);
-    columns.emplace_back(pattern);
-    columns.emplace_back(replace);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pattern));
+    columns.emplace_back(std::move(replace));
 
     context->set_constant_columns(columns);
 
@@ -2369,9 +2383,9 @@ PARALLEL_TEST(VecStringFunctionsTest, replaceOnlyNullPattern2) {
     auto pattern = ColumnHelper::create_const_null_column(1);
     auto replace = ColumnHelper::create_const_null_column(1);
 
-    columns.emplace_back(str);
-    columns.emplace_back(pattern);
-    columns.emplace_back(replace);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pattern));
+    columns.emplace_back(std::move(replace));
 
     context->set_constant_columns(columns);
 
@@ -2408,9 +2422,9 @@ PARALLEL_TEST(VecStringFunctionsTest, replaceConstPattern) {
         replace->append(replaces[i]);
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(ptn);
-    columns.emplace_back(replace);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(ptn));
+    columns.emplace_back(std::move(replace));
 
     context->set_constant_columns(columns);
 
@@ -2443,9 +2457,9 @@ PARALLEL_TEST(VecStringFunctionsTest, replaceConstColumn1) {
         replace->append(replaces[i]);
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(pattern);
-    columns.emplace_back(replace);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pattern));
+    columns.emplace_back(std::move(replace));
 
     context->set_constant_columns(columns);
 
@@ -2477,9 +2491,9 @@ PARALLEL_TEST(VecStringFunctionsTest, replaceConstColumn2) {
     auto pattern = ColumnHelper::create_const_column<TYPE_VARCHAR>(" ", 1);
     auto replace = ColumnHelper::create_const_column<TYPE_VARCHAR>("+", 1);
 
-    columns.emplace_back(str);
-    columns.emplace_back(pattern);
-    columns.emplace_back(replace);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pattern));
+    columns.emplace_back(std::move(replace));
 
     context->set_constant_columns(columns);
 
@@ -2519,9 +2533,9 @@ PARALLEL_TEST(VecStringFunctionsTest, replace) {
         replace->append(replaces[i]);
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(ptn);
-    columns.emplace_back(replace);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(ptn));
+    columns.emplace_back(std::move(replace));
 
     context->set_constant_columns(columns);
 
@@ -2557,9 +2571,9 @@ PARALLEL_TEST(VecStringFunctionsTest, replaceWithEmptyPattern) {
         replace->append(replaces[i]);
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(ptn);
-    columns.emplace_back(replace);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(ptn));
+    columns.emplace_back(std::move(replace));
 
     context->set_constant_columns(columns);
 
@@ -2588,7 +2602,7 @@ PARALLEL_TEST(VecStringFunctionsTest, moneyFormatDouble) {
 
     for (double i : moneys) money->append(i);
 
-    columns.emplace_back(money);
+    columns.emplace_back(std::move(money));
     ColumnPtr result = StringFunctions::money_format_double(ctx.get(), columns).value();
     auto v = ColumnHelper::as_raw_column<BinaryColumn>(result);
 
@@ -2606,7 +2620,7 @@ PARALLEL_TEST(VecStringFunctionsTest, moneyFormatBigInt) {
 
     for (long i : moneys) money->append(i);
 
-    columns.emplace_back(money);
+    columns.emplace_back(std::move(money));
     ColumnPtr result = StringFunctions::money_format_bigint(ctx.get(), columns).value();
     auto v = ColumnHelper::as_raw_column<BinaryColumn>(result);
 
@@ -2635,7 +2649,7 @@ PARALLEL_TEST(VecStringFunctionsTest, moneyFormatLargeInt) {
         money->append(i);
     }
 
-    columns.emplace_back(money);
+    columns.emplace_back(std::move(money));
     ColumnPtr result = StringFunctions::money_format_largeint(ctx.get(), columns).value();
     auto v = ColumnHelper::as_raw_column<BinaryColumn>(result);
 
@@ -2659,7 +2673,7 @@ PARALLEL_TEST(VecStringFunctionsTest, moneyFormatDecimalV2Value) {
         money->append(i);
     }
 
-    columns.emplace_back(money);
+    columns.emplace_back(std::move(money));
     ColumnPtr result = StringFunctions::money_format_decimalv2val(ctx.get(), columns).value();
     auto v = ColumnHelper::as_raw_column<BinaryColumn>(result);
 
@@ -2691,8 +2705,8 @@ PARALLEL_TEST(VecStringFunctionsTest, parseUrlNullable) {
     null->append(0);
     null->append(1);
 
-    columns.emplace_back(str);
-    columns.emplace_back(NullableColumn::create(data, null));
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(NullableColumn::create(std::move(data), std::move(null)));
 
     context->set_constant_columns(columns);
 
@@ -2727,8 +2741,8 @@ PARALLEL_TEST(VecStringFunctionsTest, parseUrlOnlyNull) {
         str->append(i);
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(part);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(part));
 
     context->set_constant_columns(columns);
 
@@ -2765,8 +2779,8 @@ PARALLEL_TEST(VecStringFunctionsTest, parseUrlForConst) {
             str->append(i);
         }
 
-        columns.emplace_back(str);
-        columns.emplace_back(part);
+        columns.emplace_back(std::move(str));
+        columns.emplace_back(std::move(part));
 
         context->set_constant_columns(columns);
 
@@ -2804,8 +2818,8 @@ PARALLEL_TEST(VecStringFunctionsTest, parseUrlForConst) {
             str->append(i);
         }
 
-        columns.emplace_back(str);
-        columns.emplace_back(part);
+        columns.emplace_back(std::move(str));
+        columns.emplace_back(std::move(part));
 
         context->set_constant_columns(columns);
 
@@ -2852,8 +2866,8 @@ PARALLEL_TEST(VecStringFunctionsTest, parseUrl) {
         part->append(i);
     }
 
-    columns.emplace_back(str);
-    columns.emplace_back(part);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(part));
 
     context->set_constant_columns(columns);
 
@@ -2883,7 +2897,7 @@ PARALLEL_TEST(VecStringFunctionsTest, hex_intTest) {
         ints->append(value);
     }
 
-    columns.emplace_back(ints);
+    columns.emplace_back(std::move(ints));
 
     ColumnPtr result = StringFunctions::hex_int(ctx.get(), columns).value();
     auto v = ColumnHelper::cast_to<TYPE_VARCHAR>(result);
@@ -2905,7 +2919,7 @@ PARALLEL_TEST(VecStringFunctionsTest, hex_stringTest) {
         ints->append(value);
     }
 
-    columns.emplace_back(ints);
+    columns.emplace_back(std::move(ints));
 
     ColumnPtr result = StringFunctions::hex_string(ctx.get(), columns).value();
     auto v = ColumnHelper::cast_to<TYPE_VARCHAR>(result);
@@ -2928,7 +2942,7 @@ PARALLEL_TEST(VecStringFunctionsTest, unhexTest) {
         ints->append(value);
     }
 
-    columns.emplace_back(ints);
+    columns.emplace_back(std::move(ints));
 
     ColumnPtr result = StringFunctions::unhex(ctx.get(), columns).value();
     auto v = ColumnHelper::cast_to<TYPE_VARCHAR>(result);
@@ -2951,8 +2965,8 @@ static void test_left_and_right_not_const(
         str_col->append(Slice(s));
         len_col->append(len);
     }
-    columns.push_back(str_col);
-    columns.push_back(len_col);
+    columns.emplace_back(std::move(str_col));
+    columns.emplace_back(std::move(len_col));
     ColumnPtr left_result = StringFunctions::left(context.get(), columns).value();
     ColumnPtr right_result = StringFunctions::right(context.get(), columns).value();
     auto* binary_left_result = down_cast<BinaryColumn*>(left_result.get());
@@ -2981,8 +2995,8 @@ static void test_left_and_right_not_const(
         str_col->append(Slice(s));
         len_col->append(len);
         columns.resize(0);
-        columns.push_back(str_col);
-        columns.push_back(ConstColumn::create(len_col, 1));
+        columns.emplace_back(std::move(str_col));
+        columns.push_back(ConstColumn::create(std::move(len_col), 1));
 
         auto substr_state = std::make_unique<SubstrState>();
         context->set_function_state(FunctionContext::FRAGMENT_LOCAL, substr_state.get());
@@ -3072,8 +3086,8 @@ static void test_left_and_right_const(
         Columns columns;
         auto len_col = Int32Column::create();
         len_col->append(len);
-        columns.push_back(str_col);
-        columns.push_back(ConstColumn::create(len_col, 1));
+        columns.emplace_back(std::move(str_col));
+        columns.push_back(ConstColumn::create(std::move(len_col), 1));
         auto substr_state = std::make_unique<SubstrState>();
         std::unique_ptr<FunctionContext> context(FunctionContext::create_test_context());
         context->set_function_state(FunctionContext::FRAGMENT_LOCAL, substr_state.get());
@@ -3114,7 +3128,7 @@ PARALLEL_TEST(VecStringFunctionsTest, leftAndRightConstASCIITest) {
             {-111, {"", "", ""}, {"", "", ""}},
             {INT_MIN, {"", "", ""}, {"", "", ""}},
     };
-    test_left_and_right_const(str_col, cases);
+    test_left_and_right_const(std::move(str_col), cases);
 }
 
 PARALLEL_TEST(VecStringFunctionsTest, leftAndRightConstUtf8Test) {
@@ -3148,7 +3162,7 @@ PARALLEL_TEST(VecStringFunctionsTest, leftAndRightConstUtf8Test) {
             {-111, {"", "", "", ""}, {"", "", "", ""}},
             {INT_MIN, {"", "", "", ""}, {"", "", "", ""}},
     };
-    test_left_and_right_const(str_col, cases);
+    test_left_and_right_const(std::move(str_col), cases);
 }
 
 static void test_substr_not_const(std::vector<std::tuple<std::string, int, int, std::string>>& cases) {
@@ -3164,7 +3178,7 @@ static void test_substr_not_const(std::vector<std::tuple<std::string, int, int, 
         off_col->append(std::get<1>(c));
         len_col->append(std::get<2>(c));
     }
-    Columns columns{str_col, off_col, len_col};
+    Columns columns{std::move(str_col), std::move(off_col), std::move(len_col)};
     auto result = StringFunctions::substring(context.get(), columns).value();
     auto* binary_result = down_cast<BinaryColumn*>(result.get());
     const auto size = cases.size();
@@ -3176,7 +3190,7 @@ static void test_substr_not_const(std::vector<std::tuple<std::string, int, int, 
 }
 
 PARALLEL_TEST(VecStringFunctionsTest, substrNotConstASCIITest) {
-    ColumnPtr str_col = BinaryColumn::create();
+    MutableColumnPtr str_col = BinaryColumn::create();
     std::string ascii_1_9 = "123456789";
     std::vector<std::tuple<std::string, int, int, std::string>> cases = {
             {"", 0, 1, ""},
@@ -3252,7 +3266,7 @@ PARALLEL_TEST(VecStringFunctionsTest, substrNotConstASCIITest) {
 }
 
 PARALLEL_TEST(VecStringFunctionsTest, substrNotConstUtf8Test) {
-    ColumnPtr str_col = BinaryColumn::create();
+    MutableColumnPtr str_col = BinaryColumn::create();
     std::string zh_1_9 = "壹贰叁肆伍陆柒捌玖";
     std::vector<std::tuple<std::string, int, int, std::string>> cases = {
             {"", 0, 1, ""},
@@ -3351,8 +3365,8 @@ PARALLEL_TEST(VecStringFunctionsTest, strcmpTest) {
     lhs->append("text2");
     rhs->append("text1");
 
-    columns.emplace_back(lhs);
-    columns.emplace_back(rhs);
+    columns.emplace_back(std::move(lhs));
+    columns.emplace_back(std::move(rhs));
 
     ColumnPtr result = StringFunctions::strcmp(ctx.get(), columns).value();
     auto v = ColumnHelper::cast_to<TYPE_INT>(result);
@@ -3386,9 +3400,9 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpExtractAllPattern) {
         index->append(indexs[i]);
     }
 
-    columns.push_back(str);
-    columns.push_back(pattern);
-    columns.push_back(index);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pattern));
+    columns.emplace_back(std::move(index));
 
     context->set_constant_columns(columns);
 
@@ -3427,9 +3441,9 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpExtractAllNullablePattern1) {
         index->append(indexs[i]);
     }
 
-    columns.push_back(str);
-    columns.push_back(pattern);
-    columns.push_back(index);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pattern));
+    columns.emplace_back(std::move(index));
 
     context->set_constant_columns(columns);
 
@@ -3468,9 +3482,9 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpExtractAllNullablePattern2) {
         index->append(indexs[i]);
     }
 
-    columns.push_back(str);
-    columns.push_back(NullableColumn::create(pattern, null));
-    columns.push_back(index);
+    columns.emplace_back(std::move(str));
+    columns.push_back(NullableColumn::create(std::move(pattern), std::move(null)));
+    columns.emplace_back(std::move(index));
 
     context->set_constant_columns(columns);
 
@@ -3505,9 +3519,9 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpExtractAllOnlyNullPattern) {
         index->append(1);
     }
 
-    columns.push_back(str);
-    columns.push_back(pattern);
-    columns.push_back(index);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pattern));
+    columns.emplace_back(std::move(index));
 
     context->set_constant_columns(columns);
 
@@ -3544,9 +3558,9 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpExtractAllConstPattern) {
         index->append(indexs[i]);
     }
 
-    columns.push_back(str);
-    columns.push_back(pattern);
-    columns.push_back(index);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pattern));
+    columns.emplace_back(std::move(index));
 
     context->set_constant_columns(columns);
 
@@ -3581,9 +3595,9 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpExtractAllConst) {
         str->append(strs[i]);
     }
 
-    columns.push_back(str);
-    columns.push_back(pattern);
-    columns.push_back(index);
+    columns.emplace_back(std::move(str));
+    columns.emplace_back(std::move(pattern));
+    columns.emplace_back(std::move(index));
 
     context->set_constant_columns(columns);
 
@@ -3607,7 +3621,7 @@ PARALLEL_TEST(VecStringFunctionsTest, crc32Test) {
     auto str = BinaryColumn::create();
     str->append("starrocks");
     str->append("STARROCKS");
-    columns.push_back(str);
+    columns.emplace_back(std::move(str));
 
     ASSERT_TRUE(StringFunctions::crc32(ctx.get(), columns).ok());
     ColumnPtr result = StringFunctions::crc32(ctx.get(), columns).value();
@@ -3634,8 +3648,8 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpSplitTest) {
             str->append(strs[i]);
         }
 
-        columns.push_back(str);
-        columns.push_back(pattern);
+        columns.emplace_back(std::move(str));
+        columns.emplace_back(std::move(pattern));
 
         context->set_constant_columns(columns);
 
@@ -3672,9 +3686,9 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpSplitTest) {
             null->append(i == 3 ? 1 : 0);
         }
 
-        columns.push_back(NullableColumn::create(str, null));
-        columns.push_back(pattern);
-        columns.push_back(max_split);
+        columns.push_back(NullableColumn::create(std::move(str), std::move(null)));
+        columns.emplace_back(std::move(pattern));
+        columns.emplace_back(std::move(max_split));
 
         context->set_constant_columns(columns);
 
@@ -3711,8 +3725,8 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpSplitTest) {
             str->append(strs[i]);
         }
 
-        columns.push_back(str);
-        columns.push_back(pattern);
+        columns.emplace_back(std::move(str));
+        columns.emplace_back(std::move(pattern));
 
         context->set_constant_columns(columns);
 
@@ -3759,9 +3773,9 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpSplitTest) {
             max_split->append(max_splits[i]);
         }
 
-        columns.push_back(NullableColumn::create(str, null));
-        columns.push_back(pattern);
-        columns.push_back(max_split);
+        columns.push_back(NullableColumn::create(std::move(str), std::move(null)));
+        columns.emplace_back(std::move(pattern));
+        columns.emplace_back(std::move(max_split));
 
         context->set_constant_columns(columns);
 
@@ -3797,8 +3811,8 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpSplitTest) {
             pattern->append(patterns[i]);
         }
 
-        columns.push_back(str);
-        columns.push_back(pattern);
+        columns.emplace_back(std::move(str));
+        columns.emplace_back(std::move(pattern));
 
         context->set_constant_columns(columns);
 
@@ -3837,9 +3851,9 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpSplitTest) {
             null->append(i == 3 ? 1 : 0);
         }
 
-        columns.push_back(str);
-        columns.push_back(NullableColumn::create(pattern, null));
-        columns.push_back(max_split);
+        columns.emplace_back(std::move(str));
+        columns.push_back(NullableColumn::create(std::move(pattern), std::move(null)));
+        columns.emplace_back(std::move(max_split));
 
         context->set_constant_columns(columns);
 
@@ -3876,8 +3890,8 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpSplitTest) {
             pattern->append(patterns[i]);
         }
 
-        columns.push_back(str);
-        columns.push_back(pattern);
+        columns.emplace_back(std::move(str));
+        columns.emplace_back(std::move(pattern));
 
         context->set_constant_columns(columns);
 
@@ -3919,9 +3933,9 @@ PARALLEL_TEST(VecStringFunctionsTest, regexpSplitTest) {
             max_split->append(max_splits[i]);
         }
 
-        columns.push_back(str);
-        columns.push_back(NullableColumn::create(pattern, null));
-        columns.push_back(max_split);
+        columns.emplace_back(std::move(str));
+        columns.push_back(NullableColumn::create(std::move(pattern), std::move(null)));
+        columns.emplace_back(std::move(max_split));
 
         context->set_constant_columns(columns);
 

@@ -33,11 +33,11 @@ PARALLEL_TEST(MapColumnTest, test_create) {
     auto offsets = UInt32Column::create();
     auto keys_data = Int32Column::create();
     auto keys_null = NullColumn::create();
-    auto keys = NullableColumn::create(keys_data, keys_null);
+    auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
     auto values_data = Int32Column::create();
     auto values_null = NullColumn::create();
-    auto values = NullableColumn::create(values_data, values_null);
-    auto column = MapColumn::create(keys, values, offsets);
+    auto values = NullableColumn::create(std::move(values_data), std::move(values_null));
+    auto column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
     ASSERT_TRUE(column->is_map());
     ASSERT_FALSE(column->is_nullable());
     ASSERT_EQ(0, column->size());
@@ -49,11 +49,11 @@ PARALLEL_TEST(MapColumnTest, test_map_column_update_if_overflow) {
     auto offsets = UInt32Column::create();
     auto keys_data = BinaryColumn::create();
     auto keys_null = NullColumn::create();
-    auto keys = NullableColumn::create(keys_data, keys_null);
+    auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
     auto values_data = BinaryColumn::create();
     auto null_column = NullColumn::create();
-    auto values = NullableColumn::create(values_data, null_column);
-    auto column = MapColumn::create(keys, values, offsets);
+    auto values = NullableColumn::create(std::move(values_data), std::move(null_column));
+    auto column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
 
     DatumMap map;
     map[(Slice) "a"] = (Slice) "hello";
@@ -82,8 +82,8 @@ PARALLEL_TEST(MapColumnTest, test_map_column_update_if_overflow) {
     auto keys_large = BinaryColumn::create();
     auto values_data_large = Int32Column::create();
     auto values_null_large = NullColumn::create();
-    auto values_large = NullableColumn::create(values_data_large, values_null_large);
-    auto column_large = MapColumn::create(keys_large, values_large, offsets_large);
+    auto values_large = NullableColumn::create(std::move(values_data_large), std::move(values_null_large));
+    auto column_large = MapColumn::create(std::move(keys_large), std::move(values_large), std::move(offsets_large));
 
     size_t item_count = 1<<30;
     for (size_t i = 0; i < item_count; i++) {
@@ -103,11 +103,11 @@ PARALLEL_TEST(MapColumnTest, test_map_column_downgrade) {
     auto offsets = UInt32Column::create();
     auto keys_data = BinaryColumn::create();
     auto keys_null = NullColumn::create();
-    auto keys = NullableColumn::create(keys_data, keys_null);
+    auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
     auto values_data = BinaryColumn::create();
     auto null_column = NullColumn::create();
-    auto values = NullableColumn::create(values_data, null_column);
-    auto column = MapColumn::create(keys, values, offsets);
+    auto values = NullableColumn::create(std::move(values_data), std::move(null_column));
+    auto column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
 
     DatumMap map;
     map[(Slice) "a"] = (Slice) "hello";
@@ -128,11 +128,11 @@ PARALLEL_TEST(MapColumnTest, test_map_column_downgrade) {
     auto offsets_large = UInt32Column::create();
     auto keys_data_large = LargeBinaryColumn::create();
     auto keys_null_large = NullColumn::create();
-    auto keys_large = NullableColumn::create(keys_data_large, keys_null_large);
+    auto keys_large = NullableColumn::create(std::move(keys_data_large), std::move(keys_null_large));
     auto values_data_large = LargeBinaryColumn::create();
     auto null_column_large = NullColumn::create();
-    auto values_large = NullableColumn::create(values_data_large, null_column_large);
-    auto column_large = MapColumn::create(keys_large, values_large, offsets_large);
+    auto values_large = NullableColumn::create(std::move(values_data_large), std::move(null_column_large));
+    auto column_large = MapColumn::create(std::move(keys_large), std::move(values_large), std::move(offsets_large));
 
     for (size_t i = 0; i < 10; i++) {
         column_large->append_datum(DatumMap{{Slice(std::to_string(i)), Slice(std::to_string(i))}});
@@ -155,11 +155,11 @@ PARALLEL_TEST(MapColumnTest, test_get_kvs) {
     auto offsets = UInt32Column::create();
     auto keys_data = Int32Column::create();
     auto keys_null = NullColumn::create();
-    auto keys = NullableColumn::create(keys_data, keys_null);
+    auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
     auto values_data = Int32Column::create();
     auto values_null = NullColumn::create();
-    auto values = NullableColumn::create(values_data, values_null);
-    auto column = MapColumn::create(keys, values, offsets);
+    auto values = NullableColumn::create(std::move(values_data), std::move(values_null));
+    auto column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
 
     // insert [1, 2, 3], [4, 5, 6]
     DatumMap map;
@@ -183,11 +183,11 @@ PARALLEL_TEST(MapColumnTest, test_byte_size) {
     auto offsets = UInt32Column::create();
     auto keys_data = Int32Column::create();
     auto keys_null = NullColumn::create();
-    auto keys = NullableColumn::create(keys_data, keys_null);
+    auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
     auto values_data = Int32Column::create();
     auto values_null = NullColumn::create();
-    auto values = NullableColumn::create(values_data, values_null);
-    auto column = MapColumn::create(keys, values, offsets);
+    auto values = NullableColumn::create(std::move(values_data), std::move(values_null));
+    auto column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
 
     // insert [1, 2, 3], [4, 5, 6]
     DatumMap map;
@@ -386,10 +386,10 @@ PARALLEL_TEST(MapColumnTest, test_filter) {
     {
         const int N = 100;
         auto array_nullable = NullableColumn::create(Int32Column::create(), NullColumn::create());
-        auto value_column = NullableColumn::create(ArrayColumn::create(array_nullable, UInt32Column::create()),
-                                                   NullColumn::create());
+        auto value_column = NullableColumn::create(
+                ArrayColumn::create(std::move(array_nullable), UInt32Column::create()), NullColumn::create());
         auto column = MapColumn::create(NullableColumn::create(Int32Column::create(), NullColumn::create()),
-                                        value_column, UInt32Column::create());
+                                        std::move(value_column), UInt32Column::create());
 
         for (int i = 0; i < N; i++) {
             column->append_datum(DatumMap{{i, DatumArray{i + 1, i + 2}}, {i + 1, DatumArray{i + 1, i + 2}}});
@@ -476,11 +476,11 @@ PARALLEL_TEST(MapColumnTest, test_append_datumMap_with_null_value) {
     auto offsets = UInt32Column::create();
     auto keys_data = Int32Column::create();
     auto keys_null = NullColumn::create();
-    auto keys = NullableColumn::create(keys_data, keys_null);
+    auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
     auto values_data = Int32Column::create();
     auto values_null = NullColumn::create();
-    auto values = NullableColumn::create(values_data, values_null);
-    auto column = MapColumn::create(keys, values, offsets);
+    auto values = NullableColumn::create(std::move(values_data), std::move(values_null));
+    auto column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
 
     // insert [1, 2, 3], [4, 5, 6]
     DatumMap map;
@@ -508,11 +508,11 @@ PARALLEL_TEST(MapColumnTest, test_append_nulls) {
     auto offsets = UInt32Column::create();
     auto keys_data = Int32Column::create();
     auto keys_null = NullColumn::create();
-    auto keys = NullableColumn::create(keys_data, keys_null);
+    auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
     auto values_data = Int32Column::create();
     auto values_null = NullColumn::create();
-    auto values = NullableColumn::create(values_data, values_null);
-    auto column = MapColumn::create(keys, values, offsets);
+    auto values = NullableColumn::create(std::move(values_data), std::move(values_null));
+    auto column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
 
     ASSERT_TRUE(column->append_nulls(1));
 
@@ -539,11 +539,11 @@ PARALLEL_TEST(MapColumnTest, test_append_defaults) {
     auto offsets = UInt32Column::create();
     auto keys_data = Int32Column::create();
     auto keys_null = NullColumn::create();
-    auto keys = NullableColumn::create(keys_data, keys_null);
+    auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
     auto values_data = Int32Column::create();
     auto null_column = NullColumn::create();
-    auto values = NullableColumn::create(values_data, null_column);
-    auto column = MapColumn::create(keys, values, offsets);
+    auto values = NullableColumn::create(std::move(values_data), std::move(null_column));
+    auto column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
 
     // insert [1, 2, 3], [4, 5, 6]
     DatumMap map;
@@ -571,11 +571,11 @@ PARALLEL_TEST(MapColumnTest, test_string_key) {
     auto offsets = UInt32Column::create();
     auto keys_data = BinaryColumn::create();
     auto keys_null = NullColumn::create();
-    auto keys = NullableColumn::create(keys_data, keys_null);
+    auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
     auto values_data = Int32Column::create();
     auto null_column = NullColumn::create();
-    auto values = NullableColumn::create(values_data, null_column);
-    auto column = MapColumn::create(keys, values, offsets);
+    auto values = NullableColumn::create(std::move(values_data), std::move(null_column));
+    auto column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
 
     // insert ["a"->1, "b"->2, "c"->3], ["d"->4, "e"->5]
     DatumMap map;
@@ -598,11 +598,11 @@ PARALLEL_TEST(MapColumnTest, test_string_value) {
     auto offsets = UInt32Column::create();
     auto keys_data = BinaryColumn::create();
     auto keys_null = NullColumn::create();
-    auto keys = NullableColumn::create(keys_data, keys_null);
+    auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
     auto values_data = BinaryColumn::create();
     auto null_column = NullColumn::create();
-    auto values = NullableColumn::create(values_data, null_column);
-    auto column = MapColumn::create(keys, values, offsets);
+    auto values = NullableColumn::create(std::move(values_data), std::move(null_column));
+    auto column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
 
     // insert ["a"->1, "b"->2, "c"->3], ["d"->4, "e"->5]
     DatumMap map;
@@ -625,15 +625,15 @@ PARALLEL_TEST(MapColumnTest, test_array_value) {
     auto offsets = UInt32Column::create();
     auto keys_data = BinaryColumn::create();
     auto keys_null = NullColumn::create();
-    auto keys = NullableColumn::create(keys_data, keys_null);
+    auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
     auto array_offsets = UInt32Column::create();
     auto array_elements_data = Int32Column::create();
     auto array_elements_null = NullColumn::create();
-    auto array_elements = NullableColumn::create(array_elements_data, array_elements_null);
-    auto values_data = ArrayColumn::create(array_elements, array_offsets);
+    auto array_elements = NullableColumn::create(std::move(array_elements_data), std::move(array_elements_null));
+    auto values_data = ArrayColumn::create(std::move(array_elements), std::move(array_offsets));
     auto null_column = NullColumn::create();
-    auto values = NullableColumn::create(values_data, null_column);
-    auto column = MapColumn::create(keys, values, offsets);
+    auto values = NullableColumn::create(std::move(values_data), std::move(null_column));
+    auto column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
 
     // insert ["a"->[1, 2, 3], "b"->[2, 3, 4], "c"->[3]], ["def"->[4, 5, 6, 7], "g h"->[5]]
     DatumMap map;
@@ -673,11 +673,11 @@ PARALLEL_TEST(MapColumnTest, test_resize) {
     auto offsets = UInt32Column::create();
     auto keys_data = Int32Column::create();
     auto keys_null = NullColumn::create();
-    auto keys = NullableColumn::create(keys_data, keys_null);
+    auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
     auto values_data = Int32Column::create();
     auto null_column = NullColumn::create();
-    auto values = NullableColumn::create(values_data, null_column);
-    auto column = MapColumn::create(keys, values, offsets);
+    auto values = NullableColumn::create(std::move(values_data), std::move(null_column));
+    auto column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
 
     // insert [1, 2, 3], [4, 5, 6], [7, 8, 9]
     DatumMap map;
@@ -710,11 +710,11 @@ PARALLEL_TEST(MapColumnTest, test_reset_column) {
     auto offsets = UInt32Column::create();
     auto keys_data = Int32Column::create();
     auto keys_null = NullColumn::create();
-    auto keys = NullableColumn::create(keys_data, keys_null);
+    auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
     auto values_data = Int32Column::create();
     auto null_column = NullColumn::create();
-    auto values = NullableColumn::create(values_data, null_column);
-    auto column = MapColumn::create(keys, values, offsets);
+    auto values = NullableColumn::create(std::move(values_data), std::move(null_column));
+    auto column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
 
     // insert [1, 2, 3], [4, 5, 6], [7, 8, 9]
     // insert [1, 2, 3], [4, 5, 6], [7, 8, 9]
@@ -747,11 +747,11 @@ PARALLEL_TEST(MapColumnTest, test_swap_column) {
     auto offsets = UInt32Column::create();
     auto keys_data = Int32Column::create();
     auto keys_null = NullColumn::create();
-    auto keys = NullableColumn::create(keys_data, keys_null);
+    auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
     auto values_data = Int32Column::create();
     auto null_column = NullColumn::create();
-    auto values = NullableColumn::create(values_data, null_column);
-    auto column = MapColumn::create(keys, values, offsets);
+    auto values = NullableColumn::create(std::move(values_data), std::move(null_column));
+    auto column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
 
     // insert [1, 2, 3], [4, 5, 6]
     DatumMap map;
@@ -769,11 +769,11 @@ PARALLEL_TEST(MapColumnTest, test_swap_column) {
     auto offsets2 = UInt32Column::create();
     auto keys2_data = Int32Column::create();
     auto keys2_null = NullColumn::create();
-    auto keys2 = NullableColumn::create(keys2_data, keys2_null);
+    auto keys2 = NullableColumn::create(std::move(keys2_data), std::move(keys2_null));
     auto values_data2 = Int32Column::create();
     auto null_column2 = NullColumn::create();
-    auto values2 = NullableColumn::create(values_data2, null_column2);
-    auto column2 = MapColumn::create(keys2, values2, offsets2);
+    auto values2 = NullableColumn::create(std::move(values_data2), std::move(null_column2));
+    auto column2 = MapColumn::create(std::move(keys2), std::move(values2), std::move(offsets2));
 
     // insert [7, 8, 9]
     DatumMap map3;
@@ -813,9 +813,9 @@ PARALLEL_TEST(MapColumnTest, test_copy_constructor) {
     c0->reset_column();
     ASSERT_EQ("{1:11,2:22,3:33}", c1.debug_item(0));
     ASSERT_EQ("{4:44,5:55,6:66}", c1.debug_item(1));
-    ASSERT_TRUE(c1.keys_column().unique());
-    ASSERT_TRUE(c1.values_column().unique());
-    ASSERT_TRUE(c1.offsets_column().unique());
+    ASSERT_TRUE(c1.keys_column()->use_count() == 1);
+    ASSERT_TRUE(c1.values_column()->use_count() == 1);
+    ASSERT_TRUE(c1.offsets_column()->use_count() == 1);
 }
 
 // NOLINTNEXTLINE
@@ -840,9 +840,9 @@ PARALLEL_TEST(MapColumnTest, test_move_constructor) {
     MapColumn c1(std::move(*c0));
     ASSERT_EQ("{1:11,2:22,3:33}", c1.debug_item(0));
     ASSERT_EQ("{4:44,5:55,6:66}", c1.debug_item(1));
-    ASSERT_TRUE(c1.keys_column().unique());
-    ASSERT_TRUE(c1.values_column().unique());
-    ASSERT_TRUE(c1.offsets_column().unique());
+    ASSERT_TRUE(c1.keys_column()->use_count() == 1);
+    ASSERT_TRUE(c1.values_column()->use_count() == 1);
+    ASSERT_TRUE(c1.offsets_column()->use_count() == 1);
 }
 
 // NOLINTNEXTLINE
@@ -870,9 +870,9 @@ PARALLEL_TEST(MapColumnTest, test_copy_assignment) {
     c0->reset_column();
     ASSERT_EQ("{1:11,2:22,3:33}", c1.debug_item(0));
     ASSERT_EQ("{4:44,5:55,6:66}", c1.debug_item(1));
-    ASSERT_TRUE(c1.keys_column().unique());
-    ASSERT_TRUE(c1.values_column().unique());
-    ASSERT_TRUE(c1.offsets_column().unique());
+    ASSERT_TRUE(c1.keys_column()->use_count() == 1);
+    ASSERT_TRUE(c1.values_column()->use_count() == 1);
+    ASSERT_TRUE(c1.offsets_column()->use_count() == 1);
 }
 
 // NOLINTNEXTLINE
@@ -899,9 +899,9 @@ PARALLEL_TEST(MapColumnTest, test_move_assignment) {
     c1 = std::move(*c0);
     ASSERT_EQ("{1:11,2:22,3:33}", c1.debug_item(0));
     ASSERT_EQ("{4:44,5:55,6:66}", c1.debug_item(1));
-    ASSERT_TRUE(c1.keys_column().unique());
-    ASSERT_TRUE(c1.values_column().unique());
-    ASSERT_TRUE(c1.offsets_column().unique());
+    ASSERT_TRUE(c1.keys_column()->use_count() == 1);
+    ASSERT_TRUE(c1.values_column()->use_count() == 1);
+    ASSERT_TRUE(c1.offsets_column()->use_count() == 1);
 }
 
 // NOLINTNEXTLINE
@@ -927,9 +927,9 @@ PARALLEL_TEST(MapColumnTest, test_clone) {
     c0->reset_column();
     ASSERT_EQ("{1:11,2:22,3:33}", down_cast<MapColumn*>(c1.get())->debug_item(0));
     ASSERT_EQ("{4:44,5:55,6:66}", down_cast<MapColumn*>(c1.get())->debug_item(1));
-    ASSERT_TRUE(down_cast<MapColumn*>(c1.get())->keys_column().unique());
-    ASSERT_TRUE(down_cast<MapColumn*>(c1.get())->values_column().unique());
-    ASSERT_TRUE(down_cast<MapColumn*>(c1.get())->offsets_column().unique());
+    ASSERT_TRUE(down_cast<MapColumn*>(c1.get())->keys_column()->use_count() == 1);
+    ASSERT_TRUE(down_cast<MapColumn*>(c1.get())->values_column()->use_count() == 1);
+    ASSERT_TRUE(down_cast<MapColumn*>(c1.get())->offsets_column()->use_count() == 1);
 }
 
 // NOLINTNEXTLINE
@@ -951,14 +951,14 @@ PARALLEL_TEST(MapColumnTest, test_clone_shared) {
     map1[(int32_t)6] = (int32_t)66;
     c0->append_datum(map1);
 
-    auto c1 = c0->clone_shared();
+    auto c1 = c0->clone();
     c0->reset_column();
     ASSERT_EQ("{1:11,2:22,3:33}", down_cast<MapColumn*>(c1.get())->debug_item(0));
     ASSERT_EQ("{4:44,5:55,6:66}", down_cast<MapColumn*>(c1.get())->debug_item(1));
-    ASSERT_TRUE(c1.unique());
-    ASSERT_TRUE(down_cast<MapColumn*>(c1.get())->keys_column().unique());
-    ASSERT_TRUE(down_cast<MapColumn*>(c1.get())->values_column().unique());
-    ASSERT_TRUE(down_cast<MapColumn*>(c1.get())->offsets_column().unique());
+    ASSERT_TRUE(c1->use_count() == 1);
+    ASSERT_TRUE(down_cast<MapColumn*>(c1.get())->keys_column()->use_count() == 1);
+    ASSERT_TRUE(down_cast<MapColumn*>(c1.get())->values_column()->use_count() == 1);
+    ASSERT_TRUE(down_cast<MapColumn*>(c1.get())->offsets_column()->use_count() == 1);
 }
 
 // NOLINTNEXTLINE
@@ -1124,11 +1124,11 @@ PARALLEL_TEST(MapColumnTest, test_euqals) {
         auto offsets = UInt32Column::create();
         auto keys_data = Int32Column::create();
         auto keys_null = NullColumn::create();
-        auto keys = NullableColumn::create(keys_data, keys_null);
+        auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
         auto values_data = Int32Column::create();
         auto values_null = NullColumn::create();
-        auto values = NullableColumn::create(values_data, values_null);
-        lhs = MapColumn::create(keys, values, offsets);
+        auto values = NullableColumn::create(std::move(values_data), std::move(values_null));
+        lhs = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
     }
     {
         DatumMap map;
@@ -1158,11 +1158,11 @@ PARALLEL_TEST(MapColumnTest, test_euqals) {
         auto offsets = UInt32Column::create();
         auto keys_data = Int32Column::create();
         auto keys_null = NullColumn::create();
-        auto keys = NullableColumn::create(keys_data, keys_null);
+        auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
         auto values_data = Int32Column::create();
         auto values_null = NullColumn::create();
-        auto values = NullableColumn::create(values_data, values_null);
-        rhs = MapColumn::create(keys, values, offsets);
+        auto values = NullableColumn::create(std::move(values_data), std::move(values_null));
+        rhs = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
     }
     {
         DatumMap map;
@@ -1211,11 +1211,11 @@ PARALLEL_TEST(MapColumnTest, test_remove_duplicated_keys) {
         auto offsets = UInt32Column::create();
         auto keys_data = Int32Column::create();
         auto keys_null = NullColumn::create();
-        auto keys = NullableColumn::create(keys_data, keys_null);
+        auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
         auto values_data = Int32Column::create();
         auto values_null = NullColumn::create();
-        auto values = NullableColumn::create(values_data, values_null);
-        auto column = MapColumn::create(keys, values, offsets);
+        auto values = NullableColumn::create(std::move(values_data), std::move(values_null));
+        auto column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
 
         DatumMap map;
         map[(int32_t)1] = (int32_t)11;
@@ -1247,11 +1247,11 @@ PARALLEL_TEST(MapColumnTest, test_remove_duplicated_keys) {
         auto offsets = UInt32Column::create();
         auto keys_data = BinaryColumn::create();
         auto keys_null = NullColumn::create();
-        auto keys = NullableColumn::create(keys_data, keys_null);
+        auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
         auto values_data = BinaryColumn::create();
         auto null_column = NullColumn::create();
-        auto values = NullableColumn::create(values_data, null_column);
-        auto column = MapColumn::create(keys, values, offsets);
+        auto values = NullableColumn::create(std::move(values_data), std::move(null_column));
+        auto column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
 
         DatumMap map;
         map[(Slice) "a"] = (Slice) "hello";
@@ -1273,11 +1273,11 @@ PARALLEL_TEST(MapColumnTest, test_remove_duplicated_keys) {
         auto offsets = UInt32Column::create();
         auto keys_data = Int32Column::create();
         auto keys_null = NullColumn::create();
-        auto keys = NullableColumn::create(keys_data, keys_null);
+        auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
         auto values_data = Int32Column::create();
         auto values_null = NullColumn::create();
-        auto values = NullableColumn::create(values_data, values_null);
-        auto column = MapColumn::create(keys, values, offsets);
+        auto values = NullableColumn::create(std::move(values_data), std::move(values_null));
+        auto column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
 
         DatumMap map;
         map[(int32_t)1] = (int32_t)11;
@@ -1309,7 +1309,8 @@ PARALLEL_TEST(MapColumnTest, test_remove_duplicated_keys) {
         nest_offsets->get_data().push_back(4);
 
         auto nest_map =
-                MapColumn::create(std::move(nest_keys), ColumnHelper::cast_to_nullable_column(column), nest_offsets);
+                MapColumn::create(std::move(nest_keys), ColumnHelper::cast_to_nullable_column(std::move(column)),
+                                  std::move(nest_offsets));
         nest_map->remove_duplicated_keys(true);
 
         ASSERT_EQ("{1:{4:66}}", nest_map->debug_item(0));
@@ -1319,11 +1320,11 @@ PARALLEL_TEST(MapColumnTest, test_remove_duplicated_keys) {
         auto offsets = UInt32Column::create();
         auto keys_data = Int32Column::create();
         auto keys_null = NullColumn::create();
-        auto keys = NullableColumn::create(keys_data, keys_null);
+        auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
         auto values_data = Int32Column::create();
         auto values_null = NullColumn::create();
-        auto values = NullableColumn::create(values_data, values_null);
-        auto column = MapColumn::create(keys, values, offsets);
+        auto values = NullableColumn::create(std::move(values_data), std::move(values_null));
+        auto column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
 
         DatumMap map;
         map[(int32_t)1] = (int32_t)11;
@@ -1361,11 +1362,11 @@ PARALLEL_TEST(MapColumnTest, test_remove_duplicated_keys) {
         auto offsets = UInt32Column::create();
         auto keys_data = BinaryColumn::create();
         auto keys_null = NullColumn::create();
-        auto keys = NullableColumn::create(keys_data, keys_null);
+        auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
         auto values_data = BinaryColumn::create();
         auto null_column = NullColumn::create();
-        auto values = NullableColumn::create(values_data, null_column);
-        auto column = MapColumn::create(keys, values, offsets);
+        auto values = NullableColumn::create(std::move(values_data), std::move(null_column));
+        auto column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
 
         DatumMap map;
         map[(Slice) "a"] = (Slice) "aaa";
@@ -1391,10 +1392,10 @@ TEST(MapColumnTest, test_hash) {
         auto offsets = UInt32Column::create();
         auto keys_data = Int32Column::create();
         auto keys_null = NullColumn::create();
-        auto keys = NullableColumn::create(keys_data, keys_null);
+        auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
         auto values_data = Int32Column::create();
         auto values_null = NullColumn::create();
-        auto values = NullableColumn::create(values_data, values_null);
+        auto values = NullableColumn::create(std::move(values_data), std::move(values_null));
 
         offsets->append(0);
         offsets->append(3);
@@ -1415,17 +1416,17 @@ TEST(MapColumnTest, test_hash) {
         values_data->append(21);
         values_data->append(31);
 
-        column = MapColumn::create(keys, values, offsets);
+        column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
     }
 
     {
         auto offsets = UInt32Column::create();
         auto keys_data = Int32Column::create();
         auto keys_null = NullColumn::create();
-        auto keys = NullableColumn::create(keys_data, keys_null);
+        auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
         auto values_data = Int32Column::create();
         auto values_null = NullColumn::create();
-        auto values = NullableColumn::create(values_data, values_null);
+        auto values = NullableColumn::create(std::move(values_data), std::move(values_null));
 
         offsets->append(0);
         offsets->append(3);
@@ -1446,7 +1447,7 @@ TEST(MapColumnTest, test_hash) {
         values_data->append(11);
         values_data->append(31);
 
-        column1 = MapColumn::create(keys, values, offsets);
+        column1 = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
     }
 
     ASSERT_EQ("{1:11,2:21,3:31}", column->debug_item(0));

@@ -68,11 +68,11 @@ protected:
         expr_node.__isset.child_type = true;
         expr_node.type = gen_type_desc(TPrimitiveType::BOOLEAN);
 
-        cur_chunk.append_column(const_int_column(1, 5), 1);
+        cur_chunk.append_column(std::move(const_int_column(1, 5)), 1);
     }
     void TearDown() override { _objpool.clear(); }
 
-    FakeConstExpr* new_fake_const_expr(ColumnPtr value, const TypeDescriptor& type) {
+    FakeConstExpr* new_fake_const_expr(MutableColumnPtr&& value, const TypeDescriptor& type) {
         TExprNode node;
         node.__set_node_type(TExprNodeType::INT_LITERAL);
         node.__set_num_children(0);
@@ -210,7 +210,7 @@ TEST_F(MapApplyExprTest, test_map_int_int) {
         std::unique_ptr<MapApplyExpr> map_apply_expr = create_map_apply_expr(type_map_int_int);
 
         map_apply_expr->add_child(_lambda_func[0]);
-        map_apply_expr->add_child(new_fake_const_expr(column, type_map_int_int));
+        map_apply_expr->add_child(new_fake_const_expr(std::move(column), type_map_int_int));
 
         ExprContext exprContext(map_apply_expr.get());
         std::vector<ExprContext*> expr_ctxs = {&exprContext};
@@ -242,7 +242,7 @@ TEST_F(MapApplyExprTest, test_map_int_int) {
         std::unique_ptr<MapApplyExpr> map_apply_expr = create_map_apply_expr(type_map_int_int);
 
         map_apply_expr->add_child(_lambda_func[1]);
-        map_apply_expr->add_child(new_fake_const_expr(column, type_map_int_int));
+        map_apply_expr->add_child(new_fake_const_expr(std::move(column), type_map_int_int));
 
         ExprContext exprContext(map_apply_expr.get());
         std::vector<ExprContext*> expr_ctxs = {&exprContext};
@@ -313,7 +313,7 @@ TEST_F(MapApplyExprTest, test_map_varchar_int) {
         std::unique_ptr<MapApplyExpr> map_apply_expr = create_map_apply_expr(type_map_varchar_int);
 
         map_apply_expr->add_child(_lambda_func[0]);
-        map_apply_expr->add_child(new_fake_const_expr(column, type_map_varchar_int));
+        map_apply_expr->add_child(new_fake_const_expr(std::move(column), type_map_varchar_int));
 
         ExprContext exprContext(map_apply_expr.get());
         std::vector<ExprContext*> expr_ctxs = {&exprContext};
@@ -344,7 +344,7 @@ TEST_F(MapApplyExprTest, test_map_varchar_int) {
         std::unique_ptr<MapApplyExpr> map_apply_expr = create_map_apply_expr(type_map_varchar_int);
 
         map_apply_expr->add_child(_lambda_func[1]);
-        map_apply_expr->add_child(new_fake_const_expr(column, type_map_varchar_int));
+        map_apply_expr->add_child(new_fake_const_expr(std::move(column), type_map_varchar_int));
 
         ExprContext exprContext(map_apply_expr.get());
         std::vector<ExprContext*> expr_ctxs = {&exprContext};

@@ -51,9 +51,7 @@ constexpr bool IsTemporal() {
 }
 
 template <typename T>
-class FixedLengthColumnBase : public ColumnFactory<Column, FixedLengthColumnBase<T>> {
-    friend class ColumnFactory<Column, FixedLengthColumnBase>;
-
+class FixedLengthColumnBase : public Column {
 public:
     using ValueType = T;
     using Container = Buffer<ValueType>;
@@ -172,20 +170,21 @@ public:
 
     bool has_large_column() const override { return false; }
 
-    uint32_t serialize(size_t idx, uint8_t* pos) override;
+    uint32_t serialize(size_t idx, uint8_t* pos) const override;
 
-    uint32_t serialize_default(uint8_t* pos) override;
+    uint32_t serialize_default(uint8_t* pos) const override;
 
     uint32_t max_one_element_serialize_size() const override { return sizeof(ValueType); }
 
     void serialize_batch(uint8_t* dst, Buffer<uint32_t>& slice_sizes, size_t chunk_size,
-                         uint32_t max_one_row_size) override;
+                         uint32_t max_one_row_size) const override;
 
     void serialize_batch_with_null_masks(uint8_t* dst, Buffer<uint32_t>& slice_sizes, size_t chunk_size,
-                                         uint32_t max_one_row_size, uint8_t* null_masks, bool has_null) override;
+                                         uint32_t max_one_row_size, const uint8_t* null_masks,
+                                         bool has_null) const override;
 
     size_t serialize_batch_at_interval(uint8_t* dst, size_t byte_offset, size_t byte_interval, size_t start,
-                                       size_t count) override;
+                                       size_t count) const override;
 
     const uint8_t* deserialize_and_append(const uint8_t* pos) override;
 
@@ -193,7 +192,7 @@ public:
 
     uint32_t serialize_size(size_t idx) const override { return sizeof(ValueType); }
 
-    MutableColumnPtr clone_empty() const override { return this->create_mutable(); }
+    // MutableColumnPtr clone_empty() const override { return this->create(); }
 
     size_t filter_range(const Filter& filter, size_t from, size_t to) override;
 

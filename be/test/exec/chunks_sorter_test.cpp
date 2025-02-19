@@ -611,7 +611,7 @@ TEST_F(ChunksSorterTest, full_sort_incremental) {
 //     DeferOp defer([&]() { clear_sort_exprs(sort_exprs); });
 
 //     std::string big_string(1024, 'a');
-//     ColumnPtr big_column = ColumnHelper::create_column(TypeDescriptor(TYPE_VARCHAR), false);
+//     MutableColumnPtr big_column   = ColumnHelper::create_column(TypeDescriptor(TYPE_VARCHAR), false);
 //     for (int i = 0; i < 1024; i++) {
 //         big_column->append_datum(Datum(Slice(big_string)));
 //     }
@@ -661,7 +661,7 @@ TEST_F(ChunksSorterTest, topn_sort_limit_prune) {
         // nullable column
         auto data = std::vector<int32_t>{0, 0, 0, 2, 2, 2, 3, 3, 4, 5, 6};
         auto null_data = std::vector<uint8_t>{1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
-        auto column = ColumnTestHelper::build_nullable_column(data, null_data);
+        ColumnPtr column = ColumnTestHelper::build_nullable_column(data, null_data);
         std::vector<ColumnPtr> columns{column};
         auto null_pred = [&](PermutationItem item) { return column->is_null(item.index_in_chunk); };
         std::pair<int, int> range{0, column->size()};
@@ -1085,9 +1085,9 @@ static void reset_permutation(SmallPermutation& permutation, int n) {
 TEST_F(ChunksSorterTest, stable_sort) {
     constexpr int N = 7;
     TypeDescriptor type_desc = TypeDescriptor(TYPE_INT);
-    ColumnPtr col1 = ColumnHelper::create_column(type_desc, false);
-    ColumnPtr col2 = ColumnHelper::create_column(type_desc, false);
-    Columns columns{col1, col2};
+    MutableColumnPtr col1 = ColumnHelper::create_column(type_desc, false);
+    MutableColumnPtr col2 = ColumnHelper::create_column(type_desc, false);
+    Columns columns{std::move(col1), std::move(col2)};
     std::vector<int32_t> elements_col1{3, 1, 1, 2, 1, 2, 3};
     std::vector<int32_t> elements_col2{3, 2, 1, 3, 1, 2, 3};
     for (int i = 0; i < elements_col1.size(); i++) {
@@ -1119,7 +1119,7 @@ TEST_F(ChunksSorterTest, stable_sort) {
 
 void pack_nullable(const ChunkPtr& chunk) {
     for (auto& col : chunk->columns()) {
-        col = std::make_shared<NullableColumn>(col, std::make_shared<NullColumn>(col->size()));
+        col = NullableColumn::create(col, NullColumn::create(col->size()));
     }
 }
 
@@ -1142,8 +1142,8 @@ TEST_F(ChunksSorterTest, get_filter_test) {
         auto c1_merged = Int32Column::create();
         c1_merged->append(5);
         c1_merged->append(0);
-        merged_chunk->append_column(c0_merged, 0);
-        merged_chunk->append_column(c1_merged, 1);
+        merged_chunk->append_column(std::move(c0_merged), 0);
+        merged_chunk->append_column(std::move(c1_merged), 1);
     }
     pack_nullable(merged_chunk);
 
@@ -1159,8 +1159,8 @@ TEST_F(ChunksSorterTest, get_filter_test) {
         int c1_datas[] = {1, 5, 30, 30};
         c1_unmerged->append_numbers(c1_datas, sizeof(c1_datas));
 
-        unmerged_chunk->append_column(c0_unmerged, 0);
-        unmerged_chunk->append_column(c1_unmerged, 1);
+        unmerged_chunk->append_column(std::move(c0_unmerged), 0);
+        unmerged_chunk->append_column(std::move(c1_unmerged), 1);
     }
     pack_nullable(unmerged_chunk);
 
@@ -1319,7 +1319,7 @@ TEST_F(ChunksSorterTest, test_compare_column) {
 
     auto desc_null_last = SortDescs();
     desc_null_last.descs.emplace_back(false, false);
-    compare_columns(Columns{nullable_column}, cmp_vector, rhs_values, desc_null_last);
+    compare_columns(Columns{std::move(nullable_column)}, cmp_vector, rhs_values, desc_null_last);
 
     CompareVector expected = {0, -1, 1, 1};
     EXPECT_EQ(cmp_vector, expected);
@@ -1330,7 +1330,7 @@ TEST_F(ChunksSorterTest, test_compare_column) {
     asc_null_last.descs.emplace_back(true, true);
 
     cmp_vector.assign(4, 0);
-    compare_columns(Columns{nullable_column}, cmp_vector, rhs_values, asc_null_last);
+    compare_columns(Columns{std::move(nullable_column)}, cmp_vector, rhs_values, asc_null_last);
 
     expected = {0, 1, -1, -1};
     EXPECT_EQ(cmp_vector, expected);

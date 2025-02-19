@@ -66,7 +66,7 @@ TEST(FixedLengthColumnTest, test_basic) {
         }
 
         column->filter(filter);
-        auto re = column;
+        auto re = std::move(column);
         ASSERT_EQ(50, re->size());
 
         for (int k = 0; k < 50; ++k) {
@@ -147,8 +147,8 @@ TEST(FixedLengthColumnTest, test_nullable) {
         }
 
         column->filter(filter);
-        auto result = column;
-        auto data_result = std::static_pointer_cast<Int32Column>(result->data_column());
+        auto result = NullableColumn::static_pointer_cast(column->clone());
+        auto data_result = Int32Column::static_pointer_cast(result->data_column());
 
         ASSERT_EQ(50, result->size());
         for (int j = 0; j < 50; ++j) {
@@ -166,7 +166,7 @@ TEST(FixedLengthColumnTest, test_nullable) {
 TEST(FixedLengthColumnTest, test_append_strings) {
     std::vector<Slice> values{{"hello"}, {"starrocks"}};
     auto c1 = Int32Column::create();
-    auto nullable_c1 = NullableColumn::create(c1, NullColumn::create());
+    auto nullable_c1 = NullableColumn::create(std::move(c1), NullColumn::create());
     ASSERT_FALSE(c1->append_strings(values));
     ASSERT_FALSE(nullable_c1->append_strings(values.data(), values.size()));
 }
@@ -555,14 +555,14 @@ TEST(FixedLengthColumnTest, test_compare_row) {
     CompareVector cmp_vector(column->size());
 
     // ascending
-    EXPECT_EQ(1, compare_column(column, cmp_vector, {30}, SortDesc(1, 1)));
+    EXPECT_EQ(1, compare_column(column->clone(), cmp_vector, {30}, SortDesc(1, 1)));
     EXPECT_EQ(30, std::count(cmp_vector.begin(), cmp_vector.end(), -1));
     EXPECT_EQ(70, std::count(cmp_vector.begin(), cmp_vector.end(), 1));
     EXPECT_EQ(1, std::count(cmp_vector.begin(), cmp_vector.end(), 0));
 
     // descending
     std::fill(cmp_vector.begin(), cmp_vector.end(), 0);
-    EXPECT_EQ(1, compare_column(column, cmp_vector, {30}, SortDesc(-1, 1)));
+    EXPECT_EQ(1, compare_column(column->clone(), cmp_vector, {30}, SortDesc(-1, 1)));
     EXPECT_EQ(70, std::count(cmp_vector.begin(), cmp_vector.end(), -1));
     EXPECT_EQ(30, std::count(cmp_vector.begin(), cmp_vector.end(), 1));
     EXPECT_EQ(1, std::count(cmp_vector.begin(), cmp_vector.end(), 0));

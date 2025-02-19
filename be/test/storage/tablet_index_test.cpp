@@ -24,7 +24,7 @@ TEST(TabletIndexTest, test_init_from_thrift) {
     {
         TOlapTableIndex olap_table_index;
         std::vector<std::string> columns;
-        columns.emplace_back("f1");
+        columns.emplace_back(std::move("f1"));
         std::map<std::string, std::string> common_map;
         common_map.emplace("imp_type", "clucene");
 
@@ -72,7 +72,7 @@ TEST(TabletIndexTest, test_init_from_thrift) {
     {
         TOlapTableIndex olap_table_index;
         std::vector<std::string> columns;
-        columns.emplace_back("f1");
+        columns.emplace_back(std::move("f1"));
         std::map<std::string, std::string> common_map;
         std::map<std::string, std::string> index_map;
         std::map<std::string, std::string> search_map;

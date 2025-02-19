@@ -96,7 +96,7 @@ PARALLEL_TEST(MapFunctionsTest, test_map) {
             input_values->append_datum(datum);
         }
     }
-    auto ret = MapFunctions::map_from_arrays(nullptr, {input_keys, input_values});
+    auto ret = MapFunctions::map_from_arrays(nullptr, {std::move(input_keys), std::move(input_values)});
     EXPECT_TRUE(ret.ok());
     auto result = std::move(ret.value());
     EXPECT_EQ(6, result->size());
@@ -153,7 +153,7 @@ PARALLEL_TEST(MapFunctionsTest, test_map_mismatch1) {
             input_values->append_datum(datum);
         }
     }
-    auto ret = MapFunctions::map_from_arrays(nullptr, {input_keys, input_values});
+    auto ret = MapFunctions::map_from_arrays(nullptr, {std::move(input_keys), std::move(input_values)});
     EXPECT_FALSE(ret.ok());
 }
 
@@ -184,7 +184,7 @@ PARALLEL_TEST(MapFunctionsTest, test_map_mismatch2) {
             input_values->append_datum(datum);
         }
     }
-    auto ret = MapFunctions::map_from_arrays(nullptr, {input_keys, input_values});
+    auto ret = MapFunctions::map_from_arrays(nullptr, {std::move(input_keys), std::move(input_values)});
     EXPECT_FALSE(ret.ok());
 }
 
@@ -239,7 +239,7 @@ PARALLEL_TEST(MapFunctionsTest, test_map_function) {
     //   0
     //   NULL
 
-    auto result = MapFunctions::map_size(nullptr, {column}).value();
+    auto result = MapFunctions::map_size(nullptr, {std::move(column)}).value();
     EXPECT_EQ(6, result->size());
 
     ASSERT_FALSE(result->get(0).is_null());
@@ -275,7 +275,7 @@ PARALLEL_TEST(MapFunctionsTest, test_map_function) {
     //   [2]
     //   []
     //   NULL
-    auto result_keys = MapFunctions::map_keys(nullptr, {column}).value();
+    auto result_keys = MapFunctions::map_keys(nullptr, {std::move(column)}).value();
     EXPECT_EQ(6, result->size());
 
     EXPECT_EQ(3, result_keys->get(0).get_array().size());
@@ -309,7 +309,7 @@ PARALLEL_TEST(MapFunctionsTest, test_map_function) {
     //   [99]
     //   []
     //   NULL
-    auto result_values = MapFunctions::map_values(nullptr, {column}).value();
+    auto result_values = MapFunctions::map_values(nullptr, {std::move(column)}).value();
     EXPECT_EQ(6, result->size());
 
     EXPECT_EQ(3, result_values->get(0).get_array().size());
@@ -410,38 +410,50 @@ PARALLEL_TEST(MapFunctionsTest, test_map_filter_int_nullable) {
     bool_array_nullable->append_datum(DatumArray{false, Datum()});
 
     {
-        auto result = MapFunctions::map_filter(nullptr, {map_column_nullable, bool_array_not_nullable}).value();
+        auto result =
+                MapFunctions::map_filter(nullptr, {std::move(map_column_nullable), std::move(bool_array_not_nullable)})
+                        .value();
         EXPECT_TRUE(result->is_nullable());
         EXPECT_STREQ(result->debug_string().c_str(), "[{2:55}, {}, {}, {}, NULL]");
     }
     {
-        auto result = MapFunctions::map_filter(nullptr, {map_column_nullable, bool_array_nullable}).value();
+        auto result =
+                MapFunctions::map_filter(nullptr, {std::move(map_column_nullable), std::move(bool_array_nullable)})
+                        .value();
         EXPECT_TRUE(result->is_nullable());
         EXPECT_STREQ(result->debug_string().c_str(), "[{2:55}, {}, {}, {}, NULL]");
     }
     {
-        auto result = MapFunctions::map_filter(nullptr, {map_column_not_nullable, bool_array_not_nullable}).value();
+        auto result = MapFunctions::map_filter(nullptr,
+                                               {std::move(map_column_not_nullable), std::move(bool_array_not_nullable)})
+                              .value();
         EXPECT_FALSE(result->is_nullable());
         EXPECT_STREQ(result->debug_string().c_str(), "{2:55}, {}, {}, {}, {}");
     }
     {
-        auto result = MapFunctions::map_filter(nullptr, {map_column_not_nullable, bool_array_nullable}).value();
+        auto result =
+                MapFunctions::map_filter(nullptr, {std::move(map_column_not_nullable), std::move(bool_array_nullable)})
+                        .value();
         EXPECT_FALSE(result->is_nullable());
         EXPECT_STREQ(result->debug_string().c_str(), "{2:55}, {}, {}, {}, {}");
     }
     auto only_null_column = ColumnHelper::create_const_null_column(1);
     {
-        auto result = MapFunctions::map_filter(nullptr, {map_column_nullable, only_null_column}).value();
+        auto result = MapFunctions::map_filter(nullptr, {std::move(map_column_nullable), std::move(only_null_column)})
+                              .value();
         EXPECT_TRUE(result->is_nullable());
         EXPECT_STREQ(result->debug_string().c_str(), "[{}, {}, {}, {}, NULL]");
     }
     {
-        auto result = MapFunctions::map_filter(nullptr, {map_column_not_nullable, only_null_column}).value();
+        auto result =
+                MapFunctions::map_filter(nullptr, {std::move(map_column_not_nullable), std::move(only_null_column)})
+                        .value();
         EXPECT_FALSE(result->is_nullable());
         EXPECT_STREQ(result->debug_string().c_str(), "{}, {}, {}, {}, {}");
     }
     {
-        auto result = MapFunctions::map_filter(nullptr, {only_null_column, only_null_column}).value();
+        auto result =
+                MapFunctions::map_filter(nullptr, {std::move(only_null_column), std::move(only_null_column)}).value();
         EXPECT_TRUE(result->is_nullable());
         EXPECT_STREQ(result->debug_string().c_str(), "CONST: NULL Size : 1");
     }
@@ -453,11 +465,11 @@ PARALLEL_TEST(MapFunctionsTest, test_distinct_map_keys) {
         auto offsets = UInt32Column::create();
         auto keys_data = Int32Column::create();
         auto keys_null = NullColumn::create();
-        auto keys = NullableColumn::create(keys_data, keys_null);
+        auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
         auto values_data = Int32Column::create();
         auto values_null = NullColumn::create();
-        auto values = NullableColumn::create(values_data, values_null);
-        auto column = MapColumn::create(keys, values, offsets);
+        auto values = NullableColumn::create(std::move(values_data), std::move(values_null));
+        auto column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
 
         DatumMap map;
         map[(int32_t)1] = (int32_t)11;
@@ -478,7 +490,7 @@ PARALLEL_TEST(MapFunctionsTest, test_distinct_map_keys) {
         // {} empty
         column->append_datum(DatumMap());
 
-        auto res = MapFunctions::distinct_map_keys(nullptr, {column}).value();
+        auto res = MapFunctions::distinct_map_keys(nullptr, {std::move(column)}).value();
 
         ASSERT_EQ("{1:11,22:33}", res->debug_item(0));
         ASSERT_EQ("{4:66}", res->debug_item(1));
@@ -489,11 +501,11 @@ PARALLEL_TEST(MapFunctionsTest, test_distinct_map_keys) {
         auto offsets = UInt32Column::create();
         auto keys_data = BinaryColumn::create();
         auto keys_null = NullColumn::create();
-        auto keys = NullableColumn::create(keys_data, keys_null);
+        auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
         auto values_data = BinaryColumn::create();
         auto null_column = NullColumn::create();
-        auto values = NullableColumn::create(values_data, null_column);
-        auto column = MapColumn::create(keys, values, offsets);
+        auto values = NullableColumn::create(std::move(values_data), std::move(null_column));
+        auto column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
 
         DatumMap map;
         map[(Slice) "a"] = (Slice) "hello";
@@ -506,7 +518,7 @@ PARALLEL_TEST(MapFunctionsTest, test_distinct_map_keys) {
         map1[(Slice) "g h"] = (Slice) "let's dance";
         column->append_datum(map1);
 
-        auto res = MapFunctions::distinct_map_keys(nullptr, {column}).value();
+        auto res = MapFunctions::distinct_map_keys(nullptr, {std::move(column)}).value();
 
         ASSERT_EQ("{'a':'world','b':' '}", res->debug_item(0));
         ASSERT_EQ("{'def':'haha','g h':'let's dance'}", res->debug_item(1));
@@ -515,11 +527,11 @@ PARALLEL_TEST(MapFunctionsTest, test_distinct_map_keys) {
         auto offsets = UInt32Column::create();
         auto keys_data = Int32Column::create();
         auto keys_null = NullColumn::create();
-        auto keys = NullableColumn::create(keys_data, keys_null);
+        auto keys = NullableColumn::create(std::move(keys_data), std::move(keys_null));
         auto values_data = Int32Column::create();
         auto values_null = NullColumn::create();
-        auto values = NullableColumn::create(values_data, values_null);
-        auto column = MapColumn::create(keys, values, offsets);
+        auto values = NullableColumn::create(std::move(values_data), std::move(values_null));
+        auto column = MapColumn::create(std::move(keys), std::move(values), std::move(offsets));
 
         DatumMap map;
         map[(int32_t)1] = (int32_t)11;
@@ -551,8 +563,9 @@ PARALLEL_TEST(MapFunctionsTest, test_distinct_map_keys) {
         nest_offsets->get_data().push_back(4);
 
         auto nest_map =
-                MapColumn::create(std::move(nest_keys), ColumnHelper::cast_to_nullable_column(column), nest_offsets);
-        auto res = MapFunctions::distinct_map_keys(nullptr, {nest_map}).value();
+                MapColumn::create(std::move(nest_keys), ColumnHelper::cast_to_nullable_column(std::move(column)),
+                                  std::move(nest_offsets));
+        auto res = MapFunctions::distinct_map_keys(nullptr, {std::move(nest_map)}).value();
 
         ASSERT_EQ("{1:{4:66}}", res->debug_item(0));
         ASSERT_EQ("{1:{}}", res->debug_item(1));
@@ -562,119 +575,146 @@ PARALLEL_TEST(MapFunctionsTest, test_distinct_map_keys) {
 PARALLEL_TEST(MapFunctionsTest, test_map_concat) {
     TypeDescriptor type_map_int_int = map_type(TYPE_INT, TYPE_INT);
 
-    auto map_column_nullable = ColumnHelper::create_column(type_map_int_int, true);
+    MutableColumnPtr map_column_nullable = nullptr;
+    MutableColumnPtr map_column_not_nullable = nullptr;
+    MutableColumnPtr only_null_column = nullptr;
+    MutableColumnPtr mapn = nullptr;
+    MutableColumnPtr const_column = nullptr;
+
+    auto prepare_data_func = [&]() {
+        map_column_nullable = ColumnHelper::create_column(type_map_int_int, true);
+        {
+            //   [11->44, 2->55, 4->66]
+            //   [2->77, 3->88]
+            //   [3 -> NULL]
+            //   []
+            //   NULL
+            DatumMap map1;
+            map1[(int32_t)11] = (int32_t)44;
+            map1[(int32_t)2] = (int32_t)55;
+            map1[(int32_t)4] = (int32_t)66;
+            map_column_nullable->append_datum(map1);
+
+            DatumMap map2;
+            map2[(int32_t)2] = (int32_t)77;
+            map2[(int32_t)3] = (int32_t)88;
+            map_column_nullable->append_datum(map2);
+
+            DatumMap map3;
+            map3[(int32_t)3] = Datum();
+            map_column_nullable->append_datum(map3);
+
+            // {} empty
+            map_column_nullable->append_datum(DatumMap());
+            // NULL
+            map_column_nullable->append_datum(Datum{});
+        }
+
+        map_column_not_nullable = ColumnHelper::create_column(type_map_int_int, false);
+        {
+            //   [1->44, 2->55, 4->66]
+            //   [2->77, 3->88]
+            //   [3 -> NULL]
+            //   []
+            //   []
+            DatumMap map1;
+            map1[(int32_t)1] = (int32_t)44;
+            map1[(int32_t)2] = (int32_t)55;
+            map1[(int32_t)4] = (int32_t)66;
+            map_column_not_nullable->append_datum(map1);
+
+            DatumMap map2;
+            map2[(int32_t)2] = (int32_t)77;
+            map2[(int32_t)3] = (int32_t)88;
+            map_column_not_nullable->append_datum(map2);
+
+            DatumMap map3;
+            map3[(int32_t)3] = Datum();
+            map_column_not_nullable->append_datum(map3);
+
+            // {} empty
+            map_column_not_nullable->append_datum(DatumMap());
+            map_column_not_nullable->append_datum(DatumMap());
+        }
+
+        only_null_column = ColumnHelper::create_const_null_column(5);
+
+        mapn = down_cast<NullableColumn*>(map_column_nullable->clone().get())->data_column()->assume_mutable();
+
+        const_column = ConstColumn::create(std::move(mapn), 5);
+    };
+
     {
-        //   [11->44, 2->55, 4->66]
-        //   [2->77, 3->88]
-        //   [3 -> NULL]
-        //   []
-        //   NULL
-        DatumMap map1;
-        map1[(int32_t)11] = (int32_t)44;
-        map1[(int32_t)2] = (int32_t)55;
-        map1[(int32_t)4] = (int32_t)66;
-        map_column_nullable->append_datum(map1);
-
-        DatumMap map2;
-        map2[(int32_t)2] = (int32_t)77;
-        map2[(int32_t)3] = (int32_t)88;
-        map_column_nullable->append_datum(map2);
-
-        DatumMap map3;
-        map3[(int32_t)3] = Datum();
-        map_column_nullable->append_datum(map3);
-
-        // {} empty
-        map_column_nullable->append_datum(DatumMap());
-        // NULL
-        map_column_nullable->append_datum(Datum{});
-    }
-
-    auto map_column_not_nullable = ColumnHelper::create_column(type_map_int_int, false);
-    {
-        //   [1->44, 2->55, 4->66]
-        //   [2->77, 3->88]
-        //   [3 -> NULL]
-        //   []
-        //   []
-        DatumMap map1;
-        map1[(int32_t)1] = (int32_t)44;
-        map1[(int32_t)2] = (int32_t)55;
-        map1[(int32_t)4] = (int32_t)66;
-        map_column_not_nullable->append_datum(map1);
-
-        DatumMap map2;
-        map2[(int32_t)2] = (int32_t)77;
-        map2[(int32_t)3] = (int32_t)88;
-        map_column_not_nullable->append_datum(map2);
-
-        DatumMap map3;
-        map3[(int32_t)3] = Datum();
-        map_column_not_nullable->append_datum(map3);
-
-        // {} empty
-        map_column_not_nullable->append_datum(DatumMap());
-        map_column_not_nullable->append_datum(DatumMap());
-    }
-
-    auto only_null_column = ColumnHelper::create_const_null_column(5);
-
-    auto mapn = down_cast<NullableColumn*>(map_column_nullable->clone_shared().get())->data_column();
-
-    auto const_column = ConstColumn::create(mapn, 5);
-
-    {
-        auto result = MapFunctions::map_concat(nullptr, {map_column_nullable, map_column_not_nullable}).value();
+        prepare_data_func();
+        auto result =
+                MapFunctions::map_concat(nullptr, {std::move(map_column_nullable), std::move(map_column_not_nullable)})
+                        .value();
         EXPECT_TRUE(result->is_nullable());
         EXPECT_STREQ(result->debug_string().c_str(), "[{1:44,2:55,4:66,11:44}, {2:77,3:88}, {3:NULL}, {}, {}]");
     }
 
     {
-        auto result = MapFunctions::map_concat(nullptr, {map_column_nullable, map_column_nullable}).value();
+        prepare_data_func();
+        auto result =
+                MapFunctions::map_concat(nullptr, {std::move(map_column_nullable), std::move(map_column_nullable)})
+                        .value();
         EXPECT_TRUE(result->is_nullable());
         EXPECT_STREQ(result->debug_string().c_str(), "[{2:55,4:66,11:44}, {2:77,3:88}, {3:NULL}, {}, NULL]");
     }
     {
-        auto result = MapFunctions::map_concat(nullptr, {map_column_not_nullable, map_column_not_nullable}).value();
+        prepare_data_func();
+        auto result = MapFunctions::map_concat(nullptr,
+                                               {std::move(map_column_not_nullable), std::move(map_column_not_nullable)})
+                              .value();
         EXPECT_TRUE(result->is_nullable());
         EXPECT_STREQ(result->debug_string().c_str(), "[{1:44,2:55,4:66}, {2:77,3:88}, {3:NULL}, {}, {}]");
     }
     {
-        auto result = MapFunctions::map_concat(nullptr,
-                                               {map_column_not_nullable, map_column_not_nullable, map_column_nullable})
-                              .value();
+        prepare_data_func();
+        auto result =
+                MapFunctions::map_concat(nullptr, {std::move(map_column_not_nullable),
+                                                   std::move(map_column_not_nullable), std::move(map_column_nullable)})
+                        .value();
         EXPECT_TRUE(result->is_nullable());
         EXPECT_STREQ(result->debug_string().c_str(), "[{2:55,4:66,11:44,1:44}, {2:77,3:88}, {3:NULL}, {}, {}]");
     }
     {
-        auto result = MapFunctions::map_concat(nullptr, {map_column_not_nullable}).value();
+        prepare_data_func();
+        auto result = MapFunctions::map_concat(nullptr, {std::move(map_column_not_nullable)}).value();
         EXPECT_TRUE(result->is_nullable());
         EXPECT_STREQ(result->debug_string().c_str(), "[{1:44,2:55,4:66}, {2:77,3:88}, {3:NULL}, {}, {}]");
     }
     {
-        auto result = MapFunctions::map_concat(nullptr, {map_column_nullable}).value();
+        prepare_data_func();
+        auto result = MapFunctions::map_concat(nullptr, {std::move(map_column_nullable)}).value();
         EXPECT_TRUE(result->is_nullable());
         EXPECT_STREQ(result->debug_string().c_str(), "[{2:55,4:66,11:44}, {2:77,3:88}, {3:NULL}, {}, NULL]");
     }
     {
-        auto result = MapFunctions::map_concat(nullptr, {map_column_nullable, only_null_column}).value();
+        prepare_data_func();
+        auto result = MapFunctions::map_concat(nullptr, {std::move(map_column_nullable), std::move(only_null_column)})
+                              .value();
         EXPECT_TRUE(result->is_nullable());
         EXPECT_STREQ(result->debug_string().c_str(), "[{2:55,4:66,11:44}, {2:77,3:88}, {3:NULL}, {}, NULL]");
     }
     {
-        auto result = MapFunctions::map_concat(nullptr, {only_null_column}).value();
+        prepare_data_func();
+        auto result = MapFunctions::map_concat(nullptr, {std::move(only_null_column)}).value();
         EXPECT_TRUE(result->is_nullable());
         EXPECT_STREQ(result->debug_string().c_str(), "CONST: NULL Size : 5");
     }
     {
-        auto result = MapFunctions::map_concat(nullptr, {const_column}).value();
+        prepare_data_func();
+        auto result = MapFunctions::map_concat(nullptr, {std::move(const_column)}).value();
         EXPECT_TRUE(result->is_nullable());
         EXPECT_STREQ(result->debug_string().c_str(),
                      "[{2:55,4:66,11:44}, {2:55,4:66,11:44}, {2:55,4:66,11:44}, {2:55,4:66,11:44}, {2:55,4:66,11:44}]");
     }
     {
-        auto result =
-                MapFunctions::map_concat(nullptr, {const_column, only_null_column, map_column_not_nullable}).value();
+        prepare_data_func();
+        auto result = MapFunctions::map_concat(nullptr, {std::move(const_column), std::move(only_null_column),
+                                                         std::move(map_column_not_nullable)})
+                              .value();
         EXPECT_TRUE(result->is_nullable());
         EXPECT_STREQ(result->debug_string().c_str(),
                      "[{1:44,2:55,4:66,11:44}, {2:77,3:88,4:66,11:44}, {3:NULL,2:55,4:66,11:44}, {2:55,4:66,11:44}, "

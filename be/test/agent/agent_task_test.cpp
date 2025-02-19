@@ -213,7 +213,7 @@ TEST_F(AgentTaskTest, test_update_schema) {
     tcolumn1.__set_is_key(true);
     tcolumn1.__set_col_unique_id(0);
     tcolumn1.__set_type_desc(type_desc);
-    columns.push_back(tcolumn1);
+    columns.emplace_back(std::move(tcolumn1));
 
     TColumn tcolumn2;
     tcolumn2.__set_column_name("c2");
@@ -221,7 +221,7 @@ TEST_F(AgentTaskTest, test_update_schema) {
     tcolumn2.__set_is_key(false);
     tcolumn2.__set_col_unique_id(1);
     tcolumn2.__set_type_desc(type_desc);
-    columns.push_back(tcolumn2);
+    columns.emplace_back(std::move(tcolumn2));
 
     TColumn tcolumn3;
     tcolumn3.__set_column_name("c3");
@@ -229,7 +229,7 @@ TEST_F(AgentTaskTest, test_update_schema) {
     tcolumn3.__set_is_key(false);
     tcolumn3.__set_col_unique_id(2);
     tcolumn3.__set_type_desc(type_desc);
-    columns.push_back(tcolumn3);
+    columns.emplace_back(std::move(tcolumn3));
 
     update_schema_req.__set_column_param(column_param);
     agent_task_request.__set_update_schema_req(update_schema_req);

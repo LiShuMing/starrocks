@@ -73,10 +73,10 @@ ChunkPtr HdfsScanNodeTest::_create_chunk() {
     auto col2 = ColumnHelper::create_column(TypeDescriptor::from_logical_type(LogicalType::TYPE_BIGINT), true);
     auto col3 = ColumnHelper::create_column(TypeDescriptor::from_logical_type(LogicalType::TYPE_VARCHAR), true);
     auto col4 = ColumnHelper::create_column(TypeDescriptor::from_logical_type(LogicalType::TYPE_DATETIME), true);
-    chunk->append_column(col1, 0);
-    chunk->append_column(col2, 1);
-    chunk->append_column(col3, 2);
-    chunk->append_column(col4, 3);
+    chunk->append_column(std::move(col1), 0);
+    chunk->append_column(std::move(col2), 1);
+    chunk->append_column(std::move(col3), 2);
+    chunk->append_column(std::move(col4), 3);
 
     return chunk;
 }
@@ -279,19 +279,19 @@ DescriptorTbl* HdfsScanNodeTest::_create_table_desc_for_filter_partition() {
     // hdfs table columns
     TColumn col1;
     col1.column_name = "col1";
-    t_hdfs_table.columns.emplace_back(col1);
+    t_hdfs_table.columns.emplace_back(std::move(col1));
     TColumn col2;
     col2.column_name = "col2";
-    t_hdfs_table.columns.emplace_back(col2);
+    t_hdfs_table.columns.emplace_back(std::move(col2));
     TColumn col3;
     col3.column_name = "col3";
-    t_hdfs_table.columns.emplace_back(col3);
+    t_hdfs_table.columns.emplace_back(std::move(col3));
     TColumn col4;
     col4.column_name = "col4";
-    t_hdfs_table.columns.emplace_back(col4);
+    t_hdfs_table.columns.emplace_back(std::move(col4));
 
     // hdfs table partition columns
-    t_hdfs_table.partition_columns.emplace_back(col1);
+    t_hdfs_table.partition_columns.emplace_back(std::move(col1));
 
     // hdfs table partitions
     std::map<int64_t, THdfsPartition> p_map;

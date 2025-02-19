@@ -63,7 +63,7 @@ public:
             HdfsScannerContext::ColumnInfo info;
             info.idx_in_chunk = i;
             info.slot_desc = slot;
-            ctx->materialized_columns.push_back(info);
+            ctx->materialized_columns.emplace_back(std::move(info));
         }
     }
 

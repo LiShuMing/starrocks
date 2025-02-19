@@ -148,7 +148,7 @@ protected:
     std::vector<ColumnPtr> test_null_json(const std::vector<std::string>& inputs, const std::vector<std::string>& paths,
                                           const std::vector<LogicalType>& types, bool has_remain) {
         ColumnPtr input = JsonColumn::create();
-        NullColumnPtr nulls = NullColumn::create();
+        NullColumn::MutablePtr nulls = NullColumn::create();
         JsonColumn* json_input = down_cast<JsonColumn*>(input.get());
         for (const auto& json : inputs) {
             if (json == "NULL") {
@@ -161,7 +161,7 @@ protected:
             }
         }
 
-        auto nullable_input = NullableColumn::create(input, nulls);
+        auto nullable_input = NullableColumn::create(std::move(input), std::move(nulls));
         JsonFlattener flattener(paths, types, has_remain);
         flattener.flatten(nullable_input.get());
 

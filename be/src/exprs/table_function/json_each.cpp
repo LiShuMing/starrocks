@@ -34,8 +34,8 @@ std::pair<Columns, UInt32Column::Ptr> JsonEach::process(RuntimeState* runtime_st
     Columns result;
     auto key_column_ptr = BinaryColumn::create();
     auto value_column_ptr = JsonColumn::create();
-    result.emplace_back(key_column_ptr);
-    result.emplace_back(value_column_ptr);
+    result.emplace_back(std::move(key_column_ptr));
+    result.emplace_back(std::move(value_column_ptr));
     auto offset_column = UInt32Column::create();
     int offset = 0;
     offset_column->append(offset);
@@ -65,7 +65,7 @@ std::pair<Columns, UInt32Column::Ptr> JsonEach::process(RuntimeState* runtime_st
         offset_column->append(offset);
     }
 
-    return std::make_pair(result, offset_column);
+    return std::make_pair(std::move(result), std::move(offset_column));
 }
 
 } // namespace starrocks

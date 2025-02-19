@@ -33,15 +33,15 @@ public:
 
         const auto& int_type_desc = TypeDescriptor(TYPE_INT);
         const auto& varchar_type_desc = TypeDescriptor::create_varchar_type(TypeDescriptor::MAX_VARCHAR_LENGTH);
-        ColumnPtr col_cust_key_1 = ColumnHelper::create_column(int_type_desc, false);
-        ColumnPtr col_cust_key_2 = ColumnHelper::create_column(int_type_desc, false);
-        ColumnPtr col_cust_key_3 = ColumnHelper::create_column(int_type_desc, false);
-        ColumnPtr col_nation_1 = ColumnHelper::create_column(varchar_type_desc, true);
-        ColumnPtr col_nation_2 = ColumnHelper::create_column(varchar_type_desc, true);
-        ColumnPtr col_nation_3 = ColumnHelper::create_column(varchar_type_desc, true);
-        ColumnPtr col_region_1 = ColumnHelper::create_column(varchar_type_desc, true);
-        ColumnPtr col_region_2 = ColumnHelper::create_column(varchar_type_desc, true);
-        ColumnPtr col_region_3 = ColumnHelper::create_column(varchar_type_desc, true);
+        MutableColumnPtr col_cust_key_1 = ColumnHelper::create_column(int_type_desc, false);
+        MutableColumnPtr col_cust_key_2 = ColumnHelper::create_column(int_type_desc, false);
+        MutableColumnPtr col_cust_key_3 = ColumnHelper::create_column(int_type_desc, false);
+        MutableColumnPtr col_nation_1 = ColumnHelper::create_column(varchar_type_desc, true);
+        MutableColumnPtr col_nation_2 = ColumnHelper::create_column(varchar_type_desc, true);
+        MutableColumnPtr col_nation_3 = ColumnHelper::create_column(varchar_type_desc, true);
+        MutableColumnPtr col_region_1 = ColumnHelper::create_column(varchar_type_desc, true);
+        MutableColumnPtr col_region_2 = ColumnHelper::create_column(varchar_type_desc, true);
+        MutableColumnPtr col_region_3 = ColumnHelper::create_column(varchar_type_desc, true);
 
         col_cust_key_1->append_datum(int32_t(71));
         col_cust_key_1->append_datum(int32_t(70));
@@ -90,9 +90,9 @@ public:
         col_region_3->append_datum(Slice("MIDDLE EAST"));
         col_region_3->append_datum(Slice("MIDDLE EAST"));
 
-        Columns columns_1 = {col_cust_key_1, col_nation_1, col_region_1};
-        Columns columns_2 = {col_cust_key_2, col_nation_2, col_region_2};
-        Columns columns_3 = {col_cust_key_3, col_nation_3, col_region_3};
+        Columns columns_1 = {std::move(col_cust_key_1), std::move(col_nation_1), std::move(col_nation_1)};
+        Columns columns_2 = {std::move(col_cust_key_2), std::move(col_nation_2), std::move(col_nation_2)};
+        Columns columns_3 = {std::move(col_cust_key_3), std::move(col_nation_3), std::move(col_nation_3)};
 
         Chunk::SlotHashMap map;
         map.reserve(columns_1.size() * 2);

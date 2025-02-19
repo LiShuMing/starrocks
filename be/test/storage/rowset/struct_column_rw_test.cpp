@@ -75,7 +75,7 @@ protected:
         columns.emplace_back(std::move(f1_column));
         columns.emplace_back(std::move(f2_column));
 
-        ColumnPtr src_column = StructColumn::create(columns, names);
+        auto src_column = StructColumn::create(std::move(columns), std::move(names));
 
         TypeInfoPtr type_info = get_type_info(struct_column);
         ColumnMetaPB meta;
@@ -158,7 +158,7 @@ protected:
             dst_columns.emplace_back(std::move(dst_f1_column));
             dst_columns.emplace_back(std::move(dst_f2_column));
 
-            ColumnPtr dst_column = StructColumn::create(dst_columns, names);
+            auto dst_column = StructColumn::create(std::move(dst_columns), std::move(names));
             size_t rows_read = src_column->size();
             st = iter->next_batch(&rows_read, dst_column.get());
             ASSERT_TRUE(st.ok());
@@ -205,7 +205,7 @@ protected:
             dst_columns.emplace_back(std::move(dst_f1_column));
             dst_columns.emplace_back(std::move(dst_f3_column));
 
-            ColumnPtr dst_column = StructColumn::create(dst_columns, names);
+            auto dst_column = StructColumn::create(std::move(dst_columns), std::move(names));
             size_t rows_read = src_column->size();
             st = iter->next_batch(&rows_read, dst_column.get());
             ASSERT_TRUE(st.ok());
@@ -246,7 +246,7 @@ protected:
             dst_columns.emplace_back(std::move(dst_f1_column));
             dst_columns.emplace_back(std::move(dst_f3_column));
 
-            ColumnPtr dst_column = StructColumn::create(dst_columns, names);
+            auto dst_column = StructColumn::create(std::move(dst_columns), std::move(names));
             size_t rows_read = src_column->size();
             st = iter->next_batch(&rows_read, dst_column.get());
             ASSERT_TRUE(st.ok());
@@ -278,7 +278,7 @@ protected:
                 Columns dst_columns;
                 dst_columns.emplace_back(std::move(dst_f1_column));
 
-                ColumnPtr dst_column = StructColumn::create(dst_columns, std::vector<std::string>{"f1"});
+                auto dst_column = StructColumn::create(std::move(dst_columns), std::vector<std::string>{"f1"});
                 size_t rows_read = src_column->size();
                 st = iter->next_batch(&rows_read, dst_column.get());
                 ASSERT_TRUE(st.ok());
@@ -312,7 +312,7 @@ protected:
                 Columns dst_columns;
                 dst_columns.emplace_back(std::move(dst_f2_column));
 
-                ColumnPtr dst_column = StructColumn::create(dst_columns, std::vector<std::string>{"f2"});
+                auto dst_column = StructColumn::create(std::move(dst_columns), std::vector<std::string>{"f2"});
                 size_t rows_read = src_column->size();
                 st = iter->next_batch(&rows_read, dst_column.get());
                 ASSERT_TRUE(st.ok());

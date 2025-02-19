@@ -38,7 +38,8 @@
 
 namespace starrocks::parquet {
 
-Status StatisticsHelper::decode_value_into_column(const ColumnPtr& column, const std::vector<std::string>& values,
+Status StatisticsHelper::decode_value_into_column(const MutableColumnPtr& column,
+                                                  const std::vector<std::string>& values,
                                                   const std::vector<bool>& null_pages, const TypeDescriptor& type,
                                                   const ParquetField* field, const std::string& timezone) {
     std::unique_ptr<ColumnConverter> converter;
@@ -251,8 +252,8 @@ Status StatisticsHelper::min_max_filter_on_min_max_stat_t(const std::vector<std:
     const auto* min_max_filter = dynamic_cast<const MinMaxPredicate<LType>*>(root_expr);
     bool rf_has_null = min_max_filter->has_null();
 
-    ColumnPtr min_column = ColumnHelper::create_column(root_expr->type(), true);
-    ColumnPtr max_column = ColumnHelper::create_column(root_expr->type(), true);
+    MutableColumnPtr min_column = ColumnHelper::create_column(root_expr->type(), true);
+    MutableColumnPtr max_column = ColumnHelper::create_column(root_expr->type(), true);
 
     auto rf_min_value = min_max_filter->get_min_value();
     auto rf_max_value = min_max_filter->get_max_value();
@@ -320,14 +321,14 @@ Status StatisticsHelper::in_filter_on_min_max_stat(const std::vector<std::string
 
     // TODO: there is no need to use nullable column,
     //  but there are many places in our reader just treat column as nullable, and use down_cast<NullableColumn>
-    ColumnPtr min_col = ColumnHelper::create_column(c->type(), true);
+    MutableColumnPtr min_col = ColumnHelper::create_column(c->type(), true);
     min_col->reserve(min_values.size());
     RETURN_IF_ERROR(decode_value_into_column(min_col, min_values, null_pages, c->type(), field, timezone));
-    min_col = down_cast<NullableColumn*>(min_col.get())->data_column();
-    ColumnPtr max_col = ColumnHelper::create_column(c->type(), true);
+    min_col = down_cast<NullableColumn*>(min_col.get())->data_column()->assume_mutable();
+    MutableColumnPtr max_col = ColumnHelper::create_column(c->type(), true);
     max_col->reserve(max_values.size());
     RETURN_IF_ERROR(decode_value_into_column(max_col, max_values, null_pages, c->type(), field, timezone));
-    max_col = down_cast<NullableColumn*>(max_col.get())->data_column();
+    max_col = down_cast<NullableColumn*>(max_col.get())->data_column()->assume_mutable();
 
     // logic and example:
     // there are two pairs of min/max value like [1, 4] (which means min_value is 1 and max value is 4), [4, 6]
@@ -361,8 +362,8 @@ Status StatisticsHelper::in_filter_on_min_max_stat(const std::vector<std::string
         std::string min_value;
         std::string max_value;
 
-        translate_to_string_value(min_col, i, min_value);
-        translate_to_string_value(max_col, i, max_value);
+        translate_to_string_value(std::move(min_col), i, min_value);
+        translate_to_string_value(std::move(max_col), i, max_value);
 
         Filter filter(values->size(), 1);
 

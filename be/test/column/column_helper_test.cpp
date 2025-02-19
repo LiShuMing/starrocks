@@ -25,25 +25,25 @@ public:
     void TearDown() override {}
 
 protected:
-    ColumnPtr create_column() {
+    MutableColumnPtr create_column() {
         ColumnBuilder<TYPE_VARCHAR> builder(1);
         builder.append(Slice("v1"));
         return builder.build(false);
     }
 
-    ColumnPtr create_nullable_column() {
+    MutableColumnPtr create_nullable_column() {
         ColumnBuilder<TYPE_VARCHAR> builder(1);
         builder.append(Slice("v1"), true);
         return builder.build(false);
     }
 
-    ColumnPtr create_const_column() {
+    MutableColumnPtr create_const_column() {
         ColumnBuilder<TYPE_VARCHAR> builder(1);
         builder.append(Slice("v1"));
         return builder.build(true);
     }
 
-    ColumnPtr create_only_null_column() {
+    MutableColumnPtr create_only_null_column() {
         ColumnBuilder<TYPE_VARCHAR> builder(1);
         builder.append_null();
         return builder.build(true);
@@ -61,8 +61,8 @@ TEST_F(ColumnHelperTest, cast_to_nullable_column) {
 }
 
 TEST_F(ColumnHelperTest, align_return_type) {
-    auto nullable_column = create_nullable_column();
-    auto not_null_column = create_column();
+    ColumnPtr nullable_column = create_nullable_column();
+    ColumnPtr not_null_column = create_column();
     nullable_column->append(*ColumnHelper::align_return_type(
             not_null_column, TypeDescriptor::from_logical_type(TYPE_VARCHAR), not_null_column->size(), true));
     ASSERT_TRUE(nullable_column->is_nullable());

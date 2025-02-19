@@ -147,7 +147,7 @@ public:
         tschema.indexes[0].columns = {"k1", "k2", "k3"};
         if (tcolumns != nullptr) {
             for (auto tcolumn : *tcolumns) {
-                tschema.indexes[0].columns.emplace_back(tcolumn.column_name);
+                tschema.indexes[0].columns.emplace_back(std::move(tcolumn.column_name));
             }
         }
         auto req = get_create_tablet_request(0, 0, tcolumns);

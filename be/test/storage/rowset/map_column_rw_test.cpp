@@ -68,7 +68,8 @@ protected:
         auto src_keys = NullableColumn::create(Int32Column::create(), NullColumn::create());
         auto src_values = NullableColumn::create(Int32Column::create(), NullColumn::create());
 
-        ColumnPtr src_column = MapColumn::create(src_keys, src_values, src_offsets);
+        MutableColumnPtr src_column =
+                MapColumn::create(std::move(src_keys), std::move(src_values), std::move(src_offsets));
 
         //  {1 = 1}
         src_keys->append_datum(1);
@@ -167,7 +168,7 @@ protected:
                 auto dst_offsets = UInt32Column::create();
                 auto dst_keys = NullableColumn::create(Int32Column::create(), NullColumn::create());
                 auto dst_values = NullableColumn::create(Int32Column::create(), NullColumn::create());
-                auto dst_column = MapColumn::create(dst_keys, dst_values, dst_offsets);
+                auto dst_column = MapColumn::create(std::move(dst_keys), std::move(dst_values), std::move(dst_offsets));
                 size_t rows_read = src_column->size();
                 st = iter->next_batch(&rows_read, dst_column.get());
                 ASSERT_TRUE(st.ok());
@@ -202,7 +203,7 @@ protected:
                 auto dst_offsets = UInt32Column::create();
                 auto dst_keys = NullableColumn::create(Int32Column::create(), NullColumn::create());
                 auto dst_values = NullableColumn::create(Int32Column::create(), NullColumn::create());
-                auto dst_column = MapColumn::create(dst_keys, dst_values, dst_offsets);
+                auto dst_column = MapColumn::create(std::move(dst_keys), std::move(dst_values), std::move(dst_offsets));
                 size_t rows_read = src_column->size();
                 st = iter->next_batch(&rows_read, dst_column.get());
                 ASSERT_TRUE(st.ok());
@@ -240,7 +241,7 @@ protected:
                 auto dst_offsets = UInt32Column::create();
                 auto dst_keys = NullableColumn::create(Int32Column::create(), NullColumn::create());
                 auto dst_values = NullableColumn::create(Int32Column::create(), NullColumn::create());
-                auto dst_column = MapColumn::create(dst_keys, dst_values, dst_offsets);
+                auto dst_column = MapColumn::create(std::move(dst_keys), std::move(dst_values), std::move(dst_offsets));
                 size_t rows_read = src_column->size();
                 st = iter->next_batch(&rows_read, dst_column.get());
                 ASSERT_TRUE(st.ok());

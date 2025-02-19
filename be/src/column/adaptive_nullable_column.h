@@ -53,9 +53,13 @@ namespace starrocks {
 // when append null data to AdaptiveNullableColumn, we only need increase _size in AdaptiveNullableColumn,
 // no need to append default to data column and 1 to null column.
 // At the end of AdaptiveNullableColumn, you need to call materialized_nullable() if you want to use the data column and null column.
-class AdaptiveNullableColumn final : public ColumnFactory<NullableColumn, AdaptiveNullableColumn, Column> {
+class AdaptiveNullableColumn final
+        : public COWHelper<ColumnFactory<NullableColumn, AdaptiveNullableColumn>, AdaptiveNullableColumn, Column> {
 public:
-    using SuperClass = ColumnFactory<NullableColumn, AdaptiveNullableColumn, Column>;
+    friend class COWHelper<ColumnFactory<NullableColumn, AdaptiveNullableColumn>, AdaptiveNullableColumn, Column>;
+
+    using SuperClass = COWHelper<ColumnFactory<NullableColumn, AdaptiveNullableColumn>, AdaptiveNullableColumn, Column>;
+
     enum class State {
         kUninitialized,
         kNull,
@@ -77,16 +81,16 @@ public:
         }
     }
 
-    explicit AdaptiveNullableColumn(ColumnPtr data_column, NullColumnPtr null_column)
-            : SuperClass(data_column, null_column) {
-        DCHECK_EQ(_null_column->size(), _data_column->size());
-        if (_data_column->size() == 0) {
-            _state = State::kUninitialized;
-            _size = 0;
-        } else {
-            _state = State::kMaterialized;
-        }
-    }
+    // explicit AdaptiveNullableColumn(ColumnPtr data_column, NullColumnPtr null_column)
+    //         : SuperClass(data_column, null_column) {
+    //     DCHECK_EQ(_null_column->size(), _data_column->size());
+    //     if (_data_column->size() == 0) {
+    //         _state = State::kUninitialized;
+    //         _size = 0;
+    //     } else {
+    //         _state = State::kMaterialized;
+    //     }
+    // }
 
     State state() { return _state; }
 
@@ -339,12 +343,12 @@ public:
         return sizeof(bool) + _data_column->max_one_element_serialize_size();
     }
 
-    uint32_t serialize(size_t idx, uint8_t* pos) override;
+    uint32_t serialize(size_t idx, uint8_t* pos) const override;
 
-    uint32_t serialize_default(uint8_t* pos) override;
+    uint32_t serialize_default(uint8_t* pos) const override;
 
     void serialize_batch(uint8_t* dst, Buffer<uint32_t>& slice_sizes, size_t chunk_size,
-                         uint32_t max_one_row_size) override;
+                         uint32_t max_one_row_size) const override;
 
     const uint8_t* deserialize_and_append(const uint8_t* pos) override;
 
@@ -359,11 +363,11 @@ public:
     }
 
     MutableColumnPtr clone_empty() const override {
-        return NullableColumn::create_mutable(_data_column->clone_empty(), _null_column->clone_empty());
+        return NullableColumn::create(_data_column->clone_empty(), _null_column->clone_empty());
     }
 
     size_t serialize_batch_at_interval(uint8_t* dst, size_t byte_offset, size_t byte_interval, size_t start,
-                                       size_t count) override;
+                                       size_t count) const override;
 
     int compare_at(size_t left, size_t right, const Column& rhs, int nan_direction_hint) const override;
 
@@ -374,6 +378,24 @@ public:
     int64_t xor_checksum(uint32_t from, uint32_t to) const override;
 
     void put_mysql_row_buffer(MysqlRowBuffer* buf, size_t idx, bool is_binary_protocol = false) const override;
+
+    ColumnPtr& begin_append_not_default_value() {
+        switch (_state) {
+        case State::kUninitialized: {
+            _state = State::kNotConstant;
+            break;
+        }
+        case State::kNotConstant:
+        case State::kMaterialized: {
+            break;
+        }
+        default: {
+            materialized_nullable();
+            break;
+        }
+        }
+        return _data_column;
+    }
 
     const ColumnPtr& begin_append_not_default_value() const {
         switch (_state) {
@@ -393,7 +415,7 @@ public:
         return _data_column;
     }
 
-    Column* mutable_begin_append_not_default_value() const {
+    Column* mutable_begin_append_not_default_value() {
         switch (_state) {
         case State::kUninitialized: {
             _state = State::kNotConstant;
@@ -570,15 +592,16 @@ public:
             return;
         }
         if (LIKELY(_size > 0)) {
+            auto* mutable_data_col = const_cast<Column*>(_data_column.get());
             switch (_state) {
             case State::kNull: {
-                _data_column->append_default(_size);
+                mutable_data_col->append_default(_size);
                 null_column_data().insert(null_column_data().end(), _size, 1);
                 _has_null = true;
                 break;
             }
             case State::kConstant: {
-                _data_column->append_default(_size);
+                mutable_data_col->append_default(_size);
                 null_column_data().insert(null_column_data().end(), _size, 0);
                 break;
             }
@@ -596,7 +619,10 @@ public:
     }
 
 private:
-    NullData& null_column_data() const { return _null_column->get_data(); }
+    NullData& null_column_data() const {
+        auto* mutable_data_col = const_cast<NullColumn*>(_null_column.get());
+        return mutable_data_col->get_data();
+    }
 
     mutable State _state;
     mutable size_t _size;

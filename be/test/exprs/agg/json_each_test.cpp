@@ -44,7 +44,7 @@ public:
         }
         Columns input_columns;
         if (!inputs.empty()) {
-            input_columns.push_back(json_column);
+            input_columns.push_back(std::move(json_column));
         }
         TableFunctionState* func_state;
 

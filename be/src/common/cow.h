@@ -359,6 +359,9 @@ public:
 
 protected:
     MutablePtr shallow_mutate() const {
+#ifndef NDEBUG
+        VLOG(1) << "[COW] shallow_mutate, use_count=" << this->use_count();
+#endif
         if (this->use_count() > 1) {
             return derived()->clone();
         } else {

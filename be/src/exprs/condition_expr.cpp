@@ -227,16 +227,16 @@ public:
 
         ASSIGN_OR_RETURN(auto lhs, _children[1]->evaluate_checked(context, ptr));
         if (true_count == bhs->size()) {
-            return lhs->clone();
+            return Column::mutate(std::move(lhs));
         }
 
         ASSIGN_OR_RETURN(auto rhs, _children[2]->evaluate_checked(context, ptr));
         if (true_count == 0) {
-            return rhs->clone();
+            return Column::mutate(std::move(rhs));
         }
 
         if (lhs->only_null() && rhs->only_null()) {
-            return lhs->clone();
+            return Column::mutate(std::move(lhs));
         }
 
         Columns list = {bhs, lhs, rhs};
@@ -408,8 +408,8 @@ public:
 
         // direct return if only one
         if (columns.size() == 1) {
-            // TODO: don't copy column if chunk support copy on write
-            return columns[0]->clone();
+            // don't copy column if chunk support copy on write
+            return Column::mutate(std::move(columns[0]));
         }
 
         if constexpr (lt_is_collection<Type>) {

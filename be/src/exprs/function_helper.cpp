@@ -41,7 +41,7 @@ NullColumn::MutablePtr FunctionHelper::union_nullable_column(const ColumnPtr& v1
         return nullptr;
     }
 
-    return NullColumn::static_pointer_cast(result);
+    return NullColumn::static_pointer_cast(std::move(result));
 }
 
 void FunctionHelper::union_produce_nullable_column(const ColumnPtr& v1, const ColumnPtr& v2,

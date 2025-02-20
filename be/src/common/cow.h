@@ -232,7 +232,7 @@ protected:
         template <typename, typename, typename>
         friend class COWHelper;
 
-        explicit mutable_ptr(T* ptr) : Base(ptr) {}
+        explicit mutable_ptr(T* ptr, bool add_ref = true) : Base(ptr, add_ref) {}
 
     public:
         /// Copy: not possible.
@@ -261,7 +261,7 @@ protected:
         template <typename, typename, typename>
         friend class COWHelper;
 
-        explicit immutable_ptr(const T* ptr) : Base(ptr) {}
+        explicit immutable_ptr(const T* ptr, bool add_ref = true) : Base(ptr, add_ref) {}
 
     public:
         /// Copy from immutable ptr: ok.
@@ -457,10 +457,10 @@ public:
         return typename AncestorBaseType::MutablePtr(new Derived(static_cast<const Derived&>(*this)));
     }
 
-    static MutablePtr static_pointer_cast(const BaseMutablePtr& ptr) {
+    static MutablePtr static_pointer_cast(BaseMutablePtr&& ptr) {
         DCHECK(ptr.get() != nullptr);
         DCHECK(static_cast<Derived*>(ptr.get()) != nullptr);
-        return MutablePtr(static_cast<Derived*>(ptr.get()));
+        return MutablePtr(static_cast<Derived*>(ptr.detach()), false);
     }
 
     static Ptr static_pointer_cast(const BasePtr& ptr) {
@@ -469,16 +469,28 @@ public:
         return Ptr(static_cast<const Derived*>(ptr.get()));
     }
 
-    static MutablePtr dynamic_pointer_cast(const BaseMutablePtr& ptr) {
+    static Ptr static_pointer_cast(BasePtr&& ptr) {
+        DCHECK(ptr.get() != nullptr);
+        DCHECK(static_cast<const Derived*>(ptr.get()) != nullptr);
+        return Ptr(static_cast<const Derived*>(ptr.detach()), false);
+    }
+
+    static MutablePtr dynamic_pointer_cast(BaseMutablePtr&& ptr) {
         DCHECK(ptr.get() != nullptr);
         DCHECK(dynamic_cast<Derived*>(ptr.get()) != nullptr);
-        return MutablePtr(dynamic_cast<Derived*>(ptr.get()));
+        return MutablePtr(dynamic_cast<Derived*>(ptr.detach()), false);
     }
 
     static Ptr dynamic_pointer_cast(const BasePtr& ptr) {
         DCHECK(ptr.get() != nullptr);
         DCHECK(dynamic_cast<const Derived*>(ptr.get()) != nullptr);
         return Ptr(dynamic_cast<const Derived*>(ptr.get()));
+    }
+
+    static Ptr dynamic_pointer_cast(BasePtr&& ptr) {
+        DCHECK(ptr.get() != nullptr);
+        DCHECK(dynamic_cast<const Derived*>(ptr.get()) != nullptr);
+        return Ptr(dynamic_cast<const Derived*>(ptr.detach()), false);
     }
 
 protected:

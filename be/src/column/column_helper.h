@@ -292,9 +292,15 @@ public:
     }
 
     template <LogicalType Type>
-    static inline typename RunTimeColumnType<Type>::MutablePtr cast_to(const MutableColumnPtr& value) {
+    static inline typename RunTimeColumnType<Type>::Ptr cast_to(ColumnPtr&& value) {
         down_cast<const RunTimeColumnType<Type>*>(value.get());
-        return RunTimeColumnType<Type>::static_pointer_cast(value);
+        return RunTimeColumnType<Type>::static_pointer_cast(std::move(value));
+    }
+
+    template <LogicalType Type>
+    static inline typename RunTimeColumnType<Type>::MutablePtr cast_to(MutableColumnPtr&& value) {
+        down_cast<const RunTimeColumnType<Type>*>(value.get());
+        return RunTimeColumnType<Type>::static_pointer_cast(std::move(value));
     }
 
     /**
@@ -333,8 +339,13 @@ public:
     }
 
     template <typename Type>
-    static inline typename Type::MutablePtr as_column(const MutableColumnPtr& value) {
-        return Type::static_pointer_cast(value);
+    static inline typename Type::Ptr as_column(ColumnPtr&& value) {
+        return Type::static_pointer_cast(std::move(value));
+    }
+
+    template <typename Type>
+    static inline typename Type::MutablePtr as_column(MutableColumnPtr&& value) {
+        return Type::static_pointer_cast(std::move(value));
     }
 
     template <typename Type>

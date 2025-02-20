@@ -66,7 +66,7 @@ StatusOr<ColumnPtr> MapFunctions::map_from_arrays(FunctionContext* context, cons
         auto copied_value_elements = values_data->elements().clone();
         auto copied_offsets = keys_data->offsets().clone();
         auto map_column = MapColumn::create(std::move(copied_key_elements), std::move(copied_value_elements),
-                                            UInt32Column::static_pointer_cast(copied_offsets));
+                                            UInt32Column::static_pointer_cast(std::move(copied_offsets)));
         map_column->remove_duplicated_keys();
         return map_column;
     } else {

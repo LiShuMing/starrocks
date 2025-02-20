@@ -164,7 +164,7 @@ StatusOr<ColumnPtr> JITExpr::evaluate_checked(starrocks::ExprContext* context, C
         backup_args.emplace_back(column);
     }
 
-    unfold_ptr(std::move(result_column));
+    unfold_ptr(result_column->assume_mutable());
     // inputs are not empty.
     _jit_function(num_rows, jit_columns.data());
     //TODO: _jit_function return has_null

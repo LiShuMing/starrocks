@@ -45,7 +45,7 @@ public:
     ArrayColumn(MutableColumnPtr&& elements, MutableColumnPtr&& offsets);
 
     ArrayColumn(const ArrayColumn& rhs)
-            : _elements(rhs._elements->clone()), _offsets(UInt32Column::static_pointer_cast(rhs._offsets->clone())) {}
+            : _elements(rhs._elements->clone()), _offsets(OffsetColumn::static_pointer_cast(rhs._offsets->clone())) {}
 
     ArrayColumn(ArrayColumn&& rhs) noexcept : _elements(std::move(rhs._elements)), _offsets(std::move(rhs._offsets)) {}
 
@@ -184,8 +184,8 @@ public:
     ColumnPtr& elements_column() { return _elements; }
     const ColumnPtr& elements_column() const { return _elements; }
 
-    UInt32Column& offsets() { return *_offsets; }
-    const UInt32Column& offsets() const { return *_offsets; }
+    OffsetColumn& offsets() { return *_offsets; }
+    const OffsetColumn& offsets() const { return *_offsets; }
     const OffsetColumnPtr& offsets_column() const { return _offsets; }
     OffsetColumnPtr& offsets_column() { return _offsets; }
 
@@ -219,8 +219,13 @@ public:
     static bool is_all_array_lengths_equal(const ColumnPtr& v1, const ColumnPtr& v2, const NullColumnPtr& null_data);
 
     void for_each_subcolumn(ColumnCallback callback) override {
-        callback(_offsets.get());
-        callback(_elements.get());
+        // elements
+        callback(_elements);
+
+        // offsets
+        OffsetColumn::WrappedPtr offsets_column = OffsetColumn::static_pointer_cast(std::move(_offsets).detach());
+        callback(offsets_column);
+        _offsets = OffsetColumn::static_pointer_cast(std::move(offsets_column));
     }
 
 private:

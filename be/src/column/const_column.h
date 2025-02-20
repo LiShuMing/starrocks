@@ -272,7 +272,7 @@ public:
 
     bool has_large_column() const override { return _data->has_large_column(); }
 
-    void for_each_subcolumn(ColumnCallback callback) override { callback(_data.get()); }
+    void for_each_subcolumn(ColumnCallback callback) override { callback(_data); }
 
 private:
     WrappedPtr _data;

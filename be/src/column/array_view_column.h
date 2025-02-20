@@ -222,8 +222,15 @@ public:
     ColumnPtr to_array_column() const;
 
     void for_each_subcolumn(ColumnCallback callback) override {
-        callback(_offsets.get());
-        callback(_lengths.get());
+        callback(_elements);
+        // offsets
+        UInt32Column::WrappedPtr offsets_column = UInt32Column::static_pointer_cast(std::move(_offsets).detach());
+        callback(offsets_column);
+        _offsets = UInt32Column::static_pointer_cast(std::move(offsets_column));
+        // _lengths
+        UInt32Column::WrappedPtr length_column = UInt32Column::static_pointer_cast(std::move(_lengths).detach());
+        callback(length_column);
+        _lengths = UInt32Column::static_pointer_cast(std::move(length_column));
     }
 
 private:

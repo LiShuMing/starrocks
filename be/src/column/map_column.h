@@ -206,9 +206,13 @@ public:
     void remove_duplicated_keys(bool need_recursive = false);
 
     void for_each_subcolumn(ColumnCallback callback) override {
-        callback(_keys.get());
-        callback(_values.get());
-        callback(_offsets.get());
+        callback(_keys);
+        callback(_values);
+
+        // offsets
+        UInt32Column::WrappedPtr offsets_column = UInt32Column::static_pointer_cast(std::move(_offsets).detach());
+        callback(offsets_column);
+        _offsets = UInt32Column::static_pointer_cast(std::move(offsets_column));
     }
 
 private:

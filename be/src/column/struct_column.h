@@ -169,7 +169,7 @@ public:
 
     void for_each_subcolumn(ColumnCallback callback) override {
         for (auto& column : _fields) {
-            callback(column.get());
+            callback(column);
         }
     }
 

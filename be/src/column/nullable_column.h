@@ -337,8 +337,12 @@ public:
     void check_or_die() const override;
 
     void for_each_subcolumn(ColumnCallback callback) override {
-        callback(_data_column.get());
-        callback(_null_column.get());
+        callback(_data_column);
+
+        // _null_column
+        NullColumn::WrappedPtr null_column = NullColumn::static_pointer_cast(std::move(_null_column).detach());
+        callback(null_column);
+        _null_column = NullColumn::static_pointer_cast(std::move(null_column));
     }
 
 protected:

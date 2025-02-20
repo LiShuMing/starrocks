@@ -386,12 +386,12 @@ public:
 
     template <typename To = Derived>
     To& assume_mutable_ref() const {
-        return const_cast<To&>(down_cast<const To&>(derived()));
+        return const_cast<To&>(static_cast<const To&>(derived()));
     }
 
     template <typename To = Derived>
     To* assume_mutable_ptr() const {
-        return const_cast<To*>(down_cast<const To*>(derived()));
+        return const_cast<To*>(static_cast<const To*>(derived()));
     }
 
 private:

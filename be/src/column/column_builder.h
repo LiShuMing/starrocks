@@ -20,6 +20,7 @@
 #include "column/column_helper.h"
 #include "column/type_traits.h"
 #include "util/raw_container.h"
+#include "util/stack_util.h"
 
 namespace starrocks {
 
@@ -48,7 +49,9 @@ public:
 
         if constexpr (lt_is_decimal<Type>) {
             static constexpr auto max_precision = decimal_precision_limit<DatumType>;
-            std::cout << "max_precision: " << max_precision << ", precision:" << precision << std::endl;
+            std::cout << "max_precision: " << max_precision << ", precision:" << precision << ", " << get_stack_trace()
+                      << std::endl;
+
             DCHECK(0 <= scale && scale <= precision && precision <= max_precision);
             auto raw_column = ColumnHelper::cast_to_raw<Type>(_column.get());
             raw_column->set_precision(precision);

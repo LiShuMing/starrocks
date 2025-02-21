@@ -234,8 +234,8 @@ bool OrcRowReaderFilter::filterOnPickStringDictionary(
         ChunkPtr dict_value_chunk = std::make_shared<Chunk>();
         // always assume there is a possibility of null value in ORC column.
         // and we evaluate with null always.
-        MutableColumnPtr column_ptr = ColumnHelper::create_column(slot_desc->type(), true);
-        dict_value_chunk->append_column(std::move(column_ptr), slot_id);
+        ColumnPtr column_ptr = ColumnHelper::create_column(slot_desc->type(), true);
+        dict_value_chunk->append_column(column_ptr, slot_id);
 
         auto* nullable_column = down_cast<NullableColumn*>(column_ptr.get());
         auto* dict_value_column = down_cast<BinaryColumn*>(nullable_column->data_column().get());

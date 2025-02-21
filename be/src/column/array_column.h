@@ -64,7 +64,7 @@ public:
     static Ptr create(const ColumnPtr& elements, const ColumnPtr& offsets) {
         return ArrayColumn::create(elements->assume_mutable(), offsets->assume_mutable());
     }
-    static Ptr create(const ArrayColumn& rhs) { return ArrayColumn::create(rhs); }
+    static Ptr create(const ArrayColumn& rhs) { return Base::create(rhs); }
 
     template <typename... Args>
     requires(IsMutableColumns<Args...>::value) static MutablePtr create(Args&&... args) {

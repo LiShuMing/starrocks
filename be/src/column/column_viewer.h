@@ -39,7 +39,7 @@ namespace starrocks {
 template <LogicalType Type>
 class ColumnViewer {
 public:
-    using Ptr = RunTimeColumnType<Type>::Ptr;
+    using Ptr = typename RunTimeColumnType<Type>::Ptr;
 
     static auto constexpr TYPE = Type;
 

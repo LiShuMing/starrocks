@@ -233,12 +233,12 @@ ColumnId ChunkHelper::max_column_id(const starrocks::Schema& schema) {
 }
 
 template <typename T>
-inline T::MutablePtr get_column_ptr() {
+inline typename T::MutablePtr get_column_ptr() {
     return T::create();
 }
 
 template <typename T>
-inline DecimalColumnType<T>::MutablePtr get_decimal_column_ptr(int precision, int scale) {
+inline typename DecimalColumnType<T>::MutablePtr get_decimal_column_ptr(int precision, int scale) {
     auto column = get_column_ptr<T>();
     column->set_precision(precision);
     column->set_scale(scale);

@@ -432,9 +432,8 @@ private:
 template <typename Base, typename Derived, typename AncestorBase = Base>
 class COWHelper : public Base {
 public:
-    using BasePtr = AncestorBase::Ptr;
-    using BaseMutablePtr = AncestorBase::MutablePtr;
-
+    using BasePtr = typename AncestorBase::Ptr;
+    using BaseMutablePtr = typename AncestorBase::MutablePtr;
     using Ptr = typename Base::template immutable_ptr<Derived>;
     using MutablePtr = typename Base::template mutable_ptr<Derived>;
     using DerivedWrappedPtr = typename Base::template chameleon_ptr<Derived>;
@@ -483,20 +482,29 @@ public:
 
     static MutablePtr dynamic_pointer_cast(BaseMutablePtr&& ptr) {
         DCHECK(ptr.get() != nullptr);
-        DCHECK(dynamic_cast<Derived*>(ptr.get()) != nullptr);
-        return MutablePtr(dynamic_cast<Derived*>(ptr.detach()), false);
+        if (auto* _p = dynamic_cast<Derived*>(ptr.detach())) {
+            return MutablePtr(_p, false);
+        } else {
+            return Ptr();
+        }
     }
 
     static Ptr dynamic_pointer_cast(const BasePtr& ptr) {
         DCHECK(ptr.get() != nullptr);
-        DCHECK(dynamic_cast<const Derived*>(ptr.get()) != nullptr);
-        return Ptr(dynamic_cast<const Derived*>(ptr.get()));
+        if (auto* _ptr = dynamic_cast<const Derived*>(ptr.get())) {
+            return Ptr(_ptr);
+        } else {
+            return Ptr();
+        }
     }
 
     static Ptr dynamic_pointer_cast(BasePtr&& ptr) {
         DCHECK(ptr.get() != nullptr);
-        DCHECK(dynamic_cast<const Derived*>(ptr.get()) != nullptr);
-        return Ptr(dynamic_cast<const Derived*>(ptr.detach()), false);
+        if (auto* _ptr = dynamic_cast<const Derived*>(ptr.detach())) {
+            return Ptr(_ptr, false);
+        } else {
+            return Ptr();
+        }
     }
 
 protected:

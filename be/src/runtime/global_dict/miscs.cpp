@@ -40,7 +40,7 @@ std::pair<NullColumnPtr, std::vector<int32_t>> extract_column_with_codes(const G
         codes.emplace_back(code);
     }
     (void)res->append_strings(slices.data(), slices.size());
-    res->set_null(0);
+    (void)res->set_null(0);
     return std::make_pair(NullColumn::static_pointer_cast(std::move(res)), std::move(codes));
 }
 

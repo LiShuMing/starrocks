@@ -1307,7 +1307,7 @@ Status HyperJsonTransformer::trans(const Columns& columns) {
 Status HyperJsonTransformer::_equals(const MergeTask& task, const Columns& columns) {
     DCHECK(task.src_index.size() == 1);
     if (task.need_cast) {
-        auto col = columns[task.src_index[0]];
+        auto& col = columns[task.src_index[0]];
         return _cast(task, col);
     }
     _dst_columns[task.dst_index] = columns[task.src_index[0]];

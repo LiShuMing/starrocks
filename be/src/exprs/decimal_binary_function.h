@@ -126,8 +126,11 @@ struct DecimalBinaryFunction {
         const auto num_rows = std::max(lhs->size(), rhs->size());
         const auto lhs_scale = lhs_column->scale();
         const auto rhs_scale = rhs_column->scale();
+        std::cout << "lhs_scale: " << lhs_scale << ", rhs_scale: " << rhs_scale << std::endl;
         auto [precision, scale, adjust_scale] = compute_decimal_result_type<ResultCppType, Op>(lhs_scale, rhs_scale);
 
+        std::cout << "precision: " << precision << ", scale: " << scale << ", adjust_scale: " << adjust_scale
+                  << std::endl;
         MutableColumnPtr result_column = ResultColumnType::create(precision, scale, num_rows);
         auto result_data = &ColumnHelper::cast_to_raw<ResultType>(result_column.get())->get_data().front();
         NullColumnPtr null_column;

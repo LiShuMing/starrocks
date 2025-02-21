@@ -56,9 +56,9 @@ public:
         return MapColumn::create(keys->assume_mutable(), values->assume_mutable(), offsets->assume_mutable());
     }
 
-    static Ptr create(const MapColumn& rhs) { return MapColumn::create(rhs); }
+    static Ptr create(const MapColumn& rhs) { return Base::create(rhs); }
 
-    static Ptr create(MapColumn&& rhs) { return MapColumn::create(std::move(rhs)); }
+    static Ptr create(MapColumn&& rhs) { return Base::create(std::move(rhs)); }
 
     template <typename... Args>
     requires(IsMutableColumns<Args...>::value) static MutablePtr create(Args&&... args) {

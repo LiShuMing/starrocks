@@ -27,9 +27,8 @@ template <LogicalType Type>
 class ColumnBuilder {
 public:
     using DataColumn = RunTimeColumnType<Type>;
-    using DataColumnPtr = DataColumn::Ptr;
+    using DataColumnPtr = typename RunTimeColumnType<Type>::Ptr;
     using NullColumnPtr = NullColumn::Ptr;
-
     using DatumType = RunTimeCppType<Type>;
     using MovableType = RunTimeCppMovableType<Type>;
 
@@ -49,6 +48,7 @@ public:
 
         if constexpr (lt_is_decimal<Type>) {
             static constexpr auto max_precision = decimal_precision_limit<DatumType>;
+            std::cout << "max_precision: " << max_precision << ", precision:" << precision << std::endl;
             DCHECK(0 <= scale && scale <= precision && precision <= max_precision);
             auto raw_column = ColumnHelper::cast_to_raw<Type>(_column.get());
             raw_column->set_precision(precision);
@@ -56,7 +56,7 @@ public:
         }
     }
 
-    ColumnBuilder(DataColumn::MutablePtr column, NullColumn::MutablePtr null_column, bool has_null)
+    ColumnBuilder(typename DataColumn::MutablePtr column, typename NullColumn::MutablePtr null_column, bool has_null)
             : _column(std::move(column)), _null_column(std::move(null_column)), _has_null(has_null) {}
     //do nothing ctor, members are initialized by its offsprings.
     explicit ColumnBuilder(void*) {}
@@ -131,7 +131,7 @@ public:
     void set_has_null(bool v) { _has_null = v; }
 
 protected:
-    DataColumn::DerivedWrappedPtr _column;
+    typename DataColumn::DerivedWrappedPtr _column;
     NullColumn::DerivedWrappedPtr _null_column;
     bool _has_null;
 };

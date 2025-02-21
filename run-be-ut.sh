@@ -26,7 +26,6 @@ export STARROCKS_HOME=${ROOT}
 . ${STARROCKS_HOME}/env.sh
 
 PARALLEL=$[$(nproc)/4+1]
-
 # Check args
 usage() {
   echo "
@@ -177,22 +176,25 @@ if [ "${USE_STAROS}" == "ON"  ]; then
   export STARLET_INSTALL_DIR
 fi
 
-${CMAKE_CMD}  -G "${CMAKE_GENERATOR}" \
-            -DSTARROCKS_THIRDPARTY=${STARROCKS_THIRDPARTY}\
-            -DSTARROCKS_HOME=${STARROCKS_HOME} \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DMAKE_TEST=ON -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
-            -DUSE_AVX2=$USE_AVX2 -DUSE_AVX512=$USE_AVX512 -DUSE_SSE4_2=$USE_SSE4_2 -DUSE_BMI_2=$USE_BMI_2\
-            -DUSE_STAROS=${USE_STAROS} \
-            -DSTARLET_INSTALL_DIR=${STARLET_INSTALL_DIR}          \
-            -DWITH_GCOV=${WITH_GCOV} \
-            -DWITH_STARCACHE=${WITH_STARCACHE} \
-            -DWITH_BRPC_KEEPALIVE=${WITH_BRPC_KEEPALIVE} \
-            -DSTARROCKS_JIT_ENABLE=ON \
-            -DWITH_RELATIVE_SRC_PATH=OFF \
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ../
+echo "DRY_RUN: ${DRY_RUN}"
+if [ ${DRY_RUN} -eq 0 ]; then
+    ${CMAKE_CMD}  -G "${CMAKE_GENERATOR}" \
+                -DSTARROCKS_THIRDPARTY=${STARROCKS_THIRDPARTY}\
+                -DSTARROCKS_HOME=${STARROCKS_HOME} \
+                -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+                -DMAKE_TEST=ON -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
+                -DUSE_AVX2=$USE_AVX2 -DUSE_AVX512=$USE_AVX512 -DUSE_SSE4_2=$USE_SSE4_2 -DUSE_BMI_2=$USE_BMI_2\
+                -DUSE_STAROS=${USE_STAROS} \
+                -DSTARLET_INSTALL_DIR=${STARLET_INSTALL_DIR}          \
+                -DWITH_GCOV=${WITH_GCOV} \
+                -DWITH_STARCACHE=${WITH_STARCACHE} \
+                -DWITH_BRPC_KEEPALIVE=${WITH_BRPC_KEEPALIVE} \
+                -DSTARROCKS_JIT_ENABLE=ON \
+                -DWITH_RELATIVE_SRC_PATH=OFF \
+                -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ../
+    ${BUILD_SYSTEM} -j${PARALLEL}
+fi
 
-${BUILD_SYSTEM} -j${PARALLEL}
 
 echo "*********************************"
 echo "  Starting to Run BE Unit Tests  "
@@ -257,7 +259,6 @@ fi
 export CLASSPATH=$STARROCKS_HOME/conf:$HADOOP_CLASSPATH:$CLASSPATH
 
 # ===========================================================
-
 export STARROCKS_TEST_BINARY_DIR=${STARROCKS_TEST_BINARY_DIR}/test
 export ASAN_OPTIONS="abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1:detect_stack_use_after_return=1"
 
@@ -280,7 +281,7 @@ fi
 cp -r ${STARROCKS_HOME}/be/test/util/test_data ${STARROCKS_TEST_BINARY_DIR}/util/
 
 test_files=`find ${STARROCKS_TEST_BINARY_DIR} -type f -perm -111 -name "*test" \
-    | grep -v starrocks_test \
+    # | grep -v starrocks_test \
     | grep -v bench_test \
     | grep -e "$TEST_MODULE" `
 
@@ -289,14 +290,14 @@ echo "[INFO] gtest_filter: $TEST_NAME"
 # reference: https://github.com/google/gtest-parallel
 if [[ $TEST_MODULE == '.*'  || $TEST_MODULE == 'starrocks_test' ]]; then
   echo "Run test: ${STARROCKS_TEST_BINARY_DIR}/starrocks_test"
-  if [ ${DRY_RUN} -eq 0 ]; then
-    if [ -x "${GTEST_PARALLEL}" ]; then
-        ${GTEST_PARALLEL} ${STARROCKS_TEST_BINARY_DIR}/starrocks_test \
-            --gtest_filter=${TEST_NAME} \
-            --serialize_test_cases ${GTEST_PARALLEL_OPTIONS}
-    else
+#   if [ ${DRY_RUN} -eq 0 ]; then
+#     if [ -x "${GTEST_PARALLEL}" ]; then
+#         ${GTEST_PARALLEL} ${STARROCKS_TEST_BINARY_DIR}/starrocks_test \
+#             --gtest_filter=${TEST_NAME} \
+#             --serialize_test_cases ${GTEST_PARALLEL_OPTIONS}
+#     else
         ${STARROCKS_TEST_BINARY_DIR}/starrocks_test $GTEST_OPTIONS --gtest_filter=${TEST_NAME}
-    fi
+    # fi
   fi
 fi
 

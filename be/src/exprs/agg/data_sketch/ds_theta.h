@@ -25,6 +25,7 @@
 #include "runtime/memory/mem_chunk_allocator.h"
 #include "util/slice.h"
 
+#undef IS_BIG_ENDIAN
 #include "datasketches/theta_sketch.hpp"
 #include "datasketches/theta_union.hpp"
 

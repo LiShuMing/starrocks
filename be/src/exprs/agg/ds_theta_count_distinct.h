@@ -97,7 +97,7 @@ public:
     void merge(FunctionContext* ctx, const Column* column, AggDataPtr __restrict state, size_t row_num) const override {
         DCHECK(column->is_binary());
         const BinaryColumn* theta_column = down_cast<const BinaryColumn*>(column);
-        DataSketchesTheta theta(theta->get(row_num).get_slice(), &(this->data(state).memory_usage));
+        DataSketchesTheta theta(theta_column->get(row_num).get_slice(), &(this->data(state).memory_usage));
         if (UNLIKELY(this->data(state).theta_sketch == nullptr)) {
             this->data(state).theta_sketch = std::make_unique<DataSketchesTheta>(&(this->data(state).memory_usage));
         }
@@ -195,7 +195,7 @@ private:
         }
     }
 
-    // init theta sketch with default log_k and target type
+    // init theta sketch
     std::unique_ptr<DataSketchesTheta> _init_theta_sketch(int64_t* memory_usage) const {
         return std::make_unique<DataSketchesTheta>(memory_usage);
     }

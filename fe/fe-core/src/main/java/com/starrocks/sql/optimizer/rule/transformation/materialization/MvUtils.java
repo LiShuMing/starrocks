@@ -1377,11 +1377,78 @@ public class MvUtils {
     }
 
     public static Optional<Table> getTable(BaseTableInfo baseTableInfo) {
-        return GlobalStateMgr.getCurrentState().getMetadataMgr().getTable(new ConnectContext(), baseTableInfo);
+        try {
+            return GlobalStateMgr.getCurrentState().getMetadataMgr().getTable(new ConnectContext(), baseTableInfo);
+        } catch (Exception e) {
+            if (e.getMessage() != null && e.getMessage().contains("NoSuchObjectException")) {
+                return Optional.empty();
+            }
+            throw e;
+            //  msg: NoSuchObjectException: hive_db_8b48cd2f_4bfe_11f0_bc1a_00163e09349d.t1 table not found
+            //        at com.starrocks.connector.hive.HiveMetaClient.callRPC(HiveMetaClient.java:178)
+            //        at com.starrocks.connector.hive.HiveMetaClient.callRPC(HiveMetaClient.java:163)
+            //        at com.starrocks.connector.hive.HiveMetaClient.getTable(HiveMetaClient.java:272)
+            //        at com.starrocks.connector.hive.HiveMetastore.getTable(HiveMetastore.java:116)
+            //        at com.starrocks.connector.hive.CachingHiveMetastore.loadTable(CachingHiveMetastore.java:311)
+            //        at com.google.common.cache.CacheLoader$FunctionToCacheLoader.load(CacheLoader.java:169)
+            //        at com.google.common.cache.CacheLoader$1.load(CacheLoader.java:192)
+            //        at com.google.common.cache.LocalCache$LoadingValueReference.loadFuture(LocalCache.java:3570)
+            //        at com.starrocks.connector.hive.HiveMetaClient.callRPC(HiveMetaClient.java:163)
+            //        at com.starrocks.connector.hive.HiveMetaClient.getTable(HiveMetaClient.java:272)
+            //        at com.starrocks.connector.hive.HiveMetastore.getTable(HiveMetastore.java:116)
+            //        at com.starrocks.connector.hive.CachingHiveMetastore.loadTable(CachingHiveMetastore.java:311)
+            //        at com.google.common.cache.CacheLoader$FunctionToCacheLoader.load(CacheLoader.java:169)
+            //        at com.google.common.cache.CacheLoader$1.load(CacheLoader.java:192)
+            //        at com.google.common.cache.LocalCache$LoadingValueReference.loadFuture(LocalCache.java:3570)
+            //        at com.google.common.cache.LocalCache$Segment.loadSync(LocalCache.java:2312)
+            //        at com.google.common.cache.LocalCache$Segment.lockedGetOrLoad(LocalCache.java:2189)
+            //        at com.google.common.cache.LocalCache$Segment.get(LocalCache.java:2079)
+            //        at com.google.common.cache.LocalCache.get(LocalCache.java:4011)
+            //        at com.google.common.cache.LocalCache.getOrLoad(LocalCache.java:4034)
+            //        at com.google.common.cache.LocalCache$LocalLoadingCache.get(LocalCache.java:5010)
+            //        at com.google.common.cache.LocalCache$LocalLoadingCache.getUnchecked(LocalCache.java:5017)
+            //        at com.starrocks.connector.metastore.CachingMetastore.get(CachingMetastore.java:88)
+            //        at com.starrocks.connector.hive.CachingHiveMetastore.getTable(CachingHiveMetastore.java:303)
+            //        at com.starrocks.connector.hive.CachingHiveMetastore.loadTable(CachingHiveMetastore.java:311)
+            //        at com.google.common.cache.CacheLoader$FunctionToCacheLoader.load(CacheLoader.java:169)
+            //        at com.google.common.cache.CacheLoader$1.load(CacheLoader.java:192)
+            //        at com.google.common.cache.LocalCache$LoadingValueReference.loadFuture(LocalCache.java:3570)
+            //        at com.google.common.cache.LocalCache$Segment.loadSync(LocalCache.java:2312)
+            //        at com.google.common.cache.LocalCache$Segment.lockedGetOrLoad(LocalCache.java:2189)
+            //        at com.google.common.cache.LocalCache$Segment.get(LocalCache.java:2079)
+            //        at com.google.common.cache.LocalCache.get(LocalCache.java:4011)
+            //        at com.google.common.cache.LocalCache.getOrLoad(LocalCache.java:4034)
+            //        at com.google.common.cache.LocalCache$LocalLoadingCache.get(LocalCache.java:5010)
+            //        at com.google.common.cache.LocalCache$LocalLoadingCache.getUnchecked(LocalCache.java:5017)
+            //        at com.starrocks.connector.metastore.CachingMetastore.get(CachingMetastore.java:88)
+            //        at com.starrocks.connector.hive.CachingHiveMetastore.getTable(CachingHiveMetastore.java:303)
+            //        at com.starrocks.connector.hive.HiveMetastoreOperations.getTable(HiveMetastoreOperations.java:250)
+            //        at com.starrocks.connector.hive.HiveMetadata.getTable(HiveMetadata.java:206)
+            //        at com.starrocks.connector.CatalogConnectorMetadata.getTable(CatalogConnectorMetadata.java:148)
+            //        at com.starrocks.server.MetadataMgr.lambda$getTable$5(MetadataMgr.java:502)
+            //        at java.base/java.util.Optional.map(Optional.java:260)
+            //        at com.starrocks.server.MetadataMgr.getTable(MetadataMgr.java:502)
+            //        at com.starrocks.server.MetadataMgr.getTable(MetadataMgr.java:543)
+            //        at com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils.getTable(MvUtils.java:1380)
+            //        at com.starrocks.qe.ShowExecutor$ShowExecutorVisitor.lambda$visitShowMaterializedViewStatement$0(ShowExecutor.java:371)
+            //        at java.base/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1625)
+            //        at java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:762)
+            //        at com.starrocks.qe.ShowExecutor$ShowExecutorVisitor.visitShowMaterializedViewStatement(ShowExecutor.java:369)
+            //        at com.starrocks.qe.ShowExecutor$ShowExecutorVisitor.visitShowMaterializedViewStatement(ShowExecutor.java:319)
+            //        at com.starrocks.sql.ast.ShowMaterializedViewsStmt.accept(ShowMaterializedViewsStmt.java:178)
+        }
     }
 
     public static Optional<Table> getTableWithIdentifier(BaseTableInfo baseTableInfo) {
-        return GlobalStateMgr.getCurrentState().getMetadataMgr().getTableWithIdentifier(new ConnectContext(), baseTableInfo);
+        try {
+            return GlobalStateMgr.getCurrentState().getMetadataMgr().getTableWithIdentifier(new ConnectContext(), baseTableInfo);
+        } catch (Exception e) {
+            LOG.warn("Failed to get table with baseTableInfo: {}, error: {}", baseTableInfo, e.getMessage());
+            if (e.getMessage() != null && e.getMessage().contains("NoSuchObjectException")) {
+                return Optional.empty();
+            }
+            throw e;
+        }
     }
 
     public static Table getTableChecked(BaseTableInfo baseTableInfo) {
@@ -1498,9 +1565,10 @@ public class MvUtils {
         return baseTableInfos.stream().map(BaseTableInfo::getReadableString).collect(Collectors.joining(","));
     }
 
-    public static ScalarOperator convertPartitionKeyRangesToListPredicate(List<? extends ScalarOperator> partitionColRefs,
-                                                                          Collection<PRangeCell> pRangeCells,
-                                                                          boolean areAllRangePartitionsSingleton) {
+    public static ScalarOperator convertPartitionKeyRangesToListPredicate(
+            List<? extends ScalarOperator> partitionColRefs,
+            Collection<PRangeCell> pRangeCells,
+            boolean areAllRangePartitionsSingleton) throws AnalysisException {
         final List<Range<PartitionKey>> partitionRanges = pRangeCells
                 .stream()
                 .map(PRangeCell::getRange)
@@ -1509,15 +1577,25 @@ public class MvUtils {
         return convertPartitionKeysToListPredicate(partitionColRefs, partitionRanges, areAllRangePartitionsSingleton);
     }
 
-    public static ScalarOperator convertPartitionKeysToListPredicate(List<? extends ScalarOperator> partitionColRefs,
-                                                                     Collection<PartitionKey> partitionRanges) {
+    private static ConstantOperator convertLiteralToConstantOperator(ScalarOperator partitionColRef,
+                                                                     LiteralExpr literalExpr) throws AnalysisException {
+        if (!partitionColRef.getType().equals(literalExpr.getType())) {
+            literalExpr = LiteralExpr.create(literalExpr.getStringValue(), partitionColRef.getType());
+        }
+        return (ConstantOperator) SqlToScalarOperatorTranslator.translate(literalExpr);
+    }
+
+    public static ScalarOperator convertPartitionKeysToListPredicate(
+            List<? extends ScalarOperator> partitionColRefs,
+            Collection<PartitionKey> partitionRanges) throws AnalysisException {
         final List<ScalarOperator> values = Lists.newArrayList();
         if (partitionColRefs.size() == 1) {
+            ScalarOperator partitionColRef = partitionColRefs.get(0);
             for (PartitionKey key : partitionRanges) {
                 final List<LiteralExpr> literalExprs = key.getKeys();
                 Preconditions.checkArgument(literalExprs.size() == partitionColRefs.size());
                 final LiteralExpr literalExpr = literalExprs.get(0);
-                final ConstantOperator upperBound = (ConstantOperator) SqlToScalarOperatorTranslator.translate(literalExpr);
+                final ConstantOperator upperBound = convertLiteralToConstantOperator(partitionColRef, literalExpr);
                 values.add(upperBound);
             }
             return MvUtils.convertToInPredicate(partitionColRefs.get(0), values);
@@ -1540,9 +1618,10 @@ public class MvUtils {
         }
     }
 
-    private static ScalarOperator convertPartitionKeysToListPredicate(List<? extends ScalarOperator> partitionColRefs,
-                                                                      Collection<Range<PartitionKey>> partitionRanges,
-                                                                      boolean areAllRangePartitionsSingleton) {
+    private static ScalarOperator convertPartitionKeysToListPredicate(
+            List<? extends ScalarOperator> partitionColRefs,
+            Collection<Range<PartitionKey>> partitionRanges,
+            boolean areAllRangePartitionsSingleton) throws AnalysisException {
 
         if (areAllRangePartitionsSingleton) {
             List<PartitionKey> partitionKeys = partitionRanges

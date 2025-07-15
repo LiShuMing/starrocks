@@ -184,6 +184,8 @@ import com.starrocks.replication.ReplicationTxnCommitAttachment;
 import com.starrocks.server.SharedDataStorageVolumeMgr;
 import com.starrocks.server.SharedNothingStorageVolumeMgr;
 import com.starrocks.server.StorageVolumeMgr;
+import com.starrocks.sql.common.tvr.TvrDelta;
+import com.starrocks.sql.common.tvr.TvrSnapshot;
 import com.starrocks.sql.optimizer.dump.HiveTableDumpInfo;
 import com.starrocks.sql.optimizer.dump.QueryDumpDeserializer;
 import com.starrocks.sql.optimizer.dump.QueryDumpInfo;
@@ -437,6 +439,10 @@ public class GsonUtils {
                     .registerSubtype(SplittingTablets.class, "SplittingTablets")
                     .registerSubtype(MergingTablets.class, "MergingTablets");
 
+    public static final RuntimeTypeAdapterFactory<TvrDelta> TVR_DELTA_RUNTIME_TYPE_ADAPTER_FACTORY =
+            RuntimeTypeAdapterFactory.of(TvrDelta.class, "clazz")
+                    .registerSubtype(TvrSnapshot.class, "TvrSnapshot");
+
     private static final JsonSerializer<LocalDateTime> LOCAL_DATE_TIME_TYPE_SERIALIZER =
             (dateTime, type, jsonSerializationContext) -> new JsonPrimitive(dateTime.toEpochSecond(ZoneOffset.UTC));
 
@@ -500,6 +506,7 @@ public class GsonUtils {
             .registerTypeAdapterFactory(ANALYZE_JOB_RUNTIME_TYPE_ADAPTER_FACTORY)
             .registerTypeAdapterFactory(COMPUTE_RESOURCE_RUNTIME_TYPE_ADAPTER_FACTORY)
             .registerTypeAdapterFactory(DYNAMIC_TABLETS_RUNTIME_TYPE_ADAPTER_FACTORY)
+            .registerTypeAdapterFactory(TVR_DELTA_RUNTIME_TYPE_ADAPTER_FACTORY)
             .registerTypeAdapter(LocalDateTime.class, LOCAL_DATE_TIME_TYPE_SERIALIZER)
             .registerTypeAdapter(LocalDateTime.class, LOCAL_DATE_TIME_TYPE_DESERIALIZER)
             .registerTypeAdapter(QueryDumpInfo.class, DUMP_INFO_SERIALIZER)

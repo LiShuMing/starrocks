@@ -15,6 +15,7 @@
 package com.starrocks.sql.optimizer.operator.logical;
 
 import com.google.common.collect.Maps;
+import com.starrocks.sql.common.tvr.TvrTrait;
 import com.starrocks.sql.optimizer.ExpressionContext;
 import com.starrocks.sql.optimizer.OptExpression;
 import com.starrocks.sql.optimizer.Utils;
@@ -27,6 +28,7 @@ import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 public abstract class LogicalOperator extends Operator {
@@ -72,5 +74,9 @@ public abstract class LogicalOperator extends Operator {
             }
         }
         return columnRefMap;
+    }
+
+    public Optional<TvrTrait> getTvrTrait() {
+        return Optional.empty();
     }
 }

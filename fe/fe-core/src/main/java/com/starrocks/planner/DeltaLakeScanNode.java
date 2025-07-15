@@ -27,7 +27,7 @@ import com.starrocks.connector.GetRemoteFilesParams;
 import com.starrocks.connector.RemoteFileInfoDefaultSource;
 import com.starrocks.connector.RemoteFileInfoSource;
 import com.starrocks.connector.RemoteFilesSampleStrategy;
-import com.starrocks.connector.TableVersionRange;
+import com.starrocks.sql.common.tvr.TvrSnapshot;
 import com.starrocks.connector.delta.DeltaConnectorScanRangeSource;
 import com.starrocks.connector.delta.DeltaUtils;
 import com.starrocks.credential.CloudConfiguration;
@@ -111,7 +111,7 @@ public class DeltaLakeScanNode extends ScanNode {
         long snapshotId = snapshot.getVersion(engine);
 
         GetRemoteFilesParams params =
-                GetRemoteFilesParams.newBuilder().setTableVersionRange(TableVersionRange.withEnd(Optional.of(snapshotId)))
+                GetRemoteFilesParams.newBuilder().setTableVersionRange(TvrSnapshot.of(Optional.of(snapshotId)))
                         .setPredicate(predicate).setFieldNames(fieldNames).build();
         RemoteFileInfoSource remoteFileInfoSource = null;
         if (enableIncrementalScanRanges) {

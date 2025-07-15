@@ -41,7 +41,7 @@ import com.starrocks.catalog.Type;
 import com.starrocks.common.Pair;
 import com.starrocks.connector.ConnectorTableVersion;
 import com.starrocks.connector.PointerType;
-import com.starrocks.connector.TableVersionRange;
+import com.starrocks.sql.common.tvr.TvrSnapshot;
 import com.starrocks.connector.elasticsearch.EsTablePartitions;
 import com.starrocks.connector.metadata.MetadataTable;
 import com.starrocks.qe.ConnectContext;
@@ -613,7 +613,7 @@ public class RelationTransformer implements AstVisitor<LogicalPlan, ExpressionMa
             startVersion = resolveQueryPeriod(queryPeriod.getStart(), periodType);
             endVersion = resolveQueryPeriod(queryPeriod.getEnd(), periodType);
         }
-        TableVersionRange tableVersionRange = GlobalStateMgr.getCurrentState().getMetadataMgr()
+        TvrSnapshot tableVersionRange = GlobalStateMgr.getCurrentState().getMetadataMgr()
                 .getTableVersionRange(node.getName().getDb(), node.getTable(), startVersion, endVersion);
 
         LogicalScanOperator scanOperator;

@@ -28,7 +28,7 @@ import com.starrocks.connector.RemoteFileInfo;
 import com.starrocks.connector.RemoteFileInfoDefaultSource;
 import com.starrocks.connector.RemoteFileInfoSource;
 import com.starrocks.connector.RemoteFilesSampleStrategy;
-import com.starrocks.connector.TableVersionRange;
+import com.starrocks.sql.common.tvr.TvrSnapshot;
 import com.starrocks.connector.iceberg.IcebergConnectorScanRangeSource;
 import com.starrocks.connector.iceberg.IcebergGetRemoteFilesParams;
 import com.starrocks.connector.iceberg.IcebergMORParams;
@@ -111,7 +111,7 @@ public class IcebergScanNode extends ScanNode {
                 IcebergGetRemoteFilesParams.newBuilder()
                         .setAllParams(tableFullMORParams)
                         .setParams(morParams)
-                        .setTableVersionRange(TableVersionRange.withEnd(snapshotId))
+                        .setTableVersionRange(TvrSnapshot.of(snapshotId))
                         .setPredicate(icebergJobPlanningPredicate)
                         .setEnableColumnStats(scanOptimizeOption.getCanUseMinMaxOpt())
                         .build();
@@ -254,7 +254,7 @@ public class IcebergScanNode extends ScanNode {
 
         if (detailLevel == TExplainLevel.VERBOSE && !isResourceMappingCatalog(icebergTable.getCatalogName())) {
             ConnectorMetadatRequestContext requestContext = new ConnectorMetadatRequestContext();
-            requestContext.setTableVersionRange(TableVersionRange.withEnd(snapshotId));
+            requestContext.setTableVersionRange(TvrSnapshot.of(snapshotId));
             List<String> partitionNames = GlobalStateMgr.getCurrentState().getMetadataMgr().listPartitionNames(
                     icebergTable.getCatalogName(), icebergTable.getCatalogDBName(),
                     icebergTable.getCatalogTableName(), requestContext);

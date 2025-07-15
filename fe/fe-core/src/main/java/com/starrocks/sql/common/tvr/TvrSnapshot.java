@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.starrocks.connector;
-
-import org.apache.commons.lang3.builder.ToStringBuilder;
+package com.starrocks.sql.common.tvr;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -24,41 +22,48 @@ import java.util.Optional;
 // you need to obtain the table version by `getTableVersionRange` interface for passing,
 // otherwise it will be used as an empty table.
 
-public class TableVersionRange {
-    private final Optional<Long> start;
-    private final Optional<Long> end;
+public class TvrSnapshot extends TvrDelta  {
 
-    public static TableVersionRange empty() {
-        return new TableVersionRange(Optional.empty(), Optional.empty());
+    public static TvrSnapshot empty() {
+        return new TvrSnapshot(Optional.empty());
     }
 
-    public static TableVersionRange withEnd(Optional<Long> end) {
-        return new TableVersionRange(Optional.empty(), end);
+    public static TvrSnapshot of(Optional<Long> end) {
+        return new TvrSnapshot(end);
     }
 
-    public TableVersionRange(Optional<Long> start, Optional<Long> end) {
-        this.start = start;
-        this.end = end;
+    public static TvrSnapshot of(TvrVersion end) {
+        return new TvrSnapshot(end);
     }
 
-    public Optional<Long> start() {
-        return start;
+    public TvrSnapshot(Optional<Long> snapshot) {
+        this(TvrVersion.of(snapshot.orElse(TvrVersion.MAX_TIME)));
+    }
+
+    public TvrSnapshot(TvrVersion to) {
+        super(TvrVersion.MIN, to);
     }
 
     public Optional<Long> end() {
-        return end;
+        if (end.isMax()) {
+            return Optional.empty();
+        } else {
+            return Optional.of(end.getVersion());
+        }
     }
 
     public boolean isEmpty() {
-        return start.isEmpty() && end.isEmpty();
+        return start.isMin() && end.isMax();
     }
 
     @Override
     public String toString() {
-        return new ToStringBuilder(this)
-                .append("start", start)
-                .append("end", end)
-                .toString();
+        return "Snapshot@(" + end + ")";
+    }
+
+    @Override
+    public TvrSnapshot copy(TvrVersion from, TvrVersion to) {
+        return new TvrSnapshot(to);
     }
 
     @Override
@@ -71,7 +76,7 @@ public class TableVersionRange {
             return false;
         }
 
-        TableVersionRange that = (TableVersionRange) o;
+        TvrSnapshot that = (TvrSnapshot) o;
         return Objects.equals(start, that.start) && Objects.equals(end, that.end);
     }
 

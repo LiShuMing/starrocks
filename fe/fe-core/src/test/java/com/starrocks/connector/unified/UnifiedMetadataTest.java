@@ -31,7 +31,7 @@ import com.starrocks.connector.GetRemoteFilesParams;
 import com.starrocks.connector.MetaPreparationItem;
 import com.starrocks.connector.PartitionInfo;
 import com.starrocks.connector.RemoteFileInfo;
-import com.starrocks.connector.TableVersionRange;
+import com.starrocks.sql.common.tvr.TvrSnapshot;
 import com.starrocks.connector.delta.DeltaLakeMetadata;
 import com.starrocks.connector.hive.HiveMetadata;
 import com.starrocks.connector.hudi.HudiMetadata;
@@ -107,7 +107,7 @@ public class UnifiedMetadataTest {
         )
         );
         this.getRemoteFilesParams = GetRemoteFilesParams.newBuilder().setPartitionKeys(ImmutableList.of())
-                .setTableVersionRange(TableVersionRange.empty()).build();
+                .setTableVersionRange(TvrSnapshot.empty()).build();
     }
 
     @Test
@@ -326,7 +326,7 @@ public class UnifiedMetadataTest {
         createTableStmt.setEngineName("iceberg");
         assertTrue(unifiedMetadata.createTable(connectContext, createTableStmt));
         Assert.assertTrue(unifiedMetadata.prepareMetadata(new MetaPreparationItem(icebergTable, null,
-                -1, TableVersionRange.empty()), null, null));
+                -1, TvrSnapshot.empty()), null, null));
         Assert.assertNotNull(unifiedMetadata.getSerializedMetaSpec("test_db", "test_tbl", -1, null, null));
     }
 

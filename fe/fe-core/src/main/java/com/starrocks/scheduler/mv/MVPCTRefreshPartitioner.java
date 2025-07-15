@@ -32,7 +32,6 @@ import com.starrocks.common.util.concurrent.lock.Locker;
 import com.starrocks.connector.ConnectorPartitionTraits;
 import com.starrocks.qe.ConnectContext;
 import com.starrocks.scheduler.MvTaskRunContext;
-import com.starrocks.scheduler.TableSnapshotInfo;
 import com.starrocks.scheduler.TaskRunContext;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.analyzer.AlterTableClauseAnalyzer;
@@ -116,7 +115,7 @@ public abstract class MVPCTRefreshPartitioner {
      * @return: Return mv partitions to refresh based on the ref base table partitions.
      */
     public abstract Set<String> getMVPartitionsToRefresh(PartitionInfo mvPartitionInfo,
-                                                         Map<Long, TableSnapshotInfo> snapshotBaseTables,
+                                                         Map<Long, BaseTableSnapshotInfo> snapshotBaseTables,
                                                          MVRefreshParams mvRefreshParams,
                                                          Set<String> mvPotentialPartitionNames) throws AnalysisException;
 
@@ -278,9 +277,9 @@ public abstract class MVPCTRefreshPartitioner {
      * Whether partitioned materialized view needs to be refreshed or not base on the non-ref base tables, it needs refresh when:
      * - its non-ref base table except un-supported base table has updated.
      */
-    protected boolean needsRefreshBasedOnNonRefTables(Map<Long, TableSnapshotInfo> snapshotBaseTables) {
+    protected boolean needsRefreshBasedOnNonRefTables(Map<Long, BaseTableSnapshotInfo> snapshotBaseTables) {
         Map<Table, List<Column>> tableColumnMap = mv.getRefBaseTablePartitionColumns();
-        for (TableSnapshotInfo snapshotInfo : snapshotBaseTables.values()) {
+        for (BaseTableSnapshotInfo snapshotInfo : snapshotBaseTables.values()) {
             Table snapshotTable = snapshotInfo.getBaseTable();
             if (!isPartitionRefreshSupported(snapshotTable)) {
                 continue;
@@ -300,9 +299,9 @@ public abstract class MVPCTRefreshPartitioner {
      * - its base table is not supported refresh by partition.
      * - its base table has updated.
      */
-    public static boolean isNonPartitionedMVNeedToRefresh(Map<Long, TableSnapshotInfo> snapshotBaseTables,
+    public static boolean isNonPartitionedMVNeedToRefresh(Map<Long, BaseTableSnapshotInfo> snapshotBaseTables,
                                                           MaterializedView mv) {
-        for (TableSnapshotInfo snapshotInfo : snapshotBaseTables.values()) {
+        for (BaseTableSnapshotInfo snapshotInfo : snapshotBaseTables.values()) {
             Table snapshotTable = snapshotInfo.getBaseTable();
             if (!isPartitionRefreshSupported(snapshotTable)) {
                 return true;

@@ -48,6 +48,7 @@ import com.starrocks.sql.ast.PartitionRenameClause;
 import com.starrocks.sql.ast.RefreshMaterializedViewStatement;
 import com.starrocks.sql.ast.TableRenameClause;
 import com.starrocks.sql.ast.TruncateTableStmt;
+import com.starrocks.sql.common.tvr.TvrSnapshot;
 import com.starrocks.sql.optimizer.OptimizerContext;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
@@ -127,10 +128,14 @@ public interface ConnectorMetadata {
         return null;
     }
 
-    default TableVersionRange getTableVersionRange(String dbName, Table table,
-                                                   Optional<ConnectorTableVersion> startVersion,
-                                                   Optional<ConnectorTableVersion> endVersion) {
-        return TableVersionRange.empty();
+    default TvrSnapshot getCurrentTvrSnapshot(String dbName, Table table) {
+        return TvrSnapshot.empty();
+    }
+
+    default TvrSnapshot getTableVersionRange(String dbName, Table table,
+                                             Optional<ConnectorTableVersion> startVersion,
+                                             Optional<ConnectorTableVersion> endVersion) {
+        return TvrSnapshot.empty();
     }
 
     default boolean tableExists(ConnectContext context, String dbName, String tblName) {
@@ -197,7 +202,7 @@ public interface ConnectorMetadata {
                                           List<PartitionKey> partitionKeys,
                                           ScalarOperator predicate,
                                           long limit,
-                                          TableVersionRange tableVersionRange) {
+                                          TvrSnapshot tableVersionRange) {
         return Statistics.builder().build();
     }
 

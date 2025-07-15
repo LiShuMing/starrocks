@@ -35,7 +35,7 @@ import com.starrocks.connector.PartitionInfo;
 import com.starrocks.connector.PredicateSearchKey;
 import com.starrocks.connector.RemoteFileDesc;
 import com.starrocks.connector.RemoteFileInfo;
-import com.starrocks.connector.TableVersionRange;
+import com.starrocks.sql.common.tvr.TvrSnapshot;
 import com.starrocks.connector.exception.StarRocksConnectorException;
 import com.starrocks.connector.statistics.StatisticsUtils;
 import com.starrocks.credential.CloudConfiguration;
@@ -378,7 +378,7 @@ public class PaimonMetadata implements ConnectorMetadata {
                                          List<PartitionKey> partitionKeys,
                                          ScalarOperator predicate,
                                          long limit,
-                                         TableVersionRange versionRange) {
+                                         TvrSnapshot versionRange) {
         try (Timer ignored = Tracers.watchScope(EXTERNAL, "GetPaimonTableStatistics")) {
             if (!properties.enableGetTableStatsFromExternalMetadata()) {
                 return StatisticsUtils.buildDefaultStatistics(columns.keySet());

@@ -40,11 +40,11 @@ import com.starrocks.qe.StmtExecutor;
 import com.starrocks.scheduler.ExecuteOption;
 import com.starrocks.scheduler.MvTaskRunContext;
 import com.starrocks.scheduler.PartitionBasedMvRefreshProcessor;
-import com.starrocks.scheduler.TableSnapshotInfo;
 import com.starrocks.scheduler.Task;
 import com.starrocks.scheduler.TaskBuilder;
 import com.starrocks.scheduler.TaskRun;
 import com.starrocks.scheduler.TaskRunBuilder;
+import com.starrocks.scheduler.mv.BaseTableSnapshotInfo;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.analyzer.Analyzer;
 import com.starrocks.sql.ast.CreateMaterializedViewStatement;
@@ -386,7 +386,7 @@ public class MVTestBase extends StarRocksTestBase {
     }
 
     protected Map<Table, Set<String>> getRefTableRefreshedPartitions(PartitionBasedMvRefreshProcessor processor) {
-        Map<TableSnapshotInfo, Set<String>> baseTables = processor
+        Map<BaseTableSnapshotInfo, Set<String>> baseTables = processor
                 .getRefTableRefreshPartitions(Sets.newHashSet("p20220101"));
         Assertions.assertEquals(2, baseTables.size());
         return baseTables.entrySet().stream().collect(Collectors.toMap(x -> x.getKey().getBaseTable(), x -> x.getValue()));

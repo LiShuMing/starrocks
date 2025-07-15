@@ -14,7 +14,10 @@
 
 package com.starrocks.connector;
 
+import com.starrocks.sql.common.tvr.TvrSnapshot;
 import com.starrocks.sql.optimizer.operator.scalar.ConstantOperator;
+
+import java.util.Optional;
 
 public class ConnectorTableVersion {
     private final PointerType pointerType;
@@ -31,5 +34,14 @@ public class ConnectorTableVersion {
 
     public ConstantOperator getConstantOperator() {
         return constantOp;
+    }
+
+    public static Optional<ConnectorTableVersion> of(TvrSnapshot tvrSnapshot) {
+        if (tvrSnapshot.isEmpty()) {
+            return Optional.empty();
+        } else {
+            return Optional.of(new ConnectorTableVersion(PointerType.VERSION,
+                    ConstantOperator.createBigint(tvrSnapshot.end().get())));
+        }
     }
 }

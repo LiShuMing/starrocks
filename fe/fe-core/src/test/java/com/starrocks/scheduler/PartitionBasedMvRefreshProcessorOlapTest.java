@@ -36,6 +36,8 @@ import com.starrocks.qe.QeProcessorImpl;
 import com.starrocks.qe.SessionVariable;
 import com.starrocks.qe.ShowMaterializedViewStatus;
 import com.starrocks.qe.StmtExecutor;
+import com.starrocks.scheduler.mv.BaseTableSnapshotInfo;
+import com.starrocks.scheduler.mv.PCTTableSnapshotInfo;
 import com.starrocks.scheduler.persist.MVTaskRunExtraMessage;
 import com.starrocks.scheduler.persist.TaskRunStatus;
 import com.starrocks.schema.MTable;
@@ -609,8 +611,8 @@ public class PartitionBasedMvRefreshProcessorOlapTest extends MVTestBase {
         // mv need refresh with base table partition p1, p1 renamed with p10 after collect and before insert overwrite
         new MockUp<PartitionBasedMvRefreshProcessor>() {
             @Mock
-            private Map<Long, TableSnapshotInfo> collectBaseTableSnapshotInfos(MaterializedView materializedView) {
-                Map<Long, TableSnapshotInfo> olapTables = Maps.newHashMap();
+            private Map<Long, PCTTableSnapshotInfo> collectBaseTableSnapshotInfos(MaterializedView materializedView) {
+                Map<Long, PCTTableSnapshotInfo> olapTables = Maps.newHashMap();
                 List<BaseTableInfo> baseTableInfos = materializedView.getBaseTableInfos();
 
                 for (BaseTableInfo baseTableInfo : baseTableInfos) {
@@ -633,7 +635,7 @@ public class PartitionBasedMvRefreshProcessorOlapTest extends MVTestBase {
                     if (copied == null) {
                         throw new SemanticException("Failed to copy olap table: " + olapTable.getName());
                     }
-                    olapTables.put(olapTable.getId(), new TableSnapshotInfo(baseTableInfo, copied));
+                    olapTables.put(olapTable.getId(), new PCTTableSnapshotInfo(baseTableInfo, copied));
                 }
 
                 String renamePartitionSql = "ALTER TABLE test.tbl1 RENAME PARTITION p1 p1_1";
@@ -665,9 +667,9 @@ public class PartitionBasedMvRefreshProcessorOlapTest extends MVTestBase {
                 ((OlapTable) GlobalStateMgr.getCurrentState().getLocalMetastore().getTable(testDb.getFullName(), "tbl1"));
         new MockUp<PartitionBasedMvRefreshProcessor>() {
             @Mock
-            public Map<Long, TableSnapshotInfo> collectBaseTableSnapshotInfos(
+            public Map<Long, PCTTableSnapshotInfo> collectBaseTableSnapshotInfos(
                     MaterializedView materializedView) {
-                Map<Long, TableSnapshotInfo> olapTables = Maps.newHashMap();
+                Map<Long, PCTTableSnapshotInfo> olapTables = Maps.newHashMap();
                 List<BaseTableInfo> baseTableInfos = materializedView.getBaseTableInfos();
                 for (BaseTableInfo baseTableInfo : baseTableInfos) {
                     Table table = GlobalStateMgr.getCurrentState().getMetadataMgr()
@@ -690,7 +692,7 @@ public class PartitionBasedMvRefreshProcessorOlapTest extends MVTestBase {
                     if (copied == null) {
                         throw new SemanticException("Failed to copy olap table: " + olapTable.getName());
                     }
-                    olapTables.put(olapTable.getId(), new TableSnapshotInfo(baseTableInfo, olapTable));
+                    olapTables.put(olapTable.getId(), new PCTTableSnapshotInfo(baseTableInfo, olapTable));
                 }
 
                 try {
@@ -732,8 +734,8 @@ public class PartitionBasedMvRefreshProcessorOlapTest extends MVTestBase {
                 ((OlapTable) GlobalStateMgr.getCurrentState().getLocalMetastore().getTable(testDb.getFullName(), "tbl1"));
         new MockUp<PartitionBasedMvRefreshProcessor>() {
             @Mock
-            public Map<Long, TableSnapshotInfo> collectBaseTableSnapshotInfos(MaterializedView materializedView) {
-                Map<Long, TableSnapshotInfo> olapTables = Maps.newHashMap();
+            public Map<Long, PCTTableSnapshotInfo> collectBaseTableSnapshotInfos(MaterializedView materializedView) {
+                Map<Long, PCTTableSnapshotInfo> olapTables = Maps.newHashMap();
                 List<BaseTableInfo> baseTableInfos = materializedView.getBaseTableInfos();
                 for (BaseTableInfo baseTableInfo : baseTableInfos) {
                     Optional<Table> tableOptional = MvUtils.getTableWithIdentifier(baseTableInfo);
@@ -758,7 +760,7 @@ public class PartitionBasedMvRefreshProcessorOlapTest extends MVTestBase {
                     if (copied == null) {
                         throw new SemanticException("Failed to copy olap table: " + olapTable.getName());
                     }
-                    olapTables.put(olapTable.getId(), new TableSnapshotInfo(baseTableInfo, copied));
+                    olapTables.put(olapTable.getId(), new PCTTableSnapshotInfo(baseTableInfo, copied));
                 }
 
                 String addPartitionSql =
@@ -840,8 +842,8 @@ public class PartitionBasedMvRefreshProcessorOlapTest extends MVTestBase {
                 ((OlapTable) GlobalStateMgr.getCurrentState().getLocalMetastore().getTable(testDb.getFullName(), "tbl1"));
         new MockUp<PartitionBasedMvRefreshProcessor>() {
             @Mock
-            private Map<Long, TableSnapshotInfo> collectBaseTableSnapshotInfos(MaterializedView materializedView) {
-                Map<Long, TableSnapshotInfo> olapTables = Maps.newHashMap();
+            private Map<Long, PCTTableSnapshotInfo> collectBaseTableSnapshotInfos(MaterializedView materializedView) {
+                Map<Long, PCTTableSnapshotInfo> olapTables = Maps.newHashMap();
                 List<BaseTableInfo> baseTableInfos = materializedView.getBaseTableInfos();
                 for (BaseTableInfo baseTableInfo : baseTableInfos) {
                     Table table = MvUtils.getTableChecked(baseTableInfo);
@@ -863,7 +865,7 @@ public class PartitionBasedMvRefreshProcessorOlapTest extends MVTestBase {
                     if (copied == null) {
                         throw new SemanticException("Failed to copy olap table: " + olapTable.getName());
                     }
-                    olapTables.put(olapTable.getId(), new TableSnapshotInfo(baseTableInfo, copied));
+                    olapTables.put(olapTable.getId(), new PCTTableSnapshotInfo(baseTableInfo, copied));
                 }
 
                 String dropPartitionSql = "ALTER TABLE test.tbl1 DROP PARTITION p4";
@@ -1943,10 +1945,10 @@ public class PartitionBasedMvRefreshProcessorOlapTest extends MVTestBase {
                                     taskRun.executeTaskRun();
                                     PartitionBasedMvRefreshProcessor processor =
                                             (PartitionBasedMvRefreshProcessor) taskRun.getProcessor();
-                                    Map<Long, TableSnapshotInfo> snapshotInfoMap = processor.getSnapshotBaseTables();
+                                    Map<Long, BaseTableSnapshotInfo> snapshotInfoMap = processor.getSnapshotBaseTables();
                                     Assertions.assertEquals(1, snapshotInfoMap.size());
-                                    TableSnapshotInfo tableSnapshotInfo =
-                                            snapshotInfoMap.get(
+                                    PCTTableSnapshotInfo tableSnapshotInfo =
+                                            (PCTTableSnapshotInfo) snapshotInfoMap.get(
                                                     GlobalStateMgr.getCurrentState().getLocalMetastore()
                                                             .getTable(testDb.getFullName(), "mock_tbl")
                                                             .getId());
@@ -1976,10 +1978,10 @@ public class PartitionBasedMvRefreshProcessorOlapTest extends MVTestBase {
                                     taskRun.executeTaskRun();
                                     PartitionBasedMvRefreshProcessor processor =
                                             (PartitionBasedMvRefreshProcessor) taskRun.getProcessor();
-                                    Map<Long, TableSnapshotInfo> snapshotInfoMap = processor.getSnapshotBaseTables();
+                                    Map<Long, BaseTableSnapshotInfo> snapshotInfoMap = processor.getSnapshotBaseTables();
                                     Assertions.assertEquals(1, snapshotInfoMap.size());
-                                    TableSnapshotInfo tableSnapshotInfo =
-                                            snapshotInfoMap.get(
+                                    PCTTableSnapshotInfo tableSnapshotInfo =
+                                            (PCTTableSnapshotInfo) snapshotInfoMap.get(
                                                     GlobalStateMgr.getCurrentState().getLocalMetastore()
                                                             .getTable(testDb.getFullName(), "mock_tbl")
                                                             .getId());
@@ -2046,10 +2048,10 @@ public class PartitionBasedMvRefreshProcessorOlapTest extends MVTestBase {
                                     taskRun.executeTaskRun();
                                     PartitionBasedMvRefreshProcessor processor =
                                             (PartitionBasedMvRefreshProcessor) taskRun.getProcessor();
-                                    Map<Long, TableSnapshotInfo> snapshotInfoMap = processor.getSnapshotBaseTables();
+                                    Map<Long, BaseTableSnapshotInfo> snapshotInfoMap = processor.getSnapshotBaseTables();
                                     Assertions.assertEquals(1, snapshotInfoMap.size());
-                                    TableSnapshotInfo tableSnapshotInfo =
-                                            snapshotInfoMap.get(
+                                    PCTTableSnapshotInfo tableSnapshotInfo =
+                                            (PCTTableSnapshotInfo) snapshotInfoMap.get(
                                                     GlobalStateMgr.getCurrentState().getLocalMetastore()
                                                             .getTable(testDb.getFullName(), "mock_tbl")
                                                             .getId());
@@ -2076,10 +2078,10 @@ public class PartitionBasedMvRefreshProcessorOlapTest extends MVTestBase {
                                     taskRun.executeTaskRun();
                                     PartitionBasedMvRefreshProcessor processor =
                                             (PartitionBasedMvRefreshProcessor) taskRun.getProcessor();
-                                    Map<Long, TableSnapshotInfo> snapshotInfoMap = processor.getSnapshotBaseTables();
+                                    Map<Long, BaseTableSnapshotInfo> snapshotInfoMap = processor.getSnapshotBaseTables();
                                     Assertions.assertEquals(1, snapshotInfoMap.size());
-                                    TableSnapshotInfo tableSnapshotInfo =
-                                            snapshotInfoMap.get(
+                                    PCTTableSnapshotInfo tableSnapshotInfo =
+                                            (PCTTableSnapshotInfo) snapshotInfoMap.get(
                                                     GlobalStateMgr.getCurrentState().getLocalMetastore()
                                                             .getTable(testDb.getFullName(), "mock_tbl")
                                                             .getId());

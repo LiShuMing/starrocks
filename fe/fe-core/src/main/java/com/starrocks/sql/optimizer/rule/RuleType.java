@@ -219,6 +219,10 @@ public enum RuleType {
 
     TF_INNER_TO_SEMI,
 
+    // TVR transform rules
+    TF_TVR_APPEND_ONLY_AGGREGATE,
+    TF_TVR_APPEND_ONLY_JOIN,
+
     // The following are implementation rules:
     IMPLEMENTATION_RULES,
     IMP_OLAP_LSCAN_TO_PSCAN,

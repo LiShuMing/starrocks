@@ -37,7 +37,7 @@ import com.starrocks.common.Config;
 import com.starrocks.common.Pair;
 import com.starrocks.common.util.DebugUtil;
 import com.starrocks.connector.PartitionUtil;
-import com.starrocks.connector.TableVersionRange;
+import com.starrocks.sql.common.tvr.TvrSnapshot;
 import com.starrocks.qe.ConnectContext;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.analyzer.AnalyzeState;
@@ -134,7 +134,7 @@ public final class ExternalTableCompensation extends TableCompensation {
                 return null;
             }
             builder.setTable(currentTable);
-            TableVersionRange versionRange = TableVersionRange.withEnd(
+            TvrSnapshot versionRange = TvrSnapshot.of(
                     Optional.ofNullable(((IcebergTable) currentTable).getNativeTable().currentSnapshot())
                             .map(Snapshot::snapshotId));
             builder.setTableVersionRange(versionRange);

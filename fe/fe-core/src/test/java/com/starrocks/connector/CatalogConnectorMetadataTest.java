@@ -25,6 +25,7 @@ import com.starrocks.connector.metadata.TableMetaMetadata;
 import com.starrocks.qe.ConnectContext;
 import com.starrocks.sql.ast.CreateMaterializedViewStatement;
 import com.starrocks.sql.ast.CreateMaterializedViewStmt;
+import com.starrocks.sql.common.tvr.TvrSnapshot;
 import mockit.Expectations;
 import mockit.Mocked;
 import org.junit.jupiter.api.Test;
@@ -165,7 +166,7 @@ public class CatalogConnectorMetadataTest {
         ConnectContext ctx = com.starrocks.common.util.Util.getOrCreateInnerContext();
         ctx.setThreadLocalInfo();
         GetRemoteFilesParams getRemoteFilesParams =
-                GetRemoteFilesParams.newBuilder().setTableVersionRange(TableVersionRange.empty()).build();
+                GetRemoteFilesParams.newBuilder().setTableVersionRange(TvrSnapshot.empty()).build();
 
         new Expectations() {
             {
@@ -199,7 +200,7 @@ public class CatalogConnectorMetadataTest {
                 connectorMetadata.dropDb((ConnectContext) any, "test_db", false);
                 connectorMetadata.getRemoteFiles(null, getRemoteFilesParams);
                 connectorMetadata.getPartitions(null, null);
-                connectorMetadata.getTableStatistics(null, null, null, null, null, -1, TableVersionRange.empty());
+                connectorMetadata.getTableStatistics(null, null, null, null, null, -1, TvrSnapshot.empty());
             }
         };
 
@@ -235,6 +236,6 @@ public class CatalogConnectorMetadataTest {
         catalogConnectorMetadata.dropDb(new ConnectContext(), "test_db", false);
         connectorMetadata.getRemoteFiles(null, getRemoteFilesParams);
         catalogConnectorMetadata.getPartitions(null, null);
-        catalogConnectorMetadata.getTableStatistics(null, null, null, null, null, -1, TableVersionRange.empty());
+        catalogConnectorMetadata.getTableStatistics(null, null, null, null, null, -1, TvrSnapshot.empty());
     }
 }

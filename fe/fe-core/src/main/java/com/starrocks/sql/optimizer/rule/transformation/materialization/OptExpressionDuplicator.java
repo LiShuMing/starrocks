@@ -26,7 +26,7 @@ import com.starrocks.catalog.Table;
 import com.starrocks.common.AnalysisException;
 import com.starrocks.common.Pair;
 import com.starrocks.common.util.UnionFind;
-import com.starrocks.connector.TableVersionRange;
+import com.starrocks.sql.common.tvr.TvrSnapshot;
 import com.starrocks.qe.ConnectContext;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.optimizer.MaterializationContext;
@@ -260,7 +260,7 @@ public class OptExpressionDuplicator {
                         return null;
                     }
                     scanBuilder.setTable(currentTable);
-                    TableVersionRange versionRange = TableVersionRange.withEnd(
+                    TvrSnapshot versionRange = TvrSnapshot.of(
                             Optional.ofNullable(((IcebergTable) currentTable).getNativeTable().currentSnapshot())
                                     .map(Snapshot::snapshotId));
                     scanBuilder.setTableVersionRange(versionRange);

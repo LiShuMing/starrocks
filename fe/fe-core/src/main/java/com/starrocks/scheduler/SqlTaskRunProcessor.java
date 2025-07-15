@@ -42,7 +42,6 @@ public class SqlTaskRunProcessor extends BaseTaskRunProcessor {
                     .setUser(ctx.getQualifiedUser())
                     .setDb(ctx.getDatabase())
                     .setCatalog(ctx.getCurrentCatalog());
-            Tracers.register(ctx);
             Tracers.init(ctx, Tracers.Mode.TIMER, null);
 
             StatementBase sqlStmt = SqlParser.parse(context.getDefinition(), ctx.getSessionVariable()).get(0);
@@ -63,7 +62,6 @@ public class SqlTaskRunProcessor extends BaseTaskRunProcessor {
             executor.execute();
             return Constants.TaskRunState.SUCCESS;
         } finally {
-            Tracers.close();
             if (executor != null) {
                 auditAfterExec(context, executor.getParsedStmt(), executor.getQueryStatisticsForAuditLog());
                 executor.addFinishedQueryDetail();

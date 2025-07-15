@@ -108,6 +108,18 @@ public class AggregateFunctionRollupUtils {
         return null;
     }
 
+    public static boolean isSupportedAggFunctionRollup(CallOperator aggCall) {
+        if (aggCall == null) {
+            return false;
+        }
+        String funcName = aggCall.getFnName();
+        if (REWRITE_ROLLUP_FUNCTION_MAP.containsKey(funcName)) {
+            return true;
+        }
+
+        return false;
+    }
+
     public static ScalarOperator genRollupProject(CallOperator aggCall, ColumnRefOperator oldColRef,
                                                   boolean hasGroupByKeys) {
         if (!hasGroupByKeys && aggCall.getFnName().equals(FunctionSet.COUNT)) {

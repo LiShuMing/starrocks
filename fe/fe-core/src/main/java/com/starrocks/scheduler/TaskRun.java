@@ -27,6 +27,8 @@ import com.starrocks.catalog.Table;
 import com.starrocks.catalog.system.SystemTable;
 import com.starrocks.common.Config;
 import com.starrocks.common.DdlException;
+import com.starrocks.common.profile.Timer;
+import com.starrocks.common.profile.Tracers;
 import com.starrocks.common.util.LogUtil;
 import com.starrocks.common.util.PropertyAnalyzer;
 import com.starrocks.common.util.UUIDUtil;
@@ -312,10 +314,26 @@ public class TaskRun implements Comparable<TaskRun> {
         taskRunContext.setExecuteOption(executeOption);
         taskRunContext.setTaskRun(this);
 
+        Tracers.register(taskRunContext.getCtx());
+        try {
+            return execute(taskRunContext);
+        } finally {
+            Tracers.close();
+        }
+    }
+
+    public Constants.TaskRunState execute(TaskRunContext taskRunContext) throws Exception {
         // prepare to execute task run, move it here so that we can catch the exception and set the status
-        processor.prepare(taskRunContext);
+        try (Timer ignored = Tracers.watchScope("PrepareTaskRun")) {
+            processor.prepare(taskRunContext);
+        }
+
         // process task run
-        Constants.TaskRunState taskRunState = processor.processTaskRun(taskRunContext);
+        Constants.TaskRunState taskRunState;
+
+        try (Timer ignored = Tracers.watchScope("ProcessTaskRun")) {
+            taskRunState = processor.processTaskRun(taskRunContext);
+        }
 
         QueryState queryState = runCtx.getState();
         LOG.info("[QueryId:{}] finished to execute task run, task_id:{}, query_state:{}",
@@ -329,6 +347,14 @@ public class TaskRun implements Comparable<TaskRun> {
             status.setErrorCode(errorCode);
             return Constants.TaskRunState.FAILED;
         }
+
+        // Execute post task action, but ignore any exception
+        try (Timer ignored = Tracers.watchScope("PostTaskRun")) {
+            processor.postTaskRun(taskRunContext);
+        } catch (Exception ignored) {
+            LOG.warn("Execute post taskRun failed {} ", status, ignored);
+        }
+
         return taskRunState;
     }
 

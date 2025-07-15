@@ -21,7 +21,7 @@ import com.starrocks.catalog.Column;
 import com.starrocks.catalog.ColumnAccessPath;
 import com.starrocks.catalog.Table;
 import com.starrocks.common.AnalysisException;
-import com.starrocks.connector.TableVersionRange;
+import com.starrocks.sql.common.tvr.TvrSnapshot;
 import com.starrocks.planner.PartitionColumnFilter;
 import com.starrocks.sql.optimizer.ExpressionContext;
 import com.starrocks.sql.optimizer.OptExpression;
@@ -64,7 +64,7 @@ public abstract class LogicalScanOperator extends LogicalOperator {
     protected Set<String> partitionColumns = Sets.newHashSet();
     protected ImmutableList<ColumnAccessPath> columnAccessPaths;
     protected ScanOptimizeOption scanOptimizeOption;
-    protected TableVersionRange tableVersionRange;
+    protected TvrSnapshot tvrSnapshot;
 
     public LogicalScanOperator(
             OperatorType type,
@@ -74,7 +74,7 @@ public abstract class LogicalScanOperator extends LogicalOperator {
             long limit,
             ScalarOperator predicate,
             Projection projection) {
-        this(type, table, colRefToColumnMetaMap, columnMetaToColRefMap, limit, predicate, projection, TableVersionRange.empty());
+        this(type, table, colRefToColumnMetaMap, columnMetaToColRefMap, limit, predicate, projection, TvrSnapshot.empty());
     }
 
     public LogicalScanOperator(
@@ -85,14 +85,14 @@ public abstract class LogicalScanOperator extends LogicalOperator {
             long limit,
             ScalarOperator predicate,
             Projection projection,
-            TableVersionRange tableVersionRange) {
+            TvrSnapshot tvrSnapshot) {
         super(type, limit, predicate, projection);
         this.table = Objects.requireNonNull(table, "table is null");
         this.colRefToColumnMetaMap = ImmutableMap.copyOf(colRefToColumnMetaMap);
         this.columnMetaToColRefMap = ImmutableMap.copyOf(columnMetaToColRefMap);
         this.columnAccessPaths = ImmutableList.of();
         this.scanOptimizeOption = new ScanOptimizeOption();
-        this.tableVersionRange = tableVersionRange;
+        this.tvrSnapshot = tvrSnapshot;
         buildColumnFilters(predicate);
     }
 
@@ -102,7 +102,7 @@ public abstract class LogicalScanOperator extends LogicalOperator {
         this.columnMetaToColRefMap = ImmutableMap.of();
         this.columnAccessPaths = ImmutableList.of();
         this.scanOptimizeOption = new ScanOptimizeOption();
-        this.tableVersionRange = TableVersionRange.empty();
+        this.tvrSnapshot = TvrSnapshot.empty();
     }
 
     public Table getTable() {
@@ -141,12 +141,12 @@ public abstract class LogicalScanOperator extends LogicalOperator {
         this.scanOptimizeOption = scanOptimizeOption;
     }
 
-    public TableVersionRange getTableVersionRange() {
-        return tableVersionRange;
+    public TvrSnapshot getTvrSnapshot() {
+        return tvrSnapshot;
     }
 
-    public void setTableVersionRange(TableVersionRange tableVersionRange) {
-        this.tableVersionRange = tableVersionRange;
+    public void setTvrSnapshot(TvrSnapshot tvrSnapshot) {
+        this.tvrSnapshot = tvrSnapshot;
     }
 
     // for mark empty partitions/empty tablet
@@ -255,7 +255,7 @@ public abstract class LogicalScanOperator extends LogicalOperator {
             builder.columnAccessPaths = scanOperator.columnAccessPaths;
             builder.scanOptimizeOption = scanOperator.scanOptimizeOption;
             builder.partitionColumns = scanOperator.partitionColumns;
-            builder.tableVersionRange = scanOperator.tableVersionRange;
+            builder.tvrSnapshot = scanOperator.tvrSnapshot;
             return (B) this;
         }
 
@@ -287,8 +287,8 @@ public abstract class LogicalScanOperator extends LogicalOperator {
             return (B) this;
         }
 
-        public B setTableVersionRange(TableVersionRange tableVersionRange) {
-            builder.tableVersionRange = tableVersionRange;
+        public B setTableVersionRange(TvrSnapshot tableVersionRange) {
+            builder.tvrSnapshot = tableVersionRange;
             return (B) this;
         }
     }

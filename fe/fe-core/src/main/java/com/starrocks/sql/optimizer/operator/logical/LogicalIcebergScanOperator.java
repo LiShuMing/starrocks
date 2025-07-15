@@ -18,10 +18,11 @@ import com.google.common.base.Preconditions;
 import com.starrocks.catalog.Column;
 import com.starrocks.catalog.IcebergTable;
 import com.starrocks.catalog.Table;
-import com.starrocks.connector.TableVersionRange;
 import com.starrocks.connector.iceberg.IcebergDeleteSchema;
 import com.starrocks.connector.iceberg.IcebergMORParams;
 import com.starrocks.connector.iceberg.IcebergTableMORParams;
+import com.starrocks.sql.common.tvr.TvrSnapshot;
+import com.starrocks.sql.common.tvr.TvrTrait;
 import com.starrocks.sql.optimizer.operator.OperatorType;
 import com.starrocks.sql.optimizer.operator.OperatorVisitor;
 import com.starrocks.sql.optimizer.operator.ScanOperatorPredicates;
@@ -30,6 +31,7 @@ import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
 
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -55,7 +57,7 @@ public class LogicalIcebergScanOperator extends LogicalScanOperator {
                                       Map<Column, ColumnRefOperator> columnMetaToColRefMap,
                                       long limit,
                                       ScalarOperator predicate) {
-        this(table, colRefToColumnMetaMap, columnMetaToColRefMap, limit, predicate, TableVersionRange.empty());
+        this(table, colRefToColumnMetaMap, columnMetaToColRefMap, limit, predicate, TvrSnapshot.empty());
     }
 
     public LogicalIcebergScanOperator(Table table,
@@ -63,7 +65,7 @@ public class LogicalIcebergScanOperator extends LogicalScanOperator {
                                       Map<Column, ColumnRefOperator> columnMetaToColRefMap,
                                       long limit,
                                       ScalarOperator predicate,
-                                      TableVersionRange versionRange) {
+                                      TvrSnapshot versionRange) {
         super(OperatorType.LOGICAL_ICEBERG_SCAN,
                 table,
                 colRefToColumnMetaMap,
@@ -88,6 +90,11 @@ public class LogicalIcebergScanOperator extends LogicalScanOperator {
     @Override
     public void setScanOperatorPredicates(ScanOperatorPredicates predicates) {
         this.predicates = predicates;
+    }
+
+    @Override
+    public Optional<TvrTrait> getTvrTrait() {
+        return Optional.empty();
     }
 
     public boolean isFromEqDeleteRewriteRule() {

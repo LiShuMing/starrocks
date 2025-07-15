@@ -80,6 +80,7 @@ import com.starrocks.sql.analyzer.SelectAnalyzer;
 import com.starrocks.sql.ast.UserIdentity;
 import com.starrocks.sql.common.PCell;
 import com.starrocks.sql.common.PRangeCell;
+import com.starrocks.sql.common.tvr.TvrDelta;
 import com.starrocks.sql.optimizer.CachingMvPlanContextBuilder;
 import com.starrocks.sql.optimizer.MvRewritePreprocessor;
 import com.starrocks.sql.optimizer.Utils;
@@ -274,6 +275,9 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
         @SerializedName("mvPartitionNameRefBaseTablePartitionMap")
         private final Map<String, Set<String>> mvPartitionNameRefBaseTablePartitionMap;
 
+        @SerializedName("baseTableInfoTvrDeltaMap")
+        private final Map<BaseTableInfo, TvrDelta> baseTableInfoTvrDeltaMap = Maps.newConcurrentMap();
+
         @SerializedName(value = "defineStartTime")
         private boolean defineStartTime;
 
@@ -311,6 +315,10 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
 
         public Map<String, Set<String>> getMvPartitionNameRefBaseTablePartitionMap() {
             return mvPartitionNameRefBaseTablePartitionMap;
+        }
+
+        public Map<BaseTableInfo, TvrDelta> getBaseTableInfoTvrDeltaMap() {
+            return baseTableInfoTvrDeltaMap;
         }
 
         public void clearVisibleVersionMap() {

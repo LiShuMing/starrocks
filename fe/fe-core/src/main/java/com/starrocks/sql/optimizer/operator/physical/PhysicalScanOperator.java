@@ -20,7 +20,7 @@ import com.starrocks.catalog.Column;
 import com.starrocks.catalog.ColumnAccessPath;
 import com.starrocks.catalog.Table;
 import com.starrocks.common.AnalysisException;
-import com.starrocks.connector.TableVersionRange;
+import com.starrocks.sql.common.tvr.TvrSnapshot;
 import com.starrocks.datacache.DataCacheOptions;
 import com.starrocks.sql.optimizer.OptExpression;
 import com.starrocks.sql.optimizer.RowOutputInfo;
@@ -49,7 +49,7 @@ public abstract class PhysicalScanOperator extends PhysicalOperator {
     protected ImmutableMap<ColumnRefOperator, Column> colRefToColumnMetaMap;
     protected ImmutableList<ColumnAccessPath> columnAccessPaths;
     protected ScanOptimizeOption scanOptimizeOption;
-    protected TableVersionRange tableVersionRange;
+    protected TvrSnapshot tvrSnapshot;
     protected DataCacheOptions dataCacheOptions = null;
 
     protected PhysicalScanOperator(OperatorType type) {
@@ -61,7 +61,7 @@ public abstract class PhysicalScanOperator extends PhysicalOperator {
                                 long limit,
                                 ScalarOperator predicate,
                                 Projection projection) {
-        this(type, table, colRefToColumnMetaMap, limit, predicate, projection, TableVersionRange.empty());
+        this(type, table, colRefToColumnMetaMap, limit, predicate, projection, TvrSnapshot.empty());
     }
 
     public PhysicalScanOperator(OperatorType type, Table table,
@@ -69,7 +69,7 @@ public abstract class PhysicalScanOperator extends PhysicalOperator {
                                 long limit,
                                 ScalarOperator predicate,
                                 Projection projection,
-                                TableVersionRange tableVersionRange) {
+                                TvrSnapshot tvrSnapshot) {
         super(type);
         this.table = Objects.requireNonNull(table, "table is null");
         this.colRefToColumnMetaMap = ImmutableMap.copyOf(colRefToColumnMetaMap);
@@ -78,7 +78,7 @@ public abstract class PhysicalScanOperator extends PhysicalOperator {
         this.projection = projection;
         this.columnAccessPaths = ImmutableList.of();
         this.scanOptimizeOption = new ScanOptimizeOption();
-        this.tableVersionRange = tableVersionRange;
+        this.tvrSnapshot = tvrSnapshot;
 
         updateOutputColumns();
     }
@@ -107,7 +107,7 @@ public abstract class PhysicalScanOperator extends PhysicalOperator {
 
     public PhysicalScanOperator(OperatorType type, LogicalScanOperator scanOperator) {
         this(type, scanOperator.getTable(), scanOperator.getColRefToColumnMetaMap(), scanOperator.getLimit(),
-                scanOperator.getPredicate(), scanOperator.getProjection(), scanOperator.getTableVersionRange());
+                scanOperator.getPredicate(), scanOperator.getProjection(), scanOperator.getTvrSnapshot());
         this.scanOptimizeOption = scanOperator.getScanOptimizeOption().copy();
     }
 
@@ -135,8 +135,8 @@ public abstract class PhysicalScanOperator extends PhysicalOperator {
         this.scanOptimizeOption = opt.copy();
     }
 
-    public TableVersionRange getTableVersionRange() {
-        return tableVersionRange;
+    public TvrSnapshot getTvrSnapshot() {
+        return tvrSnapshot;
     }
 
     public Table getTable() {
@@ -210,7 +210,7 @@ public abstract class PhysicalScanOperator extends PhysicalOperator {
             builder.colRefToColumnMetaMap = operator.colRefToColumnMetaMap;
             builder.columnAccessPaths = operator.columnAccessPaths;
             builder.scanOptimizeOption = operator.scanOptimizeOption;
-            builder.tableVersionRange = operator.tableVersionRange;
+            builder.tvrSnapshot = operator.tvrSnapshot;
             return (B) this;
         }
 

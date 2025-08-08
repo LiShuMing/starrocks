@@ -45,7 +45,7 @@ public class TvrUnionAllRule extends TvrTransformationRule {
     public List<OptExpression> transform(OptExpression input, OptimizerContext context) {
         LogicalUnionOperator logicalUnionOperator = input.getOp().cast();
         List<ColumnRefOperator> originalOutputColRefs = logicalUnionOperator.getOutputColumnRefOp();
-        TvrOptMeta childTvrGroup = input.getInputs().get(0).getTvrMeta();
+        TvrOptMeta childTvrMeta = input.getInputs().get(0).getTvrMeta();
         TvrLazyOptExpression fromTvrOptExpression = TvrLazyOptExpression.of(() -> {
             List<TvrLazyOptExpression> fromChildrenTvrOptExpressions = input.getInputs()
                     .stream()
@@ -56,8 +56,8 @@ public class TvrUnionAllRule extends TvrTransformationRule {
                     .map(lazy -> lazy.get())
                     .map(opt -> duplicateOptExpression(context, opt.optExpression(), originalOutputColRefs))
                     .collect(Collectors.toList());
-            OptExpression fromOptExpression = newUnionOperator(childTvrGroup, originalOutputColRefs, fromChildren);
-            return new TvrOptExpression(childTvrGroup.getFrom().tvrVersionRange(), fromOptExpression);
+            OptExpression fromOptExpression = newUnionOperator(childTvrMeta, originalOutputColRefs, fromChildren);
+            return new TvrOptExpression(childTvrMeta.getFrom().tvrVersionRange(), fromOptExpression);
         });
         TvrLazyOptExpression toTvrOptExpression = TvrLazyOptExpression.of(() -> {
             List<TvrLazyOptExpression> toChildrenTvrOptExpressions = input.getInputs()
@@ -69,10 +69,10 @@ public class TvrUnionAllRule extends TvrTransformationRule {
                     .map(lazy -> lazy.get())
                     .map(opt -> duplicateOptExpression(context, opt.optExpression(), originalOutputColRefs))
                     .collect(Collectors.toList());
-            OptExpression toOptExpression = newUnionOperator(childTvrGroup, originalOutputColRefs, toChildren);
-            return new TvrOptExpression(childTvrGroup.getFrom().tvrVersionRange(), toOptExpression);
+            OptExpression toOptExpression = newUnionOperator(childTvrMeta, originalOutputColRefs, toChildren);
+            return new TvrOptExpression(childTvrMeta.getFrom().tvrVersionRange(), toOptExpression);
         });
-        TvrOptMeta tvrOptMeta = new TvrOptMeta(fromTvrOptExpression, toTvrOptExpression);
+        TvrOptMeta tvrOptMeta = new TvrOptMeta(childTvrMeta.tvrTrait(), fromTvrOptExpression, toTvrOptExpression);
         OptExpression result = OptExpression.create(logicalUnionOperator, tvrOptMeta, input.getInputs());
         return List.of(result);
     }

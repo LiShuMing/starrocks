@@ -73,7 +73,7 @@ public class TvrJoinRule extends TvrTransformationRule {
             return new TvrOptExpression(tvrLeftTo.tvrVersionRange(), toOpt.optExpression());
         });
         // root opt group
-        TvrOptMeta rootOptMeta = new TvrOptMeta(fromJoin, toJoin);
+        TvrOptMeta rootOptMeta = new TvrOptMeta(leftMeta.tvrTrait(), fromJoin, toJoin);
 
         // delta join
         OptExpression deltaJoin = null;

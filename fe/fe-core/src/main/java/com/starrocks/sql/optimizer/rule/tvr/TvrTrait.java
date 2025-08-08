@@ -17,6 +17,8 @@ package com.starrocks.sql.optimizer.rule.tvr;
 import com.starrocks.common.tvr.TvrTableDelta;
 
 public class TvrTrait {
+    public static final TvrTrait DEFAULT = new TvrTrait(TvrTableDelta.emptyDelta(), false);
+
     private final TvrTableDelta tvrTableDelta;
     private final boolean isAppendOnly;
 

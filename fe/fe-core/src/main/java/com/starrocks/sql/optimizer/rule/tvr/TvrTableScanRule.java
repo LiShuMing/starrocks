@@ -68,7 +68,8 @@ public class TvrTableScanRule extends TvrTransformationRule {
                 "TvrTrait should be present for scan operator: %s", scanOperator);
         Preconditions.checkState(scanOperator.getTvrTrait().get().isAppendOnly(),
                 "TvrTrait should be append-only for scan operator: %s", scanOperator);
-        TvrTableDelta tvrTableDelta = scanOperator.getTvrTrait().get().getTvrDelta();
+        TvrTrait tvrTrait = scanOperator.getTvrTrait().get();
+        TvrTableDelta tvrTableDelta = tvrTrait.getTvrDelta();
         TvrTableSnapshot toSnapshot = tvrTableDelta.toSnapshot();
         TvrTableSnapshot fromSnapshot = tvrTableDelta.fromSnapshot();
         if (Table.TableType.ICEBERG.equals(scanOperator.getTable().getType())) {
@@ -84,6 +85,7 @@ public class TvrTableScanRule extends TvrTransformationRule {
 
             // create TvrOptExpression for both from and to snapshots
             TvrOptMeta tvrOptMeta = new TvrOptMeta(
+                    tvrTrait,
                     TvrLazyOptExpression.of(() -> new TvrOptExpression(fromSnapshot, fromOpt)),
                     TvrLazyOptExpression.of(() -> new TvrOptExpression(toSnapshot, toOpt))
             );

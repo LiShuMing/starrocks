@@ -17,8 +17,9 @@ package com.starrocks.sql.optimizer.rule.tvr;
 /**
  * TvrOptMeta is the metadata of TvrOptExpression that represents a range of TVR versions.
  */
-public record TvrOptMeta(TvrLazyOptExpression from, TvrLazyOptExpression to) {
+public record TvrOptMeta(TvrTrait tvrTrait, TvrLazyOptExpression from, TvrLazyOptExpression to) {
     public static final TvrOptMeta UNSUPPORTED = new TvrOptMeta(
+            TvrTrait.DEFAULT,
             TvrLazyOptExpression.of(() -> {
                 throw new IllegalStateException("TvrOptExpression for delta aggregate is not " +
                         "supported");
@@ -46,6 +47,6 @@ public record TvrOptMeta(TvrLazyOptExpression from, TvrLazyOptExpression to) {
     }
 
     public static TvrOptMeta ofChild(TvrOptMeta child, TvrOptApplier tvrOptApplier) {
-        return new TvrOptMeta(child.mapFrom(tvrOptApplier), child.mapTo(tvrOptApplier));
+        return new TvrOptMeta(child.tvrTrait(), child.mapFrom(tvrOptApplier), child.mapTo(tvrOptApplier));
     }
 }

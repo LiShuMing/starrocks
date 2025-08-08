@@ -15,11 +15,9 @@
 package com.starrocks.scheduler.mv.ivm;
 
 import com.starrocks.catalog.MaterializedView;
-import com.starrocks.connector.iceberg.MockIcebergMetadata;
 import com.starrocks.scheduler.TaskRun;
 import com.starrocks.scheduler.mv.MVVersionManager;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.MVTestBase;
-import com.starrocks.sql.plan.ConnectorPlanTestBase;
 import com.starrocks.sql.plan.ExecPlan;
 import org.junit.jupiter.api.BeforeAll;
 
@@ -28,7 +26,6 @@ public abstract class MVIVMTestBase extends MVTestBase {
     @BeforeAll
     public static void beforeClass() throws Exception {
         MVTestBase.beforeClass();
-        ConnectorPlanTestBase.mockCatalog(connectContext, MockIcebergMetadata.MOCKED_ICEBERG_CATALOG_NAME);
     }
 
     // refresh and get the execute plan for the materialized view

@@ -18,7 +18,8 @@ import com.google.common.base.Preconditions;
 import com.starrocks.catalog.Column;
 import com.starrocks.catalog.IcebergTable;
 import com.starrocks.catalog.Table;
-import com.starrocks.connector.TableVersionRange;
+import com.starrocks.common.tvr.TvrTableDelta;
+import com.starrocks.common.tvr.TvrVersionRange;
 import com.starrocks.connector.iceberg.IcebergDeleteSchema;
 import com.starrocks.connector.iceberg.IcebergMORParams;
 import com.starrocks.connector.iceberg.IcebergTableMORParams;
@@ -27,9 +28,11 @@ import com.starrocks.sql.optimizer.operator.OperatorVisitor;
 import com.starrocks.sql.optimizer.operator.ScanOperatorPredicates;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
+import com.starrocks.sql.optimizer.rule.tvr.TvrTrait;
 
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -55,7 +58,7 @@ public class LogicalIcebergScanOperator extends LogicalScanOperator {
                                       Map<Column, ColumnRefOperator> columnMetaToColRefMap,
                                       long limit,
                                       ScalarOperator predicate) {
-        this(table, colRefToColumnMetaMap, columnMetaToColRefMap, limit, predicate, TableVersionRange.empty());
+        this(table, colRefToColumnMetaMap, columnMetaToColRefMap, limit, predicate, TvrVersionRange.empty());
     }
 
     public LogicalIcebergScanOperator(Table table,
@@ -63,7 +66,7 @@ public class LogicalIcebergScanOperator extends LogicalScanOperator {
                                       Map<Column, ColumnRefOperator> columnMetaToColRefMap,
                                       long limit,
                                       ScalarOperator predicate,
-                                      TableVersionRange versionRange) {
+                                      TvrVersionRange versionRange) {
         super(OperatorType.LOGICAL_ICEBERG_SCAN,
                 table,
                 colRefToColumnMetaMap,
@@ -89,6 +92,23 @@ public class LogicalIcebergScanOperator extends LogicalScanOperator {
     public void setScanOperatorPredicates(ScanOperatorPredicates predicates) {
         this.predicates = predicates;
     }
+
+    @Override
+    public Optional<TvrTrait> getTvrTrait() {
+        if (tvrVersionRange != null && tvrVersionRange instanceof TvrTableDelta) {
+            return Optional.of(TvrTrait.of((TvrTableDelta) tvrVersionRange, true));
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public boolean isEmptyOutputRows() {
+        if (tvrVersionRange != null && tvrVersionRange.isEmpty()) {
+            return true;
+        }
+        return false;
+    }
+
 
     public boolean isFromEqDeleteRewriteRule() {
         return fromEqDeleteRewriteRule;

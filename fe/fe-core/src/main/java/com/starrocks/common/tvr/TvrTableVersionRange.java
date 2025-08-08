@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.starrocks.connector;
-
-import org.apache.commons.lang3.builder.ToStringBuilder;
+package com.starrocks.common.tvr;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -23,42 +21,33 @@ import java.util.Optional;
 // For tables that support time travel with query period, before calling the `ConnectorMetadata` interface,
 // you need to obtain the table version by `getTableVersionRange` interface for passing,
 // otherwise it will be used as an empty table.
+public class TvrTableVersionRange extends TvrVersionRange {
 
-public class TableVersionRange {
-    private final Optional<Long> start;
-    private final Optional<Long> end;
-
-    public static TableVersionRange empty() {
-        return new TableVersionRange(Optional.empty(), Optional.empty());
+    public static TvrTableVersionRange of(TvrVersion from, TvrVersion to) {
+        return new TvrTableVersionRange(from, to);
     }
 
-    public static TableVersionRange withEnd(Optional<Long> end) {
-        return new TableVersionRange(Optional.empty(), end);
+    public static TvrTableVersionRange of(Optional<Long> from, Optional<Long> to) {
+        return new TvrTableVersionRange(from, to);
     }
 
-    public TableVersionRange(Optional<Long> start, Optional<Long> end) {
-        this.start = start;
-        this.end = end;
+    public TvrTableVersionRange(TvrVersion from, TvrVersion to) {
+        super(from, to);
     }
 
-    public Optional<Long> start() {
-        return start;
-    }
-
-    public Optional<Long> end() {
-        return end;
-    }
-
-    public boolean isEmpty() {
-        return start.isEmpty() && end.isEmpty();
+    public TvrTableVersionRange(Optional<Long> from, Optional<Long> to) {
+        super(TvrVersion.of(from.orElse(TvrVersion.MIN_TIME)),
+                TvrVersion.of(to.orElse(TvrVersion.MAX_TIME)));
     }
 
     @Override
     public String toString() {
-        return new ToStringBuilder(this)
-                .append("start", start)
-                .append("end", end)
-                .toString();
+        return "VersionRange[" + from + "," + to + "]";
+    }
+
+    @Override
+    public TvrTableVersionRange copy(TvrVersion from, TvrVersion to) {
+        return new TvrTableVersionRange(from, to);
     }
 
     @Override
@@ -71,12 +60,12 @@ public class TableVersionRange {
             return false;
         }
 
-        TableVersionRange that = (TableVersionRange) o;
-        return Objects.equals(start, that.start) && Objects.equals(end, that.end);
+        TvrTableVersionRange that = (TvrTableVersionRange) o;
+        return Objects.equals(from, that.from) && Objects.equals(to, that.to);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(start, end);
+        return Objects.hash(from, to);
     }
 }

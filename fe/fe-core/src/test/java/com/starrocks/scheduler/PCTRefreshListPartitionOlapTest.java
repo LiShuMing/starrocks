@@ -22,6 +22,7 @@ import com.starrocks.catalog.ListPartitionInfo;
 import com.starrocks.catalog.MaterializedView;
 import com.starrocks.catalog.Partition;
 import com.starrocks.catalog.PartitionInfo;
+import com.starrocks.scheduler.mv.PartitionBasedMvRefreshProcessor;
 import com.starrocks.scheduler.persist.MVTaskRunExtraMessage;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.ast.RefreshMaterializedViewStatement;
@@ -186,7 +187,7 @@ public class PCTRefreshListPartitionOlapTest extends MVTestBase {
     private PartitionBasedMvRefreshProcessor getProcessor(TaskRun taskRun) {
         try {
             initAndExecuteTaskRun(taskRun);
-            return (PartitionBasedMvRefreshProcessor) taskRun.getProcessor();
+            return getPartitionBasedRefreshProcessor(taskRun);
         } catch (Exception e) {
             e.printStackTrace();
             Assertions.fail();

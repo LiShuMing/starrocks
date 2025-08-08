@@ -17,6 +17,7 @@ package com.starrocks.catalog.combinator;
 import com.starrocks.analysis.FunctionName;
 import com.starrocks.catalog.AggregateFunction;
 import com.starrocks.catalog.Function;
+import com.starrocks.catalog.FunctionSet;
 import com.starrocks.catalog.ScalarFunction;
 import com.starrocks.catalog.Type;
 import com.starrocks.thrift.TFunctionBinaryType;
@@ -50,7 +51,7 @@ public final class AggStateCombinator extends ScalarFunction  {
     public static Optional<AggStateCombinator> of(AggregateFunction aggFunc) {
         try {
             Type intermediateType = aggFunc.getIntermediateTypeOrReturnType().clone();
-            FunctionName funcName = new FunctionName(AggStateUtils.aggStateFunctionName(aggFunc.functionName()));
+            FunctionName funcName = new FunctionName(aggFunc.functionName() + FunctionSet.STATE_SUFFIX);
             AggStateCombinator aggStateFunc = new AggStateCombinator(funcName, Arrays.asList(aggFunc.getArgs()),
                     intermediateType);
             aggStateFunc.setBinaryType(TFunctionBinaryType.BUILTIN);

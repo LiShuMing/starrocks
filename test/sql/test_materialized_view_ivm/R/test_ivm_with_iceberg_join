@@ -1,0 +1,103 @@
+-- name: test_ivm_with_iceberg_join
+create external catalog mv_iceberg_${uuid0}
+properties
+(
+    "type" = "iceberg",
+    "iceberg.catalog.type" = "hive",
+    "hive.metastore.uris" = "${iceberg_catalog_hive_metastore_uris}"
+);
+-- result:
+-- !result
+set catalog mv_iceberg_${uuid0};
+-- result:
+-- !result
+create database mv_ice_db_${uuid0};
+-- result:
+-- !result
+use mv_ice_db_${uuid0};
+-- result:
+-- !result
+create table t1 (
+  col1 string,
+  col2 int,
+  dt date
+) partition by(dt);
+-- result:
+-- !result
+create table t2 (
+  col1 string,
+  col2 int,
+  dt date
+) partition by(dt);
+-- result:
+-- !result
+insert into t1 values 
+  ('1d8cf2a2c0e14fa89d8117792be6eb6f', 2000, '2023-12-01'),
+  ('3e82e36e56718dc4abc1168d21ec91ab', 2000, '2023-12-01'),
+  ('abc', 2000, '2023-12-02'),
+  (NULL, 2000, '2023-12-02'),
+  ('ab1d8cf2a2c0e14fa89d8117792be6eb6f', 2001, '2023-12-03'),
+  ('3e82e36e56718dc4abc1168d21ec91ab', 2001, '2023-12-03'),
+  ('abc', 2001, '2023-12-04'),
+  (NULL, 2001, '2023-12-04');
+-- result:
+-- !result
+insert into t2 values 
+  ('1d8cf2a2c0e14fa89d8117792be6eb6f', 1, '2023-12-01'),
+  ('3e82e36e56718dc4abc1168d21ec91ab', 2, '2023-12-01'),
+  ('abc', 3, '2023-12-02'),
+  (NULL, 4, '2023-12-02');
+-- result:
+-- !result
+set catalog default_catalog;
+-- result:
+-- !result
+create database db_${uuid0};
+-- result:
+-- !result
+use db_${uuid0};
+-- result:
+-- !result
+CREATE MATERIALIZED VIEW test_mv1 PARTITION BY dt 
+REFRESH DEFERRED MANUAL 
+properties
+(
+    "refresh_mode" = "incremental"
+)
+AS SELECT t1.col1 as col11, t2.col1 as col21, t1.col2 as col12, t2.col2 as col22, t1.dt
+FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 JOIN mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2
+ON t1.dt = t2.dt;
+-- result:
+-- !result
+REFRESH MATERIALIZED VIEW test_mv1 WITH SYNC MODE;
+SELECT COUNT(*) FROM test_mv1;
+-- result:
+8
+-- !result
+insert into mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 values 
+  ('1d8cf2a2c0e14fa89d8117792be6eb6f', 2000, '2023-12-01');
+-- result:
+-- !result
+REFRESH MATERIALIZED VIEW test_mv1 WITH SYNC MODE;
+SELECT COUNT(*) FROM test_mv1;
+-- result:
+10
+-- !result
+insert into mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 values 
+  ('1d8cf2a2c0e14fa89d8117792be6eb6f', 2000, '2023-12-01');
+-- result:
+-- !result
+REFRESH MATERIALIZED VIEW test_mv1 WITH SYNC MODE;
+SELECT COUNT(*) FROM test_mv1;
+-- result:
+12
+-- !result
+insert into mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 values 
+  ('1d8cf2a2c0e14fa89d8117792be6eb6f', 2000, '2023-12-01');
+-- result:
+-- !result
+REFRESH MATERIALIZED VIEW test_mv1 WITH SYNC MODE;
+SELECT COUNT(*) FROM test_mv1;
+-- result:
+14
+-- !result

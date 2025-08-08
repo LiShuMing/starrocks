@@ -956,7 +956,7 @@ public class MvRewritePreprocessor {
      * - original MV's predicates which can be deduced from MV opt expression and be used
      * for partition/distribution pruning.
      */
-    public static LogicalOlapScanOperator createScanMvOperator(MaterializedView mv,
+    public static LogicalOlapScanOperator createScanMvOperator(OlapTable mv,
                                                                ColumnRefFactory columnRefFactory,
                                                                Set<String> excludedPartitions) {
         final ImmutableMap.Builder<ColumnRefOperator, Column> colRefToColumnMetaMapBuilder = ImmutableMap.builder();
@@ -1022,7 +1022,7 @@ public class MvRewritePreprocessor {
                 .build();
     }
 
-    private static DistributionSpec getTableDistributionSpec(MaterializedView mv,
+    private static DistributionSpec getTableDistributionSpec(OlapTable mv,
                                                              Map<Column, ColumnRefOperator> columnMetaToColRefMap) {
         DistributionSpec distributionSpec = null;
         // construct distribution

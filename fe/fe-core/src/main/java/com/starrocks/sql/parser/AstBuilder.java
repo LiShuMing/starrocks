@@ -218,6 +218,7 @@ import com.starrocks.sql.ast.CreateResourceStmt;
 import com.starrocks.sql.ast.CreateRoleStmt;
 import com.starrocks.sql.ast.CreateRoutineLoadStmt;
 import com.starrocks.sql.ast.CreateStorageVolumeStmt;
+import com.starrocks.sql.ast.CreateStreamStmt;
 import com.starrocks.sql.ast.CreateTableAsSelectStmt;
 import com.starrocks.sql.ast.CreateTableLikeStmt;
 import com.starrocks.sql.ast.CreateTableStmt;
@@ -1582,6 +1583,34 @@ public class AstBuilder extends StarRocksBaseVisitor<ParseNode> {
     }
 
     @Override
+    public ParseNode visitCreateStreamStatement(StarRocksParser.CreateStreamStatementContext context) {
+        QualifiedName qualifiedName0 = getQualifiedName(context.qualifiedName().get(0));
+        TableName streamTableName = qualifiedNameToTableName(qualifiedName0);
+        QualifiedName qualifiedName1 = getQualifiedName(context.qualifiedName().get(1));
+        TableName targetTableName = qualifiedNameToTableName(qualifiedName1);
+        boolean ifNotExists = context.IF() != null && context.NOT() != null && context.EXISTS() != null;
+        QueryPeriod queryPeriod = visitAsofPeriod(context.asOfPeriod());
+        String comment =
+                context.comment() == null ? null :
+                        ((StringLiteral) visit(context.comment().string())).getStringValue();
+        Map<String, String> properties = new HashMap<>();
+        if (context.properties() != null) {
+            List<Property> propertyList = visit(context.properties().property(), Property.class);
+            for (Property property : propertyList) {
+                properties.put(property.getKey(), property.getValue());
+            }
+        }
+        return new CreateStreamStmt(
+                ifNotExists,
+                streamTableName,
+                targetTableName,
+                queryPeriod,
+                comment,
+                properties,
+                createPos(context));
+    }
+
+    @Override
     public ParseNode visitCreateOrReplaceTagClause(StarRocksParser.CreateOrReplaceTagClauseContext context) {
         String tagName = getIdentifierName(context.identifier());
 
@@ -2210,6 +2239,7 @@ public class AstBuilder extends StarRocksBaseVisitor<ParseNode> {
         TableName mvName = qualifiedNameToTableName(mvQualifiedName);
         PartitionRangeDesc rangePartitionDesc = null;
         Set<PListCell> cells = null;
+
         if (context.partitionRangeDesc() != null) {
             rangePartitionDesc =
                     (PartitionRangeDesc) visit(context.partitionRangeDesc());
@@ -2230,10 +2260,25 @@ public class AstBuilder extends StarRocksBaseVisitor<ParseNode> {
                         .collect(Collectors.toSet());
             }
         }
-        return new RefreshMaterializedViewStatement(mvName, new EitherOr(rangePartitionDesc, cells),
-                context.FORCE() != null, context.SYNC() != null,
+        RefreshMaterializedViewStatement statement =
+                new RefreshMaterializedViewStatement(mvName, new EitherOr(rangePartitionDesc, cells),
+                        context.FORCE() != null, context.SYNC() != null,
                 context.priority != null ? Integer.parseInt(context.priority.getText()) : null,
                 createPos(context));
+
+        if (context.explainDesc() != null) {
+            StatementBase.ExplainLevel explainLevel = getExplainType(context.explainDesc());
+            statement.setIsExplain(true, explainLevel);
+        }
+
+        if (context.optimizerTrace() != null) {
+            String module = "base";
+            if (context.optimizerTrace().identifier() != null) {
+                module = ((Identifier) visit(context.optimizerTrace().identifier())).getValue();
+            }
+            statement.setIsTrace(getTraceMode(context.optimizerTrace()), module);
+        }
+        return statement;
     }
 
     @Override
@@ -6033,13 +6078,25 @@ public class AstBuilder extends StarRocksBaseVisitor<ParseNode> {
 
     @Override
     public ParseNode visitQueryPeriod(StarRocksParser.QueryPeriodContext context) {
-        if (context.periodType() == null || context.end == null) {
+        StarRocksParser.AsOfPeriodContext asOfPeriodContext = context.asOfPeriod();
+        if (context.periodType() == null || asOfPeriodContext == null || asOfPeriodContext.end == null) {
             return null;
         }
+        if (asOfPeriodContext != null) {
+            return visitAsofPeriod(asOfPeriodContext);
+        } else {
+            QueryPeriod.PeriodType type = getPeriodType((Token) context.periodType().getChild(0).getPayload());
+            Expr end = (Expr) visit(asOfPeriodContext.end);
+            return new QueryPeriod(type, end);
+        }
+    }
 
-        QueryPeriod.PeriodType type = getPeriodType((Token) context.periodType().getChild(0).getPayload());
+    private QueryPeriod visitAsofPeriod(StarRocksParser.AsOfPeriodContext context) {
+        if (context.end == null) {
+            return null;
+        }
         Expr end = (Expr) visit(context.end);
-        return new QueryPeriod(type, end);
+        return new QueryPeriod(getPeriodType((Token) context.periodType().getChild(0).getPayload()), end);
     }
 
     private QueryPeriod.PeriodType getPeriodType(Token token) {

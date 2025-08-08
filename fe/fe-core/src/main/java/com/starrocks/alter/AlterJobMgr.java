@@ -429,8 +429,7 @@ public class AlterJobMgr {
             newMvRefreshScheme.setLastRefreshTime(maxChangedTableRefreshTime);
 
             oldMaterializedView.setRefreshScheme(newMvRefreshScheme);
-            LOG.info(
-                    "Replay materialized view [{}]'s refresh type to {}, start time to {}, " +
+            LOG.info("Replay materialized view [{}]'s refresh type to {}, start time to {}, " +
                             "interval step to {}, timeunit to {}, id: {}, maxChangedTableRefreshTime:{}",
                     oldMaterializedView.getName(), refreshType.name(), asyncRefreshContext.getStartTime(),
                     asyncRefreshContext.getStep(),

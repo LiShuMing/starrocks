@@ -48,6 +48,7 @@ statement
     | createTableStatement
     | createTableAsSelectStatement
     | createTableLikeStatement
+    | createStreamStatement
     | showCreateTableStatement
     | dropTableStatement
     | cleanTemporaryTableStatement
@@ -613,6 +614,14 @@ createTableLikeStatement
         LIKE qualifiedName
     ;
 
+createStreamStatement
+    : CREATE STREAM (IF NOT EXISTS)? qualifiedName
+    ON TABLE qualifiedName
+    asOfPeriod?
+    comment?
+    properties?
+    ;
+
 showIndexStatement
     : SHOW (INDEX | INDEXES | KEY | KEYS) ((FROM | IN) table=qualifiedName) ((FROM | IN) db=qualifiedName)?
     ;
@@ -727,7 +736,7 @@ alterMaterializedViewStatement
     ;
 
 refreshMaterializedViewStatement
-    : REFRESH MATERIALIZED VIEW mvName=qualifiedName (PARTITION (partitionRangeDesc | listPartitionValues))? FORCE? (WITH (SYNC | ASYNC) MODE)? (WITH PRIORITY priority=INTEGER_VALUE)?
+    : (explainDesc | optimizerTrace) ? REFRESH MATERIALIZED VIEW mvName=qualifiedName (PARTITION (partitionRangeDesc | listPartitionValues))? FORCE? (WITH (SYNC | ASYNC) MODE)? (WITH PRIORITY priority=INTEGER_VALUE)?
     ;
 
 cancelRefreshMaterializedViewStatement
@@ -2293,7 +2302,11 @@ queryPeriod
     : FOR? periodType BETWEEN expression AND expression
     | FOR? periodType FROM expression TO expression
     | FOR? periodType ALL
-    | FOR? periodType AS OF end=expression
+    | FOR? asOfPeriod
+    ;
+
+asOfPeriod
+    : periodType AS OF end=expression
     ;
 
 periodType

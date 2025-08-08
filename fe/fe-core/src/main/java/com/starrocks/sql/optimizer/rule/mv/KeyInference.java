@@ -24,7 +24,6 @@ import com.starrocks.sql.optimizer.JoinHelper;
 import com.starrocks.sql.optimizer.OptExpression;
 import com.starrocks.sql.optimizer.OptExpressionVisitor;
 import com.starrocks.sql.optimizer.base.ColumnRefSet;
-import com.starrocks.sql.optimizer.operator.Operator;
 import com.starrocks.sql.optimizer.operator.physical.PhysicalOlapScanOperator;
 import com.starrocks.sql.optimizer.operator.physical.PhysicalOperator;
 import com.starrocks.sql.optimizer.operator.physical.PhysicalProjectOperator;
@@ -181,7 +180,6 @@ public class KeyInference extends OptExpressionVisitor<KeyInference.KeyPropertyS
 
     @Override
     public KeyPropertySet visitPhysicalStreamAgg(OptExpression optExpression, Void ctx) {
-        Operator input = optExpression.inputAt(0).getOp();
         PhysicalStreamAggOperator agg = (PhysicalStreamAggOperator) optExpression.getOp();
 
         if (CollectionUtils.isNotEmpty(agg.getGroupBys())) {

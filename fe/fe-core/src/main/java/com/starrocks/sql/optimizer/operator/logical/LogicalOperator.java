@@ -25,8 +25,10 @@ import com.starrocks.sql.optimizer.operator.OperatorType;
 import com.starrocks.sql.optimizer.operator.Projection;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
+import com.starrocks.sql.optimizer.rule.tvr.TvrTrait;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 public abstract class LogicalOperator extends Operator {
@@ -72,5 +74,9 @@ public abstract class LogicalOperator extends Operator {
             }
         }
         return columnRefMap;
+    }
+
+    public Optional<TvrTrait> getTvrTrait() {
+        return Optional.empty();
     }
 }

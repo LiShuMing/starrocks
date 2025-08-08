@@ -130,8 +130,12 @@ public class AggStateUtils {
      * @param fnName combinator function name
      */
     public static String getAggFuncNameOfCombinator(String fnName) {
-        if (fnName.endsWith(FunctionSet.AGG_STATE_SUFFIX)) {
-            return fnName.substring(0, fnName.length() - FunctionSet.AGG_STATE_SUFFIX.length());
+        if (fnName.endsWith(FunctionSet.STATE_SUFFIX)) {
+            return fnName.substring(0, fnName.length() - FunctionSet.STATE_SUFFIX.length());
+        } else if (fnName.endsWith(FunctionSet.STATE_MERGE_SUFFIX)) {
+            return fnName.substring(0, fnName.length() - FunctionSet.STATE_MERGE_SUFFIX.length());
+        } else if (fnName.endsWith(FunctionSet.STATE_UNION_SUFFIX)) {
+            return fnName.substring(0, fnName.length() - FunctionSet.STATE_UNION_SUFFIX.length());
         } else if (fnName.endsWith(FunctionSet.AGG_STATE_UNION_SUFFIX)) {
             return fnName.substring(0, fnName.length() - FunctionSet.AGG_STATE_UNION_SUFFIX.length());
         } else if (fnName.endsWith(FunctionSet.AGG_STATE_MERGE_SUFFIX)) {
@@ -181,6 +185,19 @@ public class AggStateUtils {
             } else {
                 result = AggStateCombinator.of(aggFunc);
             }
+        } else if (func instanceof StateMergeCombinator) {
+            AggregateFunction argFn = getAggStateFunction(session, func, argumentTypes, pos);
+            if (argFn == null) {
+                return null;
+            }
+            result = StateMergeCombinator.of(argFn);
+        } else if (func instanceof StateUnionCombinator) {
+            // TODO: how to deduce the argument types of state_union combinator?
+            AggregateFunction argFn = getAggStateFunction(session, func, argumentTypes, pos);
+            if (argFn == null) {
+                return null;
+            }
+            result = StateUnionCombinator.of(argFn);
         } else if (func instanceof AggStateUnionCombinator) {
             AggregateFunction argFn = getAggStateFunction(session, func, argumentTypes, pos);
             if (argFn == null) {
@@ -233,7 +250,8 @@ public class AggStateUtils {
                                                          Function inputFunc,
                                                          Type[] argumentTypes,
                                                          NodePosition pos) {
-        Preconditions.checkArgument(argumentTypes.length == 1,
+        // TODO: add more restrictions
+        Preconditions.checkArgument(argumentTypes.length >= 1,
                 "AggState's AggFunc should have only one argument");
         Type arg0Type = argumentTypes[0];
         if (arg0Type.getAggStateDesc() == null) {
@@ -287,7 +305,7 @@ public class AggStateUtils {
     }
 
     public static String aggStateFunctionName(String aggFuncName) {
-        return aggFuncName  + FunctionSet.AGG_STATE_SUFFIX;
+        return aggFuncName  + FunctionSet.STATE_SUFFIX;
     }
 
     public static String aggStateUnionFunctionName(String aggFuncName) {
@@ -296,5 +314,13 @@ public class AggStateUtils {
 
     public static String aggStateMergeFunctionName(String aggFuncName) {
         return aggFuncName + FunctionSet.AGG_STATE_MERGE_SUFFIX;
+    }
+
+    public static String stateUnionFunctionName(String aggFuncName) {
+        return aggFuncName + FunctionSet.STATE_UNION_SUFFIX;
+    }
+
+    public static String stateMergeFunctionName(String aggFuncName) {
+        return aggFuncName + FunctionSet.STATE_MERGE_SUFFIX;
     }
 }

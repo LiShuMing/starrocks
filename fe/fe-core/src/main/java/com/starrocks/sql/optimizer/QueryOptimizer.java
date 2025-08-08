@@ -183,15 +183,19 @@ public class QueryOptimizer extends Optimizer {
             prepare(logicOperatorTree);
 
             // prepare for mv rewrite
-            prepareMvRewrite(context.getConnectContext(), logicOperatorTree, context.getColumnRefFactory(),
-                    requiredColumns);
-            try (Timer ignored = Tracers.watchScope("MVTextRewrite")) {
-                logicOperatorTree = new TextMatchBasedRewriteRule(context.getConnectContext(), context.getStatement(),
-                        context.getMvTransformerContext()).transform(logicOperatorTree, context).get(0);
-                // NOTE: PruneColum rules will not care projection required columns, so separate project after text match based
-                // rewrite to avoid pruning columns
-                if (context.getQueryMaterializationContext().hasRewrittenSuccess()) {
-                    logicOperatorTree = new SeparateProjectRule().rewrite(logicOperatorTree, context.getTaskContext());
+            if (context.getSessionVariable().isEnableMaterializedViewRewrite()) {
+                prepareMvRewrite(context.getConnectContext(), logicOperatorTree, context.getColumnRefFactory(),
+                        requiredColumns);
+                if (context.getSessionVariable().isEnableMaterializedViewTextMatchRewrite()) {
+                    try (Timer ignored = Tracers.watchScope("MVTextRewrite")) {
+                        logicOperatorTree = new TextMatchBasedRewriteRule(context.getConnectContext(), context.getStatement(),
+                                context.getMvTransformerContext()).transform(logicOperatorTree, context).get(0);
+                        // NOTE: PruneColum rules will not care projection required columns, so separate project
+                        //  after text match based rewrite to avoid pruning columns
+                        if (context.getQueryMaterializationContext().hasRewrittenSuccess()) {
+                            logicOperatorTree = new SeparateProjectRule().rewrite(logicOperatorTree, context.getTaskContext());
+                        }
+                    }
                 }
             }
 
@@ -506,14 +510,41 @@ public class QueryOptimizer extends Optimizer {
         deriveLogicalProperty(tree);
     }
 
+    private OptExpression logicalTvrRuleRewrite(OptExpression tree,
+                                                TaskContext rootTaskContext,
+                                                ColumnRefSet requiredColumns) {
+        scheduler.rewriteIterative(tree, rootTaskContext, RuleSet.TVR_REWRITE_RULES);
+        return tree;
+    }
+
     private OptExpression logicalRuleRewrite(
             OptExpression tree,
             TaskContext rootTaskContext) {
         tree = OptExpression.create(new LogicalTreeAnchorOperator(), tree);
-
         ColumnRefSet requiredColumns = rootTaskContext.getRequiredColumns().clone();
         deriveLogicalProperty(tree);
 
+        // tvr rule rewrite
+        if (context.getSessionVariable().isEnableIVMRefresh()) {
+            tree = logicalTvrRuleRewrite(tree, rootTaskContext, requiredColumns);
+        }
+
+        // logical rule rewrite
+        tree = logicalRuleRewrite(tree, rootTaskContext, requiredColumns);
+
+        deriveLogicalProperty(tree);
+        // TODO(packy92)
+        //  The tree-based rewriting rules in RBO may modify the child node but not update the
+        //  parent node, resulting in the statistical cache calculated by the previous rules
+        //  not being refreshed, which may affect the calculation of statistical information in memo.
+        //  Just clear it before into memo.
+        tree.getInputs().get(0).clearStatsAndInitOutputInfo();
+        return tree.getInputs().get(0);
+    }
+
+    private OptExpression logicalRuleRewrite(OptExpression tree,
+                                             TaskContext rootTaskContext,
+                                             ColumnRefSet requiredColumns) {
         SessionVariable sessionVariable = rootTaskContext.getOptimizerContext().getSessionVariable();
         CTEContext cteContext = context.getCteContext();
 
@@ -725,15 +756,7 @@ public class QueryOptimizer extends Optimizer {
         }
 
         tree = SimplifyCaseWhenPredicateRule.INSTANCE.rewrite(tree, rootTaskContext);
-        deriveLogicalProperty(tree);
-
-        // TODO(packy92)
-        //  The tree-based rewriting rules in RBO may modify the child node but not update the
-        //  parent node, resulting in the statistical cache calculated by the previous rules
-        //  not being refreshed, which may affect the calculation of statistical information in memo.
-        //  Just clear it before into memo.
-        tree.getInputs().get(0).clearStatsAndInitOutputInfo();
-        return tree.getInputs().get(0);
+        return tree;
     }
 
     private void rewriteGroupingSets(OptExpression tree, TaskContext rootTaskContext, SessionVariable sessionVariable) {

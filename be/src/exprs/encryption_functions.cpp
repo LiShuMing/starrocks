@@ -417,6 +417,44 @@ Status EncryptionFunctions::sha2_close(FunctionContext* context, FunctionContext
     return Status::OK();
 }
 
+// To distinguish between null and string values, we use a custom enum class.
+enum class RowFingerprintValueType : uint8_t { Null = 0, String = 1 };
+
+StatusOr<ColumnPtr> EncryptionFunctions::row_fingerprint(FunctionContext* ctx, const Columns& columns) {
+    auto column_viewers = std::vector<ColumnViewer<TYPE_VARCHAR>>();
+    for (const ColumnPtr& col : columns) {
+        column_viewers.emplace_back(col);
+    }
+
+    auto chunk_size = columns[0]->size();
+    std::vector<SHA256Digest> digests(chunk_size);
+    for (int row = 0; row < chunk_size; row++) {
+        digests[row] = SHA256Digest();
+    }
+
+    for (const auto& viewer : column_viewers) {
+        for (int row = 0; row < chunk_size; row++) {
+            if (viewer.is_null(row)) {
+                uint8_t t = static_cast<uint8_t>(RowFingerprintValueType::Null);
+                digests[row].update(&t, 1);
+            } else {
+                uint8_t t = static_cast<uint8_t>(RowFingerprintValueType::String);
+                digests[row].update(&t, 1);
+
+                auto value = viewer.value(row);
+                digests[row].update(value.data, value.size);
+            }
+        }
+    }
+
+    ColumnBuilder<TYPE_VARCHAR> result(chunk_size);
+    for (int row = 0; row < chunk_size; row++) {
+        digests[row].digest();
+        result.append(Slice(digests[row].hex().c_str(), digests[row].hex().size()));
+    }
+    return result.build(ColumnHelper::is_all_const(columns));
+}
+
 } // namespace starrocks
 
 #include "gen_cpp/opcode/EncryptionFunctions.inc"

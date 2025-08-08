@@ -1,0 +1,488 @@
+// Copyright 2021-present StarRocks, Inc. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License
+
+package com.starrocks.scheduler.mv;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Joiner;
+import com.google.common.base.Stopwatch;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.starrocks.catalog.BaseTableInfo;
+import com.starrocks.catalog.Column;
+import com.starrocks.catalog.Database;
+import com.starrocks.catalog.MaterializedView;
+import com.starrocks.catalog.OlapTable;
+import com.starrocks.catalog.PartitionInfo;
+import com.starrocks.catalog.ResourceGroup;
+import com.starrocks.catalog.Table;
+import com.starrocks.catalog.TableProperty;
+import com.starrocks.common.AnalysisException;
+import com.starrocks.common.Config;
+import com.starrocks.common.MaterializedViewExceptions;
+import com.starrocks.common.Pair;
+import com.starrocks.common.util.PropertyAnalyzer;
+import com.starrocks.common.util.concurrent.lock.LockParams;
+import com.starrocks.common.util.concurrent.lock.LockTimeoutException;
+import com.starrocks.common.util.concurrent.lock.LockType;
+import com.starrocks.common.util.concurrent.lock.Locker;
+import com.starrocks.metric.IMaterializedViewMetricsEntity;
+import com.starrocks.qe.ConnectContext;
+import com.starrocks.qe.SessionVariable;
+import com.starrocks.scheduler.Constants;
+import com.starrocks.scheduler.MvTaskRunContext;
+import com.starrocks.scheduler.TaskRun;
+import com.starrocks.scheduler.TaskRunContext;
+import com.starrocks.scheduler.persist.MVTaskRunExtraMessage;
+import com.starrocks.scheduler.persist.TaskRunStatus;
+import com.starrocks.server.GlobalStateMgr;
+import com.starrocks.sql.analyzer.MaterializedViewAnalyzer;
+import com.starrocks.sql.ast.InsertStmt;
+import com.starrocks.sql.ast.PartitionNames;
+import com.starrocks.sql.common.DmlException;
+import com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils;
+import com.starrocks.sql.parser.SqlParser;
+import com.starrocks.sql.plan.ExecPlan;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.logging.log4j.Logger;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+
+/**
+ * Base class for materialized view refresh processor.
+ */
+public abstract class BaseMVRefreshProcessor {
+    // session.enable_spill
+    protected static final String MV_SESSION_ENABLE_SPILL =
+            PropertyAnalyzer.PROPERTIES_MATERIALIZED_VIEW_SESSION_PREFIX + SessionVariable.ENABLE_SPILL;
+    // session.query_timeout. Deprecated, only for compatibility with old version
+    protected static final String MV_SESSION_QUERY_TIMEOUT =
+            PropertyAnalyzer.PROPERTIES_MATERIALIZED_VIEW_SESSION_PREFIX + SessionVariable.QUERY_TIMEOUT;
+    // session.insert_timeout
+    protected static final String MV_SESSION_INSERT_TIMEOUT =
+            PropertyAnalyzer.PROPERTIES_MATERIALIZED_VIEW_SESSION_PREFIX + SessionVariable.INSERT_TIMEOUT;
+
+    protected final Database db;
+    protected final MaterializedView mv;
+    protected final IMaterializedViewMetricsEntity mvEntity;
+    protected final MvTaskRunContext mvContext;
+    protected final Logger logger;
+    // Collect all bases tables of the mv to be updated meta after mv refresh success.
+    // format :     table id -> <base table info, snapshot table>
+    protected final MVPCTRefreshPartitioner mvRefreshPartitioner;
+    // for testing
+    protected TaskRun nextTaskRun = null;
+    // Collect all base table snapshot infos for the mv which the snapshot infos are kept
+    // and used in the final update meta stage
+    protected Map<Long, BaseTableSnapshotInfo> snapshotBaseTables = Maps.newHashMap();
+
+    /**
+     * A record to hold the exec plan and insert statement for a task run.
+     * @param state the state of the task run
+     * @param execPlan the execution plan for the task run
+     * @param insertStmt the insert statement for the task run
+     */
+    public record ProcessExecPlan(Constants.TaskRunState state,
+                                  ExecPlan execPlan,
+                                  InsertStmt insertStmt) {
+    }
+
+    public BaseMVRefreshProcessor(Database db, MaterializedView mv,
+                                  MvTaskRunContext mvContext,
+                                  IMaterializedViewMetricsEntity mvEntity,
+                                  Class<?> clazz) {
+        this.db = db;
+        this.mv = mv;
+        this.mvContext = mvContext;
+        this.mvEntity = mvEntity;
+        this.logger = MVTraceUtils.getLogger(mv, clazz);
+        // prepare mv refresh partitioner
+        this.mvRefreshPartitioner = buildMvRefreshPartitioner(mv, mvContext);
+    }
+
+    /**
+     * Get the process execution plan for the task run which can be used for explain or execution.
+     * @param taskRunContext the task run context which contains the task run information
+     * @return the process execution plan which contains the state, exec plan and insert statement
+     * @throws Exception if any error occurs during the process
+     */
+    public abstract ProcessExecPlan getProcessExecPlan(TaskRunContext taskRunContext) throws Exception;
+
+    /**
+     * Process the task run with the given context and executor.
+     * @param taskRunContext the task run context which contains the task run information
+     * @param executor the executor to execute the task run
+     * @return the state of the task run after processing
+     * @throws Exception if any error occurs during the process
+     */
+    public abstract Constants.TaskRunState doProcessTaskRun(TaskRunContext taskRunContext,
+                                                            MVRefreshExecutor executor) throws Exception;
+
+    /**
+     * Get the retry times for the mv refresh processor.
+     * @param connectContext the current connect context
+     * @return the retry times for the mv refresh processor, default is 1
+     */
+    public int getRetryTimes(ConnectContext connectContext) {
+        return 1;
+    }
+
+    /**
+     * Build a base table snapshot info for the given base table info and table, It can be different snapshot infos for
+     * different mv refresh processors.
+     * @param baseTableInfo the base table info to build the snapshot info
+     * @param table the table to build the snapshot info
+     * @return the base table snapshot info which contains the table id, table name and the snapshot table
+     */
+    protected abstract BaseTableSnapshotInfo buildBaseTableSnapshotInfo(BaseTableInfo baseTableInfo, Table table);
+
+
+    /**
+     * Create a mv refresh partitioner by the mv's partition info.
+     */
+    private MVPCTRefreshPartitioner buildMvRefreshPartitioner(MaterializedView mv, TaskRunContext context) {
+        PartitionInfo partitionInfo = mv.getPartitionInfo();
+        if (partitionInfo.isUnPartitioned()) {
+            return new MVPCTRefreshNonPartitioner(mvContext, context, db, mv);
+        } else if (partitionInfo.isRangePartition()) {
+            return new MVPCTRefreshRangePartitioner(mvContext, context, db, mv);
+        } else if (partitionInfo.isListPartition()) {
+            return new MVPCTRefreshListPartitioner(mvContext, context, db, mv);
+        } else {
+            throw new DmlException(String.format("materialized view:%s in database:%s refresh failed: partition info %s not " +
+                    "supported", mv.getName(), db.getFullName(), partitionInfo));
+        }
+    }
+
+    /**
+     * Get the next task run to be processed.
+     * @return the next task run to be processed, null if no next task run
+     */
+    public TaskRun getNextTaskRun() {
+        return nextTaskRun;
+    }
+
+    /**
+     * Get the materialized view task run context which contains the task run information.
+     */
+    @VisibleForTesting
+    public MvTaskRunContext getMvContext() {
+        return mvContext;
+    }
+
+    /**
+     * Change default connect context when for mv refresh this is because:
+     * - MV Refresh may take much resource to load base tables' data into the final materialized view.
+     * - Those changes are set by default and also able to be changed by users for their needs.
+     * @param mvConnectCtx the connect context for the materialized view refresh
+     */
+    protected void changeDefaultConnectContextIfNeeded(ConnectContext mvConnectCtx,
+                                                       Set<Table> baseTables) {
+        // add resource group if resource group is enabled
+        final TableProperty mvProperty = mv.getTableProperty();
+        final SessionVariable mvSessionVariable = mvConnectCtx.getSessionVariable();
+        if (mvSessionVariable.isEnableResourceGroup()) {
+            String rg = ResourceGroup.DEFAULT_MV_RESOURCE_GROUP_NAME;
+            if (mvProperty != null && !Strings.isNullOrEmpty(mvProperty.getResourceGroup())) {
+                rg = mvProperty.getResourceGroup();
+            }
+            mvSessionVariable.setResourceGroup(rg);
+        }
+
+        // enable spill by default for mv if spill is not set by default and
+        // `session.enable_spill` session variable is not set.
+        if (Config.enable_materialized_view_spill &&
+                !mvSessionVariable.isEnableSpill() &&
+                !mvProperty.getProperties().containsKey(MV_SESSION_ENABLE_SPILL)) {
+            mvSessionVariable.setEnableSpill(true);
+        }
+
+        if (!mvProperty.getProperties().containsKey(MV_SESSION_INSERT_TIMEOUT)
+                && mvProperty.getProperties().containsKey(MV_SESSION_QUERY_TIMEOUT)) {
+            // for compatibility
+            mvProperty.getProperties().put(MV_SESSION_INSERT_TIMEOUT, mvProperty.getProperties().get(MV_SESSION_QUERY_TIMEOUT));
+        }
+
+        // set insert_max_filter_ratio by default
+        if (!isMVPropertyContains(SessionVariable.INSERT_MAX_FILTER_RATIO)) {
+            mvSessionVariable.setInsertMaxFilterRatio(Config.mv_refresh_fail_on_filter_data ? 0 : 1);
+        }
+        // enable profile by default for mv refresh task
+        if (!isMVPropertyContains(SessionVariable.ENABLE_PROFILE) && !mvSessionVariable.isEnableProfile()) {
+            mvSessionVariable.setEnableProfile(Config.enable_mv_refresh_collect_profile);
+        }
+        // set the default new_planner_optimize_timeout for mv refresh
+        if (!isMVPropertyContains(SessionVariable.NEW_PLANNER_OPTIMIZER_TIMEOUT)) {
+            mvSessionVariable.setOptimizerExecuteTimeout(Config.mv_refresh_default_planner_optimize_timeout);
+        }
+        // set enable_materialized_view_rewrite by default
+        if (!isMVPropertyContains(SessionVariable.ENABLE_MATERIALIZED_VIEW_REWRITE) && Config.enable_mv_refresh_query_rewrite) {
+            // Only enable mv rewrite when there are more than one related mvs that can be rewritten by other mvs.
+            if (isEnableMVRefreshQueryRewrite(mvConnectCtx, baseTables)) {
+                mvSessionVariable.setEnableMaterializedViewRewrite(Config.enable_mv_refresh_query_rewrite);
+                mvSessionVariable.setEnableMaterializedViewRewriteForInsert(Config.enable_mv_refresh_query_rewrite);
+            }
+        }
+        // set nested_mv_rewrite_max_level by default, only rewrite one level
+        if (!isMVPropertyContains(SessionVariable.NESTED_MV_REWRITE_MAX_LEVEL)) {
+            mvSessionVariable.setNestedMvRewriteMaxLevel(1);
+        }
+        // always exclude the current mv name from rewrite
+        mvSessionVariable.setQueryExcludingMVNames(mv.getName());
+        mvConnectCtx.setUseConnectorMetadataCache(Optional.of(true));
+    }
+
+    private boolean isMVPropertyContains(String key) {
+        final String mvKey = PropertyAnalyzer.PROPERTIES_MATERIALIZED_VIEW_SESSION_PREFIX + key;
+        return mv.getTableProperty().getProperties().containsKey(mvKey);
+    }
+
+    private boolean isEnableMVRefreshQueryRewrite(ConnectContext ctx,
+                                                  Set<Table> baseTables) {
+        return MvUtils.getRelatedMvs(ctx, 1, baseTables).size() > 1;
+    }
+
+    /**
+     * Sync base table's partition infos to be used later.
+     */
+    protected boolean syncPartitions() throws AnalysisException, LockTimeoutException {
+        Stopwatch stopwatch = Stopwatch.createStarted();
+        // collect base table snapshot infos
+        this.snapshotBaseTables = collectBaseTableSnapshotInfos(mv);
+        // do sync partitions (add or drop partitions) for materialized view
+        boolean result = mvRefreshPartitioner.syncAddOrDropPartitions();
+        logger.info("finish sync partitions, cost(ms): {}", stopwatch.elapsed(TimeUnit.MILLISECONDS));
+        return result;
+    }
+
+    /**
+     * Build an AST for insert stmt
+     * @param ctx: connect context
+     * @param mvTargetPartitionNames: the partitions to be refreshed
+     */
+    protected InsertStmt generateInsertAst(ConnectContext ctx,
+                                           Set<String> mvTargetPartitionNames,
+                                           boolean isIVMRefresh) {
+        final String definition = isIVMRefresh ? mv.getIVMTaskDefinition() : mvContext.getDefinition();
+        final InsertStmt insertStmt =
+                (InsertStmt) SqlParser.parse(definition, ctx.getSessionVariable()).get(0);
+        // set target partitions
+        if (CollectionUtils.isNotEmpty(mvTargetPartitionNames)) {
+            insertStmt.setTargetPartitionNames(new PartitionNames(false, new ArrayList<>(mvTargetPartitionNames)));
+        }
+        // insert overwrite mv must set system = true
+        insertStmt.setSystem(true);
+        // if mv has set sort keys, materialized view's output columns
+        // may be different from the defined query's output.
+        // so set materialized view's defined outputs as target columns.
+        final List<Integer> queryOutputIndexes = mv.getQueryOutputIndices();
+        final List<Column> baseSchema = mv.getBaseSchemaWithoutGeneratedColumn();
+        if (queryOutputIndexes != null && baseSchema.size() == queryOutputIndexes.size()) {
+            final List<String> targetColumnNames = queryOutputIndexes.stream()
+                    .map(baseSchema::get)
+                    .map(Column::getName)
+                    .map(String::toLowerCase) // case insensitive
+                    .collect(Collectors.toList());
+            insertStmt.setTargetColumnNames(targetColumnNames);
+        }
+        if (logger.isDebugEnabled()) {
+            logger.debug("generate insert-overwrite statement, materialized view's target partition names:{}, " +
+                            "mv's target columns: {}, definition:{}",
+                    Joiner.on(",").join(mvTargetPartitionNames),
+                    insertStmt.getTargetColumnNames() == null ? "" : Joiner.on(",").join(insertStmt.getTargetColumnNames()),
+                    definition);
+        }
+        return insertStmt;
+    }
+
+    /**
+     * Update task run status's extra message to add more information for information_schema if possible.
+     * @param action: a consumer to update the task run status
+     */
+    protected void updateTaskRunStatus(Consumer<TaskRunStatus> action) {
+        if (this.mvContext == null || this.mvContext.getStatus() == null) {
+            return;
+        }
+        action.accept(this.mvContext.getStatus());
+    }
+
+    protected void refreshExternalTable(Map<BaseTableSnapshotInfo, Set<String>> baseTableCandidatePartitions) {
+        final List<Pair<Table, BaseTableInfo>> toRepairTables = new ArrayList<>();
+        // use it if refresh external table fails
+        final ConnectContext connectContext = mvContext.getCtx();
+        final List<BaseTableInfo> baseTableInfos = mv.getBaseTableInfos();
+        for (BaseTableInfo baseTableInfo : baseTableInfos) {
+            final Optional<Database> dbOpt =
+                    GlobalStateMgr.getCurrentState().getMetadataMgr().getDatabase(connectContext, baseTableInfo);
+            if (dbOpt.isEmpty()) {
+                logger.warn("database {} do not exist in refreshing materialized view", baseTableInfo.getDbInfoStr());
+                throw new DmlException("database " + baseTableInfo.getDbInfoStr() + " do not exist.");
+            }
+
+            final Optional<Table> optTable = MvUtils.getTable(baseTableInfo);
+            if (optTable.isEmpty()) {
+                logger.warn("table {} do not exist when refreshing materialized view", baseTableInfo.getTableInfoStr());
+                mv.setInactiveAndReason(
+                        MaterializedViewExceptions.inactiveReasonForBaseTableNotExists(baseTableInfo.getTableName()));
+                throw new DmlException("Materialized view base table: %s not exist.", baseTableInfo.getTableInfoStr());
+            }
+
+            // refresh old table
+            final Table table = optTable.get();
+            // if table is native table or materialized view or connector view or external table, no need to refresh
+            if (table.isNativeTableOrMaterializedView() || table.isView()
+                    || MaterializedViewAnalyzer.isExternalTableFromResource(table)) {
+                logger.debug("No need to refresh table:{} because it is native table or mv or connector view",
+                        baseTableInfo.getTableInfoStr());
+                continue;
+            }
+            final BaseTableSnapshotInfo snapshotInfo = buildBaseTableSnapshotInfo(baseTableInfo, table);
+            final Set<String> basePartitions = baseTableCandidatePartitions.get(snapshotInfo);
+            if (CollectionUtils.isNotEmpty(basePartitions)) {
+                // only refresh referenced partitions, to reduce metadata overhead
+                final List<String> realPartitionNames = basePartitions.stream()
+                        .flatMap(name -> mvContext.getExternalTableRealPartitionName(table, name).stream())
+                        .collect(Collectors.toList());
+                connectContext.getGlobalStateMgr().getMetadataMgr().refreshTable(baseTableInfo.getCatalogName(),
+                        baseTableInfo.getDbName(), table, realPartitionNames, false);
+            } else {
+                // refresh the whole table, which may be costly in extreme case
+                connectContext.getGlobalStateMgr().getMetadataMgr().refreshTable(baseTableInfo.getCatalogName(),
+                        baseTableInfo.getDbName(), table, Lists.newArrayList(), true);
+            }
+            // should clear query cache
+            connectContext.getGlobalStateMgr().getMetadataMgr().removeQueryMetadata();
+
+            // check new table
+            final Optional<Table> optNewTable = MvUtils.getTable(baseTableInfo);
+            if (optNewTable.isEmpty()) {
+                logger.warn("table {} does not exist after refreshing materialized view", baseTableInfo.getTableInfoStr());
+                mv.setInactiveAndReason(
+                        MaterializedViewExceptions.inactiveReasonForBaseTableNotExists(baseTableInfo.getTableName()));
+                throw new DmlException("Materialized view base table: %s not exist.", baseTableInfo.getTableInfoStr());
+            }
+
+            // only collect to-repair tables when the table is not the same as the old one by checking the table identifier
+            final Table newTable = optNewTable.get();
+            if (!baseTableInfo.getTableIdentifier().equals(table.getTableIdentifier())) {
+                toRepairTables.add(Pair.create(newTable, baseTableInfo));
+            }
+        }
+
+        // do repair if needed
+        if (!toRepairTables.isEmpty()) {
+            MVPCTMetaRepairer.repairMetaIfNeeded(db, mv, toRepairTables);
+        }
+    }
+
+    /**
+     * Collect all deduplicated databases of the materialized view's base tables.
+     * @param mv: the mv to check
+     * @return: the deduplicated databases of the materialized view's base tables,
+     * throw exception if the database does not exist.
+     */
+    protected LockParams collectDatabases(MaterializedView mv) {
+        final LockParams lockParams = new LockParams();
+        final ConnectContext connectContext = mvContext.getCtx();
+        for (BaseTableInfo baseTableInfo : mv.getBaseTableInfos()) {
+            Optional<Database> dbOpt = GlobalStateMgr.getCurrentState().getMetadataMgr()
+                    .getDatabase(connectContext, baseTableInfo);
+            if (dbOpt.isEmpty()) {
+                logger.warn("database {} do not exist", baseTableInfo.getDbInfoStr());
+                throw new DmlException("database " + baseTableInfo.getDbInfoStr() + " do not exist.");
+            }
+            Database db = dbOpt.get();
+            lockParams.add(db, baseTableInfo.getTableId());
+        }
+        return lockParams;
+    }
+
+    /**
+     * Collect all base table snapshot infos for the mv which the snapshot infos are kept and used in the final
+     * update meta phase.
+     * 1. deep copy of the base table's metadata may be time costing, we can optimize it later.
+     * 2. no needs to lock the base table's metadata since the metadata is not changed during the refresh process.
+     * @param mv the mv to collect
+     * @return the base table and its snapshot info map
+     */
+    @VisibleForTesting
+    public Map<Long, BaseTableSnapshotInfo> collectBaseTableSnapshotInfos(MaterializedView mv)
+            throws LockTimeoutException {
+        final Stopwatch stopwatch = Stopwatch.createStarted();
+        final List<BaseTableInfo> baseTableInfos = mv.getBaseTableInfos();
+        final LockParams lockParams = collectDatabases(mv);
+        final Locker locker = new Locker();
+        if (!locker.tryLockTableWithIntensiveDbLock(lockParams, LockType.READ, Config.mv_refresh_try_lock_timeout_ms,
+                TimeUnit.MILLISECONDS)) {
+            logger.warn("failed to lock database: {} in collectBaseTableSnapshotInfos for mv refresh", lockParams);
+            throw new LockTimeoutException("Failed to lock database: " + lockParams + " in collectBaseTableSnapshotInfos");
+        }
+
+        final Map<Long, BaseTableSnapshotInfo> tables = Maps.newHashMap();
+        try {
+            for (BaseTableInfo baseTableInfo : baseTableInfos) {
+                final Optional<Table> tableOpt = MvUtils.getTableWithIdentifier(baseTableInfo);
+                if (tableOpt.isEmpty()) {
+                    logger.warn("table {} doesn't exist", baseTableInfo.getTableInfoStr());
+                    throw new DmlException("Materialized view base table: %s not exist.",
+                            baseTableInfo.getTableInfoStr());
+                }
+
+                // NOTE: DeepCopy.copyWithGson is very time costing, use `copyOnlyForQuery` to reduce the cost.
+                // TODO: Implement a `SnapshotTable` later which can use the copied table or transfer to the real table.
+                final Table table = tableOpt.get();
+                if (table.isNativeTableOrMaterializedView()) {
+                    OlapTable copied = null;
+                    if (table.isOlapOrCloudNativeTable()) {
+                        copied = new OlapTable();
+                    } else {
+                        copied = new MaterializedView();
+                    }
+                    final OlapTable olapTable = (OlapTable) table;
+                    olapTable.copyOnlyForQuery(copied);
+                    tables.put(table.getId(), buildBaseTableSnapshotInfo(baseTableInfo, copied));
+                } else if (table.isView()) {
+                    // skip to collect snapshots for views
+                } else {
+                    // for other table types, use the table directly which needs to lock if visits the table metadata.
+                    tables.put(table.getId(), buildBaseTableSnapshotInfo(baseTableInfo, table));
+                }
+            }
+        } finally {
+            locker.unLockTableWithIntensiveDbLock(lockParams, LockType.READ);
+        }
+        logger.info("collect base table snapshot infos cost: {} ms", stopwatch.elapsed(TimeUnit.MILLISECONDS));
+        return tables;
+    }
+
+    /**
+     * Get the MVTaskRunExtraMessage from the mv context's status.
+     * @return the MVTaskRunExtraMessage if exists, null otherwise
+     */
+    @VisibleForTesting
+    public MVTaskRunExtraMessage getMVTaskRunExtraMessage() {
+        if (this.mvContext.getStatus() == null) {
+            return null;
+        }
+        return this.mvContext.getStatus().getMvTaskRunExtraMessage();
+    }
+}

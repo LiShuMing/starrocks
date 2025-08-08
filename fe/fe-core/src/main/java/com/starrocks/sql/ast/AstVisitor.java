@@ -203,6 +203,10 @@ public interface AstVisitor<R, C> {
         return visitDDLStatement(statement, context);
     }
 
+    default R visitCreateStreamTableStatement(CreateStreamStmt statement, C context) {
+        return visitDDLStatement(statement, context);
+    }
+
     default R visitDropTableStatement(DropTableStmt statement, C context) {
         return visitDDLStatement(statement, context);
     }

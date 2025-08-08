@@ -305,6 +305,7 @@ public class MvUtils {
         }
     }
 
+    // TODO: rename to getScanOperators
     public static List<LogicalScanOperator> getScanOperator(OptExpression root) {
         List<LogicalScanOperator> scanOperators = Lists.newArrayList();
         getScanOperator(root, scanOperators);

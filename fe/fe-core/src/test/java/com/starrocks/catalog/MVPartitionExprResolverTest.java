@@ -26,11 +26,11 @@ import com.starrocks.common.util.UUIDUtil;
 import com.starrocks.mv.analyzer.MVPartitionExpr;
 import com.starrocks.mv.analyzer.MVPartitionExprResolver;
 import com.starrocks.qe.StmtExecutor;
-import com.starrocks.scheduler.PartitionBasedMvRefreshProcessor;
 import com.starrocks.scheduler.Task;
 import com.starrocks.scheduler.TaskBuilder;
 import com.starrocks.scheduler.TaskRun;
 import com.starrocks.scheduler.TaskRunBuilder;
+import com.starrocks.scheduler.mv.PartitionBasedMvRefreshProcessor;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.ast.QueryStatement;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.MVTestBase;
@@ -262,7 +262,7 @@ public class MVPartitionExprResolverTest extends MVTestBase {
                     TaskRun taskRun = TaskRunBuilder.newBuilder(task).build();
                     taskRun.initStatus(UUIDUtil.genUUID().toString(), System.currentTimeMillis());
                     taskRun.executeTaskRun();
-                    PartitionBasedMvRefreshProcessor processor = (PartitionBasedMvRefreshProcessor) taskRun.getProcessor();
+                    PartitionBasedMvRefreshProcessor processor = getPartitionBasedRefreshProcessor(taskRun);
                     Map<Table, Set<String>> baseTables = getRefTableRefreshedPartitions(processor);
                     Assertions.assertEquals(2, baseTables.size());
                     Assertions.assertEquals(Sets.newHashSet("p20220101"), baseTables.get(
@@ -309,7 +309,7 @@ public class MVPartitionExprResolverTest extends MVTestBase {
                     new StmtExecutor(connectContext, SqlParser.parseSingleStatement(
                             insertSql, connectContext.getSessionVariable().getSqlMode())).execute();
                     taskRun.executeTaskRun();
-                    PartitionBasedMvRefreshProcessor processor = (PartitionBasedMvRefreshProcessor) taskRun.getProcessor();
+                    PartitionBasedMvRefreshProcessor processor = getPartitionBasedRefreshProcessor(taskRun);
                     Assertions.assertEquals(Sets.newHashSet("p202202_202203"),
                             processor.getMVTaskRunExtraMessage().getMvPartitionsToRefresh());
                     Assertions.assertEquals("{tbl15=[p20220202, p20220201], tbl16=[p20220202, p20220201]}",
@@ -341,8 +341,7 @@ public class MVPartitionExprResolverTest extends MVTestBase {
                     {
                         taskRun.initStatus(UUIDUtil.genUUID().toString(), System.currentTimeMillis());
                         taskRun.executeTaskRun();
-                        PartitionBasedMvRefreshProcessor processor =
-                                (PartitionBasedMvRefreshProcessor) taskRun.getProcessor();
+                        PartitionBasedMvRefreshProcessor processor = getPartitionBasedRefreshProcessor(taskRun);
                         Map<Table, Set<String>> baseTables = getRefTableRefreshedPartitions(processor);
                         Assertions.assertEquals(2, baseTables.size());
                         Assertions.assertEquals(Sets.newHashSet("p20220101"),
@@ -360,8 +359,8 @@ public class MVPartitionExprResolverTest extends MVTestBase {
                         new StmtExecutor(connectContext, SqlParser.parseSingleStatement(
                                 insertSql, connectContext.getSessionVariable().getSqlMode())).execute();
                         taskRun.executeTaskRun();
-                        PartitionBasedMvRefreshProcessor processor =
-                                (PartitionBasedMvRefreshProcessor) taskRun.getProcessor();
+
+                        PartitionBasedMvRefreshProcessor processor = getPartitionBasedRefreshProcessor(taskRun);
                         // 1. updated partition of tbl16 is p20220202
                         // 2. date_trunc('month', p20220202) is '2022-02'
                         // 3. tbl15's associated partitions are p20220201 and p20220202
@@ -399,8 +398,8 @@ public class MVPartitionExprResolverTest extends MVTestBase {
                         executeInsertSql(connectContext, "insert into tbl1 partition(p2) values('2022-02-02', 3, 10);");
                         taskRun.initStatus(UUIDUtil.genUUID().toString(), System.currentTimeMillis());
                         taskRun.executeTaskRun();
-                        PartitionBasedMvRefreshProcessor processor =
-                                (PartitionBasedMvRefreshProcessor) taskRun.getProcessor();
+
+                        PartitionBasedMvRefreshProcessor processor = getPartitionBasedRefreshProcessor(taskRun);
                         Assertions.assertEquals(Sets.newHashSet("p2"),
                                 processor.getMVTaskRunExtraMessage().getMvPartitionsToRefresh());
                         ExecPlan execPlan = processor.getMvContext().getExecPlan();
@@ -413,8 +412,7 @@ public class MVPartitionExprResolverTest extends MVTestBase {
                         executeInsertSql(connectContext, "insert into tbl2 partition(p2) values('2022-02-02', 3, 10);");
                         taskRun.initStatus(UUIDUtil.genUUID().toString(), System.currentTimeMillis());
                         taskRun.executeTaskRun();
-                        PartitionBasedMvRefreshProcessor processor =
-                                (PartitionBasedMvRefreshProcessor) taskRun.getProcessor();
+                        PartitionBasedMvRefreshProcessor processor = getPartitionBasedRefreshProcessor(taskRun);
                         ExecPlan execPlan = processor.getMvContext().getExecPlan();
                         Assertions.assertTrue(execPlan != null);
                         assertPlanContains(execPlan, "partitions=5/5\n     rollup: tbl1",
@@ -467,7 +465,8 @@ public class MVPartitionExprResolverTest extends MVTestBase {
                             "insert into tbl15 partition(p20220202) values('2022-02-02', 3, 10);",
                             connectContext.getSessionVariable().getSqlMode())).execute();
                     taskRun.executeTaskRun();
-                    PartitionBasedMvRefreshProcessor processor = (PartitionBasedMvRefreshProcessor) taskRun.getProcessor();
+
+                    PartitionBasedMvRefreshProcessor processor = getPartitionBasedRefreshProcessor(taskRun);
                     Assertions.assertEquals(Sets.newHashSet("p202201_202202", "p202202_202203"),
                             processor.getMVTaskRunExtraMessage().getMvPartitionsToRefresh());
                     Assertions.assertEquals("{tbl15=[p20220103, p20220202, p20220102, p20220201, p20220101]}",
@@ -504,7 +503,8 @@ public class MVPartitionExprResolverTest extends MVTestBase {
 
                     executeInsertSql(connectContext, "insert into tbl2 partition(p1) values('2022-01-02', 3, 10);");
                     taskRun.executeTaskRun();
-                    PartitionBasedMvRefreshProcessor processor = (PartitionBasedMvRefreshProcessor) taskRun.getProcessor();
+
+                    PartitionBasedMvRefreshProcessor processor = getPartitionBasedRefreshProcessor(taskRun);
                     Set<String> mvPartitionsToRefresh = processor.getMVTaskRunExtraMessage().getMvPartitionsToRefresh();
                     System.out.println(mvPartitionsToRefresh);
                     Assertions.assertTrue(mvPartitionsToRefresh.contains("p20220101_20220102"));
@@ -622,7 +622,8 @@ public class MVPartitionExprResolverTest extends MVTestBase {
 
                     executeInsertSql(connectContext, "insert into tbl2 partition(p1) values('2022-01-02', 3, 10);");
                     taskRun.executeTaskRun();
-                    PartitionBasedMvRefreshProcessor processor = (PartitionBasedMvRefreshProcessor) taskRun.getProcessor();
+
+                    PartitionBasedMvRefreshProcessor processor = getPartitionBasedRefreshProcessor(taskRun);
                     Assertions.assertEquals(Sets.newHashSet("p1"),
                             processor.getMVTaskRunExtraMessage().getMvPartitionsToRefresh());
                     Assertions.assertEquals("{tbl2=[p1], tbl1=[p1]}",

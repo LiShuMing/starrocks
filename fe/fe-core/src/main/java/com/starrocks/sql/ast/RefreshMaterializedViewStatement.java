@@ -39,7 +39,8 @@ public class RefreshMaterializedViewStatement extends DdlStmt {
 
     public RefreshMaterializedViewStatement(TableName mvName,
                                             EitherOr<PartitionRangeDesc, Set<PListCell>> partitionDesc,
-                                            boolean forceRefresh, boolean isSync, Integer priority, NodePosition pos) {
+                                            boolean forceRefresh, boolean isSync, Integer priority,
+                                            NodePosition pos) {
         super(pos);
         this.mvName = mvName;
         this.partitionDesc = partitionDesc;
@@ -86,4 +87,5 @@ public class RefreshMaterializedViewStatement extends DdlStmt {
     public Integer getPriority() {
         return priority;
     }
+
 }

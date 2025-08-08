@@ -46,6 +46,7 @@ import com.starrocks.common.MaterializedViewExceptions;
 import com.starrocks.common.Pair;
 import com.starrocks.common.io.DeepCopy;
 import com.starrocks.common.io.Text;
+import com.starrocks.common.tvr.TvrVersionRange;
 import com.starrocks.common.util.DateUtils;
 import com.starrocks.common.util.PropertyAnalyzer;
 import com.starrocks.common.util.TimeUtils;
@@ -171,6 +172,45 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
         ADAPTIVE
     }
 
+    /**
+     * Refresh mode for materialized view.
+     */
+    public enum RefreshMode {
+        /**
+         * AUTO: Automatically determine the refresh mode based on the materialized view's properties.
+         */
+        AUTO,
+        /**
+         * PCT: Partition-based refresh mode(partition-change-tracking), only refresh the partitions that have changed since
+         * the last refresh.
+         */
+        PCT,
+        /**
+         * FULL: Full refresh mode, refresh all partitions of the materialized view.
+         */
+        FULL,
+        /**
+         * INCREMENTAL: Incremental refresh mode, only refresh the incremental changed rows since the last refresh.
+         */
+        INCREMENTAL;
+
+        public static RefreshMode defaultValue() {
+            return PCT;
+        }
+
+        public boolean isAuto() {
+            return this == AUTO;
+        }
+
+        public boolean isIncremental() {
+            return this == INCREMENTAL;
+        }
+
+        public boolean isFull() {
+            return this == FULL;
+        }
+    }
+
     @Override
     public boolean getUseFastSchemaEvolution() {
         return false;
@@ -274,6 +314,12 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
         @SerializedName("mvPartitionNameRefBaseTablePartitionMap")
         private final Map<String, Set<String>> mvPartitionNameRefBaseTablePartitionMap;
 
+        @SerializedName("baseTableInfoTvrVersionRangeMap")
+        private final Map<BaseTableInfo, TvrVersionRange> baseTableInfoTvrDeltaMap = Maps.newConcurrentMap();
+
+        @SerializedName("tempBaseTableInfoTvrVersionRangeMap")
+        private final Map<BaseTableInfo, TvrVersionRange> tempBaseTableInfoTvrDeltaMap = Maps.newConcurrentMap();
+
         @SerializedName(value = "defineStartTime")
         private boolean defineStartTime;
 
@@ -311,6 +357,23 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
 
         public Map<String, Set<String>> getMvPartitionNameRefBaseTablePartitionMap() {
             return mvPartitionNameRefBaseTablePartitionMap;
+        }
+
+        public Map<BaseTableInfo, TvrVersionRange> getBaseTableInfoTvrVersionRangeMap() {
+            return baseTableInfoTvrDeltaMap;
+        }
+
+        public Map<BaseTableInfo, TvrVersionRange> getTempBaseTableInfoTvrDeltaMap() {
+            return tempBaseTableInfoTvrDeltaMap;
+        }
+
+        public void clearTempBaseTableInfoTvrDeltaMap() {
+            this.tempBaseTableInfoTvrDeltaMap.clear();
+        }
+
+        public void replaceWithTempBaseTableInfoTvrDeltaMap() {
+            this.baseTableInfoTvrDeltaMap.putAll(tempBaseTableInfoTvrDeltaMap);
+            this.clearTempBaseTableInfoTvrDeltaMap();
         }
 
         public void clearVisibleVersionMap() {
@@ -368,6 +431,8 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
             AsyncRefreshContext arc = new AsyncRefreshContext();
             arc.baseTableVisibleVersionMap.putAll(this.baseTableVisibleVersionMap);
             arc.baseTableInfoVisibleVersionMap.putAll(this.baseTableInfoVisibleVersionMap);
+            arc.baseTableInfoTvrDeltaMap.putAll(this.baseTableInfoTvrDeltaMap);
+            arc.tempBaseTableInfoTvrDeltaMap.putAll(this.tempBaseTableInfoTvrDeltaMap);
             arc.mvPartitionNameRefBaseTablePartitionMap.putAll(this.mvPartitionNameRefBaseTablePartitionMap);
             arc.defineStartTime = this.defineStartTime;
             arc.startTime = this.startTime;
@@ -498,6 +563,9 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
     // This is the original user's view define SQL which can be used to generate ast key in text based rewrite.
     @SerializedName(value = "originalViewDefineSql")
     private String originalViewDefineSql;
+    // This is the rewritten view define SQL which is used to generate IVM refresh tasks.
+    @SerializedName(value = "ivmDefineSql")
+    private String ivmDefineSql;
     // This is the original database name when the mv is created.
     private String originalDBName;
     // Deprecated field which is used to store single partition ref table exprs of the mv in old version.
@@ -686,6 +754,15 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
         this.originalViewDefineSql = originalViewDefineSql;
     }
 
+    public String setIvmDefineSql(String ivmDefineSql) {
+        this.ivmDefineSql = ivmDefineSql;
+        return this.ivmDefineSql;
+    }
+
+    public String getIvmDefineSql() {
+        return ivmDefineSql;
+    }
+
     public String getOriginalDBName() {
         return originalDBName;
     }
@@ -696,6 +773,14 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
 
     public String getTaskDefinition() {
         return String.format("insert overwrite `%s` %s", getName(), getViewDefineSql());
+    }
+
+    public String getIVMTaskDefinition() {
+        String ivmDefineSql = getIvmDefineSql();
+        if (Strings.isNullOrEmpty(ivmDefineSql)) {
+            ivmDefineSql = getViewDefineSql();
+        }
+        return String.format("INSERT INTO `%s` %s", getName(), ivmDefineSql);
     }
 
     /**
@@ -795,6 +880,10 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
 
     public void setReloaded(boolean reloaded) {
         this.reloaded = reloaded;
+    }
+
+    public RefreshMode getRefreshMode() {
+        return RefreshMode.valueOf(tableProperty.getMvRefreshMode().toUpperCase());
     }
 
     /**

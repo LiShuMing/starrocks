@@ -35,7 +35,7 @@ import com.starrocks.sql.parser.NodePosition;
 import java.util.Arrays;
 import java.util.List;
 
-import static com.starrocks.catalog.FunctionSet.AGG_STATE_SUFFIX;
+import static com.starrocks.catalog.FunctionSet.STATE_SUFFIX;
 
 public class AggStateRewriteEquivalent extends IAggregateRewriteEquivalent {
     public static IAggregateRewriteEquivalent INSTANCE = new AggStateRewriteEquivalent();
@@ -71,7 +71,7 @@ public class AggStateRewriteEquivalent extends IAggregateRewriteEquivalent {
             return null;
         }
         String argStateName = argCall0.getFnName();
-        if (argStateName == null || !argStateName.endsWith(AGG_STATE_SUFFIX)) {
+        if (argStateName == null || !argStateName.endsWith(STATE_SUFFIX)) {
             return null;
         }
         if (argCall0.getType().getAggStateDesc() == null) {

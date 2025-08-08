@@ -49,6 +49,7 @@ import com.starrocks.catalog.IcebergTable;
 import com.starrocks.catalog.Index;
 import com.starrocks.catalog.InternalCatalog;
 import com.starrocks.catalog.JDBCTable;
+import com.starrocks.catalog.KeysType;
 import com.starrocks.catalog.ListPartitionInfo;
 import com.starrocks.catalog.MaterializedView;
 import com.starrocks.catalog.MysqlTable;
@@ -76,6 +77,7 @@ import com.starrocks.qe.ConnectContext;
 import com.starrocks.qe.SqlModeHelper;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.server.RunMode;
+import com.starrocks.sql.analyzer.mv.IVMAnalyzer;
 import com.starrocks.sql.ast.AlterMaterializedViewStmt;
 import com.starrocks.sql.ast.AstVisitor;
 import com.starrocks.sql.ast.CancelRefreshMaterializedViewStmt;
@@ -107,6 +109,7 @@ import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
 import com.starrocks.sql.optimizer.rewrite.ScalarOperatorRewriter;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils;
+import com.starrocks.sql.optimizer.rule.tvr.TvrOpUtils;
 import com.starrocks.sql.optimizer.transformer.ExpressionMapping;
 import com.starrocks.sql.optimizer.transformer.LogicalPlan;
 import com.starrocks.sql.optimizer.transformer.OptExprBuilder;
@@ -343,6 +346,17 @@ public class MaterializedViewAnalyzer {
             statement.setOriginalViewDefineSql(originalViewDef.substring(statement.getQueryStartIndex(),
                     statement.getQueryStopIndex()));
 
+            Optional<QueryStatement> optIvmQueryStatement = IVMAnalyzer.rewrite(context, statement);
+            if (optIvmQueryStatement.isPresent()) {
+                queryStatement = optIvmQueryStatement.get();
+                // re-analyze again
+                Analyzer.analyze(queryStatement, context);
+                statement.setIvmViewDef(AstToSQLBuilder.buildSimple(queryStatement));
+                statement.setQueryStatement(queryStatement);
+                // use primary key as default keys type for ivm
+                statement.setKeysType(KeysType.PRIMARY_KEYS);
+            }
+
             // collect table from query statement
 
             if (!InternalCatalog.isFromDefault(statement.getTableName())) {
@@ -366,7 +380,10 @@ public class MaterializedViewAnalyzer {
             statement.setBaseTableInfos(Lists.newArrayList(baseTableInfos));
 
             // set the columns into createMaterializedViewStatement
-            List<Pair<Column, Integer>> mvColumnPairs = genMaterializedViewColumns(statement);
+            List<ColWithComment> colWithComments = statement.getColWithComments();
+            List<String> keyCols = statement.getSortKeys();
+            List<Pair<Column, Integer>> mvColumnPairs = genMaterializedViewColumns(statement.getKeysType(),
+                    queryStatement, colWithComments, keyCols);
             List<Column> mvColumns = mvColumnPairs.stream().map(pair -> pair.first).collect(Collectors.toList());
             statement.setMvColumnItems(mvColumns);
 
@@ -414,7 +431,7 @@ public class MaterializedViewAnalyzer {
                 checkMVListPartitionExpr(statement, aliasTableMap);
             }
             // check and analyze distribution
-            checkDistribution(statement, aliasTableMap);
+            checkDistribution(context, statement, aliasTableMap);
 
             planMVQuery(statement, queryStatement, context);
             return null;
@@ -563,18 +580,21 @@ public class MaterializedViewAnalyzer {
 
         /**
          * NOTE: order or column names of the defined query may be changed when generating.
-         *
-         * @param statement : creating materialized view statement
          * @return : Generate materialized view's columns and corresponding output expression index pair
          * from creating materialized view statement.
          */
-        private List<Pair<Column, Integer>> genMaterializedViewColumns(CreateMaterializedViewStatement statement) {
-            List<String> columnNames = statement.getQueryStatement().getQueryRelation()
+        private List<Pair<Column, Integer>> genMaterializedViewColumns(KeysType keysType,
+                                                                       QueryStatement queryStatement,
+                                                                       List<ColWithComment> colWithComments,
+                                                                       List<String> keyCols) {
+            // note: PRIMARY_KEYS uses REPLACE aggregate type for now
+            AggregateType aggregateType = keysType == KeysType.DUP_KEYS ?
+                    AggregateType.NONE : AggregateType.REPLACE;
+            List<String> columnNames = queryStatement.getQueryRelation()
                     .getRelationFields().getAllFields().stream()
                     .map(Field::getName).collect(Collectors.toList());
-            Scope queryScope = statement.getQueryStatement().getQueryRelation().getScope();
+            Scope queryScope = queryStatement.getQueryRelation().getScope();
             List<Field> relationFields = queryScope.getRelationFields().getAllFields();
-            List<ColWithComment> colWithComments = statement.getColWithComments();
             if (colWithComments != null) {
                 if (colWithComments.size() != relationFields.size()) {
                     ErrorReport.reportSemanticException(ErrorCode.ERR_VIEW_WRONG_LIST);
@@ -587,20 +607,29 @@ public class MaterializedViewAnalyzer {
             for (int i = 0; i < relationFields.size(); ++i) {
                 Type type = AnalyzerUtils.transformTableColumnType(relationFields.get(i).getType(), false);
                 String colName = columnNames.get(i);
+                boolean colNullable = relationFields.get(i).isNullable();
+                if (TvrOpUtils.COLUMN_ROW_ID.equalsIgnoreCase(colName)) {
+                    colNullable = false;
+                }
                 if (colWithComments != null) {
                     colName = colWithComments.get(i).getColName();
                 }
-                Column column = new Column(colName, type, relationFields.get(i).isNullable());
+                Column column = new Column(colName, type, colNullable);
+                if (TvrOpUtils.COLUMN_ROW_ID.equalsIgnoreCase(colName)) {
+                    column.setIsKey(true);
+                }
                 if (colWithComments != null) {
                     column.setComment(colWithComments.get(i).getComment());
                 }
+
                 // set default aggregate type, look comments in class Column
-                column.setAggregationType(AggregateType.NONE, false);
+                if (!column.isKey()) {
+                    column.setAggregationType(aggregateType, true);
+                }
                 mvColumns.add(column);
             }
 
             // set duplicate key, when sort key is set, it is dup key col.
-            List<String> keyCols = statement.getSortKeys();
             if (CollectionUtils.isEmpty(keyCols)) {
                 keyCols = chooseSortKeysByDefault(mvColumns);
             }
@@ -635,7 +664,7 @@ public class MaterializedViewAnalyzer {
                     throw new SemanticException("Type %s cannot be sort key: %s", keyColType, columnName);
                 }
                 keyColumn.setIsKey(true);
-                keyColumn.setAggregationType(null, false);
+                keyColumn.setAggregationType(null, true);
 
                 reorderedColumns.add(columnPair);
                 usedColumns.add(columnName);
@@ -1466,7 +1495,8 @@ public class MaterializedViewAnalyzer {
             }
         }
 
-        private void checkDistribution(CreateMaterializedViewStatement statement,
+        private void checkDistribution(ConnectContext connectContext,
+                                       CreateMaterializedViewStatement statement,
                                        Map<TableName, Table> tableNameTableMap) {
             DistributionDesc distributionDesc = statement.getDistributionDesc();
             List<Column> mvColumnItems = statement.getMvColumnItems();
@@ -1478,16 +1508,35 @@ public class MaterializedViewAnalyzer {
             if (!properties.containsKey(PropertyAnalyzer.PROPERTIES_REPLICATION_NUM)) {
                 properties.put(PropertyAnalyzer.PROPERTIES_REPLICATION_NUM,
                         autoInferReplicationNum(tableNameTableMap).toString());
+
             }
+            // If the key type is primary key, the distribution must be hash distribution.
+            if (distributionDesc != null && KeysType.PRIMARY_KEYS.equals(statement.getKeysType()) &&
+                    distributionDesc instanceof RandomDistributionDesc) {
+                throw new SemanticException("PRIMARY KEY must use hash distribution");
+            }
+
             if (distributionDesc == null) {
-                if (ConnectContext.get().getSessionVariable().isAllowDefaultPartition()) {
-                    distributionDesc = new HashDistributionDesc(0,
-                            Lists.newArrayList(mvColumnItems.get(0).getName()));
+                if (KeysType.PRIMARY_KEYS.equals(statement.getKeysType())) {
+                    // if the mv is primary key, we use hash distribution with all key columns.
+                    List<String> keyColNames = statement.getMvColumnItems()
+                            .stream()
+                            .filter(col -> col.isKey())
+                            .map(Column::getName)
+                            .collect(Collectors.toList());
+                    distributionDesc = new HashDistributionDesc(0, keyColNames);
                 } else {
-                    distributionDesc = new RandomDistributionDesc();
+                    if (connectContext.getSessionVariable().isAllowDefaultPartition()) {
+                        distributionDesc = new HashDistributionDesc(0,
+                                Lists.newArrayList(mvColumnItems.get(0).getName()));
+                    } else {
+                        distributionDesc = new RandomDistributionDesc();
+                    }
                 }
                 statement.setDistributionDesc(distributionDesc);
             }
+
+
             Set<String> columnSet = Sets.newTreeSet(String.CASE_INSENSITIVE_ORDER);
             for (Column columnDef : mvColumnItems) {
                 if (!columnSet.add(columnDef.getName())) {

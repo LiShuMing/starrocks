@@ -185,6 +185,26 @@ public class AggStateUtils {
             } else {
                 result = AggStateCombinator.of(aggFunc);
             }
+        } else if (func instanceof AggStateCombineCombinator) {
+            // correct aggregate function for type correction
+            // `_state`'s input types are the same with inputs' types.
+            String aggFuncName = AggStateUtils.getAggFuncNameOfCombinator(func.functionName());
+            Function argFn = FunctionAnalyzer.getAnalyzedAggregateFunction(session, aggFuncName,
+                    params, argumentTypes, argumentIsConstants, pos);
+            if (argFn == null) {
+                return null;
+            }
+            if (!(argFn instanceof AggregateFunction aggFunc)) {
+                return null;
+            }
+            if (aggFunc.getNumArgs() == 1) {
+                // only copy argument if it's a decimal type
+                AggregateFunction argFnCopy = (AggregateFunction) aggFunc.copy();
+                argFnCopy.setArgsType(argumentTypes);
+                result = AggStateCombineCombinator.of(argFnCopy);
+            } else {
+                result = AggStateCombineCombinator.of(aggFunc);
+            }
         } else if (func instanceof StateMergeCombinator) {
             AggregateFunction argFn = getAggStateFunction(session, func, argumentTypes, pos);
             if (argFn == null) {
@@ -323,4 +343,9 @@ public class AggStateUtils {
     public static String stateMergeFunctionName(String aggFuncName) {
         return aggFuncName + FunctionSet.STATE_MERGE_SUFFIX;
     }
+
+    public static String aggStateCombineFunctionName(String aggFuncName) {
+        return aggFuncName  + FunctionSet.AGG_STATE_COMBINE_SUFFIX;
+    }
+
 }

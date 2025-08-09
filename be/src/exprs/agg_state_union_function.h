@@ -39,13 +39,7 @@ class AggStateUnionFunction final : public AggStateBaseFunction {
 public:
     AggStateUnionFunction(AggStateDesc agg_state_desc, TypeDescriptor immediate_type, std::vector<bool> arg_nullables)
             : AggStateBaseFunction(std::move(agg_state_desc), std::move(immediate_type), std::move(arg_nullables)) {
-        _mem_pool = std::make_unique<MemPool>();
         VLOG_ROW << "AggStateUnionFunction constructor:" << _agg_state_desc.debug_string();
-    }
-
-    ~AggStateUnionFunction() {
-        _mem_pool->free_all();
-        _mem_pool.reset();
     }
 
     StatusOr<ColumnPtr> execute(FunctionContext* context, const Columns& columns) override {
@@ -72,29 +66,27 @@ public:
         auto state_size = ALIGN_TO(_function->size(), align_size);
         ColumnPtr result = ColumnHelper::create_column(_immediate_type, _agg_state_desc.is_result_nullable());
         // allocate the agg_state
-        VLOG(1) << "allocate " << chunk_size << " rows, align_size=" << align_size << ", state_size=" << state_size;
-        AggDataPtr agg_state = _mem_pool->allocate(state_size);
+        AggDataPtr agg_state = reinterpret_cast<AggDataPtr>(std::aligned_alloc(align_size, state_size));
+        if (UNLIKELY(agg_state == nullptr)) {
+            return Status::InternalError("Failed to allocate memory for aggregate state");
+        }
         for (size_t i = 0; i < chunk_size; i++) {
             _function->create(context, agg_state);
 
             // merge input agg states into result
             for (size_t j = 0; j < new_columns.size(); j++) {
-                VLOG(1) << "merge " << i << "th row " << j << "th column";
                 _function->merge(context, new_columns[j].get(), agg_state, i);
             }
             // serialize the agg_state into result
-            VLOG(1) << "serialize " << i << "th row";
             _function->serialize_to_column(context, agg_state, result.get());
+
+            // destroy the agg_state
+            _function->destroy(context, agg_state);
         }
-        // destroy the agg_state
-        VLOG(1) << "destroy " << chunk_size << "th row";
-        _function->destroy(context, agg_state);
+        std::free(agg_state);
 
         return result;
     }
-
-private:
-    std::unique_ptr<MemPool> _mem_pool;
 };
 
 } // namespace starrocks

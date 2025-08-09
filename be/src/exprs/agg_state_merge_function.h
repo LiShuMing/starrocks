@@ -40,12 +40,6 @@ public:
     AggStateMergeFunction(AggStateDesc agg_state_desc, TypeDescriptor immediate_type, std::vector<bool> arg_nullables)
             : AggStateBaseFunction(std::move(agg_state_desc), std::move(immediate_type), std::move(arg_nullables)) {
         VLOG_ROW << "AggStateMergeFunction constructor:" << _agg_state_desc.debug_string();
-        _mem_pool = std::make_unique<MemPool>();
-    }
-
-    ~AggStateMergeFunction() {
-        _mem_pool->free_all();
-        _mem_pool.reset();
     }
 
     StatusOr<ColumnPtr> execute(FunctionContext* context, const Columns& columns) override {
@@ -71,7 +65,10 @@ public:
         // finalize agg states into result
         auto align_size = _function->alignof_size();
         auto state_size = ALIGN_TO(_function->size(), align_size);
-        AggDataPtr agg_state = _mem_pool->allocate(state_size);
+        AggDataPtr agg_state = reinterpret_cast<AggDataPtr>(std::aligned_alloc(align_size, state_size));
+        if (UNLIKELY(agg_state == nullptr)) {
+            return Status::InternalError("Failed to allocate memory for aggregate state");
+        }
         for (size_t i = 0; i < chunk_size; i++) {
             if (new_column->is_null(i)) {
                 result->append_nulls(1);
@@ -82,11 +79,9 @@ public:
             _function->finalize_to_column(context, agg_state, result.get());
             _function->destroy(context, agg_state);
         }
+        std::free(agg_state);
         return result;
     }
-
-private:
-    std::unique_ptr<MemPool> _mem_pool;
 };
 
 } // namespace starrocks

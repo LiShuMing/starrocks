@@ -30,6 +30,7 @@
 #include "exec/limited_pipeline_chunk_buffer.h"
 #include "exec/pipeline/operator.h"
 #include "exec/spill/spiller.hpp"
+#include "exprs/agg/agg_state_combine.h"
 #include "exprs/agg/agg_state_if.h"
 #include "exprs/agg/agg_state_merge.h"
 #include "exprs/agg/agg_state_union.h"
@@ -48,6 +49,7 @@ static const std::unordered_set<std::string> ALWAYS_NULLABLE_RESULT_AGG_FUNCS = 
         "variance_samp", "var_samp", "stddev_samp", "covar_samp", "corr", "max_by_v2", "min_by_v2"};
 
 static const std::string AGG_STATE_UNION_SUFFIX = "_union";
+static const std::string AGG_STATE_COMBINE_SUFFIX = "_combine";
 static const std::string AGG_STATE_MERGE_SUFFIX = "_merge";
 static const std::string AGG_STATE_IF_SUFFIX = "_if";
 static const std::string FUNCTION_COUNT = "count";
@@ -467,6 +469,9 @@ Status Aggregator::prepare(RuntimeState* state, ObjectPool* pool, RuntimeProfile
         } else if (dynamic_cast<const AggStateMerge*>(agg_func)) {
             auto* agg_state_merge = down_cast<const AggStateMerge*>(agg_func);
             agg_state_desc = agg_state_merge->get_agg_state_desc();
+        } else if (dynamic_cast<const AggStateCombine*>(agg_func)) {
+            auto* agg_state_combine = down_cast<const AggStateCombine*>(agg_func);
+            agg_state_desc = agg_state_combine->get_agg_state_desc();
         } else if (dynamic_cast<const AggStateIf*>(agg_func)) {
             auto* agg_state_if = down_cast<const AggStateIf*>(agg_func);
             agg_state_desc = agg_state_if->get_agg_state_desc();
@@ -526,9 +531,9 @@ Status Aggregator::_create_aggregate_function(starrocks::RuntimeState* state, co
     if (fn.__isset.agg_state_desc) {
         auto agg_state_desc = AggStateDesc::from_thrift(fn.agg_state_desc);
         auto nested_func_name = agg_state_desc.get_func_name();
-        bool isMergeOrUnion = nested_func_name + AGG_STATE_MERGE_SUFFIX == func_name ||
-                              nested_func_name + AGG_STATE_UNION_SUFFIX == func_name;
-        if (arg_types.size() != 1 && isMergeOrUnion) {
+        bool is_merge_or_union = nested_func_name + AGG_STATE_MERGE_SUFFIX == func_name ||
+                                 nested_func_name + AGG_STATE_UNION_SUFFIX == func_name;
+        if (is_merge_or_union && arg_types.size() != 1) {
             return Status::InternalError(strings::Substitute("Invalid agg function plan: $0 with (arg type $1)",
                                                              func_name, arg_types.size()));
         }
@@ -555,6 +560,17 @@ Status Aggregator::_create_aggregate_function(starrocks::RuntimeState* state, co
             auto union_agg_func = std::make_shared<AggStateUnion>(std::move(agg_state_desc), nested_func);
             *ret = union_agg_func.get();
             _combinator_function.emplace_back(std::move(union_agg_func));
+        } else if (nested_func_name + AGG_STATE_COMBINE_SUFFIX == func_name) {
+            // aggregate _combine combinator
+            auto* nested_func = AggStateDesc::get_agg_state_func(&agg_state_desc);
+            if (nested_func == nullptr) {
+                return Status::InternalError(
+                        strings::Substitute("Union combinator function $0 fails to get the nested agg func: $1 ",
+                                            func_name, nested_func_name));
+            }
+            auto combine_agg_func = std::make_shared<AggStateCombine>(std::move(agg_state_desc), nested_func);
+            *ret = combine_agg_func.get();
+            _combinator_function.emplace_back(std::move(combine_agg_func));
         } else if (nested_func_name + AGG_STATE_IF_SUFFIX == func_name) {
             // aggregate _if combinator
             auto* nested_func = AggStateDesc::get_agg_state_func(&agg_state_desc);

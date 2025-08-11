@@ -24,20 +24,26 @@ import com.starrocks.catalog.MaterializedView;
 import com.starrocks.catalog.Table;
 import com.starrocks.common.AnalysisException;
 import com.starrocks.common.Config;
-import com.starrocks.common.Pair;
 import com.starrocks.common.profile.Timer;
 import com.starrocks.common.profile.Tracers;
 import com.starrocks.common.tvr.TvrTableDelta;
 import com.starrocks.common.tvr.TvrTableSnapshot;
 import com.starrocks.common.tvr.TvrVersion;
 import com.starrocks.common.tvr.TvrVersionRange;
+import com.starrocks.common.util.DebugUtil;
+import com.starrocks.common.util.PropertyAnalyzer;
 import com.starrocks.common.util.UUIDUtil;
 import com.starrocks.common.util.concurrent.lock.LockTimeoutException;
 import com.starrocks.metric.IMaterializedViewMetricsEntity;
 import com.starrocks.persist.gson.GsonUtils;
 import com.starrocks.qe.ConnectContext;
 import com.starrocks.scheduler.Constants;
+import com.starrocks.scheduler.ExecuteOption;
 import com.starrocks.scheduler.MvTaskRunContext;
+import com.starrocks.scheduler.TaskBuilder;
+import com.starrocks.scheduler.TaskManager;
+import com.starrocks.scheduler.TaskRun;
+import com.starrocks.scheduler.TaskRunBuilder;
 import com.starrocks.scheduler.TaskRunContext;
 import com.starrocks.scheduler.mv.BaseMVRefreshProcessor;
 import com.starrocks.scheduler.mv.BaseTableSnapshotInfo;
@@ -51,6 +57,7 @@ import com.starrocks.sql.analyzer.SemanticException;
 import com.starrocks.sql.ast.InsertStmt;
 import com.starrocks.sql.ast.QueryStatement;
 import com.starrocks.sql.ast.TableRelation;
+import com.starrocks.sql.common.DmlException;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils;
 import com.starrocks.sql.optimizer.rule.tvr.common.TvrDeltaTrait;
 import com.starrocks.sql.plan.ExecPlan;
@@ -62,6 +69,9 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static com.starrocks.scheduler.TaskRun.MV_ID;
+import static com.starrocks.scheduler.TaskRun.MV_UNCOPYABLE_PROPERTIES;
+
 /**
  * Incremental View Materialization (IVM) based MV refresh processor:
  * - Collect base table changed snapshot infos.
@@ -72,6 +82,12 @@ public class IVMBasedMVRefreshProcessor extends BaseMVRefreshProcessor {
     // This map is used to store the temporary tvr version range for each base table
     private final Map<BaseTableInfo, TvrVersionRange> tempMvTvrVersionRangeMap = Maps.newConcurrentMap();
 
+    private final boolean isUpdatePCTMetadata = true;
+    private Set<String> mvToRefreshedPartitions = null;
+    private Map<String, Set<String>> refTablePartitionNames = null;
+    private Map<BaseTableSnapshotInfo, Set<String>> refTableRefreshPartitions = null;
+    private boolean hasNextTaskRun = false;
+
     public IVMBasedMVRefreshProcessor(Database db, MaterializedView mv,
                                       MvTaskRunContext mvContext,
                                       IMaterializedViewMetricsEntity mvEntity) {
@@ -79,20 +95,33 @@ public class IVMBasedMVRefreshProcessor extends BaseMVRefreshProcessor {
     }
 
     public ProcessExecPlan getProcessExecPlan(TaskRunContext taskRunContext) throws Exception {
-        try (Timer ignored = Tracers.watchScope("MVRefreshExternalTable")) {
-            // collect base table snapshot infos
-            Map<Long, BaseTableSnapshotInfo> snapshotBaseTables = collectBaseTableSnapshotInfos(mv);
-            // refresh external table meta cache before sync partitions
-            Map<BaseTableSnapshotInfo, Set<String>> baseTableCandidatePartitions = snapshotBaseTables.values()
-                    .stream()
-                    .map(snapshotTable -> Pair.create(snapshotTable, Sets.<String>newHashSet()))
-                    .collect(Collectors.toMap(x -> x.first, x -> x.second));
-            refreshExternalTable(baseTableCandidatePartitions);
+        // The candidate partition info is used to refresh the external table
+        Map<BaseTableSnapshotInfo, Set<String>> baseTableCandidatePartitions = Maps.newHashMap();
+        if (Config.enable_materialized_view_external_table_precise_refresh) {
+            try (Timer ignored = Tracers.watchScope("MVRefreshComputeCandidatePartitions")) {
+                if (!syncPartitions()) {
+                    throw new DmlException(String.format("materialized view %s refresh task failed: sync partition failed",
+                            mv.getName()));
+                }
+                Set<String> mvCandidatePartition = getPCTMVToRefreshedPartitions(taskRunContext, true);
+                baseTableCandidatePartitions = getPCTRefTableRefreshPartitions(mvCandidatePartition);
+            } catch (Exception e) {
+                logger.warn("failed to compute candidate partitions in sync partitions", DebugUtil.getRootStackTrace(e));
+                // Since at here we sync partitions before the refreshExternalTable, the situation may happen that
+                // the base-table not exists before refreshExternalTable, so we just need to swallow this exception
+                if (e.getMessage() == null || !e.getMessage().contains("not exist")) {
+                    throw e;
+                }
+            }
         }
-        // collect base table snapshot infos
-        try (Timer ignored = Tracers.watchScope("MVRefreshSyncBaseTableSnapshotInfos")) {
-            syncPartitions();
+        // 1. Refresh the partition information of these base-table partitions, and create mv partitions if needed
+        try (Timer ignored = Tracers.watchScope("MVRefreshSyncAndCheckPartitions")) {
+            if (!syncAndCheckPCTPartitions(baseTableCandidatePartitions)) {
+                throw new DmlException(String.format("materialized view %s refresh task failed: sync partition failed",
+                        mv.getName()));
+            }
         }
+
         // collect change snapshots
         Map<BaseTableInfo, TvrVersionRange> baseTableChangedVersionRanges = Maps.newHashMap();
         try (Timer ignored = Tracers.watchScope("MVRefreshCheckChangedVersionRanges")) {
@@ -115,11 +144,32 @@ public class IVMBasedMVRefreshProcessor extends BaseMVRefreshProcessor {
                     mv.getName());
             return new ProcessExecPlan(Constants.TaskRunState.SKIPPED, null, null);
         }
+
+        if (isUpdatePCTMetadata) {
+            try (Timer ignored = Tracers.watchScope("MVRefreshCheckMVToRefreshPartitions")) {
+                checkPCTToRefreshMetas(taskRunContext);
+            }
+        }
+
         InsertStmt insertStmt = null;
         try (Timer ignored = Tracers.watchScope("MVRefreshPrepareRefreshPlan")) {
             insertStmt = prepareRefreshPlan(baseTableChangedVersionRanges);
         }
         return new ProcessExecPlan(Constants.TaskRunState.SUCCESS, mvContext.getExecPlan(), insertStmt);
+    }
+
+    private void checkPCTToRefreshMetas(TaskRunContext taskRunContext) throws Exception {
+        mvToRefreshedPartitions = getPCTMVToRefreshedPartitions(taskRunContext, false);
+        // ref table of mv : refreshed partition names
+        refTableRefreshPartitions = getPCTRefTableRefreshPartitions(mvToRefreshedPartitions);
+        // ref table of mv : refreshed partition names
+        refTablePartitionNames = refTableRefreshPartitions.entrySet().stream()
+                .collect(Collectors.toMap(x -> x.getKey().getName(), Map.Entry::getValue));
+        logger.info("mvToRefreshedPartitions:{}, refTableRefreshPartitions:{}",
+                mvToRefreshedPartitions, refTableRefreshPartitions);
+        // add a message into information_schema
+        logPCTMVToRefreshInfoIntoTaskRun(mvToRefreshedPartitions, refTablePartitionNames);
+        updatePCTBaseTableSnapshotInfos(refTableRefreshPartitions);
     }
 
     @Override
@@ -142,15 +192,27 @@ public class IVMBasedMVRefreshProcessor extends BaseMVRefreshProcessor {
             return Constants.TaskRunState.SKIPPED;
         }
 
+        final InsertStmt insertStmt = processExecPlan.insertStmt();
+        final ExecPlan execPlan = processExecPlan.execPlan();
         try (Timer ignored = Tracers.watchScope("MVRefreshMaterializedView")) {
-            final InsertStmt insertStmt = processExecPlan.insertStmt();
-            final ExecPlan execPlan = processExecPlan.execPlan();
             MaterializedView.AsyncRefreshContext mvRefreshContext =
                     mv.getRefreshScheme().getAsyncRefreshContext();
             logger.info("temp tvr version range map: {}", tempMvTvrVersionRangeMap);
             mvRefreshContext.getTempBaseTableInfoTvrDeltaMap().putAll(tempMvTvrVersionRangeMap);
             executor.executePlan(execPlan, insertStmt);
         }
+
+        if (isUpdatePCTMetadata) {
+            try (Timer ignored = Tracers.watchScope("MVRefreshUpdateMeta")) {
+                updatePCTMeta(mvToRefreshedPartitions, execPlan, refTableRefreshPartitions);
+            }
+        }
+
+        // generate the next task run state
+        if (hasNextTaskRun && !mvContext.getTaskRun().isKilled()) {
+            generateNextTaskRun();
+        }
+
         return Constants.TaskRunState.SUCCESS;
     }
 
@@ -175,7 +237,7 @@ public class IVMBasedMVRefreshProcessor extends BaseMVRefreshProcessor {
     }
 
     private TvrTableDelta getMaxBaseTableChangedDelta(BaseTableInfo baseTableInfo,
-                                                        IcebergTable icebergTable,
+                                                      IcebergTable icebergTable,
                                                       Map<BaseTableInfo, TvrVersionRange> mvTvrVersionRangeMap) {
         // For now, we always refresh the latest snapshot from the last refresh.
         // current tvr snapshot
@@ -236,8 +298,8 @@ public class IVMBasedMVRefreshProcessor extends BaseMVRefreshProcessor {
                     baseTableInfo.getDbName());
             return TvrTableDelta.emptyDelta();
         }
-        TvrTableSnapshot fromSnapshot = maxTvrDelta.fromSnapshot();
         long addedRows = 0;
+        TvrTableSnapshot fromSnapshot = maxTvrDelta.fromSnapshot();
         TvrTableSnapshot toSnapshot = maxTvrDelta.toSnapshot();
         for (TvrDeltaTrait deltaTrait : tableDeltaTraits) {
             // TODO: We may need to handle the case where the deltaTrait is not append-only.
@@ -247,14 +309,60 @@ public class IVMBasedMVRefreshProcessor extends BaseMVRefreshProcessor {
             }
             addedRows += deltaTrait.getTvrDeltaStats().getChangedRows();
             if (addedRows >= Config.mv_max_rows_per_refresh) {
-                toSnapshot = deltaTrait.getTvrDelta().toSnapshot();
                 break;
             }
+            toSnapshot = deltaTrait.getTvrDelta().toSnapshot();
         }
         TvrTableDelta result = TvrTableDelta.of(fromSnapshot.to, toSnapshot.to);
         logger.info("Base table: {}, db: {}, max tvr delta: {}, adaptive tvr delta: {}",
                 baseTableInfo.getTableName(), baseTableInfo.getDbName(), maxTvrDelta, result);
+        // if the adaptive tvr delta is different from the max tvr delta, generate the next task run
+        hasNextTaskRun = !toSnapshot.equals(maxTvrDelta.toSnapshot()) && !toSnapshot.to.isMax();
         return result;
+    }
+
+    private void generateNextTaskRun() {
+        TaskManager taskManager = GlobalStateMgr.getCurrentState().getTaskManager();
+        Map<String, String> properties = mvContext.getProperties();
+        long mvId = Long.parseLong(properties.get(MV_ID));
+        String taskName = TaskBuilder.getMvTaskName(mvId);
+        Map<String, String> newProperties = Maps.newHashMap();
+        for (Map.Entry<String, String> proEntry : properties.entrySet()) {
+            // skip uncopyable properties: force/partition_values/... which only can be set specifically.
+            if (proEntry.getKey() == null || proEntry.getValue() == null
+                    || MV_UNCOPYABLE_PROPERTIES.contains(proEntry.getKey())) {
+                continue;
+            }
+            newProperties.put(proEntry.getKey(), proEntry.getValue());
+        }
+
+        if (mvContext.getStatus() != null) {
+            newProperties.put(TaskRun.START_TASK_RUN_ID, mvContext.getStatus().getStartTaskRunId());
+        }
+        // warehouse
+        if (properties.containsKey(PropertyAnalyzer.PROPERTIES_WAREHOUSE)) {
+            newProperties.put(PropertyAnalyzer.PROPERTIES_WAREHOUSE, properties.get(PropertyAnalyzer.PROPERTIES_WAREHOUSE));
+        }
+        // Partition refreshing task run should have the HIGHER priority, and be scheduled before other tasks
+        // Otherwise this round of partition refreshing would be staved and never got finished
+        ExecuteOption executeOption = mvContext.getExecuteOption();
+        int priority = executeOption.getPriority() > Constants.TaskRunPriority.LOWEST.value() ?
+                executeOption.getPriority() : Constants.TaskRunPriority.HIGHER.value();
+        ExecuteOption option = new ExecuteOption(priority, true, newProperties);
+        logger.info("[MV] Generate a task to refresh next batches of partitions for MV {}-{}, start={}, end={}, " +
+                        "priority={}, properties={}", mv.getName(), mv.getId(),
+                mvContext.getNextPartitionStart(), mvContext.getNextPartitionEnd(), priority, properties);
+        if (properties.containsKey(TaskRun.IS_TEST) && properties.get(TaskRun.IS_TEST).equalsIgnoreCase("true")) {
+            // for testing
+            TaskRun taskRun = TaskRunBuilder
+                    .newBuilder(taskManager.getTask(taskName))
+                    .properties(option.getTaskRunProperties())
+                    .setExecuteOption(option)
+                    .build();
+            nextTaskRun = taskRun;
+        } else {
+            taskManager.executeTask(taskName, option);
+        }
     }
 
     private InsertStmt prepareRefreshPlan(Map<BaseTableInfo, TvrVersionRange> baseTableChangedVersionRanges)

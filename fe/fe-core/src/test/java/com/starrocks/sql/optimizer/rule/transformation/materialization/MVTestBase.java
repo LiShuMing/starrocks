@@ -399,7 +399,7 @@ public abstract class MVTestBase extends StarRocksTestBase {
 
     protected Map<Table, Set<String>> getRefTableRefreshedPartitions(PartitionBasedMvRefreshProcessor processor) {
         Map<BaseTableSnapshotInfo, Set<String>> baseTables = processor
-                .getRefTableRefreshPartitions(Sets.newHashSet("p20220101"));
+                .getPCTRefTableRefreshPartitions(Sets.newHashSet("p20220101"));
         Assertions.assertEquals(2, baseTables.size());
         return baseTables.entrySet().stream().collect(Collectors.toMap(x -> x.getKey().getBaseTable(), x -> x.getValue()));
     }

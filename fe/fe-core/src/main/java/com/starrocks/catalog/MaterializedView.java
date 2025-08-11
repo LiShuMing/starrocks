@@ -373,6 +373,9 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
         }
 
         public void replaceWithTempBaseTableInfoTvrDeltaMap() {
+            if (tempBaseTableInfoTvrDeltaMap == null) {
+                return;
+            }
             // apply the delta into baseTableInfoTvrDeltaMap
             for (Map.Entry<BaseTableInfo, TvrVersionRange> entry : tempBaseTableInfoTvrDeltaMap.entrySet()) {
                 if (entry.getValue().isEmpty()) {

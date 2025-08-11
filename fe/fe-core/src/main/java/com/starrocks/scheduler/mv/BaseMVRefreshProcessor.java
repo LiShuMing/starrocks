@@ -20,6 +20,8 @@ import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.Uninterruptibles;
 import com.starrocks.catalog.BaseTableInfo;
 import com.starrocks.catalog.Column;
 import com.starrocks.catalog.Database;
@@ -33,11 +35,15 @@ import com.starrocks.common.AnalysisException;
 import com.starrocks.common.Config;
 import com.starrocks.common.MaterializedViewExceptions;
 import com.starrocks.common.Pair;
+import com.starrocks.common.profile.Timer;
+import com.starrocks.common.profile.Tracers;
+import com.starrocks.common.util.DebugUtil;
 import com.starrocks.common.util.PropertyAnalyzer;
 import com.starrocks.common.util.concurrent.lock.LockParams;
 import com.starrocks.common.util.concurrent.lock.LockTimeoutException;
 import com.starrocks.common.util.concurrent.lock.LockType;
 import com.starrocks.common.util.concurrent.lock.Locker;
+import com.starrocks.connector.PartitionUtil;
 import com.starrocks.metric.IMaterializedViewMetricsEntity;
 import com.starrocks.qe.ConnectContext;
 import com.starrocks.qe.SessionVariable;
@@ -97,8 +103,9 @@ public abstract class BaseMVRefreshProcessor {
 
     /**
      * A record to hold the exec plan and insert statement for a task run.
-     * @param state the state of the task run
-     * @param execPlan the execution plan for the task run
+     *
+     * @param state      the state of the task run
+     * @param execPlan   the execution plan for the task run
      * @param insertStmt the insert statement for the task run
      */
     public record ProcessExecPlan(Constants.TaskRunState state,
@@ -121,6 +128,7 @@ public abstract class BaseMVRefreshProcessor {
 
     /**
      * Get the process execution plan for the task run which can be used for explain or execution.
+     *
      * @param taskRunContext the task run context which contains the task run information
      * @return the process execution plan which contains the state, exec plan and insert statement
      * @throws Exception if any error occurs during the process
@@ -129,8 +137,9 @@ public abstract class BaseMVRefreshProcessor {
 
     /**
      * Process the task run with the given context and executor.
+     *
      * @param taskRunContext the task run context which contains the task run information
-     * @param executor the executor to execute the task run
+     * @param executor       the executor to execute the task run
      * @return the state of the task run after processing
      * @throws Exception if any error occurs during the process
      */
@@ -139,6 +148,7 @@ public abstract class BaseMVRefreshProcessor {
 
     /**
      * Get the retry times for the mv refresh processor.
+     *
      * @param connectContext the current connect context
      * @return the retry times for the mv refresh processor, default is 1
      */
@@ -149,12 +159,12 @@ public abstract class BaseMVRefreshProcessor {
     /**
      * Build a base table snapshot info for the given base table info and table, It can be different snapshot infos for
      * different mv refresh processors.
+     *
      * @param baseTableInfo the base table info to build the snapshot info
-     * @param table the table to build the snapshot info
+     * @param table         the table to build the snapshot info
      * @return the base table snapshot info which contains the table id, table name and the snapshot table
      */
     protected abstract BaseTableSnapshotInfo buildBaseTableSnapshotInfo(BaseTableInfo baseTableInfo, Table table);
-
 
     /**
      * Create a mv refresh partitioner by the mv's partition info.
@@ -175,6 +185,7 @@ public abstract class BaseMVRefreshProcessor {
 
     /**
      * Get the next task run to be processed.
+     *
      * @return the next task run to be processed, null if no next task run
      */
     public TaskRun getNextTaskRun() {
@@ -193,6 +204,7 @@ public abstract class BaseMVRefreshProcessor {
      * Change default connect context when for mv refresh this is because:
      * - MV Refresh may take much resource to load base tables' data into the final materialized view.
      * - Those changes are set by default and also able to be changed by users for their needs.
+     *
      * @param mvConnectCtx the connect context for the materialized view refresh
      */
     protected void changeDefaultConnectContextIfNeeded(ConnectContext mvConnectCtx,
@@ -276,7 +288,8 @@ public abstract class BaseMVRefreshProcessor {
 
     /**
      * Build an AST for insert stmt
-     * @param ctx: connect context
+     *
+     * @param ctx:                    connect context
      * @param mvTargetPartitionNames: the partitions to be refreshed
      */
     protected InsertStmt generateInsertAst(ConnectContext ctx,
@@ -316,6 +329,7 @@ public abstract class BaseMVRefreshProcessor {
 
     /**
      * Update task run status's extra message to add more information for information_schema if possible.
+     *
      * @param action: a consumer to update the task run status
      */
     protected void updateTaskRunStatus(Consumer<TaskRunStatus> action) {
@@ -476,6 +490,7 @@ public abstract class BaseMVRefreshProcessor {
 
     /**
      * Get the MVTaskRunExtraMessage from the mv context's status.
+     *
      * @return the MVTaskRunExtraMessage if exists, null otherwise
      */
     @VisibleForTesting
@@ -484,5 +499,236 @@ public abstract class BaseMVRefreshProcessor {
             return null;
         }
         return this.mvContext.getStatus().getMvTaskRunExtraMessage();
+    }
+
+    public Set<String> getPCTMVToRefreshedPartitions(TaskRunContext context,
+                                                     boolean tentative)
+            throws AnalysisException, LockTimeoutException {
+        MaterializedView.PartitionRefreshStrategy partitionRefreshStrategy = MaterializedView.PartitionRefreshStrategy.valueOf(
+                mv.getTableProperty().getPartitionRefreshStrategy().trim().toUpperCase());
+        boolean isForce = partitionRefreshStrategy == MaterializedView.PartitionRefreshStrategy.FORCE || tentative;
+        final MVRefreshParams mvRefreshParams = new MVRefreshParams(mv.getPartitionInfo(), context.getProperties(), isForce);
+
+        final Set<String> mvPotentialPartitionNames = Sets.newHashSet();
+        Set<String> mvToRefreshedPartitions = mvRefreshPartitioner.getMVToRefreshedPartitions(
+                snapshotBaseTables, mvRefreshParams, partitionRefreshStrategy, mvPotentialPartitionNames, tentative);
+        // update mv extra message
+        if (!tentative) {
+            updateTaskRunStatus(status -> {
+                MVTaskRunExtraMessage extraMessage = status.getMvTaskRunExtraMessage();
+                extraMessage.setForceRefresh(mvRefreshParams.isForce());
+                extraMessage.setPartitionStart(mvRefreshParams.getRangeStart());
+                extraMessage.setPartitionEnd(mvRefreshParams.getRangeEnd());
+            });
+        }
+        return mvToRefreshedPartitions;
+    }
+
+    /**
+     * @param mvToRefreshedPartitions :  to-refreshed mv partition names
+     * @return : return to-refreshed base table's table name and partition names mapping
+     */
+    @VisibleForTesting
+    public Map<BaseTableSnapshotInfo, Set<String>> getPCTRefTableRefreshPartitions(Set<String> mvToRefreshedPartitions) {
+        Map<BaseTableSnapshotInfo, Set<String>> refTableAndPartitionNames = Maps.newHashMap();
+        Map<String, Map<Table, Set<String>>> mvToBaseNameRefs = mvContext.getMvRefBaseTableIntersectedPartitions();
+        if (mvToBaseNameRefs == null || mvToBaseNameRefs.isEmpty()) {
+            return refTableAndPartitionNames;
+        }
+        for (BaseTableSnapshotInfo snapshotInfo : snapshotBaseTables.values()) {
+            Table snapshotTable = snapshotInfo.getBaseTable();
+            Set<String> needRefreshTablePartitionNames = null;
+            for (String mvPartitionName : mvToRefreshedPartitions) {
+                if (!mvToBaseNameRefs.containsKey(mvPartitionName)) {
+                    continue;
+                }
+                Map<Table, Set<String>> mvToBaseNameRef = mvToBaseNameRefs.get(mvPartitionName);
+                if (mvToBaseNameRef.containsKey(snapshotTable)) {
+                    if (needRefreshTablePartitionNames == null) {
+                        needRefreshTablePartitionNames = Sets.newHashSet();
+                    }
+                    // The table in this map has related partition with mv
+                    // It's ok to add empty set for a table, means no partition corresponding to this mv partition
+                    needRefreshTablePartitionNames.addAll(mvToBaseNameRef.get(snapshotTable));
+                } else {
+                    logger.info("ref-base-table {} is not found in `mvRefBaseTableIntersectedPartitions` " +
+                            "because of empty update", snapshotTable.getName());
+                }
+            }
+            if (needRefreshTablePartitionNames != null) {
+                refTableAndPartitionNames.put(snapshotInfo, needRefreshTablePartitionNames);
+            }
+        }
+        return refTableAndPartitionNames;
+    }
+
+    /**
+     * Sync partitions of base tables and check whether they are changing anymore
+     */
+    protected boolean syncAndCheckPCTPartitions(Map<BaseTableSnapshotInfo, Set<String>> baseTableCandidatePartitions)
+            throws AnalysisException, LockTimeoutException {
+        // collect partition infos of ref base tables
+        int retryNum = 0;
+        boolean checked = false;
+        Stopwatch stopwatch = Stopwatch.createStarted();
+        while (!checked && retryNum++ < Config.max_mv_check_base_table_change_retry_times) {
+            mvEntity.increaseRefreshRetryMetaCount(1L);
+            try (Timer ignored = Tracers.watchScope("MVRefreshExternalTable")) {
+                // refresh external table meta cache before sync partitions
+                refreshExternalTable(baseTableCandidatePartitions);
+            }
+
+            if (!Config.enable_materialized_view_external_table_precise_refresh || retryNum > 1) {
+                try (Timer ignored = Tracers.watchScope("MVRefreshSyncPartitions")) {
+                    // sync partitions between mv and base tables out of lock
+                    // do it outside lock because it is a time-cost operation
+                    if (!syncPartitions()) {
+                        logger.warn("Sync partitions failed.");
+                        return false;
+                    }
+                }
+            }
+
+            try (Timer ignored = Tracers.watchScope("MVRefreshCheckBaseTableChange")) {
+                // check whether there are partition changes for base tables, eg: partition rename
+                // retry to sync partitions if any base table changed the partition infos
+                if (checkPCTBaseTablePartitionChange(mv)) {
+                    logger.info("materialized view base partition has changed. retry to sync partitions, retryNum:{}", retryNum);
+                    // sleep 100ms
+                    Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+                    continue;
+                }
+            }
+            checked = true;
+        }
+        Tracers.record("MVRefreshSyncPartitionsRetryTimes", String.valueOf(retryNum));
+        logger.info("sync and check mv partition changing after {} times: {}, costs: {} ms",
+                retryNum, checked, stopwatch.elapsed(TimeUnit.MILLISECONDS));
+        return checked;
+    }
+
+    /**
+     * Check whether the base table's partition has changed or not. Wait to refresh until all mv's base tables
+     * don't change again.
+     *
+     * @return: true if the base table's partition has changed, otherwise false.
+     */
+    private boolean checkPCTBaseTablePartitionChange(MaterializedView mv) throws LockTimeoutException {
+        LockParams lockParams = collectDatabases(mv);
+        Locker locker = new Locker();
+        if (!locker.tryLockTableWithIntensiveDbLock(lockParams,
+                LockType.READ, Config.mv_refresh_try_lock_timeout_ms, TimeUnit.MILLISECONDS)) {
+            logger.warn("failed to lock database: {} in checkBaseTablePartitionChange", lockParams);
+            throw new LockTimeoutException("Failed to lock database: " + lockParams
+                    + " in checkBaseTablePartitionChange");
+        }
+        // check snapshotBaseTables and current tables in catalog
+        try {
+            return snapshotBaseTables.values().stream()
+                    .anyMatch(snapshotInfo -> ((PCTTableSnapshotInfo) snapshotInfo).isPCTBaseTablePartitionHasChanged(mv));
+        } finally {
+            locker.unLockTableWithIntensiveDbLock(lockParams, LockType.READ);
+        }
+    }
+
+    protected void logPCTMVToRefreshInfoIntoTaskRun(Set<String> finalMvToRefreshedPartitions,
+                                                    Map<String, Set<String>> finalRefTablePartitionNames) {
+        updateTaskRunStatus(status -> {
+            MVTaskRunExtraMessage extraMessage = status.getMvTaskRunExtraMessage();
+            extraMessage.setMvPartitionsToRefresh(finalMvToRefreshedPartitions);
+            extraMessage.setRefBasePartitionsToRefreshMap(finalRefTablePartitionNames);
+        });
+    }
+
+    @VisibleForTesting
+    public void updatePCTBaseTableSnapshotInfos(Map<BaseTableSnapshotInfo, Set<String>> refTableAndPartitionNames) {
+        // NOTE: For each task run, ref-base table's incremental partition and all non-ref base tables' partitions
+        // are refreshed, so we need record it into materialized view.
+        // NOTE: We don't use the pruned partition infos from ExecPlan because the optimized partition infos are not
+        // exact to describe which partitions are refreshed.
+        Map<Table, Map<String, Set<String>>> baseTableToMvNameRefs = mvContext.getRefBaseTableMVIntersectedPartitions();
+        for (Map.Entry<BaseTableSnapshotInfo, Set<String>> e : refTableAndPartitionNames.entrySet()) {
+            PCTTableSnapshotInfo snapshotInfo = (PCTTableSnapshotInfo) e.getKey();
+            Table baseTable = snapshotInfo.getBaseTable();
+            if (baseTableToMvNameRefs != null && baseTableToMvNameRefs.containsKey(baseTable)) {
+                List<String> partitionNames = e.getValue().stream()
+                        .flatMap(name -> mvContext.getExternalTableRealPartitionName(baseTable, name).stream())
+                        .collect(Collectors.toList());
+                snapshotInfo.updatePartitionInfos(partitionNames);
+            } else {
+                // non ref base table, update all partitions
+                List<String> partitionNames = getPCTNonRefTableRefreshPartitions(baseTable);
+                snapshotInfo.updatePartitionInfos(partitionNames);
+            }
+        }
+    }
+
+    /**
+     * Return all non-ref base table and refreshed partitions.
+     */
+    private List<String> getPCTNonRefTableRefreshPartitions(Table table) {
+        if (table.isNativeTableOrMaterializedView()) {
+            return Lists.newArrayList(((OlapTable) table).getVisiblePartitionNames());
+        } else if (MVPCTRefreshPartitioner.isPartitionRefreshSupported(table)) {
+            return PartitionUtil.getPartitionNames(table);
+        } else {
+            return Lists.newArrayList();
+        }
+    }
+
+    /**
+     * After mv is refreshed, update materialized view's meta info to record history refreshes.
+     * @param refTableAndPartitionNames : refreshed base table and its partition names mapping.
+     */
+    protected void updatePCTMeta(Set<String> mvRefreshedPartitions,
+                                 ExecPlan execPlan,
+                                 Map<BaseTableSnapshotInfo, Set<String>> refTableAndPartitionNames) {
+        // check
+        Table mv = GlobalStateMgr.getCurrentState().getLocalMetastore().getTable(db.getId(), this.mv.getId());
+        if (mv == null) {
+            throw new DmlException("update meta failed. materialized view:" + this.mv.getName() + " not exist");
+        }
+        // check
+        if (mvRefreshedPartitions == null || refTableAndPartitionNames == null) {
+            logger.info("no partitions to refresh, mvRefreshedPartitions:{}, refTableAndPartitionNames:{}",
+                    mvRefreshedPartitions, refTableAndPartitionNames);
+            return;
+        }
+
+        // update mv's version info
+        Set<Long> refBaseTableIds = refTableAndPartitionNames.keySet().stream()
+                .map(t -> t.getId())
+                .collect(Collectors.toSet());
+
+        Locker locker = new Locker();
+        // update the meta if succeed
+        if (!locker.lockDatabaseAndCheckExist(db, this.mv, LockType.WRITE)) {
+            logger.warn("failed to lock database: {} in updateMeta for mv refresh", db.getFullName());
+            throw new DmlException("update meta failed. database:" + db.getFullName() + " not exist");
+        }
+
+        MVVersionManager mvVersionManager = new MVVersionManager(this.mv, mvContext);
+        try {
+            mvVersionManager.updateMVVersionInfo(snapshotBaseTables, mvRefreshedPartitions,
+                    refBaseTableIds, refTableAndPartitionNames);
+        } catch (Exception e) {
+            logger.warn("update final meta failed after mv refreshed:", DebugUtil.getRootStackTrace(e));
+            throw e;
+        } finally {
+            locker.unLockTableWithIntensiveDbLock(db.getId(), this.mv.getId(), LockType.WRITE);
+        }
+
+        // update mv status message
+        updateTaskRunStatus(status -> {
+            try {
+                MVTaskRunExtraMessage extraMessage = status.getMvTaskRunExtraMessage();
+                Map<String, Set<String>> baseTableRefreshedPartitionsByExecPlan =
+                        MVTraceUtils.getBaseTableRefreshedPartitionsByExecPlan(this.mv, execPlan);
+                extraMessage.setBasePartitionsToRefreshMap(baseTableRefreshedPartitionsByExecPlan);
+            } catch (Exception e) {
+                // just log warn and no throw exceptions for an updating task runs message.
+                logger.warn("update task run messages failed:", DebugUtil.getRootStackTrace(e));
+            }
+        });
     }
 }

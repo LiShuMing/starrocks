@@ -24,6 +24,7 @@ import java.util.Objects;
  *  and use those to update refreshed meta of base tables after refresh finished.
  */
 public abstract class BaseTableSnapshotInfo {
+
     protected final BaseTableInfo baseTableInfo;
     protected final Table baseTable;
 

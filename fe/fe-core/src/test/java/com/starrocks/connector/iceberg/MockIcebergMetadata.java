@@ -510,8 +510,9 @@ public class MockIcebergMetadata implements ConnectorMetadata {
                                                         TvrTableSnapshot toSnapshotInclusive) {
 
         TvrDeltaStats stats = TvrDeltaStats.of(1L);
-        TvrTableDelta tvrDelta = TvrTableDelta.of(0L, 1);
-        TvrDeltaTrait tvrDeltaTrait = TvrDeltaTrait.ofMonotonic(tvrDelta, stats);
+        TvrVersionRange currentTvrSnapshot = getCurrentTvrSnapshot(dbName, table);
+        TvrTableDelta tvrTableDelta = TvrTableDelta.of(currentTvrSnapshot.from, currentTvrSnapshot.to);
+        TvrDeltaTrait tvrDeltaTrait = TvrDeltaTrait.ofMonotonic(tvrTableDelta, stats);
         return Lists.newArrayList(tvrDeltaTrait);
     }
 

@@ -16,9 +16,9 @@ package com.starrocks.scheduler.mv.ivm;
 import com.starrocks.catalog.BaseTableInfo;
 import com.starrocks.catalog.Table;
 import com.starrocks.common.tvr.TvrVersionRange;
-import com.starrocks.scheduler.mv.BaseTableSnapshotInfo;
+import com.starrocks.scheduler.mv.PCTTableSnapshotInfo;
 
-public class TvrTableSnapshotInfo extends BaseTableSnapshotInfo {
+public class TvrTableSnapshotInfo extends PCTTableSnapshotInfo  {
     // partition's base info to be used in `updateMeta`
     private TvrVersionRange tvrVersionRange;
 

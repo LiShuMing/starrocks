@@ -539,9 +539,9 @@ public class IcebergMetadata implements ConnectorMetadata {
         long lastSnapshotId = fromSnapshotIdExclusive;
 
         final List<TvrDeltaTrait> tvrDeltaTraits = new ArrayList<>();
-        for (Snapshot snapshot :
-                SnapshotUtil.ancestorsBetween(
-                        toSnapshotIdInclusive, fromSnapshotIdExclusive, nativeTable::snapshot)) {
+        final Iterable<Snapshot> snapshots = SnapshotUtil.ancestorsBetween(
+                toSnapshotIdInclusive, fromSnapshotIdExclusive, nativeTable::snapshot);
+        for (Snapshot snapshot : snapshots) {
             long currentSnapshotId = snapshot.snapshotId();
             TvrTableDelta delta = TvrTableDelta.of(lastSnapshotId, currentSnapshotId);
             TvrDeltaStats stats = TvrDeltaStats.of(snapshot.addedRows());
@@ -550,12 +550,7 @@ public class IcebergMetadata implements ConnectorMetadata {
             } else {
                 tvrDeltaTraits.add(TvrDeltaTrait.ofRetractable(delta, stats));
             }
-            lastSnapshotId = currentSnapshotId;
         }
-        Preconditions.checkArgument(
-                lastSnapshotId == toSnapshotIdInclusive,
-                "Last snapshot ID %s does not match toSnapshotInclusive %s",
-                lastSnapshotId, toSnapshotIdInclusive);
         return tvrDeltaTraits;
     }
 

@@ -13,12 +13,39 @@
 // limitations under the License.
 package com.starrocks.scheduler.mv;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Range;
+import com.starrocks.analysis.Expr;
 import com.starrocks.catalog.BaseTableInfo;
+import com.starrocks.catalog.Column;
+import com.starrocks.catalog.HiveTable;
 import com.starrocks.catalog.MaterializedView;
+import com.starrocks.catalog.OlapTable;
+import com.starrocks.catalog.Partition;
+import com.starrocks.catalog.PartitionInfo;
+import com.starrocks.catalog.PartitionKey;
 import com.starrocks.catalog.Table;
+import com.starrocks.common.StarRocksException;
+import com.starrocks.common.util.DebugUtil;
+import com.starrocks.connector.ConnectorPartitionTraits;
+import com.starrocks.connector.HivePartitionDataInfo;
+import com.starrocks.connector.PartitionUtil;
+import com.starrocks.connector.TableUpdateArbitrator;
+import com.starrocks.server.GlobalStateMgr;
+import com.starrocks.sql.common.ListPartitionDiffer;
+import com.starrocks.sql.common.PListCell;
+import com.starrocks.sql.common.SyncPartitionUtils;
+import com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 /**
  * `PCTTableSnapshotInfo` represents a snapshot of the base table of materialized view.
@@ -26,23 +53,176 @@ import java.util.Map;
  *  and use those to update refreshed meta of base tables after refresh finished.
  */
 public class PCTTableSnapshotInfo extends BaseTableSnapshotInfo {
+
+    private static final Logger LOG = LogManager.getLogger(PCTTableSnapshotInfo.class);
+
     // partition's base info to be used in `updateMeta`
     private Map<String, MaterializedView.BasePartitionInfo> refreshedPartitionInfos = Maps.newHashMap();
 
     public PCTTableSnapshotInfo(BaseTableInfo baseTableInfo, Table baseTable) {
         super(baseTableInfo, baseTable);
     }
+
     public Map<String, MaterializedView.BasePartitionInfo> getRefreshedPartitionInfos() {
         return refreshedPartitionInfos;
-    }
-
-    public void setRefreshedPartitionInfos(Map<String, MaterializedView.BasePartitionInfo> refreshedPartitionInfos) {
-        this.refreshedPartitionInfos = refreshedPartitionInfos;
     }
 
     @Override
     public String toString() {
         return "baseTable=" + baseTable.getName() +
                 ", refreshedPartitionInfos=" + refreshedPartitionInfos;
+    }
+
+    private boolean isPCTBaseTablePartitionHasChangedImpl(MaterializedView mv) throws StarRocksException {
+        Optional<Table> optTable = MvUtils.getTableWithIdentifier(baseTableInfo);
+        if (optTable.isEmpty()) {
+            return true;
+        }
+        Table table = optTable.get();
+        if (baseTable.isOlapOrCloudNativeTable()) {
+            OlapTable snapShotOlapTable = (OlapTable) baseTable;
+            PartitionInfo snapshotPartitionInfo = snapShotOlapTable.getPartitionInfo();
+            if (snapshotPartitionInfo.isUnPartitioned()) {
+                Set<String> partitionNames = ((OlapTable) table).getVisiblePartitionNames();
+                if (!snapShotOlapTable.getVisiblePartitionNames().equals(partitionNames)) {
+                    // there is partition rename
+                    return true;
+                }
+            } else if (snapshotPartitionInfo.isListPartition()) {
+                OlapTable snapshotOlapTable = (OlapTable) baseTable;
+                Map<String, PListCell> snapshotPartitionMap = snapshotOlapTable.getListPartitionItems();
+                Map<String, PListCell> currentPartitionMap = snapshotOlapTable.getListPartitionItems();
+                if (ListPartitionDiffer.hasListPartitionChanged(snapshotPartitionMap, currentPartitionMap)) {
+                    return true;
+                }
+            } else {
+                Map<String, Range<PartitionKey>> snapshotPartitionMap = snapShotOlapTable.getRangePartitionMap();
+                Map<String, Range<PartitionKey>> currentPartitionMap = ((OlapTable) table).getRangePartitionMap();
+                if (SyncPartitionUtils.hasRangePartitionChanged(snapshotPartitionMap, currentPartitionMap)) {
+                    return true;
+                }
+            }
+        } else if (ConnectorPartitionTraits.isSupported(baseTable.getType())) {
+            if (baseTable.isUnPartitioned()) {
+                return false;
+            } else {
+                PartitionInfo mvPartitionInfo = mv.getPartitionInfo();
+                // TODO: Support list partition later.
+                // do not need to check base partition table changed when mv is not partitioned
+                if (!(mvPartitionInfo.isRangePartition())) {
+                    return false;
+                }
+                Map<Table, List<Column>> partitionTableAndColumns = mv.getRefBaseTablePartitionColumns();
+                // For Non-partition based base table, it's not necessary to check the partition changed.
+                if (!partitionTableAndColumns.containsKey(baseTable)) {
+                    return false;
+                }
+                List<Column> partitionColumns = partitionTableAndColumns.get(baseTable);
+                Preconditions.checkArgument(partitionColumns.size() == 1,
+                        "Only support one partition column in range partition");
+                Column partitionColumn = partitionColumns.get(0);
+                Optional<Expr> rangePartitionExprOpt = mv.getRangePartitionFirstExpr();
+                if (rangePartitionExprOpt.isEmpty()) {
+                    return false;
+                }
+                Expr rangePartitionExpr = rangePartitionExprOpt.get();
+                Map<String, Range<PartitionKey>> snapshotPartitionMap = PartitionUtil.getPartitionKeyRange(
+                        baseTable, partitionColumn, rangePartitionExpr);
+                Map<String, Range<PartitionKey>> currentPartitionMap = PartitionUtil.getPartitionKeyRange(
+                        table, partitionColumn, rangePartitionExpr);
+                if (SyncPartitionUtils.hasRangePartitionChanged(snapshotPartitionMap, currentPartitionMap)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public boolean isPCTBaseTablePartitionHasChanged(MaterializedView mv) {
+        try {
+            return isPCTBaseTablePartitionHasChangedImpl(mv);
+        } catch (Exception e) {
+            LOG.warn("Materialized view compute partition change failed", DebugUtil.getRootStackTrace(e));
+            return true;
+        }
+    }
+
+    public void updatePartitionInfos(List<String> refreshedPartitionNames) {
+        Preconditions.checkNotNull(baseTableInfo, "baseTableInfo should not be null");
+        Preconditions.checkNotNull(baseTable, "baseTable should not be null");
+        Preconditions.checkArgument(!refreshedPartitionInfos.isEmpty(),
+                "refreshedPartitionInfos should not be empty");
+
+        if (baseTable.isNativeTableOrMaterializedView()) {
+            OlapTable olapTable = (OlapTable) baseTable;
+            updatePCTOlapPartitionInfos(olapTable, refreshedPartitionNames);
+        } else if (MVPCTRefreshPartitioner.isPartitionRefreshSupported(baseTable)) {
+            getPCTExternalPartitionInfos(baseTable, refreshedPartitionNames);
+        } else {
+            // FIXME: base table does not support partition-level refresh and does not update the meta
+            //  in materialized view.
+            LOG.warn("refresh mv with non-supported-partition-level refresh base table {}", baseTable.getName());
+        }
+    }
+
+    private void updatePCTOlapPartitionInfos(OlapTable olapTable,
+                                             List<String> refreshedPartitionNames) {
+        for (String partitionName : refreshedPartitionNames) {
+            Partition partition = olapTable.getPartition(partitionName);
+            // it's ok to skip because only existed partitions are updated in the version map.
+            if (partition == null) {
+                LOG.warn("partition {} not found in base table {}, refreshedPartitionNames:{}",
+                        partitionName, olapTable.getName(), refreshedPartitionNames);
+                continue;
+            }
+            MaterializedView.BasePartitionInfo basePartitionInfo = new MaterializedView.BasePartitionInfo(
+                    partition.getId(),
+                    partition.getDefaultPhysicalPartition().getVisibleVersion(),
+                    partition.getDefaultPhysicalPartition().getVisibleVersionTime());
+            refreshedPartitionInfos.put(partition.getName(), basePartitionInfo);
+        }
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Collect olap base table {}'s refreshed partition infos: {}",
+                    olapTable.getName(), refreshedPartitionInfos);
+        }
+    }
+
+    /**
+     * @param table                  : input table to collect refresh partition infos
+     * @param refreshedPartitionNames : input table refreshed partition names
+     * @return : return the given table's refresh partition infos
+     */
+    private void getPCTExternalPartitionInfos(Table table,
+                                              List<String> refreshedPartitionNames) {
+        // sort selectedPartitionNames before the for loop, otherwise the order of partition names may be
+        // different in selectedPartitionNames and partitions and will lead to infinite partition refresh.
+        Collections.sort(refreshedPartitionNames);
+        List<com.starrocks.connector.PartitionInfo> partitions = GlobalStateMgr.
+                getCurrentState().getMetadataMgr().getPartitions(baseTableInfo.getCatalogName(), table,
+                        refreshedPartitionNames);
+        for (int index = 0; index < refreshedPartitionNames.size(); ++index) {
+            long modifiedTime = partitions.get(index).getModifiedTime();
+            String partitionName = refreshedPartitionNames.get(index);
+            MaterializedView.BasePartitionInfo basePartitionInfo =
+                    new MaterializedView.BasePartitionInfo(-1, modifiedTime, modifiedTime);
+            TableUpdateArbitrator.UpdateContext updateContext = new TableUpdateArbitrator.UpdateContext(
+                    table,
+                    -1,
+                    Lists.newArrayList(partitionName));
+            if (table instanceof HiveTable
+                    && ((HiveTable) table).getHiveTableType() == HiveTable.HiveTableType.EXTERNAL_TABLE) {
+                TableUpdateArbitrator arbitrator = TableUpdateArbitrator.create(updateContext);
+                if (arbitrator != null) {
+                    Map<String, Optional<HivePartitionDataInfo>> partitionDataInfos = arbitrator.getPartitionDataInfos();
+                    Preconditions.checkState(partitionDataInfos.size() == 1);
+                    if (partitionDataInfos.get(partitionName).isPresent()) {
+                        HivePartitionDataInfo hivePartitionDataInfo = partitionDataInfos.get(partitionName).get();
+                        basePartitionInfo.setExtLastFileModifiedTime(hivePartitionDataInfo.getLastFileModifiedTime());
+                        basePartitionInfo.setFileNumber(hivePartitionDataInfo.getFileNumber());
+                    }
+                }
+            }
+            refreshedPartitionInfos.put(partitionName, basePartitionInfo);
+        }
     }
 }

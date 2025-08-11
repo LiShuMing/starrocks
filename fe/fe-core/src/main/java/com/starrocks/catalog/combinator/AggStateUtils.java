@@ -140,6 +140,8 @@ public class AggStateUtils {
             return fnName.substring(0, fnName.length() - FunctionSet.AGG_STATE_UNION_SUFFIX.length());
         } else if (fnName.endsWith(FunctionSet.AGG_STATE_MERGE_SUFFIX)) {
             return fnName.substring(0, fnName.length() - FunctionSet.AGG_STATE_MERGE_SUFFIX.length());
+        } else if (fnName.endsWith(FunctionSet.AGG_STATE_COMBINE_SUFFIX)) {
+            return fnName.substring(0, fnName.length() - FunctionSet.AGG_STATE_COMBINE_SUFFIX.length());
         } else if (fnName.endsWith(FunctionSet.AGG_STATE_IF_SUFFIX)) {
             return fnName.substring(0, fnName.length() - FunctionSet.AGG_STATE_IF_SUFFIX.length());
         } else {

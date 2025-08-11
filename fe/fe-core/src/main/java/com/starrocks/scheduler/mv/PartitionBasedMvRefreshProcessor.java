@@ -45,7 +45,6 @@ import com.starrocks.sql.StatementPlanner;
 import com.starrocks.sql.analyzer.PlannerMetaLocker;
 import com.starrocks.sql.ast.InsertStmt;
 import com.starrocks.sql.ast.StatementBase;
-import com.starrocks.sql.common.DmlException;
 import com.starrocks.sql.common.QueryDebugOptions;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils;
 import com.starrocks.sql.plan.ExecPlan;
@@ -60,13 +59,11 @@ import static com.starrocks.scheduler.TaskRun.MV_ID;
 import static com.starrocks.scheduler.TaskRun.MV_UNCOPYABLE_PROPERTIES;
 
 /**
- * Core logic of mv refresh task run
+ * PCT(Partition Change Tracking) based materialized view refresh processor which is designed to refresh materialized views
+ * based on partition changes in the base tables.
  * PartitionBasedMvRefreshProcessor is not thread safe for concurrent runs of the same materialized view
  */
 public class PartitionBasedMvRefreshProcessor extends BaseMVRefreshProcessor {
-    private Set<String> mvToRefreshedPartitions = null;
-    private Map<String, Set<String>> refTablePartitionNames = null;
-    private Map<BaseTableSnapshotInfo, Set<String>> refTableRefreshPartitions = null;
 
     public PartitionBasedMvRefreshProcessor(Database db, MaterializedView mv,
                                             MvTaskRunContext mvContext,
@@ -125,56 +122,21 @@ public class PartitionBasedMvRefreshProcessor extends BaseMVRefreshProcessor {
 
     @Override
     public ProcessExecPlan getProcessExecPlan(TaskRunContext taskRunContext) throws Exception {
-        // 0. Compute the base-table partitions to check for external table
-        // The candidate partition info is used to refresh the external table
-        Map<BaseTableSnapshotInfo, Set<String>> baseTableCandidatePartitions = Maps.newHashMap();
-        if (Config.enable_materialized_view_external_table_precise_refresh) {
-            try (Timer ignored = Tracers.watchScope("MVRefreshComputeCandidatePartitions")) {
-                if (!syncPartitions()) {
-                    throw new DmlException(String.format("materialized view %s refresh task failed: sync partition failed",
-                            mv.getName()));
-                }
-                Set<String> mvCandidatePartition = getPCTMVToRefreshedPartitions(taskRunContext, true);
-                baseTableCandidatePartitions = getPCTRefTableRefreshPartitions(mvCandidatePartition);
-            } catch (Exception e) {
-                logger.warn("failed to compute candidate partitions in sync partitions", DebugUtil.getRootStackTrace(e));
-                // Since at here we sync partitions before the refreshExternalTable, the situation may happen that
-                // the base-table not exists before refreshExternalTable, so we just need to swallow this exception
-                if (e.getMessage() == null || !e.getMessage().contains("not exist")) {
-                    throw e;
-                }
-            }
-        }
+        // sync and check partitions of base tables
+        syncAndCheckPCTPartitions(taskRunContext);
 
-        // 1. Refresh the partition information of these base-table partitions, and create mv partitions if needed
-        try (Timer ignored = Tracers.watchScope("MVRefreshSyncAndCheckPartitions")) {
-            if (!syncAndCheckPCTPartitions(baseTableCandidatePartitions)) {
-                throw new DmlException(String.format("materialized view %s refresh task failed: sync partition failed",
-                        mv.getName()));
-            }
-        }
-
+        // check to refresh partitions of mv and base tables
         try (Timer ignored = Tracers.watchScope("MVRefreshCheckMVToRefreshPartitions")) {
-            mvToRefreshedPartitions = getPCTMVToRefreshedPartitions(taskRunContext, false);
-            if (CollectionUtils.isEmpty(mvToRefreshedPartitions)) {
+            checkPCTToRefreshMetas(taskRunContext);
+            if (CollectionUtils.isEmpty(pctMVToRefreshedPartitions)) {
                 return new ProcessExecPlan(Constants.TaskRunState.SKIPPED, null, null);
             }
-            // ref table of mv : refreshed partition names
-            refTableRefreshPartitions = getPCTRefTableRefreshPartitions(mvToRefreshedPartitions);
-            // ref table of mv : refreshed partition names
-            refTablePartitionNames = refTableRefreshPartitions.entrySet().stream()
-                    .collect(Collectors.toMap(x -> x.getKey().getName(), Map.Entry::getValue));
-            logger.info("mvToRefreshedPartitions:{}, refTableRefreshPartitions:{}",
-                    mvToRefreshedPartitions, refTableRefreshPartitions);
-            // add a message into information_schema
-            logPCTMVToRefreshInfoIntoTaskRun(mvToRefreshedPartitions, refTablePartitionNames);
-            updatePCTBaseTableSnapshotInfos(refTableRefreshPartitions);
         }
 
-        ///// 2. execute the ExecPlan of insert stmt
+        // execute the ExecPlan of insert stmt
         InsertStmt insertStmt = null;
         try (Timer ignored = Tracers.watchScope("MVRefreshPrepareRefreshPlan")) {
-            insertStmt = prepareRefreshPlan(mvToRefreshedPartitions, refTablePartitionNames);
+            insertStmt = prepareRefreshPlan(pctMVToRefreshedPartitions, pctRefTablePartitionNames);
         }
         return new ProcessExecPlan(Constants.TaskRunState.SUCCESS, mvContext.getExecPlan(), insertStmt);
     }
@@ -192,12 +154,10 @@ public class PartitionBasedMvRefreshProcessor extends BaseMVRefreshProcessor {
         try (Timer ignored = Tracers.watchScope("MVRefreshMaterializedView")) {
             executor.executePlan(mvExecPlan, insertStmt);
         }
-
-        ///// 3. insert execute successfully, update the meta of mv according to ExecPlan
+        // insert execute successfully, update the meta of mv according to ExecPlan
         try (Timer ignored = Tracers.watchScope("MVRefreshUpdateMeta")) {
-            updatePCTMeta(mvToRefreshedPartitions, mvExecPlan, refTableRefreshPartitions);
+            updatePCTMeta(pctMVToRefreshedPartitions, pctRefTableRefreshPartitions);
         }
-
         return Constants.TaskRunState.SUCCESS;
     }
 

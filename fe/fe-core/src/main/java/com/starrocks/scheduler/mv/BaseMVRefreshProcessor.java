@@ -95,11 +95,17 @@ public abstract class BaseMVRefreshProcessor {
     // Collect all bases tables of the mv to be updated meta after mv refresh success.
     // format :     table id -> <base table info, snapshot table>
     protected final MVPCTRefreshPartitioner mvRefreshPartitioner;
-    // for testing
-    protected TaskRun nextTaskRun = null;
+
     // Collect all base table snapshot infos for the mv which the snapshot infos are kept
     // and used in the final update meta stage
     protected Map<Long, BaseTableSnapshotInfo> snapshotBaseTables = Maps.newHashMap();
+
+    // PCT related fields
+    protected Set<String> pctMVToRefreshedPartitions = null;
+    protected Map<String, Set<String>> pctRefTablePartitionNames = null;
+    protected Map<BaseTableSnapshotInfo, Set<String>> pctRefTableRefreshPartitions = null;
+    // for testing
+    protected TaskRun nextTaskRun = null;
 
     /**
      * A record to hold the exec plan and insert statement for a task run.
@@ -274,16 +280,64 @@ public abstract class BaseMVRefreshProcessor {
     }
 
     /**
+     * Sync and check the partitions of the materialized view and its base tables.
+     * @param taskRunContext the task run context which contains the task run information
+     * @throws Exception if any error occurs during the sync and check
+     */
+    protected void syncAndCheckPCTPartitions(TaskRunContext taskRunContext) throws Exception {
+        // The candidate partition info is used to refresh the external table
+        Map<BaseTableSnapshotInfo, Set<String>> baseTableCandidatePartitions = Maps.newHashMap();
+        if (Config.enable_materialized_view_external_table_precise_refresh) {
+            try (Timer ignored = Tracers.watchScope("MVRefreshComputeCandidatePartitions")) {
+                if (!syncPartitions()) {
+                    throw new DmlException(String.format("materialized view %s refresh task failed: sync partition failed",
+                            mv.getName()));
+                }
+                Set<String> mvCandidatePartition = getPCTMVToRefreshedPartitions(taskRunContext, true);
+                baseTableCandidatePartitions = getPCTRefTableRefreshPartitions(mvCandidatePartition);
+            } catch (Exception e) {
+                logger.warn("failed to compute candidate partitions in sync partitions", DebugUtil.getRootStackTrace(e));
+                // Since at here we sync partitions before the refreshExternalTable, the situation may happen that
+                // the base-table not exists before refreshExternalTable, so we just need to swallow this exception
+                if (e.getMessage() == null || !e.getMessage().contains("not exist")) {
+                    throw e;
+                }
+            }
+        }
+        // 1. Refresh the partition information of these base-table partitions, and create mv partitions if needed
+        try (Timer ignored = Tracers.watchScope("MVRefreshSyncAndCheckPartitions")) {
+            if (!syncAndCheckPCTPartitions(baseTableCandidatePartitions)) {
+                throw new DmlException(String.format("materialized view %s refresh task failed: sync partition failed",
+                        mv.getName()));
+            }
+        }
+    }
+
+    /**
      * Sync base table's partition infos to be used later.
      */
     protected boolean syncPartitions() throws AnalysisException, LockTimeoutException {
         Stopwatch stopwatch = Stopwatch.createStarted();
         // collect base table snapshot infos
-        this.snapshotBaseTables = collectBaseTableSnapshotInfos(mv);
+        this.snapshotBaseTables = collectBaseTableSnapshotInfos();
         // do sync partitions (add or drop partitions) for materialized view
         boolean result = mvRefreshPartitioner.syncAddOrDropPartitions();
         logger.info("finish sync partitions, cost(ms): {}", stopwatch.elapsed(TimeUnit.MILLISECONDS));
         return result;
+    }
+
+    protected void checkPCTToRefreshMetas(TaskRunContext taskRunContext) throws Exception {
+        pctMVToRefreshedPartitions = getPCTMVToRefreshedPartitions(taskRunContext, false);
+        // ref table of mv : refreshed partition names
+        pctRefTableRefreshPartitions = getPCTRefTableRefreshPartitions(pctMVToRefreshedPartitions);
+        // ref table of mv : refreshed partition names
+        pctRefTablePartitionNames = pctRefTableRefreshPartitions.entrySet().stream()
+                .collect(Collectors.toMap(x -> x.getKey().getName(), Map.Entry::getValue));
+        logger.info("mvToRefreshedPartitions:{}, refTableRefreshPartitions:{}",
+                pctMVToRefreshedPartitions, pctRefTableRefreshPartitions);
+        // add a message into information_schema
+        logPCTMVToRefreshInfoIntoTaskRun(pctMVToRefreshedPartitions, pctRefTablePartitionNames);
+        updatePCTBaseTableSnapshotInfos(pctRefTableRefreshPartitions);
     }
 
     /**
@@ -337,6 +391,19 @@ public abstract class BaseMVRefreshProcessor {
             return;
         }
         action.accept(this.mvContext.getStatus());
+    }
+
+    /**
+     * Get the MVTaskRunExtraMessage from the mv context's status.
+     *
+     * @return the MVTaskRunExtraMessage if exists, null otherwise
+     */
+    @VisibleForTesting
+    public MVTaskRunExtraMessage getMVTaskRunExtraMessage() {
+        if (this.mvContext.getStatus() == null) {
+            return null;
+        }
+        return this.mvContext.getStatus().getMvTaskRunExtraMessage();
     }
 
     protected void refreshExternalTable(Map<BaseTableSnapshotInfo, Set<String>> baseTableCandidatePartitions) {
@@ -410,11 +477,10 @@ public abstract class BaseMVRefreshProcessor {
 
     /**
      * Collect all deduplicated databases of the materialized view's base tables.
-     * @param mv: the mv to check
      * @return: the deduplicated databases of the materialized view's base tables,
      * throw exception if the database does not exist.
      */
-    protected LockParams collectDatabases(MaterializedView mv) {
+    protected LockParams collectDatabases() {
         final LockParams lockParams = new LockParams();
         final ConnectContext connectContext = mvContext.getCtx();
         for (BaseTableInfo baseTableInfo : mv.getBaseTableInfos()) {
@@ -435,15 +501,13 @@ public abstract class BaseMVRefreshProcessor {
      * update meta phase.
      * 1. deep copy of the base table's metadata may be time costing, we can optimize it later.
      * 2. no needs to lock the base table's metadata since the metadata is not changed during the refresh process.
-     * @param mv the mv to collect
      * @return the base table and its snapshot info map
      */
     @VisibleForTesting
-    public Map<Long, BaseTableSnapshotInfo> collectBaseTableSnapshotInfos(MaterializedView mv)
-            throws LockTimeoutException {
+    public Map<Long, BaseTableSnapshotInfo> collectBaseTableSnapshotInfos() throws LockTimeoutException {
         final Stopwatch stopwatch = Stopwatch.createStarted();
         final List<BaseTableInfo> baseTableInfos = mv.getBaseTableInfos();
-        final LockParams lockParams = collectDatabases(mv);
+        final LockParams lockParams = collectDatabases();
         final Locker locker = new Locker();
         if (!locker.tryLockTableWithIntensiveDbLock(lockParams, LockType.READ, Config.mv_refresh_try_lock_timeout_ms,
                 TimeUnit.MILLISECONDS)) {
@@ -488,22 +552,8 @@ public abstract class BaseMVRefreshProcessor {
         return tables;
     }
 
-    /**
-     * Get the MVTaskRunExtraMessage from the mv context's status.
-     *
-     * @return the MVTaskRunExtraMessage if exists, null otherwise
-     */
-    @VisibleForTesting
-    public MVTaskRunExtraMessage getMVTaskRunExtraMessage() {
-        if (this.mvContext.getStatus() == null) {
-            return null;
-        }
-        return this.mvContext.getStatus().getMvTaskRunExtraMessage();
-    }
-
     public Set<String> getPCTMVToRefreshedPartitions(TaskRunContext context,
-                                                     boolean tentative)
-            throws AnalysisException, LockTimeoutException {
+                                                     boolean tentative) throws AnalysisException, LockTimeoutException {
         MaterializedView.PartitionRefreshStrategy partitionRefreshStrategy = MaterializedView.PartitionRefreshStrategy.valueOf(
                 mv.getTableProperty().getPartitionRefreshStrategy().trim().toUpperCase());
         boolean isForce = partitionRefreshStrategy == MaterializedView.PartitionRefreshStrategy.FORCE || tentative;
@@ -592,7 +642,7 @@ public abstract class BaseMVRefreshProcessor {
             try (Timer ignored = Tracers.watchScope("MVRefreshCheckBaseTableChange")) {
                 // check whether there are partition changes for base tables, eg: partition rename
                 // retry to sync partitions if any base table changed the partition infos
-                if (checkPCTBaseTablePartitionChange(mv)) {
+                if (checkPCTBaseTablePartitionChange()) {
                     logger.info("materialized view base partition has changed. retry to sync partitions, retryNum:{}", retryNum);
                     // sleep 100ms
                     Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
@@ -613,8 +663,8 @@ public abstract class BaseMVRefreshProcessor {
      *
      * @return: true if the base table's partition has changed, otherwise false.
      */
-    private boolean checkPCTBaseTablePartitionChange(MaterializedView mv) throws LockTimeoutException {
-        LockParams lockParams = collectDatabases(mv);
+    private boolean checkPCTBaseTablePartitionChange() throws LockTimeoutException {
+        LockParams lockParams = collectDatabases();
         Locker locker = new Locker();
         if (!locker.tryLockTableWithIntensiveDbLock(lockParams,
                 LockType.READ, Config.mv_refresh_try_lock_timeout_ms, TimeUnit.MILLISECONDS)) {
@@ -681,7 +731,6 @@ public abstract class BaseMVRefreshProcessor {
      * @param refTableAndPartitionNames : refreshed base table and its partition names mapping.
      */
     protected void updatePCTMeta(Set<String> mvRefreshedPartitions,
-                                 ExecPlan execPlan,
                                  Map<BaseTableSnapshotInfo, Set<String>> refTableAndPartitionNames) {
         // check
         Table mv = GlobalStateMgr.getCurrentState().getLocalMetastore().getTable(db.getId(), this.mv.getId());

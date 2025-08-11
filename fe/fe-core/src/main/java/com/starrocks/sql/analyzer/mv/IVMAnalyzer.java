@@ -41,6 +41,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * This class is responsible for analyzing and rewriting the query statement for IVM (Incremental View Maintenance) refresh.
+ */
 public class IVMAnalyzer {
     public record AggFunctionInfo(FunctionCallExpr aggFunc,
                                   String aggFuncName,
@@ -63,14 +66,11 @@ public class IVMAnalyzer {
     }
 
     private static FunctionCallExpr buildIntermediateAggregateFunc(FunctionCallExpr aggFuncExpr) {
-        // agg_state
+        // <func>_agg_combine(<args>)
         String aggFuncName = aggFuncExpr.getFnName().getFunction();
-        String aggStateFuncName = AggStateUtils.aggStateFunctionName(aggFuncName);
+        String aggStateFuncName = AggStateUtils.aggStateCombineFunctionName(aggFuncName);
         FunctionCallExpr aggStateFuncExpr = new FunctionCallExpr(aggStateFuncName, aggFuncExpr.getChildren());
-
-        String aggStateUnionFuncName = AggStateUtils.aggStateUnionFunctionName(aggFuncName);
-        FunctionCallExpr aggStateUnionAggFuncExpr = new FunctionCallExpr(aggStateUnionFuncName, List.of(aggStateFuncExpr));
-        return aggStateUnionAggFuncExpr;
+        return aggStateFuncExpr;
     }
 
     private static FunctionCallExpr buildStateMergeFuncExpr(AggFunctionInfo aggFunctionInfo) {
@@ -79,7 +79,6 @@ public class IVMAnalyzer {
         SlotRef slotRef = new SlotRef(null, aggFunctionInfo.newAggFuncName);
         return new FunctionCallExpr(stateMergeFuncName, List.of(slotRef));
     }
-
 
     public static Optional<QueryStatement> rewrite(ConnectContext connectContext,
                                                    CreateMaterializedViewStatement statement) {

@@ -82,7 +82,7 @@ insert into mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 values
 REFRESH MATERIALIZED VIEW test_mv1 WITH SYNC MODE;
 SELECT COUNT(*) FROM test_mv1;
 -- result:
-9
+8
 -- !result
 insert into mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 values 
   ('1d8cf2a2c0e14fa89d8117792be6eb6f', 2000, '2023-12-01');
@@ -91,7 +91,7 @@ insert into mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 values
 REFRESH MATERIALIZED VIEW test_mv1 WITH SYNC MODE;
 SELECT COUNT(*) FROM test_mv1;
 -- result:
-12
+8
 -- !result
 insert into mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 values 
   ('1d8cf2a2c0e14fa89d8117792be6eb6f', 2000, '2023-12-01');
@@ -104,7 +104,7 @@ insert into mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t2 values
 REFRESH MATERIALIZED VIEW test_mv1 WITH SYNC MODE;
 SELECT COUNT(*) FROM test_mv1;
 -- result:
-18
+14
 -- !result
 drop materialized view default_catalog.db_${uuid0}.test_mv1;
 -- result:

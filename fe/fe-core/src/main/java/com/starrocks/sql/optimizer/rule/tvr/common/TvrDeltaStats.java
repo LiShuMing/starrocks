@@ -15,19 +15,30 @@
 package com.starrocks.sql.optimizer.rule.tvr.common;
 
 public class TvrDeltaStats {
-    public static final TvrDeltaStats EMPTY = new TvrDeltaStats(null);
+    public static final TvrDeltaStats EMPTY = new TvrDeltaStats(0);
 
-    private final Long addedRows;
+    private final long addedRows;
 
-    public TvrDeltaStats(Long addedRows) {
+    public TvrDeltaStats(long addedRows) {
         this.addedRows = addedRows;
     }
 
     public static TvrDeltaStats of(Long addedRows) {
-        return new TvrDeltaStats(addedRows);
+        if (addedRows == null || addedRows == 0) {
+            return EMPTY;
+        } else {
+            return new TvrDeltaStats(addedRows);
+        }
     }
 
     public long getChangedRows() {
-        return addedRows == null ? 0 : addedRows;
+        return addedRows;
+    }
+
+    @Override
+    public String toString() {
+        return "TvrDeltaStats{" +
+                "addedRows=" + addedRows +
+                '}';
     }
 }

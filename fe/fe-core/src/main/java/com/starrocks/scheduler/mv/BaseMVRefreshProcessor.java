@@ -717,18 +717,5 @@ public abstract class BaseMVRefreshProcessor {
         } finally {
             locker.unLockTableWithIntensiveDbLock(db.getId(), this.mv.getId(), LockType.WRITE);
         }
-
-        // update mv status message
-        updateTaskRunStatus(status -> {
-            try {
-                MVTaskRunExtraMessage extraMessage = status.getMvTaskRunExtraMessage();
-                Map<String, Set<String>> baseTableRefreshedPartitionsByExecPlan =
-                        MVTraceUtils.getBaseTableRefreshedPartitionsByExecPlan(this.mv, execPlan);
-                extraMessage.setBasePartitionsToRefreshMap(baseTableRefreshedPartitionsByExecPlan);
-            } catch (Exception e) {
-                // just log warn and no throw exceptions for an updating task runs message.
-                logger.warn("update task run messages failed:", DebugUtil.getRootStackTrace(e));
-            }
-        });
     }
 }

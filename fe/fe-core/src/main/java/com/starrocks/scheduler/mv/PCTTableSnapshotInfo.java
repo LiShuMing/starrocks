@@ -73,6 +73,39 @@ public class PCTTableSnapshotInfo extends BaseTableSnapshotInfo {
                 ", refreshedPartitionInfos=" + refreshedPartitionInfos;
     }
 
+    /**
+     * Check if the base table's partition has changed since the last snapshot.
+     * @param mv : materialized view to check
+     * @return true if the base table's partition has changed, false otherwise.
+     */
+    public boolean isPCTBaseTablePartitionHasChanged(MaterializedView mv) {
+        try {
+            return isPCTBaseTablePartitionHasChangedImpl(mv);
+        } catch (Exception e) {
+            LOG.warn("Materialized view compute partition change failed", DebugUtil.getRootStackTrace(e));
+            return true;
+        }
+    }
+
+    /**
+     * Update the partition infos of the base table.
+     * @param refreshedPartitionNames : the names of the partitions that have been refreshed.
+     */
+    public void updatePartitionInfos(List<String> refreshedPartitionNames) {
+        Preconditions.checkNotNull(baseTableInfo, "baseTableInfo should not be null");
+        Preconditions.checkNotNull(baseTable, "baseTable should not be null");
+        if (baseTable.isNativeTableOrMaterializedView()) {
+            OlapTable olapTable = (OlapTable) baseTable;
+            updatePCTOlapPartitionInfos(olapTable, refreshedPartitionNames);
+        } else if (MVPCTRefreshPartitioner.isPartitionRefreshSupported(baseTable)) {
+            getPCTExternalPartitionInfos(baseTable, refreshedPartitionNames);
+        } else {
+            // FIXME: base table does not support partition-level refresh and does not update the meta
+            //  in materialized view.
+            LOG.warn("refresh mv with non-supported-partition-level refresh base table {}", baseTable.getName());
+        }
+    }
+
     private boolean isPCTBaseTablePartitionHasChangedImpl(MaterializedView mv) throws StarRocksException {
         Optional<Table> optTable = MvUtils.getTableWithIdentifier(baseTableInfo);
         if (optTable.isEmpty()) {
@@ -136,33 +169,6 @@ public class PCTTableSnapshotInfo extends BaseTableSnapshotInfo {
             }
         }
         return false;
-    }
-
-    public boolean isPCTBaseTablePartitionHasChanged(MaterializedView mv) {
-        try {
-            return isPCTBaseTablePartitionHasChangedImpl(mv);
-        } catch (Exception e) {
-            LOG.warn("Materialized view compute partition change failed", DebugUtil.getRootStackTrace(e));
-            return true;
-        }
-    }
-
-    public void updatePartitionInfos(List<String> refreshedPartitionNames) {
-        Preconditions.checkNotNull(baseTableInfo, "baseTableInfo should not be null");
-        Preconditions.checkNotNull(baseTable, "baseTable should not be null");
-        Preconditions.checkArgument(!refreshedPartitionInfos.isEmpty(),
-                "refreshedPartitionInfos should not be empty");
-
-        if (baseTable.isNativeTableOrMaterializedView()) {
-            OlapTable olapTable = (OlapTable) baseTable;
-            updatePCTOlapPartitionInfos(olapTable, refreshedPartitionNames);
-        } else if (MVPCTRefreshPartitioner.isPartitionRefreshSupported(baseTable)) {
-            getPCTExternalPartitionInfos(baseTable, refreshedPartitionNames);
-        } else {
-            // FIXME: base table does not support partition-level refresh and does not update the meta
-            //  in materialized view.
-            LOG.warn("refresh mv with non-supported-partition-level refresh base table {}", baseTable.getName());
-        }
     }
 
     private void updatePCTOlapPartitionInfos(OlapTable olapTable,

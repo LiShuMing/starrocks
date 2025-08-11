@@ -57,4 +57,13 @@ public class TvrDeltaTrait {
     public TvrDeltaStats getTvrDeltaStats() {
         return tvrDeltaStats;
     }
+
+    @Override
+    public String toString() {
+        return "TvrDeltaTrait{" +
+                "tvrTableDelta=" + tvrTableDelta +
+                ", tvrChangeType=" + tvrChangeType +
+                ", tvrDeltaStats=" + tvrDeltaStats +
+                '}';
+    }
 }

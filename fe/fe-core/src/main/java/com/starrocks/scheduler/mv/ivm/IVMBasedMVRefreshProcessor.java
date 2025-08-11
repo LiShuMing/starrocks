@@ -82,7 +82,6 @@ public class IVMBasedMVRefreshProcessor extends BaseMVRefreshProcessor {
     // This map is used to store the temporary tvr version range for each base table
     private final Map<BaseTableInfo, TvrVersionRange> tempMvTvrVersionRangeMap = Maps.newConcurrentMap();
 
-    private final boolean isUpdatePCTMetadata = true;
     private Set<String> mvToRefreshedPartitions = null;
     private Map<String, Set<String>> refTablePartitionNames = null;
     private Map<BaseTableSnapshotInfo, Set<String>> refTableRefreshPartitions = null;
@@ -135,6 +134,10 @@ public class IVMBasedMVRefreshProcessor extends BaseMVRefreshProcessor {
                 // collect changed version range
                 baseTableChangedVersionRanges.put(snapshotInfo.getBaseTableInfo(), changedVersionRange);
                 tempMvTvrVersionRangeMap.put(snapshotInfo.getBaseTableInfo(), TvrTableSnapshot.of(changedVersionRange.to));
+
+                // update the snapshot info with the changed version range
+                TvrTableSnapshotInfo tvrTableSnapshotInfo = (TvrTableSnapshotInfo) snapshotInfo;
+                tvrTableSnapshotInfo.setTvrSnapshot(changedVersionRange);
             }
         }
         boolean isTaskRunSkipped = baseTableChangedVersionRanges.values().stream()
@@ -145,10 +148,8 @@ public class IVMBasedMVRefreshProcessor extends BaseMVRefreshProcessor {
             return new ProcessExecPlan(Constants.TaskRunState.SKIPPED, null, null);
         }
 
-        if (isUpdatePCTMetadata) {
-            try (Timer ignored = Tracers.watchScope("MVRefreshCheckMVToRefreshPartitions")) {
-                checkPCTToRefreshMetas(taskRunContext);
-            }
+        try (Timer ignored = Tracers.watchScope("MVRefreshCheckMVToRefreshPartitions")) {
+            checkPCTToRefreshMetas(taskRunContext);
         }
 
         InsertStmt insertStmt = null;
@@ -202,10 +203,8 @@ public class IVMBasedMVRefreshProcessor extends BaseMVRefreshProcessor {
             executor.executePlan(execPlan, insertStmt);
         }
 
-        if (isUpdatePCTMetadata) {
-            try (Timer ignored = Tracers.watchScope("MVRefreshUpdateMeta")) {
-                updatePCTMeta(mvToRefreshedPartitions, execPlan, refTableRefreshPartitions);
-            }
+        try (Timer ignored = Tracers.watchScope("MVRefreshUpdateMeta")) {
+            updatePCTMeta(mvToRefreshedPartitions, execPlan, refTableRefreshPartitions);
         }
 
         // generate the next task run state
@@ -290,6 +289,9 @@ public class IVMBasedMVRefreshProcessor extends BaseMVRefreshProcessor {
     private TvrTableDelta getBaseTableChangedDeltaAdaptive(BaseTableInfo baseTableInfo,
                                                            IcebergTable icebergTable,
                                                            TvrTableDelta maxTvrDelta) {
+        if (Config.mv_max_rows_per_refresh <= 0) {
+            return maxTvrDelta;
+        }
         List<TvrDeltaTrait> tableDeltaTraits = GlobalStateMgr.getCurrentState().getMetadataMgr()
                 .listVersionRangesBetween(baseTableInfo.getDbName(), icebergTable,
                         maxTvrDelta.fromSnapshot(), maxTvrDelta.toSnapshot());
@@ -308,16 +310,26 @@ public class IVMBasedMVRefreshProcessor extends BaseMVRefreshProcessor {
                         baseTableInfo.getDbName(), baseTableInfo.getTableName());
             }
             addedRows += deltaTrait.getTvrDeltaStats().getChangedRows();
+
             if (addedRows >= Config.mv_max_rows_per_refresh) {
+                logger.info("Base table: {}, db: {}, added rows: {}, snapshot:{}" +
+                                "reached the max rows per refresh, stop processing further deltas",
+                        baseTableInfo.getTableName(), baseTableInfo.getDbName(), addedRows, deltaTrait);
                 break;
             }
+            logger.info("Base table: {}, db: {}, deltaTrait: {}, added rows: {}, fromSnapshot: {}, toSnapshot: {}",
+                    baseTableInfo.getTableName(), baseTableInfo.getDbName(), deltaTrait, addedRows,
+                    fromSnapshot, toSnapshot);
             toSnapshot = deltaTrait.getTvrDelta().toSnapshot();
         }
         TvrTableDelta result = TvrTableDelta.of(fromSnapshot.to, toSnapshot.to);
-        logger.info("Base table: {}, db: {}, max tvr delta: {}, adaptive tvr delta: {}",
-                baseTableInfo.getTableName(), baseTableInfo.getDbName(), maxTvrDelta, result);
         // if the adaptive tvr delta is different from the max tvr delta, generate the next task run
-        hasNextTaskRun = !toSnapshot.equals(maxTvrDelta.toSnapshot()) && !toSnapshot.to.isMax();
+        hasNextTaskRun = addedRows >= Config.mv_max_rows_per_refresh
+                && !toSnapshot.equals(maxTvrDelta.toSnapshot())
+                && !toSnapshot.to.isMax();
+        logger.info("Base table: {}, db: {}, max tvr delta: {}, adaptive tvr delta: {}, " +
+                        "toSnapshot:{}, hasNextTaskRun:{}", baseTableInfo.getTableName(), baseTableInfo.getDbName(),
+                maxTvrDelta, result, toSnapshot, hasNextTaskRun);
         return result;
     }
 

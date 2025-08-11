@@ -19,7 +19,6 @@ import com.starrocks.common.tvr.TvrVersionRange;
 import com.starrocks.scheduler.mv.PCTTableSnapshotInfo;
 
 public class TvrTableSnapshotInfo extends PCTTableSnapshotInfo  {
-    // partition's base info to be used in `updateMeta`
     private TvrVersionRange tvrVersionRange;
 
     public TvrTableSnapshotInfo(BaseTableInfo baseTableInfo, Table baseTable) {
@@ -29,6 +28,7 @@ public class TvrTableSnapshotInfo extends PCTTableSnapshotInfo  {
     public TvrVersionRange getTvrSnapshot() {
         return tvrVersionRange;
     }
+
     public void setTvrSnapshot(TvrVersionRange tvrVersionRange) {
         this.tvrVersionRange = tvrVersionRange;
     }

@@ -37,22 +37,22 @@ properties
 AS SELECT * FROM mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1;
 
 REFRESH MATERIALIZED VIEW test_mv1 WITH SYNC MODE;
-SELECT COUNT(*) FROM test_mv1;
+SELECT col_str, col_int, dt FROM test_mv1 ORDER BY col_str, col_int, dt;
 
 insert into mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 values 
   ('a', 10, '2023-12-01');
 REFRESH MATERIALIZED VIEW test_mv1 WITH SYNC MODE;
-SELECT COUNT(*) FROM test_mv1;
+SELECT col_str, col_int, dt FROM test_mv1 ORDER BY col_str, col_int, dt;
 
 insert into mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 values 
   ('b', 20, '2023-12-01');
 REFRESH MATERIALIZED VIEW test_mv1 WITH SYNC MODE;
-SELECT COUNT(*) FROM test_mv1;
+SELECT col_str, col_int, dt FROM test_mv1 ORDER BY col_str, col_int, dt;
 
 insert into mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 values 
   (NULL, 30, '2023-12-01');
 REFRESH MATERIALIZED VIEW test_mv1 WITH SYNC MODE;
-SELECT COUNT(*) FROM test_mv1;
+SELECT col_str, col_int, dt FROM test_mv1 ORDER BY col_str, col_int, dt;
 
 drop materialized view test_mv1;
 
@@ -69,22 +69,22 @@ WHERE col_int > 5
 group by dt;
 
 REFRESH MATERIALIZED VIEW test_mv1 WITH SYNC MODE;
-SELECT COUNT(*) FROM test_mv1;
+SELECT dt, sum_col_int, approx_count_distinct_col_str FROM test_mv1 ORDER BY dt;
 
 insert into mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 values 
   ('a', 10, '2023-12-01');
 REFRESH MATERIALIZED VIEW test_mv1 WITH SYNC MODE;
-SELECT COUNT(*) FROM test_mv1;
+SELECT dt, sum_col_int, approx_count_distinct_col_str FROM test_mv1 ORDER BY dt;
 
 insert into mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 values 
   ('b', 20, '2023-12-02');
 REFRESH MATERIALIZED VIEW test_mv1 WITH SYNC MODE;
-SELECT COUNT(*) FROM test_mv1;
+SELECT dt, sum_col_int, approx_count_distinct_col_str FROM test_mv1 ORDER BY dt;
 
 insert into mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 values 
   (NULL, 30, '2023-12-01');
 REFRESH MATERIALIZED VIEW test_mv1 WITH SYNC MODE;
-SELECT COUNT(*) FROM test_mv1;
+SELECT dt, sum_col_int, approx_count_distinct_col_str FROM test_mv1 ORDER BY dt;
 
 drop table mv_iceberg_${uuid0}.mv_ice_db_${uuid0}.t1 force;
 drop database mv_iceberg_${uuid0}.mv_ice_db_${uuid0} force;

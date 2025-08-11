@@ -24,6 +24,7 @@ import com.starrocks.catalog.Database;
 import com.starrocks.catalog.IcebergTable;
 import com.starrocks.catalog.PartitionKey;
 import com.starrocks.catalog.Type;
+import com.starrocks.common.tvr.TvrTableDelta;
 import com.starrocks.common.tvr.TvrTableSnapshot;
 import com.starrocks.common.tvr.TvrVersionRange;
 import com.starrocks.connector.ConnectorMetadatRequestContext;
@@ -33,6 +34,8 @@ import com.starrocks.qe.ConnectContext;
 import com.starrocks.sql.optimizer.OptimizerContext;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrDeltaStats;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrDeltaTrait;
 import com.starrocks.sql.optimizer.statistics.ColumnStatistic;
 import com.starrocks.sql.optimizer.statistics.Statistics;
 import org.apache.commons.collections4.map.CaseInsensitiveMap;
@@ -499,6 +502,17 @@ public class MockIcebergMetadata implements ConnectorMetadata {
     @Override
     public TvrVersionRange getCurrentTvrSnapshot(String dbName, com.starrocks.catalog.Table table) {
         return TvrTableSnapshot.of(Optional.of(1L));
+    }
+
+    @Override
+    public List<TvrDeltaTrait> listVersionRangesBetween(String dbName, com.starrocks.catalog.Table table,
+                                                        TvrTableSnapshot fromSnapshotExclusive,
+                                                        TvrTableSnapshot toSnapshotInclusive) {
+
+        TvrDeltaStats stats = TvrDeltaStats.of(1L);
+        TvrTableDelta tvrDelta = TvrTableDelta.of(0L, 1);
+        TvrDeltaTrait tvrDeltaTrait = TvrDeltaTrait.ofMonotonic(tvrDelta, stats);
+        return Lists.newArrayList(tvrDeltaTrait);
     }
 
     public void addRowsToPartition(String dbName, String tableName, int rowCount, String partitionName) {

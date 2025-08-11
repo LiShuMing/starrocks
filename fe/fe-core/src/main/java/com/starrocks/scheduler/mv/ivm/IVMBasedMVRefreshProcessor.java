@@ -52,8 +52,10 @@ import com.starrocks.sql.ast.InsertStmt;
 import com.starrocks.sql.ast.QueryStatement;
 import com.starrocks.sql.ast.TableRelation;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrDeltaTrait;
 import com.starrocks.sql.plan.ExecPlan;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -77,12 +79,9 @@ public class IVMBasedMVRefreshProcessor extends BaseMVRefreshProcessor {
     }
 
     public ProcessExecPlan getProcessExecPlan(TaskRunContext taskRunContext) throws Exception {
-        // collect base table snapshot infos
-        try (Timer ignored = Tracers.watchScope("MVRefreshSyncBaseTableSnapshotInfos")) {
-            syncPartitions();
-        }
-
         try (Timer ignored = Tracers.watchScope("MVRefreshExternalTable")) {
+            // collect base table snapshot infos
+            Map<Long, BaseTableSnapshotInfo> snapshotBaseTables = collectBaseTableSnapshotInfos(mv);
             // refresh external table meta cache before sync partitions
             Map<BaseTableSnapshotInfo, Set<String>> baseTableCandidatePartitions = snapshotBaseTables.values()
                     .stream()
@@ -90,7 +89,10 @@ public class IVMBasedMVRefreshProcessor extends BaseMVRefreshProcessor {
                     .collect(Collectors.toMap(x -> x.first, x -> x.second));
             refreshExternalTable(baseTableCandidatePartitions);
         }
-
+        // collect base table snapshot infos
+        try (Timer ignored = Tracers.watchScope("MVRefreshSyncBaseTableSnapshotInfos")) {
+            syncPartitions();
+        }
         // collect change snapshots
         Map<BaseTableInfo, TvrVersionRange> baseTableChangedVersionRanges = Maps.newHashMap();
         try (Timer ignored = Tracers.watchScope("MVRefreshCheckChangedVersionRanges")) {
@@ -168,7 +170,13 @@ public class IVMBasedMVRefreshProcessor extends BaseMVRefreshProcessor {
         }
         IcebergTable icebergTable = (IcebergTable) snapshotTable;
 
-        // TODO: We may introduce a smarter way to determine which incremental snapshot to refresh later.
+        final TvrTableDelta maxTvrDelta = getMaxBaseTableChangedDelta(baseTableInfo, icebergTable, mvTvrVersionRangeMap);
+        return getBaseTableChangedDeltaAdaptive(baseTableInfo, icebergTable, maxTvrDelta);
+    }
+
+    private TvrTableDelta getMaxBaseTableChangedDelta(BaseTableInfo baseTableInfo,
+                                                        IcebergTable icebergTable,
+                                                      Map<BaseTableInfo, TvrVersionRange> mvTvrVersionRangeMap) {
         // For now, we always refresh the latest snapshot from the last refresh.
         // current tvr snapshot
         TvrVersionRange currentTvrSnapshot = GlobalStateMgr.getCurrentState().getMetadataMgr()
@@ -205,6 +213,7 @@ public class IVMBasedMVRefreshProcessor extends BaseMVRefreshProcessor {
         if (beforeVersion.equals(currentVersion)) {
             // no change, so we can skip the refresh
             logger.info("Base table {} has not changed", baseTableInfo.getTableName());
+            return TvrTableDelta.of(beforeVersion, currentVersion);
         } else if (beforeVersion.isAfter(currentVersion)) {
             // if the before tvr snapshot's to is after the current tvr snapshot's to, throw exception?
             // how to handle this!
@@ -213,6 +222,39 @@ public class IVMBasedMVRefreshProcessor extends BaseMVRefreshProcessor {
                     baseTableInfo.getTableName(), beforeVersion, currentVersion);
         }
         return TvrTableDelta.of(beforeVersion, currentVersion);
+    }
+
+    // TODO: We may introduce a smarter way to determine which incremental snapshot to refresh later.
+    private TvrTableDelta getBaseTableChangedDeltaAdaptive(BaseTableInfo baseTableInfo,
+                                                           IcebergTable icebergTable,
+                                                           TvrTableDelta maxTvrDelta) {
+        List<TvrDeltaTrait> tableDeltaTraits = GlobalStateMgr.getCurrentState().getMetadataMgr()
+                .listVersionRangesBetween(baseTableInfo.getDbName(), icebergTable,
+                        maxTvrDelta.fromSnapshot(), maxTvrDelta.toSnapshot());
+        if (tableDeltaTraits.isEmpty()) {
+            logger.warn("No tvr delta traits found for base table: {}, db: {}", baseTableInfo.getTableName(),
+                    baseTableInfo.getDbName());
+            return TvrTableDelta.emptyDelta();
+        }
+        TvrTableSnapshot fromSnapshot = maxTvrDelta.fromSnapshot();
+        long addedRows = 0;
+        TvrTableSnapshot toSnapshot = maxTvrDelta.toSnapshot();
+        for (TvrDeltaTrait deltaTrait : tableDeltaTraits) {
+            // TODO: We may need to handle the case where the deltaTrait is not append-only.
+            if (!deltaTrait.isAppendOnly()) {
+                throw new SemanticException("TvrDeltaTrait is not append-only for base table: %s.%s",
+                        baseTableInfo.getDbName(), baseTableInfo.getTableName());
+            }
+            addedRows += deltaTrait.getTvrDeltaStats().getChangedRows();
+            if (addedRows >= Config.mv_max_rows_per_refresh) {
+                toSnapshot = deltaTrait.getTvrDelta().toSnapshot();
+                break;
+            }
+        }
+        TvrTableDelta result = TvrTableDelta.of(fromSnapshot.to, toSnapshot.to);
+        logger.info("Base table: {}, db: {}, max tvr delta: {}, adaptive tvr delta: {}",
+                baseTableInfo.getTableName(), baseTableInfo.getDbName(), maxTvrDelta, result);
+        return result;
     }
 
     private InsertStmt prepareRefreshPlan(Map<BaseTableInfo, TvrVersionRange> baseTableChangedVersionRanges)

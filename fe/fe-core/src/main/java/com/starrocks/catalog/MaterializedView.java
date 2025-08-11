@@ -46,6 +46,7 @@ import com.starrocks.common.MaterializedViewExceptions;
 import com.starrocks.common.Pair;
 import com.starrocks.common.io.DeepCopy;
 import com.starrocks.common.io.Text;
+import com.starrocks.common.tvr.TvrTableSnapshot;
 import com.starrocks.common.tvr.TvrVersionRange;
 import com.starrocks.common.util.DateUtils;
 import com.starrocks.common.util.PropertyAnalyzer;
@@ -372,7 +373,24 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
         }
 
         public void replaceWithTempBaseTableInfoTvrDeltaMap() {
-            this.baseTableInfoTvrDeltaMap.putAll(tempBaseTableInfoTvrDeltaMap);
+            // apply the delta into baseTableInfoTvrDeltaMap
+            for (Map.Entry<BaseTableInfo, TvrVersionRange> entry : tempBaseTableInfoTvrDeltaMap.entrySet()) {
+                if (entry.getValue().isEmpty()) {
+                    continue;
+                }
+                BaseTableInfo baseTableInfo = entry.getKey();
+                TvrVersionRange toCommitVersionRange = entry.getValue();
+                TvrVersionRange committedVersionRange = baseTableInfoTvrDeltaMap.get(baseTableInfo);
+                if (committedVersionRange != null) {
+                    // merge the temp delta into baseTableInfoTvrDeltaMap
+                    if (!committedVersionRange.to().equals(toCommitVersionRange.from())) {
+                        LOG.warn("TvrVersionRange is not continuous, "
+                                        + "committedVersionRange: {}, toCommitVersionRange: {}",
+                                committedVersionRange, toCommitVersionRange);
+                    }
+                }
+                this.baseTableInfoTvrDeltaMap.put(baseTableInfo, TvrTableSnapshot.of(toCommitVersionRange.to));
+            }
             this.clearTempBaseTableInfoTvrDeltaMap();
         }
 

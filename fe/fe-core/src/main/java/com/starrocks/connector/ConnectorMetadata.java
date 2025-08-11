@@ -26,6 +26,7 @@ import com.starrocks.common.DdlException;
 import com.starrocks.common.MetaNotFoundException;
 import com.starrocks.common.StarRocksException;
 import com.starrocks.common.profile.Tracers;
+import com.starrocks.common.tvr.TvrTableSnapshot;
 import com.starrocks.common.tvr.TvrVersionRange;
 import com.starrocks.connector.exception.StarRocksConnectorException;
 import com.starrocks.connector.metadata.MetadataTableType;
@@ -52,6 +53,7 @@ import com.starrocks.sql.ast.TruncateTableStmt;
 import com.starrocks.sql.optimizer.OptimizerContext;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrDeltaTrait;
 import com.starrocks.sql.optimizer.statistics.Statistics;
 import com.starrocks.thrift.TSinkCommitInfo;
 import org.apache.iceberg.DeleteFile;
@@ -131,6 +133,13 @@ public interface ConnectorMetadata {
     default TvrVersionRange getCurrentTvrSnapshot(String dbName, Table table) {
         return TvrVersionRange.empty();
     }
+
+    default List<TvrDeltaTrait> listVersionRangesBetween(String dbName, Table table,
+                                                        TvrTableSnapshot fromSnapshotExclusive,
+                                                        TvrTableSnapshot toSnapshotInclusive) {
+        return Lists.newArrayList();
+    }
+
 
     default TvrVersionRange getTableVersionRange(String dbName, Table table,
                                                  Optional<ConnectorTableVersion> startVersion,

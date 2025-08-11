@@ -14,6 +14,7 @@
 
 package com.starrocks.server;
 
+import com.google.api.client.util.Lists;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
@@ -76,6 +77,7 @@ import com.starrocks.sql.ast.DropTemporaryTableStmt;
 import com.starrocks.sql.optimizer.OptimizerContext;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrDeltaTrait;
 import com.starrocks.sql.optimizer.statistics.ColumnStatistic;
 import com.starrocks.sql.optimizer.statistics.Histogram;
 import com.starrocks.sql.optimizer.statistics.Statistics;
@@ -524,6 +526,15 @@ public class MetadataMgr {
         Optional<ConnectorMetadata> connectorMetadata = getOptionalMetadata(table.getCatalogName());
         return connectorMetadata.map(metadata -> metadata.getCurrentTvrSnapshot(dbName, table))
                 .orElse(TvrTableSnapshot.empty());
+    }
+
+    public List<TvrDeltaTrait> listVersionRangesBetween(String dbName, Table table,
+                                                        TvrTableSnapshot fromSnapshotExclusive,
+                                                        TvrTableSnapshot toSnapshotInclusive) {
+        Optional<ConnectorMetadata> connectorMetadata = getOptionalMetadata(table.getCatalogName());
+        return connectorMetadata.map(metadata -> metadata.listVersionRangesBetween(
+                        dbName, table, fromSnapshotExclusive, toSnapshotInclusive))
+                .orElse(Lists.newArrayList());
     }
 
     public TvrVersionRange getTableVersionRange(String dbName, Table table,

@@ -22,6 +22,10 @@ import com.starrocks.sql.optimizer.operator.logical.LogicalJoinOperator;
 import com.starrocks.sql.optimizer.operator.pattern.Pattern;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.rule.RuleType;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrChangeType;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrLazyOptExpression;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrOptExpression;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrOptMeta;
 
 import java.util.List;
 
@@ -45,20 +49,43 @@ public class TvrJoinRule extends TvrTransformationRule {
     }
 
     @Override
-    public List<OptExpression> transform(OptExpression input, OptimizerContext context) {
+    public OptExpression doTransform(OptExpression input,
+                                     OptimizerContext context,
+                                     TvrChangeType tvrChangeType) {
         LogicalJoinOperator join = input.getOp().cast();
-        OptExpression leftDelta = input.inputAt(0);
-        TvrOptMeta leftMeta = leftDelta.getTvrMeta();
-        OptExpression rightDelta = input.inputAt(1);
-        TvrOptMeta rightMeta = rightDelta.getTvrMeta();
+        OptExpression leftChildDelta = input.inputAt(0);
+        TvrOptMeta leftOptMeta = leftChildDelta.getTvrMeta();
+        OptExpression rightChildDelta = input.inputAt(1);
+        TvrOptMeta rightOptMeta = rightChildDelta.getTvrMeta();
 
         // TODO: use left table's tvrOptMeta as the root
         // TODO: Use mv as the history state instead of recomputing.
         List<ColumnRefOperator> originalOutputColRefs = input.getRowOutputInfo().getOutputColRefs();
-        TvrOptExpression tvrLeftFrom = leftMeta.getFrom();
-        TvrOptExpression tvrLeftTo = leftMeta.getTo();
-        TvrOptExpression tvrRightFrom = rightMeta.getFrom();
-        TvrOptExpression tvrRightTo = rightMeta.getTo();
+
+
+        // delta join
+        OptExpression deltaJoin = null;
+        if (leftOptMeta.isAppendOnly() && rightOptMeta.isAppendOnly()) {
+            // build the tvrOptMeta for the join operator
+            TvrOptMeta rootOptMeta = buildJoinOptMeta(context, join, leftOptMeta, rightOptMeta, originalOutputColRefs);
+            deltaJoin = doTransformWithMonotonic(context, input, join, originalOutputColRefs,
+                    leftOptMeta, rightOptMeta, rootOptMeta);
+        } else {
+            throw new IllegalStateException("Join operator should be append-only for TVR: " + join.getJoinType()
+                    + " in " + input);
+        }
+        return deltaJoin;
+    }
+
+    private TvrOptMeta buildJoinOptMeta(OptimizerContext context,
+                                        LogicalJoinOperator join,
+                                        TvrOptMeta leftOptMeta,
+                                        TvrOptMeta rightOptMeta,
+                                        List<ColumnRefOperator> originalOutputColRefs) {
+        TvrOptExpression tvrLeftFrom = leftOptMeta.getFrom();
+        TvrOptExpression tvrLeftTo = leftOptMeta.getTo();
+        TvrOptExpression tvrRightFrom = rightOptMeta.getFrom();
+        TvrOptExpression tvrRightTo = rightOptMeta.getTo();
 
         // from opt
         TvrLazyOptExpression fromJoin = TvrLazyOptExpression.of(() -> {
@@ -73,21 +100,33 @@ public class TvrJoinRule extends TvrTransformationRule {
             return new TvrOptExpression(tvrLeftTo.tvrVersionRange(), toOpt.optExpression());
         });
         // root opt group
-        TvrOptMeta rootOptMeta = new TvrOptMeta(leftMeta.tvrTrait(), fromJoin, toJoin);
+        return new TvrOptMeta(leftOptMeta.tvrDeltaTrait(), fromJoin, toJoin);
+    }
 
-        // delta join
-        OptExpression deltaJoin = null;
+    private OptExpression doTransformWithMonotonic(OptimizerContext context,
+                                                   OptExpression input,
+                                                   LogicalJoinOperator join,
+                                                   List<ColumnRefOperator> originalOutputColRefs,
+                                                   TvrOptMeta leftOptMeta,
+                                                   TvrOptMeta rightOptMeta,
+                                                   TvrOptMeta rootOptMeta) {
+
+        TvrOptExpression tvrLeftFrom = leftOptMeta.getFrom();
+        TvrOptExpression tvrLeftTo = leftOptMeta.getTo();
+        TvrOptExpression tvrRightFrom = rightOptMeta.getFrom();
+        TvrOptExpression tvrRightTo = rightOptMeta.getTo();
+
+        OptExpression leftDelta = input.inputAt(0);
+        OptExpression rightDelta = input.inputAt(1);
         if (join.isInnerOrCrossJoin()) {
             OptExpressionWithOutput deltaOutput1 =
                     newJoinOperator(context, originalOutputColRefs, join, tvrLeftFrom.optExpression(), rightDelta);
             OptExpressionWithOutput deltaOutput2 =
                     newJoinOperator(context, originalOutputColRefs, join, leftDelta, tvrRightTo.optExpression());
-            deltaJoin = newUnionOperator(rootOptMeta, originalOutputColRefs, Lists.newArrayList(deltaOutput1, deltaOutput2));
+            return newUnionOperator(rootOptMeta, originalOutputColRefs, Lists.newArrayList(deltaOutput1, deltaOutput2));
         } else {
             throw new IllegalStateException(
                     "Unsupported join type for TVR: " + join.getJoinType() + " in " + input);
         }
-
-        return List.of(deltaJoin);
     }
 }

@@ -14,7 +14,6 @@
 
 package com.starrocks.catalog.combinator;
 
-import com.google.common.collect.ImmutableList;
 import com.starrocks.analysis.FunctionName;
 import com.starrocks.catalog.AggregateFunction;
 import com.starrocks.catalog.Function;
@@ -53,7 +52,8 @@ public final class AggStateCombineCombinator extends AggregateFunction {
             Type intermediateType = aggFunc.getIntermediateTypeOrReturnType().clone();
             FunctionName functionName = new FunctionName(AggStateUtils.aggStateCombineFunctionName(aggFunc.functionName()));
             List<Type> argTypes = Arrays.asList(aggFunc.getArgs());
-            AggStateCombineCombinator aggStateCombineFunc = new AggStateCombineCombinator(functionName, argTypes, intermediateType);
+            AggStateCombineCombinator aggStateCombineFunc = new AggStateCombineCombinator(functionName, argTypes,
+                    intermediateType);
             aggStateCombineFunc.setBinaryType(TFunctionBinaryType.BUILTIN);
             aggStateCombineFunc.setPolymorphic(aggFunc.isPolymorphic());
             AggStateDesc aggStateDesc;

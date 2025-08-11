@@ -28,7 +28,8 @@ import com.starrocks.sql.optimizer.operator.OperatorVisitor;
 import com.starrocks.sql.optimizer.operator.ScanOperatorPredicates;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
-import com.starrocks.sql.optimizer.rule.tvr.TvrTrait;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrDeltaStats;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrDeltaTrait;
 
 import java.util.HashSet;
 import java.util.Map;
@@ -94,9 +95,11 @@ public class LogicalIcebergScanOperator extends LogicalScanOperator {
     }
 
     @Override
-    public Optional<TvrTrait> getTvrTrait() {
+    public Optional<TvrDeltaTrait> getTvrTrait() {
         if (tvrVersionRange != null && tvrVersionRange instanceof TvrTableDelta) {
-            return Optional.of(TvrTrait.of((TvrTableDelta) tvrVersionRange, true));
+            // TODO: how to check tvrDelta is append-only?
+            return Optional.of(TvrDeltaTrait.ofMonotonic((TvrTableDelta) tvrVersionRange,
+                    TvrDeltaStats.EMPTY));
         }
         return Optional.empty();
     }
@@ -108,7 +111,6 @@ public class LogicalIcebergScanOperator extends LogicalScanOperator {
         }
         return false;
     }
-
 
     public boolean isFromEqDeleteRewriteRule() {
         return fromEqDeleteRewriteRule;

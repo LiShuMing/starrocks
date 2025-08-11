@@ -25,6 +25,9 @@ public class TvrTableDelta extends TvrVersionRange {
     public static TvrTableDelta of(TvrVersion from, TvrVersion to) {
         return new TvrTableDelta(from, to);
     }
+    public static TvrTableDelta of(long from, long to) {
+        return new TvrTableDelta(TvrVersion.of(from), TvrVersion.of(to));
+    }
 
     public static TvrTableDelta of(Optional<Long> from, Optional<Long> to) {
         return new TvrTableDelta(from, to);

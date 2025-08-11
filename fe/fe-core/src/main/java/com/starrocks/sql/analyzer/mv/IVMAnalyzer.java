@@ -31,8 +31,10 @@ import com.starrocks.sql.ast.QueryStatement;
 import com.starrocks.sql.ast.SelectList;
 import com.starrocks.sql.ast.SelectListItem;
 import com.starrocks.sql.ast.SelectRelation;
+import com.starrocks.sql.ast.SetOperationRelation;
+import com.starrocks.sql.ast.SubqueryRelation;
 import com.starrocks.sql.ast.UnionRelation;
-import com.starrocks.sql.optimizer.rule.tvr.TvrOpUtils;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrOpUtils;
 import org.apache.commons.collections4.CollectionUtils;
 
 import java.util.List;
@@ -78,6 +80,7 @@ public class IVMAnalyzer {
         return new FunctionCallExpr(stateMergeFuncName, List.of(slotRef));
     }
 
+
     public static Optional<QueryStatement> rewrite(ConnectContext connectContext,
                                                    CreateMaterializedViewStatement statement) {
         MaterializedView.RefreshMode refreshMode = getRefreshMode(statement);
@@ -85,36 +88,83 @@ public class IVMAnalyzer {
         if (!refreshMode.isIncremental()) {
             return Optional.empty();
         }
-
         QueryRelation queryRelation = queryStatement.getQueryRelation();
-        if (!(queryRelation instanceof SelectRelation)) {
-            if (queryRelation instanceof UnionRelation) {
-                UnionRelation unionRelation = (UnionRelation) queryRelation;
-                // For UnionRelation, we only handle the case where all children are SelectRelation.
-                List<QueryRelation> children = unionRelation.getRelations();
-                for (QueryRelation child : children) {
-                    if (!(child instanceof SelectRelation)) {
-                        throw new SemanticException("IVMAnalyzer can only handle SelectRelation/UnionRelation, but got: %s",
-                                child.getClass().getSimpleName());
-                    }
-                    SelectRelation selectChild = (SelectRelation) child;
-                    List<FunctionCallExpr> aggregateExprs = selectChild.getAggregate();
-                    if (CollectionUtils.isNotEmpty(aggregateExprs)) {
-                        throw new SemanticException("UnionRelation in IVMAnalyzer should not have aggregate functions, " +
-                                "but got: %s", aggregateExprs);
-                    }
-                }
-                return Optional.of(queryStatement);
-            } else {
+        return rewriteImpl(connectContext, statement, queryStatement, queryRelation);
+    }
+
+    /**
+     * Rewrite the query relation for incremental view maintenance.
+     * NOTE: Only return non-empty Optional if the query relation has been rewritten, otherwise return empty Optional.
+     */
+    private static Optional<QueryStatement> rewriteImpl(ConnectContext connectContext,
+                                                        CreateMaterializedViewStatement statement,
+                                                        QueryStatement queryStatement,
+                                                        QueryRelation queryRelation) {
+        if (queryRelation instanceof SelectRelation) {
+            SelectRelation selectRelation = (SelectRelation) queryRelation;
+            // For SelectRelation, we rewrite it to support incremental view maintenance.
+            return rewriteSelectRelation(connectContext, statement, queryStatement, selectRelation);
+        } else if (queryRelation instanceof SetOperationRelation) {
+            return rewriteSetRelation(connectContext, statement, queryStatement,
+                    (SetOperationRelation) queryRelation);
+        } else if (queryRelation instanceof SubqueryRelation) {
+            return rewriteSubqueryRelation(connectContext, statement, queryStatement,
+                    (SubqueryRelation) queryRelation);
+        } else {
+            throw new SemanticException("IVMAnalyzer can only handle SelectRelation/UnionRelation, but got: %s",
+                    queryRelation.getClass().getSimpleName());
+        }
+    }
+
+    private static Optional<QueryStatement> rewriteSubqueryRelation(ConnectContext connectContext,
+                                                                    CreateMaterializedViewStatement statement,
+                                                                    QueryStatement queryStatement,
+                                                                    SubqueryRelation subqueryRelation) {
+        QueryStatement subQueryStatement = subqueryRelation.getQueryStatement();
+        Optional<QueryStatement> rewritten =
+                rewriteImpl(connectContext, statement, queryStatement, subQueryStatement.getQueryRelation());
+        if (rewritten.isPresent()) {
+            throw new SemanticException("IVMAnalyzer does not support subquery relation, " +
+                    "but got: %s", subqueryRelation.getClass().getSimpleName());
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<QueryStatement> rewriteSetRelation(ConnectContext connectContext,
+                                                               CreateMaterializedViewStatement statement,
+                                                               QueryStatement queryStatement,
+                                                               SetOperationRelation setOperationRelation) {
+        if (!(setOperationRelation instanceof UnionRelation)) {
+            throw new SemanticException("IVMAnalyzer can only handle UnionRelation, " +
+                    "but got: %s", setOperationRelation.getClass().getSimpleName());
+        }
+        UnionRelation unionRelation = (UnionRelation) setOperationRelation;
+        // For UnionRelation, we only handle the case where all children are SelectRelation.
+        List<QueryRelation> children = unionRelation.getRelations();
+        for (QueryRelation child : children) {
+            if (!(child instanceof SelectRelation)) {
                 throw new SemanticException("IVMAnalyzer can only handle SelectRelation/UnionRelation, but got: %s",
-                        queryRelation.getClass().getSimpleName());
+                        child.getClass().getSimpleName());
+            }
+            SelectRelation selectChild = (SelectRelation) child;
+            List<FunctionCallExpr> aggregateExprs = selectChild.getAggregate();
+            if (CollectionUtils.isNotEmpty(aggregateExprs)) {
+                throw new SemanticException("UnionRelation in IVMAnalyzer should not have aggregate functions, " +
+                        "but got: %s", aggregateExprs);
             }
         }
-        SelectRelation selectRelation = (SelectRelation) queryRelation;
+        return Optional.empty();
+    }
+
+    private static Optional<QueryStatement> rewriteSelectRelation(ConnectContext connectContext,
+                                                                  CreateMaterializedViewStatement statement,
+                                                                  QueryStatement queryStatement,
+                                                                  SelectRelation selectRelation) {
         List<FunctionCallExpr> aggregateExprs = selectRelation.getAggregate();
         if (CollectionUtils.isEmpty(aggregateExprs)) {
             return Optional.empty();
         }
+
         List<Expr> groupByExprs = selectRelation.getGroupBy();
         if (CollectionUtils.isEmpty(groupByExprs)) {
             // If there are no group by expressions, we cannot apply IVM optimizations.

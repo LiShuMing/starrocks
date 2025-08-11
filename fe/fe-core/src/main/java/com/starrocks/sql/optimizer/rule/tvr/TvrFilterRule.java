@@ -20,8 +20,9 @@ import com.starrocks.sql.optimizer.operator.OperatorType;
 import com.starrocks.sql.optimizer.operator.logical.LogicalFilterOperator;
 import com.starrocks.sql.optimizer.operator.pattern.Pattern;
 import com.starrocks.sql.optimizer.rule.RuleType;
-
-import java.util.List;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrChangeType;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrOptExpression;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrOptMeta;
 
 public class TvrFilterRule extends TvrTransformationRule {
 
@@ -35,7 +36,9 @@ public class TvrFilterRule extends TvrTransformationRule {
     }
 
     @Override
-    public List<OptExpression> transform(OptExpression input, OptimizerContext context) {
+    public OptExpression doTransform(OptExpression input,
+                                     OptimizerContext context,
+                                     TvrChangeType tvrChangeType) {
         LogicalFilterOperator filterOperator = (LogicalFilterOperator) input.getOp();
         OptExpression child = input.inputAt(0);
         TvrOptMeta childTvrGroup = child.getTvrMeta();
@@ -43,7 +46,6 @@ public class TvrFilterRule extends TvrTransformationRule {
             OptExpression result = OptExpression.create(filterOperator, childTvrVersionRange.optExpression());
             return new TvrOptExpression(childTvrVersionRange.tvrVersionRange(), result);
         });
-        final OptExpression newOptExpression = OptExpression.create(filterOperator, tvrOptMeta, child);
-        return List.of(newOptExpression);
+        return OptExpression.create(filterOperator, tvrOptMeta, child);
     }
 }

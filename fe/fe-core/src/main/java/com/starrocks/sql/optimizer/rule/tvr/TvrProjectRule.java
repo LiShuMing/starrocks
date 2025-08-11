@@ -20,8 +20,9 @@ import com.starrocks.sql.optimizer.operator.OperatorType;
 import com.starrocks.sql.optimizer.operator.logical.LogicalProjectOperator;
 import com.starrocks.sql.optimizer.operator.pattern.Pattern;
 import com.starrocks.sql.optimizer.rule.RuleType;
-
-import java.util.List;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrChangeType;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrOptExpression;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrOptMeta;
 
 public class TvrProjectRule extends TvrTransformationRule {
 
@@ -35,7 +36,9 @@ public class TvrProjectRule extends TvrTransformationRule {
     }
 
     @Override
-    public List<OptExpression> transform(OptExpression input, OptimizerContext context) {
+    public OptExpression doTransform(OptExpression input,
+                                     OptimizerContext context,
+                                     TvrChangeType tvrChangeType) {
         LogicalProjectOperator projectOperator = (LogicalProjectOperator) input.getOp();
         OptExpression child = input.inputAt(0);
         TvrOptMeta childTvrGroup = child.getTvrMeta();
@@ -45,6 +48,6 @@ public class TvrProjectRule extends TvrTransformationRule {
             return new TvrOptExpression(childTvrOptExpression.tvrVersionRange(), result);
         });
         final OptExpression newOptExpression = OptExpression.create(projectOperator, tvrOptMeta, child);
-        return List.of(newOptExpression);
+        return newOptExpression;
     }
 }

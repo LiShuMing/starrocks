@@ -22,6 +22,7 @@ import com.starrocks.common.AlreadyExistsException;
 import com.starrocks.common.DdlException;
 import com.starrocks.common.MetaNotFoundException;
 import com.starrocks.common.profile.Tracers;
+import com.starrocks.common.tvr.TvrTableSnapshot;
 import com.starrocks.common.tvr.TvrVersionRange;
 import com.starrocks.connector.ConnectorMetadatRequestContext;
 import com.starrocks.connector.ConnectorMetadata;
@@ -41,6 +42,7 @@ import com.starrocks.sql.ast.DropTableStmt;
 import com.starrocks.sql.optimizer.OptimizerContext;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrDeltaTrait;
 import com.starrocks.sql.optimizer.statistics.Statistics;
 import com.starrocks.thrift.TSinkCommitInfo;
 
@@ -136,6 +138,14 @@ public class UnifiedMetadata implements ConnectorMetadata {
     public TvrVersionRange getCurrentTvrSnapshot(String dbName, Table table) {
         ConnectorMetadata metadata = metadataOfTable(table);
         return metadata.getCurrentTvrSnapshot(dbName, table);
+    }
+
+    @Override
+    public List<TvrDeltaTrait> listVersionRangesBetween(String dbName, Table table,
+                                                        TvrTableSnapshot fromSnapshotExclusive,
+                                                        TvrTableSnapshot toSnapshotInclusive) {
+        ConnectorMetadata metadata = metadataOfTable(table);
+        return metadata.listVersionRangesBetween(dbName, table, fromSnapshotExclusive, toSnapshotInclusive);
     }
 
     @Override

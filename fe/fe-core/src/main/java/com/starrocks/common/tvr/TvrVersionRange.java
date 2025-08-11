@@ -21,17 +21,15 @@ import java.util.Objects;
 import java.util.Optional;
 
 public abstract class TvrVersionRange {
-    @SerializedName("start")
+    @SerializedName("from")
     public final TvrVersion from;
 
-    @SerializedName("end")
+    @SerializedName("to")
     public final TvrVersion to;
 
     protected TvrVersionRange(TvrVersion from, TvrVersion to) {
         Preconditions.checkArgument(from != null && to != null,
                 "TvrVersionRange from and to cannot be null");
-        // Preconditions.checkArgument(from.compareTo(to) <= 0,
-        //        "TvrVersionRange from must be less than or equal to to");
         this.from = from;
         this.to = to;
     }
@@ -66,10 +64,6 @@ public abstract class TvrVersionRange {
     }
 
     public abstract TvrVersionRange copy(TvrVersion from, TvrVersion to);
-
-    public boolean isOverlapped(TvrVersionRange other) {
-        return from.compareTo(other.to) <= 0 && to.compareTo(other.from) >= 0;
-    }
 
     @Override
     public int hashCode() {

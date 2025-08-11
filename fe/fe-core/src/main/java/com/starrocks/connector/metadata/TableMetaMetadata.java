@@ -21,7 +21,10 @@ import com.starrocks.common.tvr.TvrVersionRange;
 import com.starrocks.connector.ConnectorMetadata;
 import com.starrocks.connector.ConnectorTableVersion;
 import com.starrocks.qe.ConnectContext;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrDeltaTrait;
+import org.apache.hadoop.util.Lists;
 
+import java.util.List;
 import java.util.Optional;
 
 // TODO(stephen): what's the pretty class name?
@@ -52,6 +55,13 @@ public class TableMetaMetadata implements ConnectorMetadata {
     @Override
     public TvrVersionRange getCurrentTvrSnapshot(String dbName, Table table) {
         return TvrTableSnapshot.empty();
+    }
+
+    @Override
+    public List<TvrDeltaTrait> listVersionRangesBetween(String dbName, Table table,
+                                                        TvrTableSnapshot fromSnapshotExclusive,
+                                                        TvrTableSnapshot toSnapshotInclusive) {
+        return Lists.newArrayList();
     }
 
     @Override

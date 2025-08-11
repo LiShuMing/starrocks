@@ -21,6 +21,10 @@ import com.starrocks.sql.optimizer.operator.logical.LogicalUnionOperator;
 import com.starrocks.sql.optimizer.operator.pattern.Pattern;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.rule.RuleType;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrChangeType;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrLazyOptExpression;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrOptExpression;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrOptMeta;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -42,7 +46,9 @@ public class TvrUnionAllRule extends TvrTransformationRule {
     }
 
     @Override
-    public List<OptExpression> transform(OptExpression input, OptimizerContext context) {
+    public OptExpression doTransform(OptExpression input,
+                                     OptimizerContext context,
+                                     TvrChangeType tvrChangeType) {
         LogicalUnionOperator logicalUnionOperator = input.getOp().cast();
         List<ColumnRefOperator> originalOutputColRefs = logicalUnionOperator.getOutputColumnRefOp();
         TvrOptMeta childTvrMeta = input.getInputs().get(0).getTvrMeta();
@@ -72,8 +78,8 @@ public class TvrUnionAllRule extends TvrTransformationRule {
             OptExpression toOptExpression = newUnionOperator(childTvrMeta, originalOutputColRefs, toChildren);
             return new TvrOptExpression(childTvrMeta.getFrom().tvrVersionRange(), toOptExpression);
         });
-        TvrOptMeta tvrOptMeta = new TvrOptMeta(childTvrMeta.tvrTrait(), fromTvrOptExpression, toTvrOptExpression);
+        TvrOptMeta tvrOptMeta = new TvrOptMeta(childTvrMeta.tvrDeltaTrait(), fromTvrOptExpression, toTvrOptExpression);
         OptExpression result = OptExpression.create(logicalUnionOperator, tvrOptMeta, input.getInputs());
-        return List.of(result);
+        return result;
     }
 }

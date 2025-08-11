@@ -109,7 +109,7 @@ import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
 import com.starrocks.sql.optimizer.rewrite.ScalarOperatorRewriter;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils;
-import com.starrocks.sql.optimizer.rule.tvr.TvrOpUtils;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrOpUtils;
 import com.starrocks.sql.optimizer.transformer.ExpressionMapping;
 import com.starrocks.sql.optimizer.transformer.LogicalPlan;
 import com.starrocks.sql.optimizer.transformer.OptExprBuilder;

@@ -35,6 +35,7 @@ import com.starrocks.common.Pair;
 import com.starrocks.common.StarRocksException;
 import com.starrocks.common.profile.Timer;
 import com.starrocks.common.profile.Tracers;
+import com.starrocks.common.tvr.TvrTableDelta;
 import com.starrocks.common.tvr.TvrTableSnapshot;
 import com.starrocks.common.tvr.TvrTableVersionRange;
 import com.starrocks.common.tvr.TvrVersionRange;
@@ -81,6 +82,8 @@ import com.starrocks.sql.optimizer.Utils;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ConstantOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrDeltaStats;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrDeltaTrait;
 import com.starrocks.sql.optimizer.statistics.Statistics;
 import com.starrocks.statistic.StatisticUtils;
 import com.starrocks.thrift.TIcebergDataFile;
@@ -90,6 +93,7 @@ import org.apache.iceberg.BaseFileScanTask;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
+import org.apache.iceberg.DataOperations;
 import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.FileContent;
 import org.apache.iceberg.FileScanTask;
@@ -129,6 +133,7 @@ import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.SerializationUtil;
+import org.apache.iceberg.util.SnapshotUtil;
 import org.apache.iceberg.util.TableScanUtil;
 import org.apache.iceberg.view.View;
 import org.apache.logging.log4j.LogManager;
@@ -514,6 +519,44 @@ public class IcebergMetadata implements ConnectorMetadata {
         Optional<Long> snapshotId = Optional.ofNullable(icebergTable.getNativeTable().currentSnapshot())
                 .map(Snapshot::snapshotId);
         return TvrTableSnapshot.of(snapshotId);
+    }
+
+    @Override
+    public List<TvrDeltaTrait> listVersionRangesBetween(String dbName, Table table,
+                                                        TvrTableSnapshot fromSnapshotExclusive,
+                                                        TvrTableSnapshot toSnapshotInclusive) {
+        if (fromSnapshotExclusive.equals(toSnapshotInclusive)) {
+            return Collections.emptyList();
+        }
+        final long fromSnapshotIdExclusive =
+                fromSnapshotExclusive.to().orElseThrow(() -> new StarRocksConnectorException(
+                        "fromSnapshotExclusive must have a valid snapshot ID"));
+        final long toSnapshotIdInclusive =
+                toSnapshotInclusive.to().orElseThrow(() -> new StarRocksConnectorException(
+                        "toSnapshotInclusive must have a valid snapshot ID"));
+        final IcebergTable icebergTable = (IcebergTable) table;
+        final org.apache.iceberg.Table nativeTable = icebergTable.getNativeTable();
+        long lastSnapshotId = fromSnapshotIdExclusive;
+
+        final List<TvrDeltaTrait> tvrDeltaTraits = new ArrayList<>();
+        for (Snapshot snapshot :
+                SnapshotUtil.ancestorsBetween(
+                        toSnapshotIdInclusive, fromSnapshotIdExclusive, nativeTable::snapshot)) {
+            long currentSnapshotId = snapshot.snapshotId();
+            TvrTableDelta delta = TvrTableDelta.of(lastSnapshotId, currentSnapshotId);
+            TvrDeltaStats stats = TvrDeltaStats.of(snapshot.addedRows());
+            if (snapshot.operation().equals(DataOperations.APPEND)) {
+                tvrDeltaTraits.add(TvrDeltaTrait.ofMonotonic(delta, stats));
+            } else {
+                tvrDeltaTraits.add(TvrDeltaTrait.ofRetractable(delta, stats));
+            }
+            lastSnapshotId = currentSnapshotId;
+        }
+        Preconditions.checkArgument(
+                lastSnapshotId == toSnapshotIdInclusive,
+                "Last snapshot ID %s does not match toSnapshotInclusive %s",
+                lastSnapshotId, toSnapshotIdInclusive);
+        return tvrDeltaTraits;
     }
 
     @Override

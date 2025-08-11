@@ -24,6 +24,8 @@ import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.rule.RuleType;
 import com.starrocks.sql.optimizer.rule.transformation.TransformationRule;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.OptExpressionDuplicator;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrChangeType;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrOptMeta;
 
 import java.util.List;
 import java.util.Objects;
@@ -57,6 +59,23 @@ public abstract class TvrTransformationRule extends TransformationRule {
         }
         // only if the current expression has no tvr group, it is considered for transformation
         return optExpression.getTvrMeta() == null;
+    }
+
+    public abstract OptExpression doTransform(OptExpression input,
+                                              OptimizerContext context,
+                                              TvrChangeType tvrChangeType);
+
+    @Override
+    public List<OptExpression> transform(OptExpression input, OptimizerContext context) {
+        if (input == null || input.getTvrMeta() == null) {
+            // scan operator
+            OptExpression result = doTransform(input, context, TvrChangeType.MONOTONIC);
+            return List.of(result);
+        } else {
+            TvrOptMeta tvrOptMeta  = input.getTvrMeta();
+            OptExpression result = doTransform(input, context, tvrOptMeta.tvrDeltaTrait().getTvrChangeType());
+            return List.of(result);
+        }
     }
 
     protected OptExpressionDuplicator getDuplicator(OptimizerContext optimizerContext) {

@@ -40,6 +40,8 @@ import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
 import com.starrocks.sql.optimizer.rule.RuleType;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.common.AggregateFunctionRollupUtils;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrChangeType;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrOpUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -73,10 +75,10 @@ public class TvrAggregateRule extends TvrTransformationRule {
         return true;
     }
 
-    protected OptExpression deltaAggregateWithStateTable(OptimizerContext optimizerContext,
-                                                         OlapTable aggStateTable,
-                                                         LogicalAggregationOperator inputAggOperator,
-                                                         OptExpression input) {
+    protected OptExpression doTransformWithMonotonic(OptimizerContext optimizerContext,
+                                                     OlapTable aggStateTable,
+                                                     LogicalAggregationOperator inputAggOperator,
+                                                     OptExpression input) {
         final ColumnRefFactory columnRefFactory = optimizerContext.getColumnRefFactory();
 
         Preconditions.checkArgument(aggStateTable != null,
@@ -211,12 +213,20 @@ public class TvrAggregateRule extends TvrTransformationRule {
     }
 
     @Override
-    public List<OptExpression> transform(OptExpression input, OptimizerContext context) {
+    public OptExpression doTransform(OptExpression input,
+                                     OptimizerContext context,
+                                     TvrChangeType tvrChangeType) {
         LogicalAggregationOperator aggOp = input.getOp().cast();
         // find the agg state table
         OlapTable aggStateOlapTable = getAggregateStateTable(context);
-        OptExpression deltaAggregate = deltaAggregateWithStateTable(context, aggStateOlapTable,
-                aggOp, input);
-        return List.of(deltaAggregate);
+        // handle append only aggregate state table
+        OptExpression deltaAggregate;
+        if (tvrChangeType == TvrChangeType.MONOTONIC) {
+            deltaAggregate = doTransformWithMonotonic(context, aggStateOlapTable, aggOp, input);
+        } else {
+            throw new IllegalStateException("Unsupported TVR change type for aggregate rule: " + tvrChangeType);
+        }
+
+        return deltaAggregate;
     }
 }

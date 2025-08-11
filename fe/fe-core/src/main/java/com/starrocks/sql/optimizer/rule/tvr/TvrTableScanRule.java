@@ -26,6 +26,11 @@ import com.starrocks.sql.optimizer.operator.logical.LogicalScanOperator;
 import com.starrocks.sql.optimizer.operator.pattern.MultiOpPattern;
 import com.starrocks.sql.optimizer.rule.RuleType;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.MvUtils;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrChangeType;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrDeltaTrait;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrLazyOptExpression;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrOptExpression;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrOptMeta;
 
 import java.util.List;
 import java.util.Set;
@@ -62,14 +67,17 @@ public class TvrTableScanRule extends TvrTransformationRule {
     }
 
     @Override
-    public List<OptExpression> transform(OptExpression input, OptimizerContext context) {
+    public OptExpression doTransform(OptExpression input,
+                                     OptimizerContext context,
+                                     TvrChangeType tvrChangeType) {
         LogicalScanOperator scanOperator = (LogicalScanOperator) input.getOp();
         Preconditions.checkState(scanOperator.getTvrTrait().isPresent(),
-                "TvrTrait should be present for scan operator: %s", scanOperator);
+                "TvrDeltaTrait should be present for scan operator: %s", scanOperator);
         Preconditions.checkState(scanOperator.getTvrTrait().get().isAppendOnly(),
-                "TvrTrait should be append-only for scan operator: %s", scanOperator);
-        TvrTrait tvrTrait = scanOperator.getTvrTrait().get();
-        TvrTableDelta tvrTableDelta = tvrTrait.getTvrDelta();
+                "TvrDeltaTrait should be append-only for scan operator: %s", scanOperator);
+
+        TvrDeltaTrait tvrDeltaTrait = scanOperator.getTvrTrait().get();
+        TvrTableDelta tvrTableDelta = tvrDeltaTrait.getTvrDelta();
         TvrTableSnapshot toSnapshot = tvrTableDelta.toSnapshot();
         TvrTableSnapshot fromSnapshot = tvrTableDelta.fromSnapshot();
         if (Table.TableType.ICEBERG.equals(scanOperator.getTable().getType())) {
@@ -85,12 +93,12 @@ public class TvrTableScanRule extends TvrTransformationRule {
 
             // create TvrOptExpression for both from and to snapshots
             TvrOptMeta tvrOptMeta = new TvrOptMeta(
-                    tvrTrait,
+                    tvrDeltaTrait,
                     TvrLazyOptExpression.of(() -> new TvrOptExpression(fromSnapshot, fromOpt)),
                     TvrLazyOptExpression.of(() -> new TvrOptExpression(toSnapshot, toOpt))
             );
             OptExpression newOptExpression = OptExpression.create(scanOperator, tvrOptMeta);
-            return List.of(newOptExpression);
+            return newOptExpression;
         } else {
             throw new IllegalStateException(
                     "Unsupported table type for TVR table scan: " + scanOperator.getTable().getType());

@@ -26,7 +26,7 @@ import com.starrocks.sql.optimizer.property.DomainProperty;
 import com.starrocks.sql.optimizer.rule.mv.KeyInference;
 import com.starrocks.sql.optimizer.rule.mv.MVOperatorProperty;
 import com.starrocks.sql.optimizer.rule.mv.ModifyInference;
-import com.starrocks.sql.optimizer.rule.tvr.TvrOptMeta;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrOptMeta;
 import com.starrocks.sql.optimizer.statistics.Statistics;
 
 import java.util.List;

@@ -161,11 +161,12 @@ void AggregatorParams::init() {
     for (size_t i = 0; i < agg_size; ++i) {
         const TExpr& desc = aggregate_functions[i];
         const TFunction& fn = desc.nodes[0].fn;
-        VLOG_ROW << fn.name.function_name << ", arg nullable " << desc.nodes[0].has_nullable_child
-                 << ", result nullable " << desc.nodes[0].is_nullable;
 
         if (fn.name.function_name == FUNCTION_COUNT ||
-            fn.name.function_name == (FUNCTION_COUNT + AGG_STATE_IF_SUFFIX)) {
+            fn.name.function_name == (FUNCTION_COUNT + AGG_STATE_IF_SUFFIX) ||
+            fn.name.function_name == (FUNCTION_COUNT + AGG_STATE_UNION_SUFFIX) ||
+            fn.name.function_name == (FUNCTION_COUNT + AGG_STATE_MERGE_SUFFIX) ||
+            fn.name.function_name == (FUNCTION_COUNT + AGG_STATE_COMBINE_SUFFIX)) {
             // count function is always not nullable
             agg_fn_types[i] = {TypeDescriptor(TYPE_BIGINT), TypeDescriptor(TYPE_BIGINT), {}, false, false};
         } else {
@@ -198,6 +199,11 @@ void AggregatorParams::init() {
                 }
             }
         }
+        VLOG_ROW << fn.name.function_name << ", param_arg_nullable:" << desc.nodes[0].has_nullable_child
+                 << ", param_result_nullable " << desc.nodes[0].is_nullable
+                 << ", is_always_nullable_result: " << agg_fn_types[i].is_always_nullable_result
+                 << ", has_nullable_child:" << agg_fn_types[i].has_nullable_child
+                 << ", is_nullable:" << agg_fn_types[i].is_nullable;
     }
 
     // init group by types
@@ -385,7 +391,6 @@ Status Aggregator::prepare(RuntimeState* state, ObjectPool* pool, RuntimeProfile
     _agg_expr_ctxs.resize(agg_size);
     _agg_input_columns.resize(agg_size);
     _agg_input_raw_columns.resize(agg_size);
-    _agg_fn_types.resize(agg_size);
     _agg_states_offsets.resize(agg_size);
     _is_merge_funcs.resize(agg_size);
     _agg_fn_types = _params->agg_fn_types;
@@ -399,7 +404,8 @@ Status Aggregator::prepare(RuntimeState* state, ObjectPool* pool, RuntimeProfile
         // get function
         bool is_result_nullable = _is_agg_result_nullable(desc, agg_fn_type);
         RETURN_IF_ERROR(_create_aggregate_function(state, fn, is_result_nullable, &_agg_functions[i]));
-        VLOG_ROW << "has_outer_join_child " << has_outer_join_child << ", is_result_nullable " << is_result_nullable;
+        VLOG_ROW << "agg_fn_name: " << fn.name.function_name << ", has_outer_join_child: " << has_outer_join_child
+                 << ", is_result_nullable " << is_result_nullable;
 
         int node_idx = 0;
         for (int j = 0; j < desc.nodes[0].num_children; ++j) {
@@ -508,7 +514,7 @@ Status Aggregator::prepare(RuntimeState* state, ObjectPool* pool, RuntimeProfile
 
 bool Aggregator::_is_agg_result_nullable(const TExpr& desc, const AggFunctionTypes& agg_func_type) {
     const TFunction& fn = desc.nodes[0].fn;
-    // NOTE: For count, we cannot use agg_func_type since it's only mocked valeus.
+    // NOTE: For count, we cannot use agg_func_type since it's only mocked values.
     if (fn.name.function_name == FUNCTION_COUNT) {
         if (fn.arg_types.empty()) {
             return false;
@@ -565,7 +571,7 @@ Status Aggregator::_create_aggregate_function(starrocks::RuntimeState* state, co
             auto* nested_func = AggStateDesc::get_agg_state_func(&agg_state_desc);
             if (nested_func == nullptr) {
                 return Status::InternalError(
-                        strings::Substitute("Union combinator function $0 fails to get the nested agg func: $1 ",
+                        strings::Substitute("Combine combinator function $0 fails to get the nested agg func: $1 ",
                                             func_name, nested_func_name));
             }
             auto combine_agg_func = std::make_shared<AggStateCombine>(std::move(agg_state_desc), nested_func);

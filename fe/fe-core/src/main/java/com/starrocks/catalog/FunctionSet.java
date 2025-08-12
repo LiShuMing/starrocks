@@ -905,7 +905,7 @@ public class FunctionSet {
 
     public boolean isNotAlwaysNullResultWithNullParamFunctions(String funcName) {
         return notAlwaysNullResultWithNullParamFunctions.contains(funcName)
-                || alwaysReturnNonNullableFunctions.contains(funcName);
+                || isAlwaysReturnNonNullableFunction(funcName);
     }
 
     private Function matchFuncCandidates(Function desc, Function.CompareMode mode, List<Function> fns) {
@@ -1013,12 +1013,22 @@ public class FunctionSet {
         return matchCastFunction(desc, mode, standFns);
     }
 
+    public static boolean isAlwaysReturnNonNullableFunction(String functionName) {
+        if (alwaysReturnNonNullableFunctions.contains(functionName)) {
+            return true;
+        } else {
+            // for agg state functions, we also consider them as non-nullable functions
+            String origFuncName = AggStateUtils.getAggFuncNameOfCombinator(functionName);
+            return COUNT.equals(origFuncName);
+        }
+    }
+
     private void addBuiltInFunction(Function fn) {
         Preconditions.checkArgument(!fn.getReturnType().isPseudoType() || fn.isPolymorphic(), fn.toString());
         if (!fn.isPolymorphic() && getFunction(fn, Function.CompareMode.IS_INDISTINGUISHABLE) != null) {
             return;
         }
-        fn.setIsNullable(!alwaysReturnNonNullableFunctions.contains(fn.functionName()));
+        fn.setIsNullable(!isAlwaysReturnNonNullableFunction(fn.functionName()));
         List<Function> fns = vectorizedFunctions.computeIfAbsent(fn.functionName(), k -> Lists.newArrayList());
         fns.add(fn);
     }
@@ -1033,7 +1043,7 @@ public class FunctionSet {
 
     private void addVectorizedBuiltin(Function fn) {
         fn.setCouldApplyDictOptimize(couldApplyDictOptimizationFunctions.contains(fn.functionName()));
-        fn.setIsNullable(!alwaysReturnNonNullableFunctions.contains(fn.functionName()));
+        fn.setIsNullable(!isAlwaysReturnNonNullableFunction(fn.functionName()));
         List<Function> fns = vectorizedFunctions.computeIfAbsent(fn.functionName(), k -> Lists.newArrayList());
         fns.add(fn);
     }

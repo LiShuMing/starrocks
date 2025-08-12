@@ -244,14 +244,8 @@ public class IVMBasedMVRefreshProcessor extends BaseMVRefreshProcessor {
         TvrVersion beforeVersion = beforeTvrVersionRange.to;
         if (beforeVersion.equals(currentVersion)) {
             // no change, so we can skip the refresh
-            logger.info("Base table {} has not changed", baseTableInfo.getTableName());
+            logger.info("Base table {} has not changed, skip to refresh", baseTableInfo.getTableName());
             return TvrTableDelta.of(beforeVersion, currentVersion);
-        } else if (beforeVersion.isAfter(currentVersion)) {
-            // if the before tvr snapshot's to is after the current tvr snapshot's to, throw exception?
-            // how to handle this!
-            logger.info("Base table {} has a before version {} that is after the current version {}, "
-                            + "this should not happen, skip the refresh",
-                    baseTableInfo.getTableName(), beforeVersion, currentVersion);
         }
         return TvrTableDelta.of(beforeVersion, currentVersion);
     }

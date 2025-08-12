@@ -69,7 +69,6 @@ public class AggStateDesc {
         this.resultNullable = resultNullable;
     }
 
-
     public AggStateDesc(String functionName,
                         Type returnType,
                         List<Type> argTypes) {

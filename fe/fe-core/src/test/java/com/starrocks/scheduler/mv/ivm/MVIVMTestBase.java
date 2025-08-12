@@ -19,6 +19,8 @@ import com.starrocks.scheduler.TaskRun;
 import com.starrocks.scheduler.mv.MVVersionManager;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.MVTestBase;
 import com.starrocks.sql.plan.ExecPlan;
+import com.starrocks.utframe.UtFrameUtils;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 
 public abstract class MVIVMTestBase extends MVTestBase {
@@ -38,4 +40,46 @@ public abstract class MVIVMTestBase extends MVTestBase {
     }
 
     public abstract void advanceTableVersionTo(long toVersion);
+
+    public interface ExecPlanChecker {
+        void check(ExecPlan execPlan) throws Exception;
+    }
+
+    protected void doTestWith3Runs(String mvQuery,
+                                   MVIVMIcebergTestBase.ExecPlanChecker run1,
+                                   MVIVMIcebergTestBase.ExecPlanChecker run3) throws Exception {
+        String ddl = String.format("CREATE MATERIALIZED VIEW `test`.`test_mv1` " +
+                "REFRESH DEFERRED MANUAL\n" +
+                "PROPERTIES (\n" +
+                "\"refresh_mode\" = \"incremental\"" +
+                ")\n" +
+                "AS %s;", mvQuery);
+        starRocksAssert.withMaterializedView(ddl);
+        MaterializedView mv = getMv("test_mv1");
+        UtFrameUtils.mockTimelinessForAsyncMVTest(connectContext);
+        // 1th run
+        {
+            ExecPlan execPlan = getIVMRefreshedExecPlan(mv);
+            Assertions.assertTrue(execPlan != null);
+            run1.check(execPlan);
+        }
+        // test mv rewrite
+        {
+            String plan = getFragmentPlan(mvQuery, "MV");
+            System.out.println(plan);
+            Assertions.assertTrue(plan.contains("test_mv1"));
+        }
+        // 2th run
+        {
+            ExecPlan execPlan = getIVMRefreshedExecPlan(mv);
+            Assertions.assertTrue(execPlan == null);
+        }
+        advanceTableVersionTo(2);
+        // 3th run
+        {
+            ExecPlan execPlan = getIVMRefreshedExecPlan(mv);
+            Assertions.assertTrue(execPlan != null);
+            run3.check(execPlan);
+        }
+    }
 }

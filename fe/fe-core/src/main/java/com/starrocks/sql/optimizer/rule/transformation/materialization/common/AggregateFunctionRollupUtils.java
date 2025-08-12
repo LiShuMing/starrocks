@@ -23,6 +23,7 @@ import com.starrocks.catalog.AggregateFunction;
 import com.starrocks.catalog.Function;
 import com.starrocks.catalog.FunctionSet;
 import com.starrocks.catalog.Type;
+import com.starrocks.catalog.combinator.AggStateCombineCombinator;
 import com.starrocks.catalog.combinator.AggStateUnionCombinator;
 import com.starrocks.sql.analyzer.SemanticException;
 import com.starrocks.sql.optimizer.operator.scalar.CallOperator;
@@ -207,9 +208,8 @@ public class AggregateFunctionRollupUtils {
 
     public static CallOperator getIntermediateStateAggregateFunc(CallOperator aggCall) {
         Preconditions.checkArgument(aggCall.getFunction() instanceof AggregateFunction);
-        if (AggregateFunctionRollupUtils.isSupportedAggFunctionPushDown(aggCall)) {
-            return aggCall;
-        } else if (aggCall.getFunction() instanceof AggStateUnionCombinator) {
+        Function aggFunc = aggCall.getFunction();
+        if (aggFunc instanceof AggStateUnionCombinator || aggFunc instanceof AggStateCombineCombinator) {
             // If the agg call is already an intermediate state aggregate function, return it directly.
             return aggCall;
         } else {

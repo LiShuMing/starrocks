@@ -92,21 +92,21 @@ public class TvrOpUtils {
 
     public static ScalarOperator buildStateUnionScalarOperator(CallOperator aggFunc,
                                                                ScalarOperator intermediateAggScalarOp,
-                                                               ScalarOperator aggStateTableRowIdScalarOp) {
-        Preconditions.checkArgument(intermediateAggScalarOp.getType().equals(aggStateTableRowIdScalarOp.getType()),
+                                                               ScalarOperator aggStateAggStateColumnRef) {
+        Preconditions.checkArgument(intermediateAggScalarOp.getType().equals(aggStateAggStateColumnRef.getType()),
                 "The type of intermediateAggScalarOp and aggStateTableRowIdScalarOp must be the same");
         // build row id operator for agg state table
-        Type[] argTypes = new Type[] { intermediateAggScalarOp.getType(), aggStateTableRowIdScalarOp.getType() };
+        Type[] argTypes = new Type[] { intermediateAggScalarOp.getType(), aggStateAggStateColumnRef.getType() };
         // get the state union function name
         String aggFuncName = AggStateUtils.getAggFuncNameOfCombinator(aggFunc.getFnName());
-        String stateMergeAggFuncName = AggStateUtils.stateUnionFunctionName(aggFuncName);
-        Function newFunc = Expr.getBuiltinFunction(stateMergeAggFuncName, argTypes,
+        String stateUnionFunctionName = AggStateUtils.stateUnionFunctionName(aggFuncName);
+        Function newFunc = Expr.getBuiltinFunction(stateUnionFunctionName, argTypes,
                 Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF);
         if (newFunc == null) {
-            throw new IllegalArgumentException("Function " + stateMergeAggFuncName + " not found");
+            throw new IllegalArgumentException("Function " + stateUnionFunctionName + " not found");
         }
-        return new CallOperator(stateMergeAggFuncName, intermediateAggScalarOp.getType(),
-                List.of(intermediateAggScalarOp, aggStateTableRowIdScalarOp), newFunc);
+        return new CallOperator(stateUnionFunctionName, intermediateAggScalarOp.getType(),
+                List.of(intermediateAggScalarOp, aggStateAggStateColumnRef), newFunc);
     }
 
     public static ScalarOperator buildRowIdEqBinaryPredicateOp(ColumnRefOperator aggStateRowIdScalarOp,

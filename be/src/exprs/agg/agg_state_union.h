@@ -32,7 +32,9 @@ public:
     AggStateUnion(AggStateDesc agg_state_desc, const AggregateFunction* function)
             : _agg_state_desc(std::move(agg_state_desc)), _function(function) {
         DCHECK(_function != nullptr);
+        VLOG_ROW << "AggStateUnion constructor:" << _agg_state_desc.debug_string();
     }
+
     const AggStateDesc* get_agg_state_desc() const { return &_agg_state_desc; }
 
     void create(FunctionContext* ctx, AggDataPtr __restrict ptr) const override { _function->create(ctx, ptr); }

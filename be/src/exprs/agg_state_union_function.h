@@ -70,18 +70,40 @@ public:
         if (UNLIKELY(agg_state == nullptr)) {
             return Status::InternalError("Failed to allocate memory for aggregate state");
         }
-        for (size_t i = 0; i < chunk_size; i++) {
-            _function->create(context, agg_state);
-
-            // merge input agg states into result
-            for (size_t j = 0; j < new_columns.size(); j++) {
-                _function->merge(context, new_columns[j].get(), agg_state, i);
+        if (_function->get_name() == "count" || _function->get_name() == "count_nullable") {
+            std::vector<Column*> data_columns;
+            data_columns.reserve(new_columns.size());
+            for (size_t i = 0; i < new_columns.size(); i++) {
+                data_columns.emplace_back(ColumnHelper::get_data_column(new_columns[i].get()));
             }
-            // serialize the agg_state into result
-            _function->serialize_to_column(context, agg_state, result.get());
+            for (size_t i = 0; i < chunk_size; i++) {
+                _function->create(context, agg_state);
+                // merge input agg states into result
+                for (size_t j = 0; j < new_columns.size(); j++) {
+                    if (UNLIKELY(new_columns[j]->is_null(i))) {
+                        continue;
+                    }
+                    _function->merge(context, data_columns[j], agg_state, i);
+                }
+                // serialize the agg_state into result
+                _function->serialize_to_column(context, agg_state, result.get());
+                // destroy the agg_state
+                _function->destroy(context, agg_state);
+            }
+        } else {
+            for (size_t i = 0; i < chunk_size; i++) {
+                _function->create(context, agg_state);
 
-            // destroy the agg_state
-            _function->destroy(context, agg_state);
+                // merge input agg states into result
+                for (size_t j = 0; j < new_columns.size(); j++) {
+                    _function->merge(context, new_columns[j].get(), agg_state, i);
+                }
+                // serialize the agg_state into result
+                _function->serialize_to_column(context, agg_state, result.get());
+
+                // destroy the agg_state
+                _function->destroy(context, agg_state);
+            }
         }
         std::free(agg_state);
 

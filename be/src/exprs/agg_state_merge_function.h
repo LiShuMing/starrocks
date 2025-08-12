@@ -69,15 +69,29 @@ public:
         if (UNLIKELY(agg_state == nullptr)) {
             return Status::InternalError("Failed to allocate memory for aggregate state");
         }
-        for (size_t i = 0; i < chunk_size; i++) {
-            if (new_column->is_null(i)) {
-                result->append_nulls(1);
-                continue;
+        if (_function->get_name() == "count" || _function->get_name() == "count_nullable") {
+            auto* data_column = ColumnHelper::get_data_column(new_column.get());
+            for (size_t i = 0; i < chunk_size; i++) {
+                if (new_column->is_null(i)) {
+                    result->append_nulls(1);
+                    continue;
+                }
+                _function->create(context, agg_state);
+                _function->merge(context, data_column, agg_state, i);
+                _function->finalize_to_column(context, agg_state, result.get());
+                _function->destroy(context, agg_state);
             }
-            _function->create(context, agg_state);
-            _function->merge(context, new_column.get(), agg_state, i);
-            _function->finalize_to_column(context, agg_state, result.get());
-            _function->destroy(context, agg_state);
+        } else {
+            for (size_t i = 0; i < chunk_size; i++) {
+                if (new_column->is_null(i)) {
+                    result->append_nulls(1);
+                    continue;
+                }
+                _function->create(context, agg_state);
+                _function->merge(context, new_column.get(), agg_state, i);
+                _function->finalize_to_column(context, agg_state, result.get());
+                _function->destroy(context, agg_state);
+            }
         }
         std::free(agg_state);
         return result;

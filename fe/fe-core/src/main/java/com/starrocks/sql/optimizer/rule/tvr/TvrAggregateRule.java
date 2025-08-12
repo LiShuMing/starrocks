@@ -41,6 +41,7 @@ import com.starrocks.sql.optimizer.rule.tvr.common.TvrChangeType;
 import com.starrocks.sql.optimizer.rule.tvr.common.TvrOpUtils;
 import com.starrocks.sql.optimizer.rule.tvr.common.TvrOptContext;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -95,7 +96,7 @@ public class TvrAggregateRule extends TvrTransformationRule {
         // collect agg state table's aggregate agg state columns
         Map<Column, ColumnRefOperator> aggStateTableColumnMetaToColRefMap =
                 aggStateOlapScanOperator.getColumnMetaToColRefMap();
-        List<ColumnRefOperator> aggStateTableColumnRefOperators = aggStateTableColumns.stream()
+        List<ColumnRefOperator> aggStateTableColumnRefs = aggStateTableColumns.stream()
                 .map(aggStateTableColumnMetaToColRefMap::get)
                 .collect(Collectors.toList());
 
@@ -120,22 +121,18 @@ public class TvrAggregateRule extends TvrTransformationRule {
         Map<ColumnRefOperator, CallOperator> intermediateAggMap = inputAggMap.entrySet()
                 .stream()
                 .map(e -> {
-                    ColumnRefOperator orgColumnRefOperator = e.getKey();
-                    CallOperator call = e.getValue();
-                    CallOperator intermediateStateAggregateFunc =
-                            AggregateFunctionRollupUtils.getIntermediateStateAggregateFunc(call);
-                    Preconditions.checkArgument(intermediateStateAggregateFunc != null,
-                            "Intermediate state aggregate function should not be null for: %s", call);
-
+                    ColumnRefOperator origColumnRef = e.getKey();
+                    CallOperator origCall = e.getValue();
+                    CallOperator intermediateFunc = AggregateFunctionRollupUtils.getIntermediateStateAggregateFunc(origCall);
+                    Preconditions.checkArgument(intermediateFunc != null,
+                            "Intermediate state aggregate function should not be null for: %s", origCall);
                     // create a new column ref for the intermediate state aggregate function
                     ColumnRefOperator newColumnRefOperator =
-                            columnRefFactory.create(orgColumnRefOperator.getName(),
-                                    orgColumnRefOperator.getType(), orgColumnRefOperator.isNullable());
-
+                            columnRefFactory.create(origColumnRef.getName(),
+                                    origColumnRef.getType(), origColumnRef.isNullable());
                     // map old column ref operator to new column ref operator
-                    oldToNewColumnRefMap.put(call, newColumnRefOperator);
-
-                    return Map.entry(newColumnRefOperator, intermediateStateAggregateFunc);
+                    oldToNewColumnRefMap.put(origCall, newColumnRefOperator);
+                    return Map.entry(newColumnRefOperator, intermediateFunc);
                 })
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         // build input aggregator intermediate aggregation operator
@@ -152,28 +149,26 @@ public class TvrAggregateRule extends TvrTransformationRule {
         // change the aggregation operator into project operator
         Map<ColumnRefOperator, ScalarOperator> projColumnRefMap  = Maps.newHashMap();
 
-        // We can assume that the agg state table's columns are in the same order as the input aggregate map,
-        // but this is a bit tricky.
-        // TODO: We may align the agg state table's output columns with the insert planner's output column refs in order
-        // to get the correct order.
-        int i = 0;
-        // map old column ref operator to new column ref operator
-        for (Map.Entry<ColumnRefOperator, CallOperator> entry : inputAggMap.entrySet()) {
-            ColumnRefOperator oldColumnRef = entry.getKey();
-            CallOperator callOperator = entry.getValue();
-
-            // intermediate agg state column ref operator
+        // TODO: We may align the agg state table's output columns with the insert planner's
+        //  output column refs in order to get the correct order.
+        // We can assume that the agg state table's columns are in the same order
+        // as the input aggregate map, but this is a bit tricky.
+        List<ColumnRefOperator> inputAggCallColumnRef = inputAggMap.keySet().stream()
+                .sorted(Comparator.comparingInt(ColumnRefOperator::getId))
+                .collect(Collectors.toList());
+        Preconditions.checkArgument(inputAggCallColumnRef.size() == aggStateTableColumnRefs.size(),
+                "Input aggregate call column ref operators size %s must match " +
+                        "agg state table column ref size %s", inputAggCallColumnRef.size(), aggStateTableColumnRefs.size());
+        for (int i = 0; i < inputAggCallColumnRef.size(); i++) {
+            ColumnRefOperator oldColumnRef = inputAggCallColumnRef.get(i);
+            CallOperator callOperator = inputAggMap.get(oldColumnRef);
             ColumnRefOperator intermediateAggColumnRef = oldToNewColumnRefMap.get(callOperator);
-            if (intermediateAggColumnRef == null) {
-                throw new IllegalStateException("New column ref operator should not be null for: " + callOperator);
-            }
-            ColumnRefOperator aggStateAggStateColumnRef =
-                    aggStateTableColumnRefOperators.get(i);
-            // _state_union(agg_state_row_id, <old column ref operator>)
-            ScalarOperator stateUnionScalarOperator = TvrOpUtils.buildStateUnionScalarOperator(callOperator,
-                    intermediateAggColumnRef, aggStateAggStateColumnRef);
+            Preconditions.checkState(intermediateAggColumnRef != null,
+                    "New column ref operator should not be null for: %s", callOperator);
+            ColumnRefOperator aggStateAggStateColumnRef = aggStateTableColumnRefs.get(i);
+            ScalarOperator stateUnionScalarOperator = TvrOpUtils.buildStateUnionScalarOperator(
+                    callOperator, intermediateAggColumnRef, aggStateAggStateColumnRef);
             projColumnRefMap.put(oldColumnRef, stateUnionScalarOperator);
-            i++;
         }
         LogicalProjectOperator logicalProjectOperator = new LogicalProjectOperator(projColumnRefMap);
         return OptExpression.createWithoutTvr(logicalProjectOperator, deltaJoinOptExpression);
@@ -185,7 +180,6 @@ public class TvrAggregateRule extends TvrTransformationRule {
                 groupingKeys, aggMap);
         return newAggOp;
     }
-
 
     @Override
     public OptExpression doTransform(OptExpression input,

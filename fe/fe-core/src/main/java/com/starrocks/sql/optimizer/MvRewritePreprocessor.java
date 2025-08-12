@@ -87,7 +87,6 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -810,15 +809,15 @@ public class MvRewritePreprocessor {
             try {
                 future.get(individualTimeoutMs, TimeUnit.MILLISECONDS);
             } catch (TimeoutException e) {
-                LOG.warn("MV {} preparation timeout after {} ms", mv.getName(), individualTimeoutMs);
+                logMVPrepare("MV {} preparation timeout after {} ms", mv.getName(), individualTimeoutMs);
                 timeoutMvNames.add(mv.getName());
                 // Don't throw exception, continue with other MVs
             } catch (InterruptedException e) {
-                LOG.warn("MV {} preparation interrupted", mv.getName());
+                logMVPrepare("MV {} preparation interrupted", mv.getName());
                 Thread.currentThread().interrupt();
                 throw new RuntimeException("MV preparation interrupted", e);
-            } catch (ExecutionException e) {
-                LOG.warn("MV {} preparation failed with execution exception", mv.getName(), e);
+            } catch (Exception e) {
+                logMVPrepare("MV {} preparation failed with execution exception", mv.getName(), e);
                 failedMvNames.add(mv.getName());
                 // Don't throw exception, continue with other MVs
             }
@@ -826,8 +825,8 @@ public class MvRewritePreprocessor {
         
         // Log summary
         int successCount = mvInfos.size() - timeoutMvNames.size() - failedMvNames.size();
-        logMVPrepare(connectContext, "MV preparation summary: {} successful, {} timeout, {} failed out of {} total",
-                successCount, timeoutMvNames.size(), failedMvNames.size(), mvInfos.size());
+        logMVPrepare(connectContext, "MV preparation summary: {} successful, {} timeout, {} failed out of {} total: {}",
+                successCount, timeoutMvNames.size(), failedMvNames.size(), mvInfos.size(), failedMvNames);
     }
 
     /**

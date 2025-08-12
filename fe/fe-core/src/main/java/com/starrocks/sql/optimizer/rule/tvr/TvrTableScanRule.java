@@ -78,8 +78,9 @@ public class TvrTableScanRule extends TvrTransformationRule {
 
         TvrDeltaTrait tvrDeltaTrait = scanOperator.getTvrTrait().get();
         TvrTableDelta tvrTableDelta = tvrDeltaTrait.getTvrDelta();
-        TvrTableSnapshot toSnapshot = tvrTableDelta.toSnapshot();
+
         TvrTableSnapshot fromSnapshot = tvrTableDelta.fromSnapshot();
+        TvrTableSnapshot toSnapshot = tvrTableDelta.toSnapshot();
         if (Table.TableType.ICEBERG.equals(scanOperator.getTable().getType())) {
             // For Iceberg table, we can use the snapshot directly
             LogicalIcebergScanOperator logicalIcebergScanOperator = (LogicalIcebergScanOperator) scanOperator;
@@ -87,6 +88,7 @@ public class TvrTableScanRule extends TvrTransformationRule {
             // from snapshot
             LogicalScanOperator fromOperator = withTvrVersionRange(logicalIcebergScanOperator, fromSnapshot);
             OptExpression fromOpt = OptExpression.create(fromOperator);
+
             // to snapshot
             LogicalScanOperator toOperator = withTvrVersionRange(logicalIcebergScanOperator, toSnapshot);
             OptExpression toOpt = OptExpression.create(toOperator);

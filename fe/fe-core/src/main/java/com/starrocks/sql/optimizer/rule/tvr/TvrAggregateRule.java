@@ -19,11 +19,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.starrocks.analysis.JoinOperator;
 import com.starrocks.catalog.Column;
-import com.starrocks.catalog.Database;
-import com.starrocks.catalog.MvId;
+import com.starrocks.catalog.MaterializedView;
 import com.starrocks.catalog.OlapTable;
-import com.starrocks.persist.gson.GsonUtils;
-import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.sql.optimizer.MvRewritePreprocessor;
 import com.starrocks.sql.optimizer.OptExpression;
 import com.starrocks.sql.optimizer.OptimizerContext;
@@ -42,6 +39,7 @@ import com.starrocks.sql.optimizer.rule.RuleType;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.common.AggregateFunctionRollupUtils;
 import com.starrocks.sql.optimizer.rule.tvr.common.TvrChangeType;
 import com.starrocks.sql.optimizer.rule.tvr.common.TvrOpUtils;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrOptContext;
 
 import java.util.List;
 import java.util.Map;
@@ -188,41 +186,19 @@ public class TvrAggregateRule extends TvrTransformationRule {
         return newAggOp;
     }
 
-    private OlapTable getAggregateStateTable(OptimizerContext optimizerContext) {
-        // TODO: How to set the logical aggregate operator's aggregate state table?
-        // get the aggregate state table
-        // checks its schema consistent with the current aggregate's state
-        String strMvId = optimizerContext.getSessionVariable().getTvrTargetMvId();
-        if (strMvId == null) {
-            throw new IllegalStateException("TVR target MV ID is not set in session variable");
-        }
-        MvId mvId = GsonUtils.GSON.fromJson(strMvId, MvId.class);
-        if (mvId == null) {
-            throw new IllegalStateException("Failed to parse TVR target MV ID from session variable: " + strMvId);
-        }
-        Database db = GlobalStateMgr.getCurrentState().getLocalMetastore().getDb(mvId.getDbId());
-        if (db == null) {
-            throw new IllegalStateException("Database with ID " + mvId.getDbId() + " not found");
-        }
-        OlapTable aggStateOlapTable = (OlapTable) db.getTable(mvId.getId());
-        if (aggStateOlapTable == null) {
-            throw new IllegalStateException("Aggregate state table with ID " + mvId.getId() + " not found in database "
-                    + db.getFullName());
-        }
-        return aggStateOlapTable;
-    }
 
     @Override
     public OptExpression doTransform(OptExpression input,
                                      OptimizerContext context,
                                      TvrChangeType tvrChangeType) {
         LogicalAggregationOperator aggOp = input.getOp().cast();
+        TvrOptContext tvrOptContext = context.getTvrOptContext();
         // find the agg state table
-        OlapTable aggStateOlapTable = getAggregateStateTable(context);
+        MaterializedView aggStateTable = tvrOptContext.getTvrTargetMV();
         // handle append only aggregate state table
         OptExpression deltaAggregate;
         if (tvrChangeType == TvrChangeType.MONOTONIC) {
-            deltaAggregate = doTransformWithMonotonic(context, aggStateOlapTable, aggOp, input);
+            deltaAggregate = doTransformWithMonotonic(context, aggStateTable, aggOp, input);
         } else {
             throw new IllegalStateException("Unsupported TVR change type for aggregate rule: " + tvrChangeType);
         }

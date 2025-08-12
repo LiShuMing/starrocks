@@ -110,7 +110,7 @@ public class IVMBasedMvRefreshProcessorIcebergTest extends MVIVMIcebergTestBase 
     }
 
     @Test
-    public void testIVMWithJoin() throws Exception {
+    public void testIVMWithJoin1() throws Exception {
         starRocksAssert.useDatabase("test")
                 .withMaterializedView("CREATE MATERIALIZED VIEW `test`.`test_mv1` " +
                         "REFRESH DEFERRED MANUAL\n" +
@@ -119,6 +119,69 @@ public class IVMBasedMvRefreshProcessorIcebergTest extends MVIVMIcebergTestBase 
                         ")\n" +
                         "AS SELECT a.id * 2 + 1, b.data FROM `iceberg0`.`unpartitioned_db`.`t0` a inner join " +
                         "`iceberg0`.`partitioned_db`.`t1` b on a.id=b.id where a.id > 10;");
+        MaterializedView mv = getMv("test_mv1");
+        // 1th run
+        {
+            ExecPlan execPlan = getIVMRefreshedExecPlan(mv);
+            Assertions.assertTrue(execPlan != null);
+            String plan = execPlan.getExplainString(TExplainLevel.COSTS);
+            System.out.println(plan);
+            PlanTestBase.assertContains(plan, "     TABLE: unpartitioned_db.t0\n" +
+                    "     PREDICATES: 14: id > 10\n" +
+                    "     MIN/MAX PREDICATES: 14: id > 10\n" +
+                    "     TABLE VERSION: Delta[MIN,1]");
+            PlanTestBase.assertContains(plan, "     TABLE: partitioned_db.t1\n" +
+                    "     PREDICATES: 17: id > 10\n" +
+                    "     MIN/MAX PREDICATES: 17: id > 10\n" +
+                    "     TABLE VERSION: Snapshot@(1)");
+        }
+        // 2th run
+        {
+            ExecPlan execPlan = getIVMRefreshedExecPlan(mv);
+            Assertions.assertTrue(execPlan == null);
+        }
+        advanceTableVersionTo(2);
+        // 3th run
+        {
+            ExecPlan execPlan = getIVMRefreshedExecPlan(mv);
+            Assertions.assertTrue(execPlan != null);
+            String plan = execPlan.getExplainString(TExplainLevel.COSTS);
+            System.out.println(plan);
+            PlanTestBase.assertContains(plan, "     TABLE: unpartitioned_db.t0\n" +
+                    "     PREDICATES: 8: id > 10\n" +
+                    "     MIN/MAX PREDICATES: 8: id > 10\n" +
+                    "     TABLE VERSION: Snapshot@(1)");
+            PlanTestBase.assertContains(plan, "  1:IcebergScanNode\n" +
+                    "     TABLE: partitioned_db.t1\n" +
+                    "     PREDICATES: 11: id > 10\n" +
+                    "     MIN/MAX PREDICATES: 11: id > 10\n" +
+                    "     TABLE VERSION: Delta[1,2]");
+
+            PlanTestBase.assertContains(plan, "     TABLE: unpartitioned_db.t0\n" +
+                    "     PREDICATES: 14: id > 10\n" +
+                    "     MIN/MAX PREDICATES: 14: id > 10\n" +
+                    "     TABLE VERSION: Delta[1,2]");
+            PlanTestBase.assertContains(plan, "     TABLE: partitioned_db.t1\n" +
+                    "     PREDICATES: 17: id > 10\n" +
+                    "     MIN/MAX PREDICATES: 17: id > 10\n" +
+                    "     TABLE VERSION: Snapshot@(2)");
+        }
+    }
+
+    @Test
+    public void testIVMWithJoin2() throws Exception {
+        starRocksAssert.useDatabase("test")
+                .withMaterializedView("CREATE MATERIALIZED VIEW `test`.`test_mv1` " +
+                        "REFRESH DEFERRED MANUAL\n" +
+                        "PROPERTIES (\n" +
+                        "\"refresh_mode\" = \"incremental\"" +
+                        ")\n" +
+                        "AS " +
+                        "   SELECT a.id * 2 + 1, b.data, c.a as ca" +
+                        " FROM `iceberg0`.`unpartitioned_db`.`t0` a " +
+                        "   join `iceberg0`.`partitioned_db`.`t1` b " +
+                        "   join `iceberg0`.`partitioned_db`.`part_tbl1` c " +
+                        " on a.id=b.id and a.id=c.c where a.id > 10;");
         MaterializedView mv = getMv("test_mv1");
         // 1th run
         {

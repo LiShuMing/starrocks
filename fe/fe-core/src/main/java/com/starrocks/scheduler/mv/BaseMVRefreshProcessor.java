@@ -237,7 +237,8 @@ public abstract class BaseMVRefreshProcessor {
         if (!mvProperty.getProperties().containsKey(MV_SESSION_INSERT_TIMEOUT)
                 && mvProperty.getProperties().containsKey(MV_SESSION_QUERY_TIMEOUT)) {
             // for compatibility
-            mvProperty.getProperties().put(MV_SESSION_INSERT_TIMEOUT, mvProperty.getProperties().get(MV_SESSION_QUERY_TIMEOUT));
+            mvProperty.getProperties().put(MV_SESSION_INSERT_TIMEOUT,
+                    mvProperty.getProperties().get(MV_SESSION_QUERY_TIMEOUT));
         }
 
         // set insert_max_filter_ratio by default
@@ -253,7 +254,8 @@ public abstract class BaseMVRefreshProcessor {
             mvSessionVariable.setOptimizerExecuteTimeout(Config.mv_refresh_default_planner_optimize_timeout);
         }
         // set enable_materialized_view_rewrite by default
-        if (!isMVPropertyContains(SessionVariable.ENABLE_MATERIALIZED_VIEW_REWRITE) && Config.enable_mv_refresh_query_rewrite) {
+        if (!isMVPropertyContains(SessionVariable.ENABLE_MATERIALIZED_VIEW_REWRITE)
+                && Config.enable_mv_refresh_query_rewrite) {
             // Only enable mv rewrite when there are more than one related mvs that can be rewritten by other mvs.
             if (isEnableMVRefreshQueryRewrite(mvConnectCtx, baseTables)) {
                 mvSessionVariable.setEnableMaterializedViewRewrite(Config.enable_mv_refresh_query_rewrite);
@@ -296,7 +298,8 @@ public abstract class BaseMVRefreshProcessor {
                 Set<String> mvCandidatePartition = getPCTMVToRefreshedPartitions(taskRunContext, true);
                 baseTableCandidatePartitions = getPCTRefTableRefreshPartitions(mvCandidatePartition);
             } catch (Exception e) {
-                logger.warn("failed to compute candidate partitions in sync partitions", DebugUtil.getRootStackTrace(e));
+                logger.warn("failed to compute candidate partitions in sync partitions",
+                        DebugUtil.getRootStackTrace(e));
                 // Since at here we sync partitions before the refreshExternalTable, the situation may happen that
                 // the base-table not exists before refreshExternalTable, so we just need to swallow this exception
                 if (e.getMessage() == null || !e.getMessage().contains("not exist")) {
@@ -327,11 +330,11 @@ public abstract class BaseMVRefreshProcessor {
     }
 
     protected void checkPCTToRefreshMetas(TaskRunContext taskRunContext) throws Exception {
-        pctMVToRefreshedPartitions = getPCTMVToRefreshedPartitions(taskRunContext, false);
+        this.pctMVToRefreshedPartitions = getPCTMVToRefreshedPartitions(taskRunContext, false);
         // ref table of mv : refreshed partition names
-        pctRefTableRefreshPartitions = getPCTRefTableRefreshPartitions(pctMVToRefreshedPartitions);
+        this.pctRefTableRefreshPartitions = getPCTRefTableRefreshPartitions(pctMVToRefreshedPartitions);
         // ref table of mv : refreshed partition names
-        pctRefTablePartitionNames = pctRefTableRefreshPartitions.entrySet().stream()
+        this.pctRefTablePartitionNames = pctRefTableRefreshPartitions.entrySet().stream()
                 .collect(Collectors.toMap(x -> x.getKey().getName(), Map.Entry::getValue));
         logger.info("mvToRefreshedPartitions:{}, refTableRefreshPartitions:{}",
                 pctMVToRefreshedPartitions, pctRefTableRefreshPartitions);
@@ -354,7 +357,9 @@ public abstract class BaseMVRefreshProcessor {
                 (InsertStmt) SqlParser.parse(definition, ctx.getSessionVariable()).get(0);
         // set target partitions
         if (CollectionUtils.isNotEmpty(mvTargetPartitionNames)) {
-            insertStmt.setTargetPartitionNames(new PartitionNames(false, new ArrayList<>(mvTargetPartitionNames)));
+            PartitionNames partitionNames =
+                    new PartitionNames(false, Lists.newArrayList(mvTargetPartitionNames));
+            insertStmt.setTargetPartitionNames(partitionNames);
         }
         // insert overwrite mv must set system = true
         insertStmt.setSystem(true);
@@ -375,7 +380,8 @@ public abstract class BaseMVRefreshProcessor {
             logger.debug("generate insert-overwrite statement, materialized view's target partition names:{}, " +
                             "mv's target columns: {}, definition:{}",
                     Joiner.on(",").join(mvTargetPartitionNames),
-                    insertStmt.getTargetColumnNames() == null ? "" : Joiner.on(",").join(insertStmt.getTargetColumnNames()),
+                    insertStmt.getTargetColumnNames() == null ? ""
+                            : Joiner.on(",").join(insertStmt.getTargetColumnNames()),
                     definition);
         }
         return insertStmt;
@@ -456,13 +462,14 @@ public abstract class BaseMVRefreshProcessor {
             // check new table
             final Optional<Table> optNewTable = MvUtils.getTable(baseTableInfo);
             if (optNewTable.isEmpty()) {
-                logger.warn("table {} does not exist after refreshing materialized view", baseTableInfo.getTableInfoStr());
+                logger.warn("table {} does not exist after refreshing materialized view",
+                        baseTableInfo.getTableInfoStr());
                 mv.setInactiveAndReason(
                         MaterializedViewExceptions.inactiveReasonForBaseTableNotExists(baseTableInfo.getTableName()));
                 throw new DmlException("Materialized view base table: %s not exist.", baseTableInfo.getTableInfoStr());
             }
 
-            // only collect to-repair tables when the table is not the same as the old one by checking the table identifier
+            // only collect to-repair tables when the table is different from the old one by checking the table identifier
             final Table newTable = optNewTable.get();
             if (!baseTableInfo.getTableIdentifier().equals(table.getTableIdentifier())) {
                 toRepairTables.add(Pair.create(newTable, baseTableInfo));
@@ -643,7 +650,8 @@ public abstract class BaseMVRefreshProcessor {
                 // check whether there are partition changes for base tables, eg: partition rename
                 // retry to sync partitions if any base table changed the partition infos
                 if (checkPCTBaseTablePartitionChange()) {
-                    logger.info("materialized view base partition has changed. retry to sync partitions, retryNum:{}", retryNum);
+                    logger.info("materialized view base partition has changed. " +
+                            "retry to sync partitions, retryNum:{}", retryNum);
                     // sleep 100ms
                     Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
                     continue;

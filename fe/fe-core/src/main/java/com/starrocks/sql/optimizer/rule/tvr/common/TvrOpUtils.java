@@ -69,8 +69,8 @@ public class TvrOpUtils {
                     }
                 })
                 .collect(Collectors.toList());
-        ScalarOperator rowIdScalarOp = new CallOperator(FunctionSet.ROW_FINGERPRINT, Type.VARCHAR, castedUniqueKeys,
-                newFunc);
+        ScalarOperator rowIdScalarOp = new CallOperator(FunctionSet.ROW_FINGERPRINT,
+                Type.VARCHAR, castedUniqueKeys, newFunc);
         return rowIdScalarOp;
     }
 

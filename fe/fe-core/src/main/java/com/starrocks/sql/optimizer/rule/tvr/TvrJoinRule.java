@@ -62,7 +62,6 @@ public class TvrJoinRule extends TvrTransformationRule {
         // TODO: Use mv as the history state instead of recomputing.
         List<ColumnRefOperator> originalOutputColRefs = input.getRowOutputInfo().getOutputColRefs();
 
-
         // delta join
         OptExpression deltaJoin = null;
         if (leftOptMeta.isAppendOnly() && rightOptMeta.isAppendOnly()) {
@@ -86,17 +85,16 @@ public class TvrJoinRule extends TvrTransformationRule {
         TvrOptExpression tvrLeftTo = leftOptMeta.getTo();
         TvrOptExpression tvrRightFrom = rightOptMeta.getFrom();
         TvrOptExpression tvrRightTo = rightOptMeta.getTo();
-
         // from opt
         TvrLazyOptExpression fromJoin = TvrLazyOptExpression.of(() -> {
             OptExpressionWithOutput fromOpt = newJoinOperator(context, originalOutputColRefs, join, tvrLeftFrom.optExpression(),
-                    tvrRightFrom.optExpression());
+                    tvrRightFrom.optExpression(), false);
             return new TvrOptExpression(tvrLeftFrom.tvrVersionRange(), fromOpt.optExpression());
         });
         // to opt
         TvrLazyOptExpression toJoin = TvrLazyOptExpression.of(() -> {
             OptExpressionWithOutput toOpt = newJoinOperator(context, originalOutputColRefs, join, tvrLeftTo.optExpression(),
-                    tvrRightTo.optExpression());
+                    tvrRightTo.optExpression(), false);
             return new TvrOptExpression(tvrLeftTo.tvrVersionRange(), toOpt.optExpression());
         });
         // root opt group
@@ -110,7 +108,6 @@ public class TvrJoinRule extends TvrTransformationRule {
                                                    TvrOptMeta leftOptMeta,
                                                    TvrOptMeta rightOptMeta,
                                                    TvrOptMeta rootOptMeta) {
-
         TvrOptExpression tvrLeftFrom = leftOptMeta.getFrom();
         TvrOptExpression tvrLeftTo = leftOptMeta.getTo();
         TvrOptExpression tvrRightFrom = rightOptMeta.getFrom();
@@ -120,9 +117,9 @@ public class TvrJoinRule extends TvrTransformationRule {
         OptExpression rightDelta = input.inputAt(1);
         if (join.isInnerOrCrossJoin()) {
             OptExpressionWithOutput deltaOutput1 =
-                    newJoinOperator(context, originalOutputColRefs, join, tvrLeftFrom.optExpression(), rightDelta);
+                    newJoinOperator(context, originalOutputColRefs, join, tvrLeftFrom.optExpression(), rightDelta, true);
             OptExpressionWithOutput deltaOutput2 =
-                    newJoinOperator(context, originalOutputColRefs, join, leftDelta, tvrRightTo.optExpression());
+                    newJoinOperator(context, originalOutputColRefs, join, leftDelta, tvrRightTo.optExpression(), true);
             return newUnionOperator(rootOptMeta, originalOutputColRefs, Lists.newArrayList(deltaOutput1, deltaOutput2));
         } else {
             throw new IllegalStateException(

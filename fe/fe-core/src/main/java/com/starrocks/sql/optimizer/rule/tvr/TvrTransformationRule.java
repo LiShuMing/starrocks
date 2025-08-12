@@ -102,12 +102,18 @@ public abstract class TvrTransformationRule extends TransformationRule {
                                                       List<ColumnRefOperator> originalOutputColRefs,
                                                       LogicalJoinOperator join,
                                                       OptExpression leftChild,
-                                                      OptExpression rightChild) {
+                                                      OptExpression rightChild,
+                                                      boolean isDuplicateOptExpression) {
         LogicalJoinOperator newJoin = new LogicalJoinOperator.Builder()
                 .withOperator(join)
                 .build();
         OptExpression result = OptExpression.create(newJoin, leftChild, rightChild);
-        return duplicateOptExpression(optimizerContext, result, originalOutputColRefs);
+        if (!isDuplicateOptExpression) {
+            // If we do not need to duplicate the expression, we can directly return the result
+            return new OptExpressionWithOutput(result, originalOutputColRefs);
+        } else {
+            return duplicateOptExpression(optimizerContext, result, originalOutputColRefs);
+        }
     }
 
     protected OptExpression newUnionOperator(TvrOptMeta tvrOptMeta,

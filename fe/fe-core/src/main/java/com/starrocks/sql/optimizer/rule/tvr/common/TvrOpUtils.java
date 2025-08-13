@@ -98,8 +98,8 @@ public class TvrOpUtils {
         // build row id operator for agg state table
         Type[] argTypes = new Type[] { intermediateAggScalarOp.getType(), aggStateAggStateColumnRef.getType() };
         // get the state union function name
-        String aggFuncName = AggStateUtils.getAggFuncNameOfCombinator(aggFunc.getFnName());
-        String stateUnionFunctionName = AggStateUtils.stateUnionFunctionName(aggFuncName);
+        String origAggFuncName = AggStateUtils.getAggFuncNameOfCombinator(aggFunc.getFnName());
+        String stateUnionFunctionName = AggStateUtils.stateUnionFunctionName(origAggFuncName);
         Function newFunc = Expr.getBuiltinFunction(stateUnionFunctionName, argTypes,
                 Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF);
         if (newFunc == null) {

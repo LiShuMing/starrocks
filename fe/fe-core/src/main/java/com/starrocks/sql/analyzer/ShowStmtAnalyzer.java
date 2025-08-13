@@ -396,6 +396,7 @@ public class ShowStmtAnalyzer {
                     // ignore this exception.
                 }
                 //if getTable not find table, may be is statement "desc materialized-view-name"
+                boolean isAll = node.isAllTables();
                 if (table == null) {
                     for (Table tb : GlobalStateMgr.getCurrentState().getLocalMetastore().getTables(db.getId())) {
                         if (tb.getType() == Table.TableType.OLAP) {
@@ -404,6 +405,9 @@ public class ShowStmtAnalyzer {
                                 if (olapTable.getIndexNameById(mvMeta.getIndexId()).equalsIgnoreCase(node.getTableName())) {
                                     List<Column> columns = olapTable.getIndexIdToSchema().get(mvMeta.getIndexId());
                                     for (Column column : columns) {
+                                        if (!isAll && column.isHiddenColumn()) {
+                                            continue;
+                                        }
                                         // Extra string (aggregation and bloom filter)
                                         List<String> extras = Lists.newArrayList();
                                         if (column.getAggregationType() != null &&

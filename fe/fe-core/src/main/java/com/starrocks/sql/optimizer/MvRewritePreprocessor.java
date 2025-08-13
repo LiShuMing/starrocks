@@ -87,6 +87,7 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -809,15 +810,15 @@ public class MvRewritePreprocessor {
             try {
                 future.get(individualTimeoutMs, TimeUnit.MILLISECONDS);
             } catch (TimeoutException e) {
-                logMVPrepare("MV {} preparation timeout after {} ms", mv.getName(), individualTimeoutMs);
+                LOG.warn("MV {} preparation timeout after {} ms", mv.getName(), individualTimeoutMs);
                 timeoutMvNames.add(mv.getName());
                 // Don't throw exception, continue with other MVs
             } catch (InterruptedException e) {
-                logMVPrepare("MV {} preparation interrupted", mv.getName());
+                LOG.warn("MV {} preparation interrupted", mv.getName());
                 Thread.currentThread().interrupt();
                 throw new RuntimeException("MV preparation interrupted", e);
-            } catch (Exception e) {
-                logMVPrepare("MV {} preparation failed with execution exception", mv.getName(), e);
+            } catch (ExecutionException e) {
+                LOG.warn("MV {} preparation failed with execution exception", mv.getName(), e);
                 failedMvNames.add(mv.getName());
                 // Don't throw exception, continue with other MVs
             }
@@ -923,7 +924,7 @@ public class MvRewritePreprocessor {
         LogicalOlapScanOperator scanMvOp;
         synchronized (materializationContext.getQueryRefFactory()) {
             scanMvOp = createScanMvOperator(mv, materializationContext.getQueryRefFactory(),
-                    mvUpdateInfo.getMvToRefreshPartitionNames());
+                    mvUpdateInfo.getMvToRefreshPartitionNames(), false);
         }
         materializationContext.setScanMvOperator(scanMvOp);
         // should keep the sequence of schema
@@ -957,7 +958,8 @@ public class MvRewritePreprocessor {
      */
     public static LogicalOlapScanOperator createScanMvOperator(OlapTable mv,
                                                                ColumnRefFactory columnRefFactory,
-                                                               Set<String> excludedPartitions) {
+                                                               Set<String> excludedPartitions,
+                                                               boolean isWithHiddenColumns) {
         final ImmutableMap.Builder<ColumnRefOperator, Column> colRefToColumnMetaMapBuilder = ImmutableMap.builder();
         final ImmutableMap.Builder<Column, ColumnRefOperator> columnMetaToColRefMapBuilder = ImmutableMap.builder();
 
@@ -965,7 +967,9 @@ public class MvRewritePreprocessor {
 
         // first add base schema to avoid replaced in full schema.
         Set<String> columnNames = Sets.newHashSet();
-        for (Column column : mv.getBaseSchemaWithoutGeneratedColumn()) {
+        List<Column> baseSchema = isWithHiddenColumns ? mv.getBaseSchemaWithoutGeneratedColumn()
+                : mv.getVisibleColumnsWithoutGeneratedColumn();
+        for (Column column : baseSchema) {
             ColumnRefOperator columnRef = columnRefFactory.create(column.getName(),
                     column.getType(),
                     column.isAllowNull());

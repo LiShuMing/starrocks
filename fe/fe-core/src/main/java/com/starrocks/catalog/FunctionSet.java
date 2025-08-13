@@ -45,6 +45,7 @@ import com.starrocks.analysis.FunctionName;
 import com.starrocks.builtins.VectorizedBuiltinFunctions;
 import com.starrocks.catalog.combinator.AggStateCombinator;
 import com.starrocks.catalog.combinator.AggStateCombineCombinator;
+import com.starrocks.catalog.combinator.AggStateDesc;
 import com.starrocks.catalog.combinator.AggStateIf;
 import com.starrocks.catalog.combinator.AggStateMergeCombinator;
 import com.starrocks.catalog.combinator.AggStateUnionCombinator;
@@ -1019,7 +1020,7 @@ public class FunctionSet {
         } else {
             // for agg state functions, we also consider them as non-nullable functions
             String origFuncName = AggStateUtils.getAggFuncNameOfCombinator(functionName);
-            return COUNT.equals(origFuncName);
+            return AggStateDesc.isAggFuncResultNullable(origFuncName);
         }
     }
 

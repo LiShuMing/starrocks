@@ -28,6 +28,8 @@ public abstract class MVIVMTestBase extends MVTestBase {
     @BeforeAll
     public static void beforeClass() throws Exception {
         MVTestBase.beforeClass();
+        connectContext.getSessionVariable().setMaterializedViewRewriteMode("force");
+        UtFrameUtils.mockTimelinessForAsyncMVTest(connectContext);
     }
 
     // refresh and get the execute plan for the materialized view
@@ -41,10 +43,6 @@ public abstract class MVIVMTestBase extends MVTestBase {
 
     public abstract void advanceTableVersionTo(long toVersion);
 
-    public interface ExecPlanChecker {
-        void check(ExecPlan execPlan) throws Exception;
-    }
-
     protected void doTestWith3Runs(String mvQuery,
                                    MVIVMIcebergTestBase.ExecPlanChecker run1,
                                    MVIVMIcebergTestBase.ExecPlanChecker run3) throws Exception {
@@ -56,7 +54,6 @@ public abstract class MVIVMTestBase extends MVTestBase {
                 "AS %s;", mvQuery);
         starRocksAssert.withMaterializedView(ddl);
         MaterializedView mv = getMv("test_mv1");
-        UtFrameUtils.mockTimelinessForAsyncMVTest(connectContext);
         // 1th run
         {
             ExecPlan execPlan = getIVMRefreshedExecPlan(mv);

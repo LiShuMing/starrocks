@@ -49,7 +49,8 @@ public final class StateUnionCombinator extends ScalarFunction  {
     public static Optional<StateUnionCombinator> of(AggregateFunction aggFunc) {
         try {
             Type intermediateType = aggFunc.getIntermediateTypeOrReturnType().clone();
-            FunctionName funcName = new FunctionName(AggStateUtils.stateUnionFunctionName(aggFunc.functionName()));
+            String origAggFuncName = aggFunc.functionName();
+            FunctionName funcName = new FunctionName(AggStateUtils.stateUnionFunctionName(origAggFuncName));
             // merge two intermediate state types into one intermediate type
             StateUnionCombinator aggStateFunc = new StateUnionCombinator(funcName,
                     Arrays.asList(intermediateType, intermediateType), intermediateType);

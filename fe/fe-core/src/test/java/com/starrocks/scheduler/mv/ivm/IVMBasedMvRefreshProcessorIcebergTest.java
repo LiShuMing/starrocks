@@ -16,6 +16,7 @@ package com.starrocks.scheduler.mv.ivm;
 
 import com.starrocks.sql.plan.PlanTestBase;
 import com.starrocks.thrift.TExplainLevel;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.MethodOrderer.MethodName;
 import org.junit.jupiter.api.Test;
@@ -205,6 +206,7 @@ public class IVMBasedMvRefreshProcessorIcebergTest extends MVIVMIcebergTestBase 
 
     @Test
     public void testUnionAll() throws Exception {
+        connectContext.getSessionVariable().setEnableMaterializedViewTextMatchRewrite(true);
         doTestWith3Runs("SELECT id, data, date FROM `iceberg0`.`partitioned_db`.`t1` as a " +
                         "UNION ALL SELECT id, data, date FROM `iceberg0`.`unpartitioned_db`.`t0` as b;",
                 plan -> {
@@ -228,6 +230,7 @@ public class IVMBasedMvRefreshProcessorIcebergTest extends MVIVMIcebergTestBase 
                                     "     TABLE VERSION: Delta[1,2]");
                 }
         );
+        connectContext.getSessionVariable().setEnableMaterializedViewTextMatchRewrite(false);
     }
 
     @Test
@@ -303,6 +306,27 @@ public class IVMBasedMvRefreshProcessorIcebergTest extends MVIVMIcebergTestBase 
                                     "  |  join op: LEFT OUTER JOIN (BROADCAST)\n" +
                                     "  |  colocate: false, reason: \n" +
                                     "  |  equal join conjunct: 28: row_fingerprint = 23: __ROW_ID__");
+                }
+        );
+    }
+
+    @Test
+    public void testJoinAndAggregateMVSchema() throws Exception {
+        withMVQuery("SELECT b.data, " +
+                        "   sum(a.id) as a1, sum(b.id) as b1, avg(a.id) as a2, avg(b.id) as b2, " +
+                        "   min(a.id) as a3, min(b.id) as b3, max(a.id) as a4, max(b.id) as b4, " +
+                        "   count(a.id) as a5, count(b.id) as b5, " +
+                        "   approx_count_distinct(a.id) as a6, approx_count_distinct(b.id) as b6 " +
+                        "FROM " +
+                        "   `iceberg0`.`unpartitioned_db`.`t0` a inner join `iceberg0`.`partitioned_db`.`t1` b " +
+                        "   on a.id=b.id where a.id > 10 GROUP BY b.data;",
+                (mv) -> {
+                    String query = String.format("select * from %s", mv.getName());
+                    String plan = getFragmentPlan(query);
+                    System.out.println(plan);
+                    Assertions.assertTrue(plan.contains(" OUTPUT EXPRS:2: data | 3: a1 | 4: b1 | 5: a2 " +
+                            "| 6: b2 | 7: a3 | 8: b3 | 9: a4 | 10: b4 | 11: a5 | 12: b5 | 13: a6 | 14: b6\n" +
+                            "  PARTITION: UNPARTITIONED"));
                 }
         );
     }

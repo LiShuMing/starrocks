@@ -86,7 +86,7 @@ public class TvrAggregateRule extends TvrTransformationRule {
         Preconditions.checkArgument(tvrColumnRowId != null,
                 "TVR column row id must exist in agg state table");
         final LogicalOlapScanOperator aggStateOlapScanOperator = MvRewritePreprocessor.createScanMvOperator(
-                aggStateTable, columnRefFactory, Sets.newHashSet());
+                aggStateTable, columnRefFactory, Sets.newHashSet(), true);
         ColumnRefOperator aggStateRowIdColumnRef =
                 aggStateOlapScanOperator.getColumnMetaToColRefMap().get(tvrColumnRowId);
         List<Column> aggStateTableFullColumns = aggStateTable.getFullSchema();

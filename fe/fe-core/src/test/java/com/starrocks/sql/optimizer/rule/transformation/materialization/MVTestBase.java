@@ -97,6 +97,19 @@ import java.util.stream.Collectors;
  * Base class for materialized view tests.
  */
 public abstract class MVTestBase extends StarRocksTestBase {
+
+    public interface ExceptionRunnable {
+        void run() throws Exception;
+    }
+
+    public interface ExecPlanChecker {
+        void check(ExecPlan execPlan) throws Exception;
+    }
+
+    public interface MVActionRunner {
+        void run(MaterializedView mv) throws Exception;
+    }
+
     protected static final Logger LOG = LogManager.getLogger(MVTestBase.class);
     protected static ConnectContext connectContext;
     protected static PseudoCluster cluster;
@@ -566,9 +579,7 @@ public abstract class MVTestBase extends StarRocksTestBase {
         }
     }
 
-    public interface ExceptionRunnable {
-        public abstract void run() throws Exception;
-    }
+
 
     protected void doTest(List<TestListener> listeners, ExceptionRunnable testCase) {
         for (TestListener listener : listeners) {
@@ -622,5 +633,18 @@ public abstract class MVTestBase extends StarRocksTestBase {
     public static PartitionBasedMvRefreshProcessor getPartitionBasedRefreshProcessor(TaskRun taskRun) {
         Assertions.assertTrue(taskRun.getProcessor() instanceof PartitionBasedMvRefreshProcessor);
         return (PartitionBasedMvRefreshProcessor) taskRun.getProcessor();
+    }
+
+    protected void withMVQuery(String mvQuery,
+                               MVActionRunner runner) throws Exception {
+        String ddl = String.format("CREATE MATERIALIZED VIEW `test`.`test_mv1` " +
+                "REFRESH DEFERRED MANUAL\n" +
+                "PROPERTIES (\n" +
+                "\"refresh_mode\" = \"incremental\"" +
+                ")\n" +
+                "AS %s;", mvQuery);
+        starRocksAssert.withMaterializedView(ddl);
+        MaterializedView mv = getMv("test_mv1");
+        runner.run(mv);
     }
 }

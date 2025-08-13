@@ -58,6 +58,7 @@ import com.starrocks.qe.ConnectContext;
 import com.starrocks.sql.analyzer.AstToSQLBuilder;
 import com.starrocks.sql.ast.ColumnDef;
 import com.starrocks.sql.ast.IndexDef;
+import com.starrocks.sql.optimizer.rule.tvr.common.TvrOpUtils;
 import com.starrocks.thrift.TAggStateDesc;
 import com.starrocks.thrift.TColumn;
 import org.apache.commons.lang.StringEscapeUtils;
@@ -422,6 +423,15 @@ public class Column implements Writable, GsonPreProcessable, GsonPostProcessable
 
     public boolean isGeneratedColumn() {
         return generatedColumnExpr != null;
+    }
+
+    public boolean isVisibleColumn() {
+        return !isHiddenColumn();
+    }
+
+    public boolean isHiddenColumn() {
+        return TvrOpUtils.COLUMN_ROW_ID.equals(name)
+                || name.startsWith(TvrOpUtils.COLUMN_AGG_STATE_PREFIX);
     }
 
     public boolean isShadowColumn() {

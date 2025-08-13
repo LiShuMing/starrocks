@@ -2501,13 +2501,13 @@ public class MaterializedView extends OlapTable implements GsonPreProcessable, G
      * @return: mv's defined output columns in the defined order
      */
     public List<Column> getOrderedOutputColumns() {
+        final List<Column> baseSchema = getVisibleColumnsWithoutGeneratedColumn();
         if (CollectionUtils.isEmpty(this.queryOutputIndices)) {
-            return this.getBaseSchemaWithoutGeneratedColumn();
+            return baseSchema;
         } else {
-            List<Column> schema = this.getBaseSchemaWithoutGeneratedColumn();
             List<Column> outputColumns = Lists.newArrayList();
             for (Integer index : this.queryOutputIndices) {
-                outputColumns.add(schema.get(index));
+                outputColumns.add(baseSchema.get(index));
             }
             return outputColumns;
         }

@@ -246,7 +246,8 @@ public class LoadMgr implements MemoryTrackable {
         }
     }
 
-    public InsertLoadJob registerInsertLoadJob(String label, String dbName, long tableId, long txnId, String loadId,
+    public InsertLoadJob registerInsertLoadJob(String label, String dbName,
+                                               long tableId, long txnId, String loadId,
                                                String user,
                                                EtlJobType jobType,
                                                long createTimestamp,

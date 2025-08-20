@@ -697,6 +697,9 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
 
     public static final String ENABLE_CBO_VIEW_BASED_MV_REWRITE = "enable_cbo_view_based_mv_rewrite";
 
+    public static final String ENABLE_IVM_REFRESH = "enable_ivm_refresh";
+    public static final String TVR_TARGET_MVID = "tvr_target_mvid";
+
     public static final String ENABLE_SPM_REWRITE = "enable_spm_rewrite";
     public static final String SPM_REWRITE_TIMEOUT_MS = "spm_rewrite_timeout_ms";
 
@@ -2285,6 +2288,12 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
 
     @VarAttr(name = ENABLE_CBO_VIEW_BASED_MV_REWRITE)
     private boolean enableCBOViewBasedMvRewrite = false;
+
+    @VarAttr(name = TVR_TARGET_MVID, flag = VariableMgr.INVISIBLE)
+    private String tvrTargetMvId = "";
+
+    @VarAttr(name = ENABLE_IVM_REFRESH, flag = VariableMgr.INVISIBLE)
+    private boolean enableIVMRefresh = false;
 
     @VarAttr(name = ENABLE_SPM_REWRITE)
     private boolean enableSPMRewrite = false;
@@ -4425,6 +4434,22 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
 
     public boolean isEnableCBOViewBasedMvRewrite() {
         return this.enableCBOViewBasedMvRewrite;
+    }
+
+    public void setEnableIVMRefresh(boolean enableIvmRefresh) {
+        this.enableIVMRefresh = enableIvmRefresh;
+    }
+
+    public boolean isEnableIVMRefresh() {
+        return enableIVMRefresh;
+    }
+
+    public void setTvrTargetMvid(String tvrTargetMvid) {
+        this.tvrTargetMvId = tvrTargetMvid;
+    }
+
+    public String getTvrTargetMvId() {
+        return this.tvrTargetMvId;
     }
 
     public int getCboMaterializedViewRewriteRuleOutputLimit() {

@@ -22,6 +22,8 @@ import com.starrocks.common.AlreadyExistsException;
 import com.starrocks.common.DdlException;
 import com.starrocks.common.MetaNotFoundException;
 import com.starrocks.common.profile.Tracers;
+import com.starrocks.common.tvr.TvrTableDeltaTrait;
+import com.starrocks.common.tvr.TvrTableSnapshot;
 import com.starrocks.common.tvr.TvrVersionRange;
 import com.starrocks.connector.ConnectorMetadatRequestContext;
 import com.starrocks.connector.ConnectorMetadata;
@@ -130,6 +132,20 @@ public class UnifiedMetadata implements ConnectorMetadata {
     @Override
     public Table.TableType getTableType() {
         return HIVE;
+    }
+
+    @Override
+    public TvrVersionRange getCurrentTvrSnapshot(String dbName, Table table) {
+        ConnectorMetadata metadata = metadataOfTable(table);
+        return metadata.getCurrentTvrSnapshot(dbName, table);
+    }
+
+    @Override
+    public List<TvrTableDeltaTrait> listVersionRangesBetween(String dbName, Table table,
+                                                             TvrTableSnapshot fromSnapshotExclusive,
+                                                             TvrTableSnapshot toSnapshotInclusive) {
+        ConnectorMetadata metadata = metadataOfTable(table);
+        return metadata.listVersionRangesBetween(dbName, table, fromSnapshotExclusive, toSnapshotInclusive);
     }
 
     @Override

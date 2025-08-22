@@ -1,0 +1,812 @@
+-- name: test_view_based_mv_rewrite1
+create database db_${uuid0};
+-- result:
+-- !result
+use db_${uuid0};
+-- result:
+-- !result
+CREATE TABLE `d_grab_area_summary` (
+    `area_id` VARCHAR(255),
+    `area_name` VARCHAR(255),
+    `layer` VARCHAR(50),
+    `purposes` VARCHAR(50),
+    `city_id` INT,
+    `parent_territory` VARCHAR(255),
+    `parent_region` VARCHAR(255),
+    `geohash` VARCHAR(12),
+    `is_active` BOOLEAN,
+    `created_at` DATETIME,
+    `updated_at` DATETIME
+)
+ENGINE=OLAP
+PARTITION BY RANGE(`city_id`) (
+    PARTITION p0 VALUES LESS THAN ("100"),
+    PARTITION p1 VALUES LESS THAN ("200"),
+    PARTITION p2 VALUES LESS THAN ("300"),
+    PARTITION p3 VALUES LESS THAN MAXVALUE
+)
+DISTRIBUTED BY HASH(`area_id`) BUCKETS 10;
+-- result:
+-- !result
+CREATE TABLE `d_city` (
+    `city_id` INT,
+    `city_name` VARCHAR(100),
+    `country_id` INT,
+    `time_zone` VARCHAR(50),
+    `latitude` DOUBLE,
+    `longitude` DOUBLE,
+    `is_active` BOOLEAN
+)
+ENGINE=OLAP
+DISTRIBUTED BY HASH(`city_id`) BUCKETS 10;
+-- result:
+-- !result
+CREATE TABLE `d_area_hierarchy` (
+    `child_id` VARCHAR(255),
+    `child_layer` VARCHAR(50),
+    `parent_id` VARCHAR(255),
+    `parent_layer` VARCHAR(50),
+    `relationship_type` VARCHAR(20)
+)
+ENGINE=OLAP
+DISTRIBUTED BY HASH(`child_id`) BUCKETS 10;
+-- result:
+-- !result
+CREATE TABLE `f_transport_metrics` (
+    `date_id` INT,
+    `booking_code` VARCHAR(255),
+    `country_id` INT,
+    `city_id` INT,
+    `driver_id` INT,
+    `driver_fleet_id` INT,
+    `passenger_id` INT,
+    `payment_type_id` INT,
+    `reward_id` INT,
+    `taxi_type_id` INT,
+    `created_at_local` DATETIME,
+    `hour_local` INT,
+    `pickup_time_local` DATETIME,
+    `booking_state_simple` VARCHAR(50),
+    `cancellation_fee_status` VARCHAR(50),
+    `is_advance_booking` BOOLEAN,
+    `is_allocated` BOOLEAN,
+    `is_back_to_back_job` BOOLEAN,
+    `is_street_hailing_booking` BOOLEAN,
+    `is_auto_assignment_booking` BOOLEAN,
+    `is_favourite_location_booking` BOOLEAN,
+    `is_multi_stop_ride` BOOLEAN,
+    `is_grab_hire_booking` BOOLEAN,
+    `is_enterprise_booking` BOOLEAN,
+    `is_grabpay` BOOLEAN,
+    `is_gpc` BOOLEAN,
+    `is_promotion` BOOLEAN,
+    `is_unique_booking` BOOLEAN,
+    `is_first_allocated` BOOLEAN,
+    `is_spampeded` BOOLEAN,
+    `fare` DECIMAL(18,4),
+    `dax_fare` DECIMAL(18,4),
+    `pax_fare` DECIMAL(18,4),
+    `subsidy` DECIMAL(18,4),
+    `commission_total` DECIMAL(18,4),
+    `commission_from_driver` DECIMAL(18,4),
+    `booking_fee` DECIMAL(18,4),
+    `tolls_and_others` DECIMAL(18,4),
+    `cancellation_fee` DECIMAL(18,4),
+    `promo_expense` DECIMAL(18,4),
+    `gross_merchandise_value` DECIMAL(18,4),
+    `pax_platform_fee` DECIMAL(18,4),
+    `incentive` DECIMAL(18,4),
+    `spot_incentive` DECIMAL(18,4),
+    `tips` DECIMAL(18,4),
+    `insurance_fee` DECIMAL(18,4),
+    `late_fee` DECIMAL(18,4),
+    `non_surge_non_surcharge_fare` DECIMAL(18,4),
+    `surge` DECIMAL(18,4),
+    `surcharge` DECIMAL(18,4),
+    `pickup_latitude` DOUBLE,
+    `pickup_longitude` DOUBLE,
+    `dropoff_latitude` DOUBLE,
+    `dropoff_longitude` DOUBLE,
+    `estimated_distance_of_trip` DECIMAL(10,2),
+    `estimated_distance_to_arrival` DECIMAL(10,2),
+    `actual_distance_of_trip` DECIMAL(10,2),
+    `actual_distance_to_arrival` DECIMAL(10,2),
+    `estimated_time_of_arrival` INT,
+    `actual_time_of_arrival` INT,
+    `estimated_trip_time` INT,
+    `actual_trip_time` INT,
+    `time_to_allocate` INT,
+    `time_to_cancel` INT,
+    `time_to_complete` INT,
+    `total_candidates` INT,
+    `bidding_candidates` INT,
+    `ignored_candidates` INT,
+    `declined_candidates` INT,
+    `unread_candidates` INT,
+    `not_received_candidates` INT,
+    `enterprise_group_id` INT,
+    `enterprise_booking_channel` VARCHAR(100),
+    `enterprise_campaign_code` VARCHAR(100),
+    `cancel_compensation` DECIMAL(18,4),
+    `premium` DECIMAL(18,4),
+    `insurance_name` VARCHAR(100),
+    `product_code` VARCHAR(50),
+    `platform_fee` DECIMAL(18,4),
+    `license_fee` DECIMAL(18,4),
+    `cancel_reason` VARCHAR(255),
+    `cashback_amount` DECIMAL(18,4),
+    `sub_vertical_id` INT,
+    `reward_tier` VARCHAR(50),
+    `carbon_offset_fee` DECIMAL(18,4),
+    `pickup_poi` VARCHAR(255),
+    `dropoff_poi` VARCHAR(255),
+    `additional_dropoff_poi` VARCHAR(255),
+    `additional_dropoff_latitude` DOUBLE,
+    `additional_dropoff_longitude` DOUBLE,
+    `booking_source` VARCHAR(50),
+    `is_soft_allocated` BOOLEAN,
+    `is_swapped` BOOLEAN,
+    `soft_allocated_driver` INT,
+    `receipt_payment_type` VARCHAR(50),
+    `cancel_using_quota` BOOLEAN,
+    `ar_numerator` INT,
+    `ar_denominator` INT,
+    `cr_numerator` INT,
+    `cr_denominator` INT,
+    `cp_numerator` INT,
+    `cp_denominator` INT,
+    `area_id` INT,
+    `driver_arrived_time` DATETIME,
+    `dropping_off_time` DATETIME,
+    `pickup_keywords` VARCHAR(255),
+    `dropoff_keywords` VARCHAR(255),
+    `dropoff_city_id` INT,
+    `dropoff_area_id` INT,
+    `is_grabshare_booking` BOOLEAN,
+    `is_shift_booking` BOOLEAN,
+    `unique_request_id` VARCHAR(255),
+    `parent_booking_code` VARCHAR(255),
+    `is_batched` BOOLEAN,
+    `passenger_platform_id` VARCHAR(100),
+    `driver_platform_id` VARCHAR(100),
+    `last_dax_fare_uuid` VARCHAR(100),
+    `dax_non_surge_non_surcharge_fare` DECIMAL(18,4),
+    `dax_surge` DECIMAL(18,4),
+    `two_sided_pricing_revenue` DECIMAL(18,4),
+    `pickup_eta` INT,
+    `is_priority_booking` BOOLEAN,
+    `priority_fee` DECIMAL(18,4),
+    `promo_expense_adj` DECIMAL(18,4),
+    `is_critical` BOOLEAN,
+    `is_critical_effective` BOOLEAN,
+    `time_to_tentative_allocation` INT,
+    `affordability` DECIMAL(10,2),
+    `is_bidding` BOOLEAN,
+    `pax_initial_bid` DECIMAL(18,4),
+    `has_offer` BOOLEAN,
+    `time_to_first_offer` INT,
+    `created_at_utc` DATETIME,
+    `suggested_fare` DECIMAL(18,4),
+    `min_bid_fare` DECIMAL(18,4),
+    `max_bid_fare` DECIMAL(18,4),
+    `array_mtt_taxi_type_id` VARCHAR(1000),
+    `is_committed` BOOLEAN,
+    `array_latitude` VARCHAR(1000),
+    `array_longitude` VARCHAR(1000),
+    `array_poi` VARCHAR(1000),
+    `total_stops` INT,
+    `receipt_promotion_value` DECIMAL(18,4),
+    `receipt_type` VARCHAR(50),
+    `fare_upper_bound` DECIMAL(18,4),
+    `fare_lower_bound` DECIMAL(18,4),
+    `user_id` INT,
+    `last_updated` DATETIME,
+    `dropoff_point_id` VARCHAR(100),
+    `dropoff_point_latitude` DOUBLE,
+    `dropoff_point_longitude` DOUBLE,
+    `dropoff_point_type` VARCHAR(50),
+    `pickup_point_id` VARCHAR(100),
+    `pickup_point_latitude` DOUBLE,
+    `pickup_point_longitude` DOUBLE,
+    `pickup_point_type` VARCHAR(50),
+    `driver_latitude` DOUBLE,
+    `driver_longitude` DOUBLE,
+    `is_fake_booking` BOOLEAN,
+    `is_destination_changed` BOOLEAN,
+    `is_pickup_changed` BOOLEAN,
+    `awarded_time` DATETIME,
+    `confirm_time` DATETIME,
+    `allocated_time` DATETIME,
+    `completed_time` DATETIME,
+    `booking_broadcast_time` DATETIME,
+    `is_fallback_booking` BOOLEAN,
+    `processing_fee` DECIMAL(18,4),
+    `transport_flags` VARCHAR(255),
+    `is_parallel_allocation` BOOLEAN,
+    `array_booked_service_ladder` VARCHAR(1000),
+    `array_booked_sub_service_ladder` VARCHAR(1000),
+    `winner_service_ladder` VARCHAR(100),
+    `winner_sub_service_ladder` VARCHAR(100),
+    `tolls` DECIMAL(18,4),
+    `advance_booking_version` VARCHAR(50),
+    `is_w2s_enter_pool` BOOLEAN,
+    `is_batch_formed` BOOLEAN,
+    `pax_appeasement_fee` DECIMAL(18,4),
+    `appeasement_payout_reason` VARCHAR(255),
+    `winner_taxi_type_id` INT,
+    `array_taxi_type_id` VARCHAR(1000),
+    `jobboard_type` VARCHAR(50),
+    `any_jb_signup_success` BOOLEAN,
+    `cancel_before_allocation_start` BOOLEAN,
+    `has_signup_at_allocation_time` BOOLEAN,
+    `jb_allocated_source` VARCHAR(50),
+    `jb_dax_unavailable` BOOLEAN,
+    `is_anyride` BOOLEAN,
+    `dax_time_to_cancel` INT,
+    `shift_min_earning_payout_per_booking` DECIMAL(18,4),
+    `shift_bonus_payout_per_booking` DECIMAL(18,4),
+    `partners_tried` INT,
+    `partners_with_driver` INT,
+    `winner_partner_id` INT,
+    `contract_booking_partners` VARCHAR(1000),
+    `receipt_meter_fare` DECIMAL(18,4),
+    `partners_booking_code` VARCHAR(255),
+    `original_flight_landing_time` DATETIME,
+    `final_flight_landing_time` DATETIME,
+    `is_flight_delayed` BOOLEAN,
+    `original_pickup_time_local` DATETIME,
+    `pax_ready_time_local` DATETIME,
+    `pax_gig_levy_surcharge` DECIMAL(18,4),
+    `is_ab_airport_pu` BOOLEAN,
+    `time_to_give_up` INT,
+    `is_first_grabshare_pickup` BOOLEAN,
+    `is_driver_arrived_on_time` BOOLEAN,
+    `is_quick_ab` BOOLEAN
+)
+ENGINE=OLAP
+PARTITION BY RANGE(`date_id`) (
+    PARTITION p202301 VALUES LESS THAN ("20230201"),
+    PARTITION p202302 VALUES LESS THAN ("20230301"),
+    PARTITION p202303 VALUES LESS THAN ("20230401"),
+    PARTITION p202304 VALUES LESS THAN ("20230501"),
+    PARTITION p202305 VALUES LESS THAN ("20230601"),
+    PARTITION p202306 VALUES LESS THAN ("20230701"),
+    PARTITION p202307 VALUES LESS THAN ("20230801"),
+    PARTITION p202308 VALUES LESS THAN ("20230901"),
+    PARTITION p202309 VALUES LESS THAN ("20231001"),
+    PARTITION p202310 VALUES LESS THAN ("20231101"),
+    PARTITION p202311 VALUES LESS THAN ("20231201"),
+    PARTITION p202312 VALUES LESS THAN ("20240101"),
+    PARTITION pmax VALUES LESS THAN MAXVALUE
+)
+DISTRIBUTED BY HASH(`booking_code`) BUCKETS 32;
+-- result:
+-- !result
+INSERT INTO `d_grab_area_summary` VALUES
+('R1', 'Southeast Asia', 'Region', 'Generic', NULL, NULL, NULL, 's7vx8w9', TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00'),
+('T1', 'Vietnam', 'Territory', 'Generic', NULL, 'Southeast Asia', NULL, 'w5v4u3d', TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00'),
+('C1', 'Ho Chi Minh City', 'City', 'Generic', 1, 'Vietnam', 'Southeast Asia', 'w5v4u3d2', TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00');
+-- result:
+-- !result
+INSERT INTO `d_city` VALUES
+(1, 'Ho Chi Minh City', 84, 'Asia/Saigon', 10.8231, 106.6297, TRUE),
+(2, 'Hanoi', 84, 'Asia/Ho_Chi_Minh', 21.0278, 105.8342, TRUE);
+-- result:
+-- !result
+INSERT INTO `d_area_hierarchy` VALUES
+('C1', 'City', 'T1', 'Territory', 'BELONGS_TO'),
+('T1', 'Territory', 'R1', 'Region', 'BELONGS_TO');
+-- result:
+-- !result
+INSERT INTO `f_transport_metrics` (
+    `date_id`, `booking_code`, `country_id`, `city_id`, `driver_id`, 
+    `driver_fleet_id`, `passenger_id`, `payment_type_id`, `reward_id`, 
+    `taxi_type_id`, `created_at_local`, `hour_local`, `pickup_time_local`, 
+    `booking_state_simple`, `cancellation_fee_status`, `is_advance_booking`, 
+    `is_allocated`, `is_back_to_back_job`, `is_street_hailing_booking`, 
+    `is_auto_assignment_booking`, `is_favourite_location_booking`, 
+    `is_multi_stop_ride`, `is_grab_hire_booking`, `is_enterprise_booking`, 
+    `is_grabpay`, `is_gpc`, `is_promotion`, `is_unique_booking`, 
+    `is_first_allocated`, `is_spampeded`, `fare`, `dax_fare`, `pax_fare`, 
+    `subsidy`, `commission_total`, `commission_from_driver`, `booking_fee`, 
+    `tolls_and_others`, `cancellation_fee`, `promo_expense`, 
+    `gross_merchandise_value`, `pax_platform_fee`, `incentive`, 
+    `spot_incentive`, `tips`, `insurance_fee`, `late_fee`, 
+    `non_surge_non_surcharge_fare`, `surge`, `surcharge`, `pickup_latitude`, 
+    `pickup_longitude`, `dropoff_latitude`, `dropoff_longitude`, 
+    `estimated_distance_of_trip`, `estimated_distance_to_arrival`, 
+    `actual_distance_of_trip`, `actual_distance_to_arrival`, 
+    `estimated_time_of_arrival`, `actual_time_of_arrival`, `estimated_trip_time`, 
+    `actual_trip_time`, `time_to_allocate`, `time_to_cancel`, `time_to_complete`, 
+    `total_candidates`, `bidding_candidates`, `ignored_candidates`, 
+    `declined_candidates`, `unread_candidates`, `not_received_candidates`, 
+    `enterprise_group_id`, `enterprise_booking_channel`, `enterprise_campaign_code`, 
+    `cancel_compensation`, `premium`, `insurance_name`, `product_code`, 
+    `platform_fee`, `license_fee`, `cancel_reason`, `cashback_amount`, 
+    `sub_vertical_id`, `reward_tier`, `carbon_offset_fee`, `pickup_poi`, 
+    `dropoff_poi`, `additional_dropoff_poi`, `additional_dropoff_latitude`, 
+    `additional_dropoff_longitude`, `booking_source`, `is_soft_allocated`, 
+    `is_swapped`, `soft_allocated_driver`, `receipt_payment_type`, 
+    `cancel_using_quota`, `ar_numerator`, `ar_denominator`, `cr_numerator`, 
+    `cr_denominator`, `cp_numerator`, `cp_denominator`, `area_id`, 
+    `driver_arrived_time`, `dropping_off_time`, `pickup_keywords`, 
+    `dropoff_keywords`, `dropoff_city_id`, `dropoff_area_id`, 
+    `is_grabshare_booking`, `is_shift_booking`, `unique_request_id`, 
+    `parent_booking_code`, `is_batched`, `passenger_platform_id`, 
+    `driver_platform_id`, `last_dax_fare_uuid`, `dax_non_surge_non_surcharge_fare`, 
+    `dax_surge`, `two_sided_pricing_revenue`, `pickup_eta`, `is_priority_booking`, 
+    `priority_fee`, `promo_expense_adj`, `is_critical`, `is_critical_effective`, 
+    `time_to_tentative_allocation`, `affordability`, `is_bidding`, 
+    `pax_initial_bid`, `has_offer`, `time_to_first_offer`, `created_at_utc`, 
+    `suggested_fare`, `min_bid_fare`, `max_bid_fare`, `array_mtt_taxi_type_id`, 
+    `is_committed`, `array_latitude`, `array_longitude`, `array_poi`, 
+    `total_stops`, `receipt_promotion_value`, `receipt_type`, `fare_upper_bound`, 
+    `fare_lower_bound`, `user_id`, `last_updated`, `dropoff_point_id`, 
+    `dropoff_point_latitude`, `dropoff_point_longitude`, `dropoff_point_type`, 
+    `pickup_point_id`, `pickup_point_latitude`, `pickup_point_longitude`, 
+    `pickup_point_type`, `driver_latitude`, `driver_longitude`, `is_fake_booking`, 
+    `is_destination_changed`, `is_pickup_changed`, `awarded_time`, `confirm_time`, 
+    `allocated_time`, `completed_time`, `booking_broadcast_time`, 
+    `is_fallback_booking`, `processing_fee`, `transport_flags`, 
+    `is_parallel_allocation`, `array_booked_service_ladder`, 
+    `array_booked_sub_service_ladder`, `winner_service_ladder`, 
+    `winner_sub_service_ladder`, `tolls`, `advance_booking_version`, 
+    `is_w2s_enter_pool`, `is_batch_formed`, `pax_appeasement_fee`, 
+    `appeasement_payout_reason`, `winner_taxi_type_id`, `array_taxi_type_id`, 
+    `jobboard_type`, `any_jb_signup_success`, `cancel_before_allocation_start`, 
+    `has_signup_at_allocation_time`, `jb_allocated_source`, `jb_dax_unavailable`, 
+    `is_anyride`, `dax_time_to_cancel`, `shift_min_earning_payout_per_booking`, 
+    `shift_bonus_payout_per_booking`, `partners_tried`, `partners_with_driver`, 
+    `winner_partner_id`, `contract_booking_partners`, `receipt_meter_fare`, 
+    `partners_booking_code`, `original_flight_landing_time`, 
+    `final_flight_landing_time`, `is_flight_delayed`, `original_pickup_time_local`, 
+    `pax_ready_time_local`, `pax_gig_levy_surcharge`, `is_ab_airport_pu`, 
+    `time_to_give_up`, `is_first_grabshare_pickup`, `is_driver_arrived_on_time`, 
+    `is_quick_ab`
+) VALUES (
+    20230601, 'BOOK123456', 84, 1, 1001, 
+    2001, 3001, 1, 101, 
+    1, '2023-06-01 08:30:00', 8, '2023-06-01 09:00:00', 
+    'COMPLETED', 'CHARGED', FALSE, 
+    TRUE, FALSE, FALSE, 
+    TRUE, FALSE, 
+    FALSE, FALSE, FALSE, 
+    TRUE, FALSE, TRUE, 
+    TRUE, TRUE, FALSE, 15.50, 14.00, 15.50, 
+    0.00, 2.50, 1.00, 1.00, 
+    0.50, 0.00, 1.00, 
+    16.50, 0.50, 0.00, 
+    0.00, 0.00, 0.20, 0.00, 
+    14.00, 1.00, 0.50, 10.8231, 
+    106.6297, 10.7736, 106.6604, 
+    5.20, 2.50, 5.50, 
+    2.80, 900, 920, 1800, 
+    1850, 120, 0, 1850, 
+    5, 0, 0, 
+    0, 0, 0, 
+    0, NULL, NULL, 
+    0.00, 0.00, 'Basic Insurance', 'GRAB_TAXI', 
+    0.50, 0.10, 'PASSENGER_CANCEL', 0.00, 
+    1, 'SILVER', 0.10, '123 Main St', 
+    '456 Park Ave', NULL, NULL, 
+    NULL, 'MOBILE_APP', FALSE, 
+    FALSE, NULL, 'CREDIT_CARD', 
+    FALSE, 1, 1, 1, 
+    1, 1, 1, 101, 
+    '2023-06-01 09:05:00', '2023-06-01 09:35:00', 'Main St', 
+    'Park Ave', 1, 102, 
+    FALSE, FALSE, 'REQ123456', 
+    NULL, FALSE, 'PASS123', 
+    'DRIV123', 'DAX123456', 14.00, 
+    1.00, 0.50, 300, FALSE, 
+    0.00, 0.00, FALSE, FALSE, 
+    60, 0.75, FALSE, 
+    0.00, FALSE, 0, '2023-06-01 01:30:00', 
+    15.00, 12.00, 18.00, '1,2,3', 
+    TRUE, '10.8231,10.8260,10.7736', '106.6297,106.6320,106.6604', 'POI1,POI2,POI3', 
+    1, 1.00, 'STANDARD', 20.00, 
+    12.00, 3001, '2023-06-01 09:40:00', 'DROP123', 
+    10.7736, 106.6604, 'ADDRESS', 
+    'PICK123', 10.8231, 106.6297, 
+    'ADDRESS', 10.8231, 106.6297, FALSE, 
+    FALSE, FALSE, '2023-06-01 08:35:00', '2023-06-01 08:36:00', 
+    '2023-06-01 08:40:00', '2023-06-01 09:35:00', '2023-06-01 08:38:00', 
+    FALSE, 0.00, 'STANDARD', 
+    FALSE, '1,2', 'A,B', '1', 
+    'A', 0.50, 'V2', 
+    FALSE, FALSE, 0.00, 
+    'NONE', 1, '1,2,3', 
+    'STANDARD', TRUE, FALSE, 
+    FALSE, 'AUTO', FALSE, 
+    FALSE, 60, 0.00, 
+    0.00, 1, 1, 
+    1001, 'PART1,PART2', 15.00, 
+    'PARTBOOK123', NULL, 
+    NULL, FALSE, '2023-06-01 08:00:00', 
+    '2023-06-01 08:30:00', 0.00, FALSE, 
+    0, FALSE, TRUE, 
+    FALSE
+);
+-- result:
+-- !result
+CREATE TABLE `f_exchange_rate` (
+    `currency_code` VARCHAR(3),
+    `country_id` INT,
+    `exchange_rate` DECIMAL(18,6),
+    `start_date_id` INT,
+    `end_date_id` INT,
+    `is_active` BOOLEAN,
+    `created_at` DATETIME,
+    `updated_at` DATETIME,
+    `source` VARCHAR(50),
+    `is_official_rate` BOOLEAN,
+    `is_interbank_rate` BOOLEAN,
+    `is_retail_rate` BOOLEAN,
+    `rate_type` VARCHAR(20),
+    `valid_from` DATETIME,
+    `valid_to` DATETIME,
+    `base_currency` VARCHAR(3)
+)
+ENGINE=OLAP
+PARTITION BY RANGE(`start_date_id`) (
+    PARTITION p202201 VALUES LESS THAN ("20220201"),
+    PARTITION p202202 VALUES LESS THAN ("20220301"),
+    PARTITION p202203 VALUES LESS THAN ("20220401"),
+    PARTITION p202204 VALUES LESS THAN ("20220501"),
+    PARTITION p202205 VALUES LESS THAN ("20220601"),
+    PARTITION p202206 VALUES LESS THAN ("20220701"),
+    PARTITION p202207 VALUES LESS THAN ("20220801"),
+    PARTITION p202208 VALUES LESS THAN ("20220901"),
+    PARTITION p202209 VALUES LESS THAN ("20221001"),
+    PARTITION p202210 VALUES LESS THAN ("20221101"),
+    PARTITION p202211 VALUES LESS THAN ("20221201"),
+    PARTITION p202212 VALUES LESS THAN ("20230101"),
+    PARTITION p202301 VALUES LESS THAN ("20230201"),
+    PARTITION p202302 VALUES LESS THAN ("20230301"),
+    PARTITION p202303 VALUES LESS THAN ("20230401"),
+    PARTITION p202304 VALUES LESS THAN ("20230501"),
+    PARTITION p202305 VALUES LESS THAN ("20230601"),
+    PARTITION p202306 VALUES LESS THAN ("20230701"),
+    PARTITION p202307 VALUES LESS THAN ("20230801"),
+    PARTITION p202308 VALUES LESS THAN ("20230901"),
+    PARTITION p202309 VALUES LESS THAN ("20231001"),
+    PARTITION p202310 VALUES LESS THAN ("20231101"),
+    PARTITION p202311 VALUES LESS THAN ("20231201"),
+    PARTITION p202312 VALUES LESS THAN ("20240101"),
+    PARTITION pmax VALUES LESS THAN MAXVALUE
+)
+DISTRIBUTED BY HASH(`currency_code`) BUCKETS 10
+PROPERTIES (
+    "replication_num" = "1"
+);
+-- result:
+-- !result
+CREATE TABLE `f_exchange_rate_2` (
+    `currency_code` VARCHAR(3),
+    `country_id` INT,
+    `exchange_rate` DECIMAL(18,6),
+    `start_date_id` INT,
+    `end_date_id` INT,
+    `is_active` BOOLEAN,
+    `created_at` DATETIME,
+    `updated_at` DATETIME,
+    `source` VARCHAR(50),
+    `is_official_rate` BOOLEAN,
+    `is_interbank_rate` BOOLEAN,
+    `is_retail_rate` BOOLEAN,
+    `rate_type` VARCHAR(20),
+    `valid_from` DATETIME,
+    `valid_to` DATETIME,
+    `base_currency` VARCHAR(3)
+)
+ENGINE=OLAP
+PARTITION BY RANGE(`start_date_id`) (
+    PARTITION p202201 VALUES LESS THAN ("20220201"),
+    PARTITION p202202 VALUES LESS THAN ("20220301"),
+    PARTITION p202203 VALUES LESS THAN ("20220401"),
+    PARTITION p202204 VALUES LESS THAN ("20220501"),
+    PARTITION p202205 VALUES LESS THAN ("20220601"),
+    PARTITION p202206 VALUES LESS THAN ("20220701"),
+    PARTITION p202207 VALUES LESS THAN ("20220801"),
+    PARTITION p202208 VALUES LESS THAN ("20220901"),
+    PARTITION p202209 VALUES LESS THAN ("20221001"),
+    PARTITION p202210 VALUES LESS THAN ("20221101"),
+    PARTITION p202211 VALUES LESS THAN ("20221201"),
+    PARTITION p202212 VALUES LESS THAN ("20230101"),
+    PARTITION p202301 VALUES LESS THAN ("20230201"),
+    PARTITION p202302 VALUES LESS THAN ("20230301"),
+    PARTITION p202303 VALUES LESS THAN ("20230401"),
+    PARTITION p202304 VALUES LESS THAN ("20230501"),
+    PARTITION p202305 VALUES LESS THAN ("20230601"),
+    PARTITION p202306 VALUES LESS THAN ("20230701"),
+    PARTITION p202307 VALUES LESS THAN ("20230801"),
+    PARTITION p202308 VALUES LESS THAN ("20230901"),
+    PARTITION p202309 VALUES LESS THAN ("20231001"),
+    PARTITION p202310 VALUES LESS THAN ("20231101"),
+    PARTITION p202311 VALUES LESS THAN ("20231201"),
+    PARTITION p202312 VALUES LESS THAN ("20240101"),
+    PARTITION pmax VALUES LESS THAN MAXVALUE
+)
+DISTRIBUTED BY HASH(`currency_code`) BUCKETS 10;
+-- result:
+-- !result
+INSERT INTO `f_exchange_rate` VALUES
+('USD', 840, 1.000000, 20230101, 20231231, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'FED', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-12-31 23:59:59', 'USD'),
+('SGD', 702, 1.340000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'MAS', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('SGD', 702, 1.350000, 20230201, 20230228, TRUE, '2023-02-01 00:00:00', '2023-02-01 00:00:00', 'MAS', TRUE, TRUE, FALSE, 'SPOT', '2023-02-01 00:00:00', '2023-02-28 23:59:59', 'USD'),
+('MYR', 458, 4.450000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'BNM', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('THB', 764, 34.500000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'BOT', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('VND', 704, 23450.000000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'SBV', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('IDR', 360, 14900.000000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'BI', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('PHP', 608, 54.500000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'BSP', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('MMK', 104, 2100.000000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'CBM', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('KHR', 116, 4100.000000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'NBC', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('LAK', 418, 16900.000000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'BOL', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('CNY', 156, 6.850000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'PBC', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('HKD', 344, 7.850000, 20230101, 20231231, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'HKMA', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-12-31 23:59:59', 'USD'),
+('EUR', 978, 0.920000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'ECB', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('GBP', 826, 0.820000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'BOE', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('JPY', 392, 130.500000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'BOJ', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('KRW', 410, 1250.000000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'BOK', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('INR', 356, 81.500000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'RBI', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('AUD', 36, 1.450000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'RBA', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('NZD', 554, 1.580000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'RBNZ', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD');
+-- result:
+-- !result
+CREATE TABLE `d_city_ext` (
+    `city_id` INT,
+    `city_name` VARCHAR(100),
+    `country_id` INT,
+    `time_zone` VARCHAR(50),
+    `latitude` DOUBLE,
+    `longitude` DOUBLE,
+    `is_active` BOOLEAN,
+    `population` INT,
+    `area_sq_km` DECIMAL(10,2),
+    `elevation_m` INT,
+    `official_language` VARCHAR(50),
+    `currency_code` VARCHAR(3),
+    `gmt_offset` VARCHAR(10),
+    `dst_observed` BOOLEAN,
+    `metro_area` BOOLEAN,
+    `capital_city` BOOLEAN,
+    `created_at` DATETIME,
+    `updated_at` DATETIME,
+    `data_source` VARCHAR(50),
+    `admin_level` INT,
+    `urban_area` BOOLEAN,
+    `coastal_city` BOOLEAN,
+    `airport_code` VARCHAR(10),
+    `port_city` BOOLEAN,
+    `climate_zone` VARCHAR(30)
+)
+ENGINE=OLAP
+PARTITION BY RANGE(`city_id`) (
+    PARTITION p0 VALUES LESS THAN ("1000"),
+    PARTITION p1 VALUES LESS THAN ("2000"),
+    PARTITION p2 VALUES LESS THAN ("3000"),
+    PARTITION p3 VALUES LESS THAN ("4000"),
+    PARTITION p4 VALUES LESS THAN ("5000"),
+    PARTITION pmax VALUES LESS THAN MAXVALUE
+)
+DISTRIBUTED BY HASH(`city_id`) BUCKETS 10;
+-- result:
+-- !result
+INSERT INTO `d_city_ext` VALUES
+(1, 'Singapore', 702, 'Asia/Singapore', 1.352083, 103.819836, TRUE, 5700000, 728.30, 15, 'English', 'SGD', '+08:00', FALSE, TRUE, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'Govt', 1, TRUE, TRUE, 'SIN', TRUE, 'Tropical'),
+(2, 'Kuala Lumpur', 458, 'Asia/Kuala_Lumpur', 3.139003, 101.686855, TRUE, 7900000, 243.65, 62, 'Malay', 'MYR', '+08:00', FALSE, TRUE, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'Govt', 1, TRUE, FALSE, 'KUL', FALSE, 'Tropical'),
+(3, 'Bangkok', 764, 'Asia/Bangkok', 13.756331, 100.501765, TRUE, 10500000, 1568.74, 2, 'Thai', 'THB', '+07:00', FALSE, TRUE, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'Govt', 1, TRUE, TRUE, 'BKK', TRUE, 'Tropical'),
+(4, 'Ho Chi Minh City', 704, 'Asia/Ho_Chi_Minh', 10.823099, 106.629662, TRUE, 9000000, 2095.60, 19, 'Vietnamese', 'VND', '+07:00', FALSE, TRUE, FALSE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'Govt', 1, TRUE, TRUE, 'SGN', TRUE, 'Tropical'),
+(5, 'Hanoi', 704, 'Asia/Ho_Chi_Minh', 21.027764, 105.834160, TRUE, 8000000, 3344.70, 12, 'Vietnamese', 'VND', '+07:00', FALSE, TRUE, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'Govt', 1, TRUE, FALSE, 'HAN', FALSE, 'Subtropical'),
+(6, 'Jakarta', 360, 'Asia/Jakarta', -6.208763, 106.845599, TRUE, 10700000, 664.01, 8, 'Indonesian', 'IDR', '+07:00', FALSE, TRUE, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'Govt', 1, TRUE, TRUE, 'CGK', TRUE, 'Tropical'),
+(7, 'Manila', 608, 'Asia/Manila', 14.599512, 120.984222, TRUE, 13500000, 619.57, 16, 'Filipino', 'PHP', '+08:00', FALSE, TRUE, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'Govt', 1, TRUE, TRUE, 'MNL', TRUE, 'Tropical'),
+(8, 'Yangon', 104, 'Asia/Yangon', 16.840934, 96.173526, TRUE, 5200000, 598.75, 15, 'Burmese', 'MMK', '+06:30', FALSE, TRUE, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'Govt', 1, TRUE, TRUE, 'RGN', TRUE, 'Tropical'),
+(9, 'Phnom Penh', 116, 'Asia/Phnom_Penh', 11.556374, 104.928210, TRUE, 2100000, 678.46, 12, 'Khmer', 'KHR', '+07:00', FALSE, TRUE, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'Govt', 1, TRUE, TRUE, 'PNH', TRUE, 'Tropical'),
+(10, 'Vientiane', 418, 'Asia/Vientiane', 17.975706, 102.633104, TRUE, 820000, 3920.00, 174, 'Lao', 'LAK', '+07:00', FALSE, TRUE, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'Govt', 1, TRUE, FALSE, 'VTE', FALSE, 'Tropical'),
+(11, 'Bandar Seri Begawan', 96, 'Asia/Brunei', 4.903052, 114.939821, TRUE, 100000, 100.36, 14, 'Malay', 'BND', '+08:00', FALSE, FALSE, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'Govt', 1, TRUE, TRUE, 'BWN', TRUE, 'Tropical'),
+(12, 'Dili', 626, 'Asia/Dili', -8.556856, 125.560314, TRUE, 220000, 48.27, 11, 'Tetum', 'USD', '+09:00', FALSE, FALSE, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'Govt', 1, TRUE, TRUE, 'DIL', TRUE, 'Tropical'),
+(13, 'Beijing', 156, 'Asia/Shanghai', 39.904211, 116.407395, TRUE, 21700000, 16410.54, 43, 'Mandarin', 'CNY', '+08:00', FALSE, TRUE, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'Govt', 1, TRUE, FALSE, 'PEK', FALSE, 'Temperate'),
+(14, 'Shanghai', 156, 'Asia/Shanghai', 31.230416, 121.473701, TRUE, 24800000, 6340.50, 4, 'Mandarin', 'CNY', '+08:00', FALSE, TRUE, FALSE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'Govt', 1, TRUE, TRUE, 'PVG', TRUE, 'Subtropical'),
+(15, 'Hong Kong', 344, 'Asia/Hong_Kong', 22.396428, 114.109497, TRUE, 7500000, 1106.34, 10, 'Cantonese', 'HKD', '+08:00', FALSE, TRUE, FALSE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'Govt', 1, TRUE, TRUE, 'HKG', TRUE, 'Subtropical'),
+(16, 'Taipei', 158, 'Asia/Taipei', 25.033000, 121.565400, TRUE, 2600000, 271.80, 9, 'Mandarin', 'TWD', '+08:00', FALSE, TRUE, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'Govt', 1, TRUE, FALSE, 'TPE', FALSE, 'Subtropical'),
+(17, 'Tokyo', 392, 'Asia/Tokyo', 35.676191, 139.650310, TRUE, 14000000, 2194.07, 40, 'Japanese', 'JPY', '+09:00', FALSE, TRUE, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'Govt', 1, TRUE, TRUE, 'HND', TRUE, 'Temperate'),
+(18, 'Seoul', 410, 'Asia/Seoul', 37.566536, 126.977966, TRUE, 9800000, 605.25, 38, 'Korean', 'KRW', '+09:00', FALSE, TRUE, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'Govt', 1, TRUE, FALSE, 'ICN', FALSE, 'Temperate'),
+(19, 'New Delhi', 356, 'Asia/Kolkata', 28.613939, 77.209021, TRUE, 21000000, 1484.00, 216, 'Hindi', 'INR', '+05:30', FALSE, TRUE, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'Govt', 1, TRUE, FALSE, 'DEL', FALSE, 'Subtropical'),
+(20, 'Sydney', 36, 'Australia/Sydney', -33.868820, 151.209290, TRUE, 5300000, 12367.70, 3, 'English', 'AUD', '+10:00', TRUE, TRUE, FALSE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'Govt', 1, TRUE, TRUE, 'SYD', TRUE, 'Temperate');
+-- result:
+-- !result
+CREATE TABLE `f_exchange_rate_3` (
+    `currency_code` VARCHAR(3),
+    `country_id` INT,
+    `exchange_one_usd` DECIMAL(18,6),
+    `start_date_id` INT,
+    `end_date_id` INT,
+    `is_active` BOOLEAN,
+    `created_at` DATETIME,
+    `updated_at` DATETIME,
+    `source` VARCHAR(50),
+    `is_official_rate` BOOLEAN,
+    `is_interbank_rate` BOOLEAN,
+    `is_retail_rate` BOOLEAN,
+    `rate_type` VARCHAR(20),
+    `valid_from` DATETIME,
+    `valid_to` DATETIME,
+    `base_currency` VARCHAR(3)
+)
+ENGINE=OLAP
+PARTITION BY RANGE(`start_date_id`) (
+    PARTITION p202201 VALUES LESS THAN ("20220201"),
+    PARTITION p202202 VALUES LESS THAN ("20220301"),
+    PARTITION p202203 VALUES LESS THAN ("20220401"),
+    PARTITION p202204 VALUES LESS THAN ("20220501"),
+    PARTITION p202205 VALUES LESS THAN ("20220601"),
+    PARTITION p202206 VALUES LESS THAN ("20220701"),
+    PARTITION p202207 VALUES LESS THAN ("20220801"),
+    PARTITION p202208 VALUES LESS THAN ("20220901"),
+    PARTITION p202209 VALUES LESS THAN ("20221001"),
+    PARTITION p202210 VALUES LESS THAN ("20221101"),
+    PARTITION p202211 VALUES LESS THAN ("20221201"),
+    PARTITION p202212 VALUES LESS THAN ("20230101"),
+    PARTITION p202301 VALUES LESS THAN ("20230201"),
+    PARTITION p202302 VALUES LESS THAN ("20230301"),
+    PARTITION p202303 VALUES LESS THAN ("20230401"),
+    PARTITION p202304 VALUES LESS THAN ("20230501"),
+    PARTITION p202305 VALUES LESS THAN ("20230601"),
+    PARTITION p202306 VALUES LESS THAN ("20230701"),
+    PARTITION p202307 VALUES LESS THAN ("20230801"),
+    PARTITION p202308 VALUES LESS THAN ("20230901"),
+    PARTITION p202309 VALUES LESS THAN ("20231001"),
+    PARTITION p202310 VALUES LESS THAN ("20231101"),
+    PARTITION p202311 VALUES LESS THAN ("20231201"),
+    PARTITION p202312 VALUES LESS THAN ("20240101"),
+    PARTITION pmax VALUES LESS THAN MAXVALUE
+)
+DISTRIBUTED BY HASH(`currency_code`) BUCKETS 10;
+-- result:
+-- !result
+INSERT INTO `f_exchange_rate_3` VALUES
+('SGD', 702, 1.340000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'MAS', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('SGD', 702, 1.350000, 20230201, 20230228, TRUE, '2023-02-01 00:00:00', '2023-02-01 00:00:00', 'MAS', TRUE, TRUE, FALSE, 'SPOT', '2023-02-01 00:00:00', '2023-02-28 23:59:59', 'USD'),
+('SGD', 702, 1.360000, 20230301, 20230331, TRUE, '2023-03-01 00:00:00', '2023-03-01 00:00:00', 'MAS', TRUE, TRUE, FALSE, 'SPOT', '2023-03-01 00:00:00', '2023-03-31 23:59:59', 'USD'),
+('MYR', 458, 4.450000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'BNM', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('MYR', 458, 4.460000, 20230201, 20230228, TRUE, '2023-02-01 00:00:00', '2023-02-01 00:00:00', 'BNM', TRUE, TRUE, FALSE, 'SPOT', '2023-02-01 00:00:00', '2023-02-28 23:59:59', 'USD'),
+('MYR', 458, 4.470000, 20230301, 20230331, TRUE, '2023-03-01 00:00:00', '2023-03-01 00:00:00', 'BNM', TRUE, TRUE, FALSE, 'SPOT', '2023-03-01 00:00:00', '2023-03-31 23:59:59', 'USD'),
+('THB', 764, 34.500000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'BOT', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('THB', 764, 34.600000, 20230201, 20230228, TRUE, '2023-02-01 00:00:00', '2023-02-01 00:00:00', 'BOT', TRUE, TRUE, FALSE, 'SPOT', '2023-02-01 00:00:00', '2023-02-28 23:59:59', 'USD'),
+('THB', 764, 34.700000, 20230301, 20230331, TRUE, '2023-03-01 00:00:00', '2023-03-01 00:00:00', 'BOT', TRUE, TRUE, FALSE, 'SPOT', '2023-03-01 00:00:00', '2023-03-31 23:59:59', 'USD'),
+('VND', 704, 23450.000000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'SBV', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('VND', 704, 23460.000000, 20230201, 20230228, TRUE, '2023-02-01 00:00:00', '2023-02-01 00:00:00', 'SBV', TRUE, TRUE, FALSE, 'SPOT', '2023-02-01 00:00:00', '2023-02-28 23:59:59', 'USD'),
+('VND', 704, 23470.000000, 20230301, 20230331, TRUE, '2023-03-01 00:00:00', '2023-03-01 00:00:00', 'SBV', TRUE, TRUE, FALSE, 'SPOT', '2023-03-01 00:00:00', '2023-03-31 23:59:59', 'USD'),
+('IDR', 360, 14900.000000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'BI', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('IDR', 360, 14950.000000, 20230201, 20230228, TRUE, '2023-02-01 00:00:00', '2023-02-01 00:00:00', 'BI', TRUE, TRUE, FALSE, 'SPOT', '2023-02-01 00:00:00', '2023-02-28 23:59:59', 'USD'),
+('IDR', 360, 15000.000000, 20230301, 20230331, TRUE, '2023-03-01 00:00:00', '2023-03-01 00:00:00', 'BI', TRUE, TRUE, FALSE, 'SPOT', '2023-03-01 00:00:00', '2023-03-31 23:59:59', 'USD'),
+('PHP', 608, 54.500000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'BSP', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('PHP', 608, 54.600000, 20230201, 20230228, TRUE, '2023-02-01 00:00:00', '2023-02-01 00:00:00', 'BSP', TRUE, TRUE, FALSE, 'SPOT', '2023-02-01 00:00:00', '2023-02-28 23:59:59', 'USD'),
+('PHP', 608, 54.700000, 20230301, 20230331, TRUE, '2023-03-01 00:00:00', '2023-03-01 00:00:00', 'BSP', TRUE, TRUE, FALSE, 'SPOT', '2023-03-01 00:00:00', '2023-03-31 23:59:59', 'USD'),
+('MMK', 104, 2100.000000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'CBM', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('MMK', 104, 2090.000000, 20230201, 20230228, TRUE, '2023-02-01 00:00:00', '2023-02-01 00:00:00', 'CBM', TRUE, TRUE, FALSE, 'SPOT', '2023-02-01 00:00:00', '2023-02-28 23:59:59', 'USD'),
+('MMK', 104, 2080.000000, 20230301, 20230331, TRUE, '2023-03-01 00:00:00', '2023-03-01 00:00:00', 'CBM', TRUE, TRUE, FALSE, 'SPOT', '2023-03-01 00:00:00', '2023-03-31 23:59:59', 'USD'),
+('KHR', 116, 4100.000000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'NBC', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('KHR', 116, 4090.000000, 20230201, 20230228, TRUE, '2023-02-01 00:00:00', '2023-02-01 00:00:00', 'NBC', TRUE, TRUE, FALSE, 'SPOT', '2023-02-01 00:00:00', '2023-02-28 23:59:59', 'USD'),
+('KHR', 116, 4080.000000, 20230301, 20230331, TRUE, '2023-03-01 00:00:00', '2023-03-01 00:00:00', 'NBC', TRUE, TRUE, FALSE, 'SPOT', '2023-03-01 00:00:00', '2023-03-31 23:59:59', 'USD'),
+('LAK', 418, 16900.000000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'BOL', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('LAK', 418, 16950.000000, 20230201, 20230228, TRUE, '2023-02-01 00:00:00', '2023-02-01 00:00:00', 'BOL', TRUE, TRUE, FALSE, 'SPOT', '2023-02-01 00:00:00', '2023-02-28 23:59:59', 'USD'),
+('LAK', 418, 17000.000000, 20230301, 20230331, TRUE, '2023-03-01 00:00:00', '2023-03-01 00:00:00', 'BOL', TRUE, TRUE, FALSE, 'SPOT', '2023-03-01 00:00:00', '2023-03-31 23:59:59', 'USD'),
+('CNY', 156, 6.850000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'PBC', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('CNY', 156, 6.860000, 20230201, 20230228, TRUE, '2023-02-01 00:00:00', '2023-02-01 00:00:00', 'PBC', TRUE, TRUE, FALSE, 'SPOT', '2023-02-01 00:00:00', '2023-02-28 23:59:59', 'USD'),
+('CNY', 156, 6.870000, 20230301, 20230331, TRUE, '2023-03-01 00:00:00', '2023-03-01 00:00:00', 'PBC', TRUE, TRUE, FALSE, 'SPOT', '2023-03-01 00:00:00', '2023-03-31 23:59:59', 'USD'),
+('HKD', 344, 7.850000, 20230101, 20231231, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'HKMA', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-12-31 23:59:59', 'USD'),
+('EUR', 978, 0.920000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'ECB', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('EUR', 978, 0.930000, 20230201, 20230228, TRUE, '2023-02-01 00:00:00', '2023-02-01 00:00:00', 'ECB', TRUE, TRUE, FALSE, 'SPOT', '2023-02-01 00:00:00', '2023-02-28 23:59:59', 'USD'),
+('EUR', 978, 0.940000, 20230301, 20230331, TRUE, '2023-03-01 00:00:00', '2023-03-01 00:00:00', 'ECB', TRUE, TRUE, FALSE, 'SPOT', '2023-03-01 00:00:00', '2023-03-31 23:59:59', 'USD'),
+('GBP', 826, 0.820000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'BOE', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('GBP', 826, 0.830000, 20230201, 20230228, TRUE, '2023-02-01 00:00:00', '2023-02-01 00:00:00', 'BOE', TRUE, TRUE, FALSE, 'SPOT', '2023-02-01 00:00:00', '2023-02-28 23:59:59', 'USD'),
+('GBP', 826, 0.840000, 20230301, 20230331, TRUE, '2023-03-01 00:00:00', '2023-03-01 00:00:00', 'BOE', TRUE, TRUE, FALSE, 'SPOT', '2023-03-01 00:00:00', '2023-03-31 23:59:59', 'USD'),
+('JPY', 392, 130.500000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'BOJ', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('JPY', 392, 131.000000, 20230201, 20230228, TRUE, '2023-02-01 00:00:00', '2023-02-01 00:00:00', 'BOJ', TRUE, TRUE, FALSE, 'SPOT', '2023-02-01 00:00:00', '2023-02-28 23:59:59', 'USD'),
+('JPY', 392, 131.500000, 20230301, 20230331, TRUE, '2023-03-01 00:00:00', '2023-03-01 00:00:00', 'BOJ', TRUE, TRUE, FALSE, 'SPOT', '2023-03-01 00:00:00', '2023-03-31 23:59:59', 'USD'),
+('KRW', 410, 1250.000000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'BOK', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('KRW', 410, 1260.000000, 20230201, 20230228, TRUE, '2023-02-01 00:00:00', '2023-02-01 00:00:00', 'BOK', TRUE, TRUE, FALSE, 'SPOT', '2023-02-01 00:00:00', '2023-02-28 23:59:59', 'USD'),
+('KRW', 410, 1270.000000, 20230301, 20230331, TRUE, '2023-03-01 00:00:00', '2023-03-01 00:00:00', 'BOK', TRUE, TRUE, FALSE, 'SPOT', '2023-03-01 00:00:00', '2023-03-31 23:59:59', 'USD'),
+('INR', 356, 81.500000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'RBI', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('INR', 356, 82.000000, 20230201, 20230228, TRUE, '2023-02-01 00:00:00', '2023-02-01 00:00:00', 'RBI', TRUE, TRUE, FALSE, 'SPOT', '2023-02-01 00:00:00', '2023-02-28 23:59:59', 'USD'),
+('INR', 356, 82.500000, 20230301, 20230331, TRUE, '2023-03-01 00:00:00', '2023-03-01 00:00:00', 'RBI', TRUE, TRUE, FALSE, 'SPOT', '2023-03-01 00:00:00', '2023-03-31 23:59:59', 'USD'),
+('AUD', 36, 1.450000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'RBA', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('AUD', 36, 1.460000, 20230201, 20230228, TRUE, '2023-02-01 00:00:00', '2023-02-01 00:00:00', 'RBA', TRUE, TRUE, FALSE, 'SPOT', '2023-02-01 00:00:00', '2023-02-28 23:59:59', 'USD'),
+('AUD', 36, 1.470000, 20230301, 20230331, TRUE, '2023-03-01 00:00:00', '2023-03-01 00:00:00', 'RBA', TRUE, TRUE, FALSE, 'SPOT', '2023-03-01 00:00:00', '2023-03-31 23:59:59', 'USD'),
+('NZD', 554, 1.580000, 20230101, 20230131, TRUE, '2023-01-01 00:00:00', '2023-01-01 00:00:00', 'RBNZ', TRUE, TRUE, FALSE, 'SPOT', '2023-01-01 00:00:00', '2023-01-31 23:59:59', 'USD'),
+('NZD', 554, 1.590000, 20230201, 20230228, TRUE, '2023-02-01 00:00:00', '2023-02-01 00:00:00', 'RBNZ', TRUE, TRUE, FALSE, 'SPOT', '2023-02-01 00:00:00', '2023-02-28 23:59:59', 'USD'),
+('NZD', 554, 1.600000, 20230301, 20230331, TRUE, '2023-03-01 00:00:00', '2023-03-01 00:00:00', 'RBNZ', TRUE, TRUE, FALSE, 'SPOT', '2023-03-01 00:00:00', '2023-03-31 23:59:59', 'USD');
+-- result:
+-- !result
+CREATE VIEW `v_f_transport_metrics` (`date_id`, `booking_code`, `country_id`, `city_id`, `driver_id`, `driver_fleet_id`, `passenger_id`, `payment_type_id`, `reward_id`, `taxi_type_id`, `created_at_local`, `hour_local`, `pickup_time_local`, `booking_state_simple`, `cancellation_fee_status`, `is_advance_booking`, `is_allocated`, `is_back_to_back_job`, `is_street_hailing_booking`, `is_auto_assignment_booking`, `is_favourite_location_booking`, `is_multi_stop_ride`, `is_grab_hire_booking`, `is_enterprise_booking`, `is_grabpay`, `is_gpc`, `is_promotion`, `is_unique_booking`, `is_first_allocated`, `is_spampeded`, `fare`, `dax_fare`, `pax_fare`, `subsidy`, `commission_total`, `commission_from_driver`, `booking_fee`, `tolls_and_others`, `cancellation_fee`, `promo_expense`, `gross_merchandise_value`, `pax_platform_fee`, `incentive`, `spot_incentive`, `tips`, `insurance_fee`, `late_fee`, `non_surge_non_surcharge_fare`, `surge`, `surcharge`, `pickup_latitude`, `pickup_longitude`, `dropoff_latitude`, `dropoff_longitude`, `estimated_distance_of_trip`, `estimated_distance_to_arrival`, `actual_distance_of_trip`, `actual_distance_to_arrival`, `estimated_time_of_arrival`, `actual_time_of_arrival`, `estimated_trip_time`, `actual_trip_time`, `time_to_allocate`, `time_to_cancel`, `time_to_complete`, `total_candidates`, `bidding_candidates`, `ignored_candidates`, `declined_candidates`, `unread_candidates`, `not_received_candidates`, `enterprise_group_id`, `enterprise_booking_channel`, `enterprise_campaign_code`, `cancel_compensation`, `premium`, `insurance_name`, `product_code`, `platform_fee`, `license_fee`, `cancel_reason`, `cashback_amount`, `sub_vertical_id`, `reward_tier`, `carbon_offset_fee`, `pickup_poi`, `dropoff_poi`, `additional_dropoff_poi`, `additional_dropoff_latitude`, `additional_dropoff_longitude`, `booking_source`, `is_soft_allocated`, `is_swapped`, `soft_allocated_driver`, `receipt_payment_type`, `cancel_using_quota`, `ar_numerator`, `ar_denominator`, `cr_numerator`, `cr_denominator`, `cp_numerator`, `cp_denominator`, `area_id`, `driver_arrived_time`, `dropping_off_time`, `pickup_keywords`, `dropoff_keywords`, `dropoff_city_id`, `dropoff_area_id`, `is_grabshare_booking`, `is_shift_booking`, `unique_request_id`, `parent_booking_code`, `is_batched`, `passenger_platform_id`, `driver_platform_id`, `last_dax_fare_uuid`, `dax_non_surge_non_surcharge_fare`, `dax_surge`, `two_sided_pricing_revenue`, `pickup_eta`, `is_priority_booking`, `priority_fee`, `promo_expense_adj`, `is_critical`, `is_critical_effective`, `time_to_tentative_allocation`, `affordability`, `is_bidding`, `pax_initial_bid`, `has_offer`, `time_to_first_offer`, `created_at_utc`, `suggested_fare`, `min_bid_fare`, `max_bid_fare`, `array_mtt_taxi_type_id`, `is_committed`, `array_latitude`, `array_longitude`, `array_poi`, `total_stops`, `receipt_promotion_value`, `receipt_type`, `fare_upper_bound`, `fare_lower_bound`, `user_id`, `last_updated`, `dropoff_point_id`, `dropoff_point_latitude`, `dropoff_point_longitude`, `dropoff_point_type`, `pickup_point_id`, `pickup_point_latitude`, `pickup_point_longitude`, `pickup_point_type`, `driver_latitude`, `driver_longitude`, `is_fake_booking`, `is_destination_changed`, `is_pickup_changed`, `awarded_time`, `confirm_time`, `allocated_time`, `completed_time`, `booking_broadcast_time`, `is_fallback_booking`, `processing_fee`, `transport_flags`, `is_parallel_allocation`, `array_booked_service_ladder`, `array_booked_sub_service_ladder`, `winner_service_ladder`, `winner_sub_service_ladder`, `tolls`, `advance_booking_version`, `is_w2s_enter_pool`, `is_batch_formed`, `pax_appeasement_fee`, `appeasement_payout_reason`, `winner_taxi_type_id`, `array_taxi_type_id`, `jobboard_type`, `any_jb_signup_success`, `cancel_before_allocation_start`, `has_signup_at_allocation_time`, `jb_allocated_source`, `jb_dax_unavailable`, `is_anyride`, `dax_time_to_cancel`, `shift_min_earning_payout_per_booking`, `shift_bonus_payout_per_booking`, `partners_tried`, `partners_with_driver`, `winner_partner_id`, `contract_booking_partners`, `receipt_meter_fare`, `partners_booking_code`, `original_flight_landing_time`, `final_flight_landing_time`, `is_flight_delayed`, `original_pickup_time_local`, `pax_ready_time_local`, `pax_gig_levy_surcharge`, `is_ab_airport_pu`, `time_to_give_up`, `is_first_grabshare_pickup`, `is_driver_arrived_on_time`, `is_quick_ab`, `currency_code`, `time_zone`) AS SELECT `ftm`.`date_id`, `ftm`.`booking_code`, `ftm`.`country_id`, `ftm`.`city_id`, `ftm`.`driver_id`, `ftm`.`driver_fleet_id`, `ftm`.`passenger_id`, `ftm`.`payment_type_id`, `ftm`.`reward_id`, `ftm`.`taxi_type_id`, `ftm`.`created_at_local`, `ftm`.`hour_local`, `ftm`.`pickup_time_local`, `ftm`.`booking_state_simple`, `ftm`.`cancellation_fee_status`, `ftm`.`is_advance_booking`, `ftm`.`is_allocated`, `ftm`.`is_back_to_back_job`, `ftm`.`is_street_hailing_booking`, `ftm`.`is_auto_assignment_booking`, `ftm`.`is_favourite_location_booking`, `ftm`.`is_multi_stop_ride`, `ftm`.`is_grab_hire_booking`, `ftm`.`is_enterprise_booking`, `ftm`.`is_grabpay`, `ftm`.`is_gpc`, `ftm`.`is_promotion`, `ftm`.`is_unique_booking`, `ftm`.`is_first_allocated`, `ftm`.`is_spampeded`, `ftm`.`fare`, `ftm`.`dax_fare`, `ftm`.`pax_fare`, `ftm`.`subsidy`, `ftm`.`commission_total`, `ftm`.`commission_from_driver`, `ftm`.`booking_fee`, `ftm`.`tolls_and_others`, `ftm`.`cancellation_fee`, `ftm`.`promo_expense`, `ftm`.`gross_merchandise_value`, `ftm`.`pax_platform_fee`, `ftm`.`incentive`, `ftm`.`spot_incentive`, `ftm`.`tips`, `ftm`.`insurance_fee`, `ftm`.`late_fee`, `ftm`.`non_surge_non_surcharge_fare`, `ftm`.`surge`, `ftm`.`surcharge`, `ftm`.`pickup_latitude`, `ftm`.`pickup_longitude`, `ftm`.`dropoff_latitude`, `ftm`.`dropoff_longitude`, `ftm`.`estimated_distance_of_trip`, `ftm`.`estimated_distance_to_arrival`, `ftm`.`actual_distance_of_trip`, `ftm`.`actual_distance_to_arrival`, `ftm`.`estimated_time_of_arrival`, `ftm`.`actual_time_of_arrival`, `ftm`.`estimated_trip_time`, `ftm`.`actual_trip_time`, `ftm`.`time_to_allocate`, `ftm`.`time_to_cancel`, `ftm`.`time_to_complete`, `ftm`.`total_candidates`, `ftm`.`bidding_candidates`, `ftm`.`ignored_candidates`, `ftm`.`declined_candidates`, `ftm`.`unread_candidates`, `ftm`.`not_received_candidates`, `ftm`.`enterprise_group_id`, `ftm`.`enterprise_booking_channel`, `ftm`.`enterprise_campaign_code`, `ftm`.`cancel_compensation`, `ftm`.`premium`, `ftm`.`insurance_name`, `ftm`.`product_code`, `ftm`.`platform_fee`, `ftm`.`license_fee`, `ftm`.`cancel_reason`, `ftm`.`cashback_amount`, `ftm`.`sub_vertical_id`, `ftm`.`reward_tier`, `ftm`.`carbon_offset_fee`, `ftm`.`pickup_poi`, `ftm`.`dropoff_poi`, `ftm`.`additional_dropoff_poi`, `ftm`.`additional_dropoff_latitude`, `ftm`.`additional_dropoff_longitude`, `ftm`.`booking_source`, `ftm`.`is_soft_allocated`, `ftm`.`is_swapped`, `ftm`.`soft_allocated_driver`, `ftm`.`receipt_payment_type`, `ftm`.`cancel_using_quota`, `ftm`.`ar_numerator`, `ftm`.`ar_denominator`, `ftm`.`cr_numerator`, `ftm`.`cr_denominator`, `ftm`.`cp_numerator`, `ftm`.`cp_denominator`, `ftm`.`area_id`, `ftm`.`driver_arrived_time`, `ftm`.`dropping_off_time`, `ftm`.`pickup_keywords`, `ftm`.`dropoff_keywords`, `ftm`.`dropoff_city_id`, `ftm`.`dropoff_area_id`, `ftm`.`is_grabshare_booking`, `ftm`.`is_shift_booking`, `ftm`.`unique_request_id`, `ftm`.`parent_booking_code`, `ftm`.`is_batched`, `ftm`.`passenger_platform_id`, `ftm`.`driver_platform_id`, `ftm`.`last_dax_fare_uuid`, `ftm`.`dax_non_surge_non_surcharge_fare`, `ftm`.`dax_surge`, `ftm`.`two_sided_pricing_revenue`, `ftm`.`pickup_eta`, `ftm`.`is_priority_booking`, `ftm`.`priority_fee`, `ftm`.`promo_expense_adj`, `ftm`.`is_critical`, `ftm`.`is_critical_effective`, `ftm`.`time_to_tentative_allocation`, `ftm`.`affordability`, `ftm`.`is_bidding`, `ftm`.`pax_initial_bid`, `ftm`.`has_offer`, `ftm`.`time_to_first_offer`, `ftm`.`created_at_utc`, `ftm`.`suggested_fare`, `ftm`.`min_bid_fare`, `ftm`.`max_bid_fare`, `ftm`.`array_mtt_taxi_type_id`, `ftm`.`is_committed`, `ftm`.`array_latitude`, `ftm`.`array_longitude`, `ftm`.`array_poi`, `ftm`.`total_stops`, `ftm`.`receipt_promotion_value`, `ftm`.`receipt_type`, `ftm`.`fare_upper_bound`, `ftm`.`fare_lower_bound`, `ftm`.`user_id`, `ftm`.`last_updated`, `ftm`.`dropoff_point_id`, `ftm`.`dropoff_point_latitude`, `ftm`.`dropoff_point_longitude`, `ftm`.`dropoff_point_type`, `ftm`.`pickup_point_id`, `ftm`.`pickup_point_latitude`, `ftm`.`pickup_point_longitude`, `ftm`.`pickup_point_type`, `ftm`.`driver_latitude`, `ftm`.`driver_longitude`, `ftm`.`is_fake_booking`, `ftm`.`is_destination_changed`, `ftm`.`is_pickup_changed`, `ftm`.`awarded_time`, `ftm`.`confirm_time`, `ftm`.`allocated_time`, `ftm`.`completed_time`, `ftm`.`booking_broadcast_time`, `ftm`.`is_fallback_booking`, `ftm`.`processing_fee`, `ftm`.`transport_flags`, `ftm`.`is_parallel_allocation`, `ftm`.`array_booked_service_ladder`, `ftm`.`array_booked_sub_service_ladder`, `ftm`.`winner_service_ladder`, `ftm`.`winner_sub_service_ladder`, `ftm`.`tolls`, `ftm`.`advance_booking_version`, `ftm`.`is_w2s_enter_pool`, `ftm`.`is_batch_formed`, `ftm`.`pax_appeasement_fee`, `ftm`.`appeasement_payout_reason`, `ftm`.`winner_taxi_type_id`, `ftm`.`array_taxi_type_id`, `ftm`.`jobboard_type`, `ftm`.`any_jb_signup_success`, `ftm`.`cancel_before_allocation_start`, `ftm`.`has_signup_at_allocation_time`, `ftm`.`jb_allocated_source`, `ftm`.`jb_dax_unavailable`, `ftm`.`is_anyride`, `ftm`.`dax_time_to_cancel`, `ftm`.`shift_min_earning_payout_per_booking`, `ftm`.`shift_bonus_payout_per_booking`, `ftm`.`partners_tried`, `ftm`.`partners_with_driver`, `ftm`.`winner_partner_id`, `ftm`.`contract_booking_partners`, `ftm`.`receipt_meter_fare`, `ftm`.`partners_booking_code`, `ftm`.`original_flight_landing_time`, `ftm`.`final_flight_landing_time`, `ftm`.`is_flight_delayed`, `ftm`.`original_pickup_time_local`, `ftm`.`pax_ready_time_local`, `ftm`.`pax_gig_levy_surcharge`, `ftm`.`is_ab_airport_pu`, `ftm`.`time_to_give_up`, `ftm`.`is_first_grabshare_pickup`, `ftm`.`is_driver_arrived_on_time`, `ftm`.`is_quick_ab`, `f_exchange_rate`.`currency_code`, `d_city`.`time_zone`
+FROM `f_transport_metrics` AS `ftm` LEFT OUTER JOIN `f_exchange_rate` AS `f_exchange_rate` ON (`ftm`.`country_id` = `f_exchange_rate`.`country_id`) AND (`ftm`.`date_id` BETWEEN `f_exchange_rate`.`start_date_id` AND `f_exchange_rate`.`end_date_id`) LEFT OUTER JOIN `d_city` AS `d_city` ON `ftm`.`city_id` = `d_city`.`city_id`;
+-- result:
+-- !result
+CREATE VIEW `v_grab_area_above_city` (`city_id`, `generic_territory_id`, `generic_territory_name`, `generic_region_id`, `generic_region_name`) AS WITH `c` (`city_id`, `purposes`, `parent_territory`, `parent_region`) AS (SELECT `d_grab_area_summary`.`city_id`, `d_grab_area_summary`.`purposes`, `d_grab_area_summary`.`parent_territory`, `d_grab_area_summary`.`parent_region`
+FROM `d_grab_area_summary`
+WHERE (`d_grab_area_summary`.`layer` = 'City') AND (`d_grab_area_summary`.`purposes` = 'Generic')) , `t` (`area_id`, `area_name`, `purposes`, `layer`) AS (SELECT `d_grab_area_summary`.`area_id`, `d_grab_area_summary`.`area_name`, `d_grab_area_summary`.`purposes`, `d_grab_area_summary`.`layer`
+FROM `d_grab_area_summary`
+WHERE (`d_grab_area_summary`.`layer` = 'Territory') AND (`d_grab_area_summary`.`purposes` = 'Generic')) , `r` (`area_id`, `area_name`, `purposes`, `layer`) AS (SELECT `d_grab_area_summary`.`area_id`, `d_grab_area_summary`.`area_name`, `d_grab_area_summary`.`purposes`, `d_grab_area_summary`.`layer`
+FROM `d_grab_area_summary`
+WHERE (`d_grab_area_summary`.`layer` = 'Region') AND (`d_grab_area_summary`.`purposes` = 'Generic')) SELECT `c`.`city_id`, max(CASE WHEN (`t`.`layer` = 'Territory') THEN `t`.`area_id` ELSE NULL END) AS `generic_territory_id`, max(CASE WHEN (`t`.`layer` = 'Territory') THEN `t`.`area_name` ELSE NULL END) AS `generic_territory_name`, max(CASE WHEN (`r`.`layer` = 'Region') THEN `r`.`area_id` ELSE NULL END) AS `generic_region_id`, max(CASE WHEN (`r`.`layer` = 'Region') THEN `r`.`area_name` ELSE NULL END) AS `generic_region_name`
+FROM `c` LEFT OUTER JOIN `t` ON (`c`.`parent_territory` = `t`.`area_name`) AND (`c`.`purposes` = `t`.`purposes`) LEFT OUTER JOIN `r` ON (`c`.`parent_region` = `r`.`area_name`) AND (`c`.`purposes` = `r`.`purposes`)
+GROUP BY 1;
+-- result:
+-- !result
+CREATE MATERIALIZED VIEW `mv_v_grab_area_above_city_2` (`scaled_ops_v_grab_area_above_city_city_id__scaled_ops_v_grab_area_above_city_city_id__scaled_ops_v_grab_area_above_city_scaled_ops_v_grab_area_above_city_city_id`, `scaled_ops_v_grab_area_above_city__scaled_ops_v_grab_area_above_city_city_id__generic_region_name`)
+COMMENT "MATERIALIZED_VIEW"
+DISTRIBUTED BY RANDOM BUCKETS 1
+REFRESH ASYNC EVERY(INTERVAL 1 HOUR)
+AS SELECT `v_grab_area_above_city`.`city_id` AS `scaled_ops_v_grab_area_above_city_city_id__scaled_ops_v_grab_area_above_city_city_id__scaled_ops_v_grab_area_above_city_scaled_ops_v_grab_area_above_city_city_id`, max(`v_grab_area_above_city`.`generic_region_name`) AS `scaled_ops_v_grab_area_above_city__scaled_ops_v_grab_area_above_city_city_id__generic_region_name`
+FROM `v_grab_area_above_city`
+GROUP BY 1;
+-- result:
+-- !result
+REFRESH MATERIALIZED VIEW mv_v_grab_area_above_city_2 WITH SYNC MODE;
+SELECT
+    generic_region_name,
+    CAST(SUM((COALESCE(gross_merchandise_value, 0) * 1.00) / dax_fare) AS DOUBLE) AS transport_gmv_lrpar_usd_rrpar
+FROM
+    ocd_adw.v_f_transport_metrics AS fact_data_source
+LEFT JOIN (
+    SELECT
+        city_id,
+        max(generic_region_name) AS generic_region_name
+    FROM
+        ff_de.v_grab_area_above_city
+    GROUP BY
+        1) AS above_city 
+    ON above_city.city_id = fact_data_source.city_id
+WHERE
+    DATE_TRUNC('day', created_at_local) >= STR_TO_DATE('2020-07-28 00:00:00', '%Y-%m-%d %H:%i:%S')
+    AND DATE_TRUNC('day', created_at_local) < STR_TO_DATE('2025-08-02 00:00:00', '%Y-%m-%d %H:%i:%S')
+    AND date_id >= 20200726
+    AND date_id < 20250804
+GROUP BY 1
+LIMIT 10001;
+-- result:
+E: (1064, 'only found column statistics: {41: gross_merchandise_value, 226: city_id, 4: city_id, 32: dax_fare}, but missing statistic of col: 261: created_at_local.')
+-- !result
+SELECT
+    generic_region_name,
+    CAST(SUM((COALESCE(gross_merchandise_value, 0) * 1.00) / dax_fare) AS DOUBLE) AS transport_gmv_lrpar_usd_rrpar
+FROM
+    ocd_adw.v_f_transport_metrics AS fact_data_source
+LEFT JOIN (
+    SELECT
+        city_id,
+        max(generic_region_name) AS generic_region_name
+    FROM
+        ff_de.v_grab_area_above_city
+    GROUP BY
+        1) AS above_city 
+    ON above_city.city_id = fact_data_source.city_id
+WHERE
+    DATE_TRUNC('day', created_at_local) >= STR_TO_DATE('2020-07-28 00:00:00', '%Y-%m-%d %H:%i:%S')
+    AND DATE_TRUNC('day', created_at_local) < STR_TO_DATE('2025-08-02 00:00:00', '%Y-%m-%d %H:%i:%S')
+    AND date_id >= 20200726
+    AND date_id < 20250804
+GROUP BY 1
+LIMIT 10001;
+-- result:
+E: (1064, 'only found column statistics: {41: gross_merchandise_value, 226: city_id, 4: city_id, 32: dax_fare}, but missing statistic of col: 261: created_at_local.')
+-- !result
+SELECT
+    generic_region_name,
+    CAST(SUM((COALESCE(gross_merchandise_value, 0) * 1.00) / dax_fare) AS DOUBLE) AS transport_gmv_lrpar_usd_rrpar
+FROM
+    ocd_adw.v_f_transport_metrics AS fact_data_source
+LEFT JOIN (
+    SELECT
+        city_id,
+        max(generic_region_name) AS generic_region_name
+    FROM
+        ff_de.v_grab_area_above_city
+    GROUP BY
+        1) AS above_city 
+    ON above_city.city_id = fact_data_source.city_id
+GROUP BY 1;
+-- result:
+Southeast Asia	None
+-- !result

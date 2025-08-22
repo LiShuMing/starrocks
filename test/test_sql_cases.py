@@ -113,11 +113,11 @@ class TestSQLCases(sr_sql_lib.StarrocksSQLApiLib):
 
         log.info("[TearDown begin]: %s" % self.case_info.name)
 
-        for each_db in self.db:
-            self.drop_database(each_db)
+        # for each_db in self.db:
+        #     self.drop_database(each_db)
 
-        for each_resource in self.resource:
-            self.drop_resource(each_resource)
+        # for each_resource in self.resource:
+        #     self.drop_resource(each_resource)
 
         res = None
         if record_mode:

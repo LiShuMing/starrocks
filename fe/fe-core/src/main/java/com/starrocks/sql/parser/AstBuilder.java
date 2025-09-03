@@ -6210,13 +6210,23 @@ public class AstBuilder extends com.starrocks.sql.parser.StarRocksBaseVisitor<Pa
 
     @Override
     public ParseNode visitQueryPeriod(com.starrocks.sql.parser.StarRocksParser.QueryPeriodContext context) {
-        if (context.periodType() == null || context.end == null) {
-            return null;
+        if (context.end != null) {
+            // as of end
+            QueryPeriod.PeriodType type = getPeriodType((Token) context.periodType().getChild(0).getPayload());
+            Expr end = (Expr) visit(context.end);
+            return new QueryPeriod(type, end);
+        } else if (context.expression() != null && context.expression().size() == 2) {
+            // between xx and xx
+            QueryPeriod.PeriodType type = QueryPeriod.PeriodType.VERSION;
+            if (context.periodType() != null) {
+                type = getPeriodType((Token) context.periodType().getChild(0).getPayload());
+            }
+            List<com.starrocks.sql.parser.StarRocksParser.ExpressionContext> expressions = context.expression();
+            Expr from = (Expr) visit(expressions.get(0));
+            Expr to = (Expr) visit(expressions.get(1));
+            return new QueryPeriod(type, Optional.of(from), Optional.of(to));
         }
-
-        QueryPeriod.PeriodType type = getPeriodType((Token) context.periodType().getChild(0).getPayload());
-        Expr end = (Expr) visit(context.end);
-        return new QueryPeriod(type, end);
+        return null;
     }
 
     private QueryPeriod.PeriodType getPeriodType(Token token) {

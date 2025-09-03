@@ -399,6 +399,14 @@ abstract public class PlanNode extends TreeNode<PlanNode> {
                 expBuilder.append(detailPrefix + "- " + rf.toExplainString(id.asInt()) + "\n");
             }
         }
+        // output slots
+        if (this instanceof ScanNode) {
+            ScanNode scanNode = (ScanNode) this;
+            expBuilder.append(detailPrefix + "slots: \n");
+            for (SlotDescriptor slot : scanNode.getDesc().getSlots()) {
+                expBuilder.append(detailPrefix + "* " + slot.debugString() + "\n");
+            }
+        }
         // Print the children
         if (traverseChildren) {
             expBuilder.append(detailPrefix).append("\n");

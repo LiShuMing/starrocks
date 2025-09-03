@@ -28,7 +28,7 @@ public class QueryPeriod implements ParseNode {
         this(periodType, Optional.empty(), Optional.of(end));
     }
 
-    private QueryPeriod(PeriodType periodType, Optional<Expr> start, Optional<Expr> end) {
+    public QueryPeriod(PeriodType periodType, Optional<Expr> start, Optional<Expr> end) {
         this.periodType = periodType;
         this.start = start;
         this.end = end;

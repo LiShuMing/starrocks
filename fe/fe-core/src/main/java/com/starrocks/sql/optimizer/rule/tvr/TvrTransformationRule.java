@@ -17,16 +17,20 @@ package com.starrocks.sql.optimizer.rule.tvr;
 import com.google.common.base.Preconditions;
 import com.starrocks.sql.optimizer.OptExpression;
 import com.starrocks.sql.optimizer.OptimizerContext;
+import com.starrocks.sql.optimizer.operator.Operator;
+import com.starrocks.sql.optimizer.operator.Projection;
 import com.starrocks.sql.optimizer.operator.logical.LogicalJoinOperator;
 import com.starrocks.sql.optimizer.operator.logical.LogicalUnionOperator;
 import com.starrocks.sql.optimizer.operator.pattern.Pattern;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
+import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
 import com.starrocks.sql.optimizer.rule.RuleType;
 import com.starrocks.sql.optimizer.rule.transformation.TransformationRule;
 import com.starrocks.sql.optimizer.rule.transformation.materialization.OptExpressionDuplicator;
 import com.starrocks.sql.optimizer.rule.tvr.common.TvrOptMeta;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -83,6 +87,13 @@ public abstract class TvrTransformationRule extends TransformationRule {
                 originalOutputColRefs.size(), outputColRefs.size());
         Preconditions.checkArgument(outputColRefs.stream().allMatch(Objects::nonNull),
                 "Output column references should not contain nulls: %s", outputColRefs);
+        Operator operator = duplicated.getOp();
+        if (operator.getProjection() == null) {
+            Map<ColumnRefOperator, ScalarOperator> columnRefMap = outputColRefs.stream()
+                    .map(col -> Map.entry(col, col))
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            operator.setProjection(new Projection(columnRefMap));
+        }
         return new OptExpressionWithOutput(duplicated, outputColRefs);
     }
 

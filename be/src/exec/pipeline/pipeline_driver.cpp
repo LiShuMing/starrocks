@@ -364,6 +364,15 @@ StatusOr<DriverState> PipelineDriver::process(RuntimeState* runtime_state, int w
 
                         maybe_chunk.value()->check_or_die();
 
+                        if (row_num > 0) {
+                            std::stringstream ss;
+                            for (auto row = 0; row < row_num; ++row) {
+                                ss << maybe_chunk.value()->debug_row(row) << ", ";
+                            }
+                            VLOG_ROW << "[DEBUG_ROW] from driver:" << to_readable_string()
+                                     << ", to driver:" << next_op->get_name() << ", rows: " << ss.str();
+                        }
+
                         total_rows_moved += row_num;
                         {
                             SCOPED_TIMER(next_op->_push_timer);

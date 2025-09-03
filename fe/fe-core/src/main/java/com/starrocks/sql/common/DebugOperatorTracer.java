@@ -135,6 +135,7 @@ public class DebugOperatorTracer extends OperatorVisitor<String, Void> {
         sb.append(" {").append("table=").append(node.getTable().getCatalogTableName())
                 .append(", outputColumns=").append(new ArrayList<>(node.getColRefToColumnMetaMap().keySet()))
                 .append(", predicates=").append(node.getScanOperatorPredicates())
+                .append(", tvrVersionRange=").append(node.getTvrVersionRange())
                 .append("}");
         return sb.toString();
     }
@@ -355,6 +356,7 @@ public class DebugOperatorTracer extends OperatorVisitor<String, Void> {
         sb.append(" {").append("table=").append(node.getTable().getCatalogTableName())
                 .append(", outputColumns=").append(new ArrayList<>(node.getColRefToColumnMetaMap().keySet()))
                 .append(", predicates=").append(node.getScanOperatorPredicates())
+                .append(", tvrVersionRange=").append(node.getTvrVersionRange())
                 .append("}");
         return sb.toString();
     }

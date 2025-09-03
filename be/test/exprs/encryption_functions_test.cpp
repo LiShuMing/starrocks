@@ -873,4 +873,49 @@ INSTANTIATE_TEST_SUITE_P(
                                 "eaf18d26b2976216790d95b2942d15b7db5f926c7d62d35f24c98b8eedbe96f2e6241e5e4fdc6b7d9e7893"
                                 "d94d86cd8a6f3bb6b1804c22097b337ecc24f6015e")));
 
+class RowFingerprintTestFixture : public ::testing::TestWithParam<std::tuple<std::string, std::string>> {};
+
+TEST_P(RowFingerprintTestFixture, test_row_fingerprint) {
+    auto [str, expected] = GetParam();
+
+    std::unique_ptr<FunctionContext> ctx(FunctionContext::create_test_context());
+    Columns columns;
+
+    auto plain = BinaryColumn::create();
+    plain->append(str);
+
+    columns.emplace_back(std::move(plain));
+
+    ColumnPtr result = EncryptionFunctions::row_fingerprint(ctx.get(), columns).value();
+    EXPECT_EQ(expected, result->debug_string());
+}
+
+INSTANTIATE_TEST_SUITE_P(
+        RowFingerprintTest, RowFingerprintTestFixture,
+        ::testing::Values(std::make_tuple("NULL", "04415443d5eef84a61d38ffbfc4da809fa58bd34d0d653006137c707d0266cfc"),
+                          std::make_tuple("", "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a"),
+                          std::make_tuple("starrocks",
+                                          "e5603614d8db3134ac05d1e7f1e29ff3c68e32225935ac0288abe214cfdb3b82")));
+
+TEST_F(EncryptionFunctionsTest, row_fingerprint_null_test) {
+    std::unique_ptr<FunctionContext> ctx(FunctionContext::create_test_context());
+    Columns columns;
+
+    auto plain = BinaryColumn::create();
+    auto plain_null = NullColumn::create();
+    plain->append("");
+    plain_null->append(0);
+
+    plain->append_default();
+    plain_null->append(1);
+
+    columns.emplace_back(NullableColumn::create(std::move(plain), std::move(plain_null)));
+
+    ColumnPtr result = EncryptionFunctions::row_fingerprint(ctx.get(), columns).value();
+    EXPECT_EQ(
+            "['4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a', "
+            "'6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d']",
+            result->debug_string());
+}
+
 } // namespace starrocks

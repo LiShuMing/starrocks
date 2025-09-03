@@ -20,11 +20,15 @@ import com.starrocks.common.Config;
 import com.starrocks.common.io.Text;
 import com.starrocks.common.io.Writable;
 import com.starrocks.persist.gson.GsonUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.DataInput;
 import java.io.IOException;
 
 public class ChangeMaterializedViewRefreshSchemeLog implements Writable {
+    private static final Logger LOG = LogManager.getLogger(ChangeMaterializedViewRefreshSchemeLog.class);
+
     @SerializedName(value = "id")
     private long id;
 
@@ -63,13 +67,12 @@ public class ChangeMaterializedViewRefreshSchemeLog implements Writable {
         return asyncRefreshContext;
     }
 
-
-
     public static ChangeMaterializedViewRefreshSchemeLog read(DataInput in) throws IOException {
         try {
             String json = Text.readString(in);
             return GsonUtils.GSON.fromJson(json, ChangeMaterializedViewRefreshSchemeLog.class);
         } catch (Exception ex) {
+            LOG.warn("Failed to read ChangeMaterializedViewRefreshSchemeLog, error: {}", ex.getMessage());
             if (Config.ignore_materialized_view_error) {
                 return new ChangeMaterializedViewRefreshSchemeLog();
             } else {

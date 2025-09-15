@@ -22,16 +22,19 @@ import com.starrocks.catalog.Type;
 import com.starrocks.catalog.combinator.AggStateUtils;
 import com.starrocks.sql.analyzer.AstToStringBuilder;
 import com.starrocks.sql.ast.expression.BinaryType;
+import com.starrocks.sql.ast.expression.CastExpr;
 import com.starrocks.sql.ast.expression.Expr;
 import com.starrocks.sql.ast.expression.FunctionCallExpr;
 import com.starrocks.sql.ast.expression.StringLiteral;
 import com.starrocks.sql.optimizer.operator.scalar.BinaryPredicateOperator;
 import com.starrocks.sql.optimizer.operator.scalar.CallOperator;
+import com.starrocks.sql.optimizer.operator.scalar.CastOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ColumnRefOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ConstantOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Utility class for TVR operations.
@@ -51,15 +54,75 @@ public class TvrOpUtils {
     public static ScalarOperator buildRowIdColumnOperator(List<ScalarOperator> uniqueKeys) {
         // build row id operator for agg state table
         Type[] argTypes = uniqueKeys.stream()
+                .map(x -> Type.VARCHAR)
+                .toArray(Type[]::new);
+        Function newFunc = Expr.getBuiltinFunction(FunctionSet.ROW_FINGERPRINT, argTypes,
+                Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF);
+        if (newFunc == null) {
+            throw new IllegalArgumentException("Function " + FunctionSet.ROW_FINGERPRINT + " not found");
+        }
+        // Add cast operator if input types are not VARCHAR
+        List<ScalarOperator> castedUniqueKeys = uniqueKeys.stream()
+                .map(uniqueKey -> {
+                    if (!uniqueKey.getType().isStringType()) {
+                        return new CastOperator(Type.VARCHAR, uniqueKey, true);
+                    } else {
+                        return uniqueKey;
+                    }
+                })
+                .collect(Collectors.toList());
+        ScalarOperator rowIdScalarOp = new CallOperator(FunctionSet.ROW_FINGERPRINT,
+                Type.VARCHAR, castedUniqueKeys, newFunc);
+        return rowIdScalarOp;
+    }
+
+    public static FunctionCallExpr buildRowIdFuncExpr(List<Expr> uniqueKeys) {
+        // This method is a placeholder for the actual implementation of building a row ID function.
+        // The implementation would typically create a FunctionCallExpr that represents the row ID function
+        // used in incremental view maintenance (IVM).
+        List<Expr> newUniqueKeys = uniqueKeys.stream()
+                .map(key -> {
+                    if (!key.getType().isStringType()) {
+                        return new CastExpr(Type.VARCHAR, key);
+                    } else {
+                        return key;
+                    }
+                })
+                .collect(Collectors.toList());
+        return new FunctionCallExpr(FunctionSet.ROW_FINGERPRINT, newUniqueKeys);
+    }
+
+    public static FunctionCallExpr buildRowIdFuncExprV2(List<Expr> uniqueKeys) {
+        // This method is a placeholder for the actual implementation of building a row ID function.
+        // The implementation would typically create a FunctionCallExpr that represents the row ID function
+        // used in incremental view maintenance (IVM).
+        FunctionCallExpr encodeSortKeyFunc = new FunctionCallExpr(FunctionSet.ENCODE_SORT_KEY, uniqueKeys);
+        List<Expr> fromBinaryArgs = Lists.newArrayList(encodeSortKeyFunc, new StringLiteral("encode64"));
+        FunctionCallExpr fromBinaryFunc = new FunctionCallExpr(FunctionSet.FROM_BINARY, fromBinaryArgs);
+        return fromBinaryFunc;
+    }
+
+    public static ScalarOperator buildRowIdEqBinaryPredicateOp(ColumnRefOperator aggStateRowIdScalarOp,
+                                                               List<ScalarOperator> uniqueKeys) {
+        // build row id operator for agg state table
+        ScalarOperator deltaInputRowIdScalarOp = TvrOpUtils.buildRowIdColumnOperator(uniqueKeys);
+        BinaryPredicateOperator eqBinaryPredicateOperator =
+                new BinaryPredicateOperator(BinaryType.EQ, aggStateRowIdScalarOp, deltaInputRowIdScalarOp);
+        return eqBinaryPredicateOperator;
+    }
+
+    public static ScalarOperator buildRowIdColumnOperatorV2(List<ScalarOperator> uniqueKeys) {
+        // build row id operator for agg state table
+        Type[] argTypes = uniqueKeys.stream()
                 .map(ScalarOperator::getType)
                 .toArray(Type[]::new);
+
         Function newFunc = Expr.getBuiltinFunction(FunctionSet.ENCODE_SORT_KEY, argTypes,
                 Function.CompareMode.IS_NONSTRICT_SUPERTYPE_OF);
         if (newFunc == null) {
             throw new IllegalArgumentException("Function " + FunctionSet.ENCODE_SORT_KEY + " not found");
         }
         ScalarOperator rowIdScalarOp = new CallOperator(FunctionSet.ENCODE_SORT_KEY, Type.VARBINARY, uniqueKeys, newFunc);
-
         // varbinary to varchar
         return fromBinaryToVarchar(rowIdScalarOp);
     }
@@ -73,16 +136,6 @@ public class TvrOpUtils {
         }
         List<ScalarOperator> args = Lists.newArrayList(rowIdScalarOp, ConstantOperator.createVarchar("encode64"));
         return new CallOperator(FunctionSet.FROM_BINARY, Type.VARCHAR, args, newFunc);
-    }
-
-    public static FunctionCallExpr buildRowIdFuncExpr(List<Expr> uniqueKeys) {
-        // This method is a placeholder for the actual implementation of building a row ID function.
-        // The implementation would typically create a FunctionCallExpr that represents the row ID function
-        // used in incremental view maintenance (IVM).
-        FunctionCallExpr encodeSortKeyFunc = new FunctionCallExpr(FunctionSet.ENCODE_SORT_KEY, uniqueKeys);
-        List<Expr> fromBinaryArgs = Lists.newArrayList(encodeSortKeyFunc, new StringLiteral("encode64"));
-        FunctionCallExpr fromBinaryFunc = new FunctionCallExpr(FunctionSet.FROM_BINARY, fromBinaryArgs);
-        return fromBinaryFunc;
     }
 
     public static ScalarOperator buildStateUnionScalarOperator(CallOperator aggFunc,
@@ -102,14 +155,5 @@ public class TvrOpUtils {
         }
         return new CallOperator(stateUnionFunctionName, intermediateAggScalarOp.getType(),
                 List.of(intermediateAggScalarOp, aggStateAggStateColumnRef), newFunc);
-    }
-
-    public static ScalarOperator buildRowIdEqBinaryPredicateOp(ColumnRefOperator aggStateRowIdScalarOp,
-                                                               List<ScalarOperator> uniqueKeys) {
-        // build row id operator for agg state table
-        ScalarOperator deltaInputRowIdScalarOp = TvrOpUtils.buildRowIdColumnOperator(uniqueKeys);
-        BinaryPredicateOperator eqBinaryPredicateOperator =
-                new BinaryPredicateOperator(BinaryType.EQ, aggStateRowIdScalarOp, deltaInputRowIdScalarOp);
-        return eqBinaryPredicateOperator;
     }
 }

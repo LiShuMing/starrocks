@@ -14,8 +14,9 @@
 
 package com.starrocks.sql.analyzer.mv;
 
-import com.google.api.client.util.Lists;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.starrocks.catalog.FunctionSet;
 import com.starrocks.catalog.MaterializedView;
 import com.starrocks.catalog.combinator.AggStateUtils;
 import com.starrocks.common.util.PropertyAnalyzer;
@@ -33,9 +34,13 @@ import com.starrocks.sql.ast.SetOperationRelation;
 import com.starrocks.sql.ast.SubqueryRelation;
 import com.starrocks.sql.ast.TableRelation;
 import com.starrocks.sql.ast.UnionRelation;
+import com.starrocks.sql.ast.expression.CaseExpr;
+import com.starrocks.sql.ast.expression.CaseWhenClause;
 import com.starrocks.sql.ast.expression.Expr;
 import com.starrocks.sql.ast.expression.ExprSubstitutionMap;
 import com.starrocks.sql.ast.expression.FunctionCallExpr;
+import com.starrocks.sql.ast.expression.IntLiteral;
+import com.starrocks.sql.ast.expression.IsNullPredicate;
 import com.starrocks.sql.ast.expression.JoinOperator;
 import com.starrocks.sql.ast.expression.SlotRef;
 import com.starrocks.sql.optimizer.rule.tvr.common.TvrOpUtils;
@@ -237,7 +242,7 @@ public class IVMAnalyzer {
 
             IVMAggFunctionInfo aggFunctionInfo = new IVMAggFunctionInfo(aggFuncExpr, aggFuncName,
                     intermediateAggFuncExpr, newAggFuncName);
-            FunctionCallExpr stateMergeFuncExpr = buildStateMergeFuncExpr(aggFunctionInfo);
+            Expr stateMergeFuncExpr = buildStateMergeFuncExpr(aggFunctionInfo);
 
             newAggFuncInfos.add(aggFunctionInfo);
             substitutionMap.put(aggFuncExpr, stateMergeFuncExpr);
@@ -254,6 +259,7 @@ public class IVMAnalyzer {
         List<SelectListItem> newItems = Lists.newArrayList();
         // add row_id func expr
         newItems.add(new SelectListItem(rowIdFuncExpr, TvrOpUtils.COLUMN_ROW_ID));
+        // add original items
         selectList.getItems()
                 .stream()
                 .forEach(item -> {
@@ -282,11 +288,11 @@ public class IVMAnalyzer {
         return true;
     }
 
-    private static Expr substituteWithMap(Expr expr, ExprSubstitutionMap substitutionMap) {
+    private Expr substituteWithMap(Expr expr, ExprSubstitutionMap substitutionMap) {
         return expr.substitute(substitutionMap);
     }
 
-    private static MaterializedView.RefreshMode getRefreshMode(CreateMaterializedViewStatement statement) {
+    private MaterializedView.RefreshMode getRefreshMode(CreateMaterializedViewStatement statement) {
         Map<String, String> properties = statement.getProperties();
         if (properties == null) {
             properties = Maps.newHashMap();
@@ -301,18 +307,29 @@ public class IVMAnalyzer {
         }
     }
 
-    private static FunctionCallExpr buildIntermediateAggregateFunc(FunctionCallExpr aggFuncExpr) {
-        // <func>_agg_combine(<args>)
+    private FunctionCallExpr buildIntermediateAggregateFunc(FunctionCallExpr aggFuncExpr) {
+        // <func>_combine(<args>)
         String aggFuncName = aggFuncExpr.getFnName().getFunction();
         String aggStateFuncName = AggStateUtils.aggStateCombineFunctionName(aggFuncName);
         FunctionCallExpr aggStateFuncExpr = new FunctionCallExpr(aggStateFuncName, aggFuncExpr.getChildren());
         return aggStateFuncExpr;
     }
 
-    private static FunctionCallExpr buildStateMergeFuncExpr(IVMAggFunctionInfo aggFunctionInfo) {
+    private Expr buildStateMergeFuncExpr(IVMAggFunctionInfo aggFunctionInfo) {
         String aggFuncName = AggStateUtils.getAggFuncNameOfCombinator(aggFunctionInfo.aggFuncName);
         String stateMergeFuncName = AggStateUtils.stateMergeFunctionName(aggFuncName);
         SlotRef slotRef = new SlotRef(null, aggFunctionInfo.newAggFuncName);
-        return new FunctionCallExpr(stateMergeFuncName, List.of(slotRef));
+        // <func>_state_merge(<slotRef>)
+        FunctionCallExpr aggStateMergeFunc = new FunctionCallExpr(stateMergeFuncName, List.of(slotRef));
+        // case when <aggStateMergeFunc> is null then <default_value> else <aggStateMergeFunc> end
+        if (FunctionSet.isAlwaysReturnZeroInsteadOfNoneAggFunction(aggFuncName)) {
+            Expr isNullPredicate = new IsNullPredicate(aggStateMergeFunc, false);
+            Expr defaultValue = new IntLiteral(0, aggFunctionInfo.aggFunc.getType());
+            CaseWhenClause caseWhenClause = new CaseWhenClause(isNullPredicate, defaultValue);
+            CaseExpr caseExpr = new CaseExpr(null, Lists.newArrayList(caseWhenClause), aggStateMergeFunc);
+            return caseExpr;
+        } else {
+            return aggStateMergeFunc;
+        }
     }
 }

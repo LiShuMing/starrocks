@@ -17,10 +17,10 @@ package com.starrocks.sql.optimizer.rule.tvr;
 import com.google.api.client.util.Sets;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
-import com.starrocks.analysis.JoinOperator;
 import com.starrocks.catalog.Column;
 import com.starrocks.catalog.MaterializedView;
 import com.starrocks.catalog.OlapTable;
+import com.starrocks.sql.ast.expression.JoinOperator;
 import com.starrocks.sql.optimizer.MvRewritePreprocessor;
 import com.starrocks.sql.optimizer.OptExpression;
 import com.starrocks.sql.optimizer.OptimizerContext;
@@ -117,27 +117,9 @@ public class TvrAggregateRule extends TvrTransformationRule {
 
         // old aggregate function to new column ref operator map
         Map<ScalarOperator, ColumnRefOperator> oldToNewColumnRefMap = Maps.newHashMap();
-        // output intermediate results rather than final result
-        Map<ColumnRefOperator, CallOperator> intermediateAggMap = inputAggMap.entrySet()
-                .stream()
-                .map(e -> {
-                    ColumnRefOperator origColumnRef = e.getKey();
-                    CallOperator origCall = e.getValue();
-                    CallOperator intermediateFunc = AggregateFunctionRollupUtils.getIntermediateStateAggregateFunc(origCall);
-                    Preconditions.checkArgument(intermediateFunc != null,
-                            "Intermediate state aggregate function should not be null for: %s", origCall);
-                    // create a new column ref for the intermediate state aggregate function
-                    ColumnRefOperator newColumnRefOperator =
-                            columnRefFactory.create(origColumnRef.getName(),
-                                    origColumnRef.getType(), origColumnRef.isNullable());
-                    // map old column ref operator to new column ref operator
-                    oldToNewColumnRefMap.put(origCall, newColumnRefOperator);
-                    return Map.entry(newColumnRefOperator, intermediateFunc);
-                })
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         // build input aggregator intermediate aggregation operator
-        LogicalAggregationOperator intermediateAggOperator = buildIntermediateAggOperator(groupingKeys,
-                intermediateAggMap);
+        LogicalAggregationOperator intermediateAggOperator = buildIntermediateAggOperator(columnRefFactory,
+                groupingKeys, inputAggMap, oldToNewColumnRefMap);
 
         // delta changes left join agg state scan operator
         LogicalJoinOperator deltaJoinOperator = new LogicalJoinOperator(
@@ -177,9 +159,30 @@ public class TvrAggregateRule extends TvrTransformationRule {
         return OptExpression.createWithoutTvr(logicalProjectOperator, deltaJoinOptExpression);
     }
 
-    private LogicalAggregationOperator buildIntermediateAggOperator(List<ColumnRefOperator> groupingKeys,
-                                                                    Map<ColumnRefOperator, CallOperator> aggMap) {
-        LogicalAggregationOperator newAggOp = new LogicalAggregationOperator(AggType.GLOBAL, groupingKeys, aggMap);
+    private LogicalAggregationOperator buildIntermediateAggOperator(
+            ColumnRefFactory columnRefFactory,
+            List<ColumnRefOperator> groupingKeys,
+            Map<ColumnRefOperator, CallOperator> inputAggMap,
+            Map<ScalarOperator, ColumnRefOperator> oldToNewColumnRefMap) {
+        // output intermediate results rather than final result
+        Map<ColumnRefOperator, CallOperator> intermediateAggMap = inputAggMap.entrySet()
+                .stream()
+                .map(e -> {
+                    ColumnRefOperator origColumnRef = e.getKey();
+                    CallOperator origCall = e.getValue();
+                    CallOperator intermediateFunc = AggregateFunctionRollupUtils.getIntermediateStateAggregateFunc(origCall);
+                    Preconditions.checkArgument(intermediateFunc != null,
+                            "Intermediate state aggregate function should not be null for: %s", origCall);
+                    // create a new column ref for the intermediate state aggregate function
+                    ColumnRefOperator newColumnRefOperator =
+                            columnRefFactory.create(origColumnRef.getName(),
+                                    origColumnRef.getType(), origColumnRef.isNullable());
+                    // map old column ref operator to new column ref operator
+                    oldToNewColumnRefMap.put(origCall, newColumnRefOperator);
+                    return Map.entry(newColumnRefOperator, intermediateFunc);
+                })
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        LogicalAggregationOperator newAggOp = new LogicalAggregationOperator(AggType.GLOBAL, groupingKeys, intermediateAggMap);
         return newAggOp;
     }
 

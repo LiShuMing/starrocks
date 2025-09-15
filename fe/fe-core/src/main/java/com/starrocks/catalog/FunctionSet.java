@@ -672,6 +672,19 @@ public class FunctionSet {
                     .add(FunctionSet.SPLIT_PART)
                     .build();
 
+    public static final Set<String> alwaysReturnZeroInsteadOfNoneAggFunctions =
+            ImmutableSet.<String>builder()
+                    .add(FunctionSet.COUNT)
+                    .add(FunctionSet.COUNT_IF)
+                    .add(FunctionSet.MULTI_DISTINCT_COUNT)
+                    .add(FunctionSet.NDV)
+                    .add(FunctionSet.APPROX_COUNT_DISTINCT)
+                    .add(FunctionSet.BITMAP_UNION_COUNT)
+                    .add(FunctionSet.BITMAP_COUNT)
+                    .add(FunctionSet.DS_HLL_COUNT_DISTINCT)
+                    .add(FunctionSet.DS_THETA_COUNT_DISTINCT)
+                    .build();
+
     public static final Set<String> DECIMAL_ROUND_FUNCTIONS =
             ImmutableSet.<String>builder()
                     .add(TRUNCATE)
@@ -1023,6 +1036,10 @@ public class FunctionSet {
 
     public static boolean isAlwaysReturnNonNullableFunction(String functionName) {
         return alwaysReturnNonNullableFunctions.contains(functionName);
+    }
+
+    public static boolean isAlwaysReturnZeroInsteadOfNoneAggFunction(String functionName) {
+        return alwaysReturnZeroInsteadOfNoneAggFunctions.contains(functionName);
     }
 
     private void addBuiltInFunction(Function fn) {

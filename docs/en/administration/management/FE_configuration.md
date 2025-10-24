@@ -1243,7 +1243,7 @@ ADMIN SET FRONTEND CONFIG ("key" = "value");
 
 ##### statistic_cache_thread_pool_size
 
-- Default: 10
+- Default: 5
 - Type: Int
 - Unit: -
 - Is mutable: No
@@ -1375,11 +1375,11 @@ ADMIN SET FRONTEND CONFIG ("key" = "value");
 
 ##### enable_active_materialized_view_schema_strict_check
 
-- Default: true
+- Default: false
 - Type: Boolean
 - Unit: -
 - Is mutable: Yes
-- Description: Whether to strictly check the length consistency of data types when activating an inactive materialized view. When this item is set to `false`, the activation of the materialized view is not affected if the length of the data types has changed in the base table.
+- Description: Check the schema of materialized view's base table strictly or not. When this item is set to `false`, the activation of the materialized view is not affected if the length of the data types has changed in the base table.
 - Introduced in: v3.3.4
 
 ##### mv_active_checker_interval_seconds
@@ -1475,9 +1475,17 @@ Starting from version 3.3.0, the system defaults to refreshing one partition at 
 - Type: Boolean
 - Unit: -
 - Is mutable: Yes
-- Description:
+- Description: If set to true, memory tracker feature will open.
 - Introduced in: -
--->
+
+##### enable_collect_warehouse_metrics
+
+- Default: true
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: Whether to collect metrics for warehouse.
+- Introduced in: -
 
 <!--
 ##### memory_tracker_interval_seconds
@@ -1597,7 +1605,34 @@ Starting from version 3.3.0, the system defaults to refreshing one partition at 
 - Type: Boolean
 - Unit: -
 - Is mutable: Yes
-- Description: Whether to collect statistics for the CBO. This feature is enabled by default.
+- Description: Whether to enable periodic analyze job, including auto analyze job and analyze jobs created by user.
+- Introduced in: -
+
+##### enable_auto_collect_statistics
+
+- Default: true
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: Enable auto collect internal statistics in the background.
+- Introduced in: -
+
+##### enable_trigger_analyze_job_immediate
+
+- Default: true
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: Trigger task immediately after creating analyze job.
+- Introduced in: -
+
+##### enable_temporary_table_statistic_collect
+
+- Default: true
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: Whether to automatically collect statistics on temporary tables.
 - Introduced in: -
 
 ##### enable_statistic_collect_on_first_load
@@ -1665,17 +1700,44 @@ Starting from version 3.3.0, the system defaults to refreshing one partition at 
 - Type: Boolean
 - Unit: -
 - Is mutable: Yes
-- Description:
+- Description: Check expire partition statistics data when StarRocks starts up.
 - Introduced in: -
--->
 
-##### statistic_collect_interval_sec
+##### clear_stale_stats_interval_sec
 
-- Default: 5 * 60
+- Default: 43200
 - Type: Long
 - Unit: Seconds
 - Is mutable: Yes
-- Description: The interval for checking data updates during automatic collection.
+- Description: Clear stale partition statistics data job work interval. Default is 12 hours.
+- Introduced in: -
+
+<!--
+##### statistic_collect_interval_sec
+
+- Default: 600
+- Type: Long
+- Unit: Seconds
+- Is mutable: Yes
+- Description: The interval for checking data updates during automatic collection. Default is 10 minutes.
+- Introduced in: -
+
+##### statistic_predicate_columns_persist_interval_sec
+
+- Default: 60
+- Type: Long
+- Unit: Seconds
+- Is mutable: Yes
+- Description: The interval to persist predicate columns state.
+- Introduced in: -
+
+##### statistic_predicate_columns_ttl_hours
+
+- Default: 24
+- Type: Long
+- Unit: Hours
+- Is mutable: Yes
+- Description: The TTL of predicate columns. Columns would not be considered as predicate columns after this period.
 - Introduced in: -
 
 <!--
@@ -1785,13 +1847,57 @@ Starting from version 3.3.0, the system defaults to refreshing one partition at 
 <!--
 ##### statistic_auto_collect_small_table_size
 
-- Default: 5 * 1024 * 1024 * 1024
+- Default: 5368709120
 - Type: Long
-- Unit:
+- Unit: Bytes
 - Is mutable: Yes
-- Description:
+- Description: The threshold for determining whether a table is a small table for automatic collection. Default is 5 GB.
 - Introduced in: -
--->
+
+##### statistic_full_collect_buffer
+
+- Default: 20971520
+- Type: Long
+- Unit: Bytes
+- Is mutable: Yes
+- Description: Full statistics collection buffer. Default is 20 MB.
+- Introduced in: -
+
+##### statistic_auto_collect_sample_threshold
+
+- Default: 0.3
+- Type: Double
+- Unit: -
+- Is mutable: Yes
+- Description: If the health is lower than this value, choose collect sample statistics first.
+- Introduced in: -
+
+##### statistic_full_statistics_failure_tolerance_ratio
+
+- Default: 0.05
+- Type: Double
+- Unit: -
+- Is mutable: Yes
+- Description: Tolerate some percent of failure for a large table. It will not affect the job status but improve the robustness.
+- Introduced in: -
+
+##### statistic_partition_healthy_v2
+
+- Default: true
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: Enable V2 health calculation based on changed rows.
+- Introduced in: -
+
+##### statistic_partition_health__v2_threshold
+
+- Default: 0.95
+- Type: Double
+- Unit: -
+- Is mutable: Yes
+- Description: Health threshold for partitions.
+- Introduced in: -
 
 ##### statistic_auto_collect_small_table_rows
 
@@ -1801,6 +1907,15 @@ Starting from version 3.3.0, the system defaults to refreshing one partition at 
 - Is mutable: Yes
 - Description: Threshold to determine whether a table in an external data source (Hive, Iceberg, Hudi) is a small table during automatic collection. If the table has rows less than this value, the table is considered a small table.
 - Introduced in: v3.2
+
+##### statistic_auto_collect_predicate_columns_threshold
+
+- Default: 32
+- Type: Int
+- Unit: -
+- Is mutable: Yes
+- Description: If the number of columns of table exceeds it, use predicate-columns strategy.
+- Introduced in: -
 
 <!--
 ##### statistic_auto_collect_small_table_interval
@@ -1813,26 +1928,61 @@ Starting from version 3.3.0, the system defaults to refreshing one partition at 
 - Introduced in: -
 -->
 
-<!--
+##### statistic_auto_collect_small_table_interval
+
+- Default: 0
+- Type: Long
+- Unit: Seconds
+- Is mutable: Yes
+- Description: The interval of auto stats for small tables. Default is 0.
+- Introduced in: -
+
+##### statistic_auto_collect_histogram_interval
+
+- Default: 3600
+- Type: Long
+- Unit: Seconds
+- Is mutable: Yes
+- Description: The interval of auto collecting histogram statistics. Default is 1 hour.
+- Introduced in: -
+
 ##### statistic_auto_collect_large_table_interval
 
-- Default: 3600 * 12
+- Default: 43200
 - Type: Long
-- Unit:
+- Unit: Seconds
 - Is mutable: Yes
-- Description:
+- Description: The interval of auto stats for large tables. Default is 12 hours.
 - Introduced in: -
--->
 
 ##### statistic_max_full_collect_data_size
 
-- Default: 100 * 1024 * 1024 * 1024
+- Default: 107374182400
 - Type: Long
-- Unit: bytes
+- Unit: Bytes
 - Is mutable: Yes
-- Description: The data size threshold for the automatic collection of statistics. If the total size exceeds this value, then sampled collection is performed instead of full.
+- Description: The data size threshold for the automatic collection of statistics. If the total size exceeds this value, then sampled collection is performed instead of full. Default is 100 GB.
 - Introduced in: -
 
+##### statistic_auto_collect_use_full_predicate_column_for_sample
+
+- Default: true
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: If full analyze predicate columns instead of sample all columns.
+- Introduced in: -
+
+##### statistic_auto_collect_max_predicate_column_size_on_sample_strategy
+
+- Default: 16
+- Type: Int
+- Unit: -
+- Is mutable: Yes
+- Description: Maximum columns size of full analyze predicate columns instead of sample all columns.
+- Introduced in: -
+
+<!--
 ##### statistic_collect_max_row_count_per_query
 
 - Default: 5000000000
@@ -1849,6 +1999,78 @@ Starting from version 3.3.0, the system defaults to refreshing one partition at 
 - Unit: -
 - Is mutable: Yes
 - Description: The minimum number of rows to collect for sampled collection. If the parameter value exceeds the actual number of rows in your table, full collection is performed.
+- Introduced in: -
+
+##### statistics_min_sample_row_ratio
+
+- Default: 0.01
+- Type: Double
+- Unit: -
+- Is mutable: Yes
+- Description: The minimum sample row ratio for statistics collection.
+- Introduced in: -
+
+##### statistics_sample_ndv_estimator
+
+- Default: DUJ1
+- Type: String
+- Unit: -
+- Is mutable: Yes
+- Description: The NDV estimator strategy. Valid values: DUJ1/GEE/LINEAR/POLYNOMIAL.
+- Introduced in: -
+
+##### statistic_sample_collect_partition_size
+
+- Default: 300
+- Type: Int
+- Unit: -
+- Is mutable: Yes
+- Description: The partition size of sample collect. Default is 300 partitions.
+- Introduced in: -
+
+##### statistic_sample_collect_ratio_threshold_of_first_load
+
+- Default: 0.1
+- Type: Double
+- Unit: -
+- Is mutable: Yes
+- Description: If changed ratio of a table/partition is larger than this threshold, the system would use sample statistics instead of full statistics.
+- Introduced in: -
+
+##### statistic_use_meta_statistics
+
+- Default: true
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: Whether to use meta statistics.
+- Introduced in: -
+
+##### statistics_max_multi_column_combined_num
+
+- Default: 10
+- Type: Int
+- Unit: -
+- Is mutable: Yes
+- Description: Collect multi-column combined statistics maximum column numbers.
+- Introduced in: -
+
+##### enable_sync_statistics_load
+
+- Default: false
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: Synchronously load statistics for testing purpose.
+- Introduced in: -
+
+##### collect_stats_io_tasks_per_connector_operator
+
+- Default: 4
+- Type: Int
+- Unit: -
+- Is mutable: Yes
+- Description: The maximum number of IO tasks for each connector operator in collect statistic.
 - Introduced in: -
 
 ##### histogram_buckets_size
@@ -1885,6 +2107,15 @@ Starting from version 3.3.0, the system defaults to refreshing one partition at 
 - Unit: -
 - Is mutable: Yes
 - Description: The maximum number of rows to collect for a histogram.
+- Introduced in: -
+
+##### enable_use_table_sample_collect_statistics
+
+- Default: true
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: Use table sample instead of row-level Bernoulli sample to collect statistics.
 - Introduced in: -
 
 ##### connector_table_query_trigger_task_schedule_interval
@@ -1976,6 +2207,33 @@ Starting from version 3.3.0, the system defaults to refreshing one partition at 
 - Is mutable: No
 - Description: Threshold of low cardinality dictionary.
 - Introduced in: v3.5.0
+
+##### dict_collect_thread_pool_size
+
+- Default: 16
+- Type: Int
+- Unit: -
+- Is mutable: No
+- Description: The size of the thread pool for dictionary collection.
+- Introduced in: -
+
+##### dict_collect_thread_pool_for_lake_size
+
+- Default: 4
+- Type: Int
+- Unit: -
+- Is mutable: No
+- Description: The size of the thread pool for dictionary collection in shared-data mode.
+- Introduced in: -
+
+##### statistic_dict_columns
+
+- Default: 100000
+- Type: Long
+- Unit: -
+- Is mutable: No
+- Description: The maximum number of columns that can be cached for dictionary statistics.
+- Introduced in: -
 
 ##### enable_manual_collect_array_ndv
 
@@ -2983,10 +3241,37 @@ Starting from version 3.3.0, the system defaults to refreshing one partition at 
 ##### tablet_stat_update_interval_second
 
 - Default: 300
+- Type: Long
+- Unit: Seconds
+- Is mutable: Yes
+- Description: The time interval at which the FE retrieves tablet statistics from each BE.
+- Introduced in: -
+
+##### enable_sync_tablet_stats
+
+- Default: true
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: For testing statistics behavior. Whether to enable synchronous tablet statistics collection.
+- Introduced in: -
+
+##### tablet_collect_interval_seconds
+
+- Default: 60
+- Type: Long
+- Unit: Seconds
+- Is mutable: Yes
+- Description: Time interval to collect tablet info from backend.
+- Introduced in: -
+
+##### tablet_collect_timeout_seconds
+
+- Default: 60
 - Type: Int
 - Unit: Seconds
-- Is mutable: No
-- Description: The time interval at which the FE retrieves tablet statistics from each BE.
+- Is mutable: Yes
+- Description: Timeout for calling BE get_tablets_info RPC.
 - Introduced in: -
 
 ##### max_automatic_partition_number
@@ -3384,6 +3669,69 @@ Starting from version 3.3.0, the system defaults to refreshing one partition at 
 - Description: The number of recent successful Compaction task records to keep in the memory of the Leader FE node in a shared-data cluster. You can view recent successful Compaction task records using the `SHOW PROC '/compactions'` command. Note that the Compaction history is stored in the FE process memory, and it will be lost if the FE process is restarted.
 - Introduced in: v3.1.0
 
+##### lake_compaction_interval_ms_on_success
+
+- Default: 10000
+- Type: Long
+- Unit: Milliseconds
+- Is mutable: Yes
+- Description: The minimum compaction interval when the previous compaction succeeded.
+- Introduced in: -
+
+##### lake_compaction_interval_ms_on_failure
+
+- Default: 60000
+- Type: Long
+- Unit: Milliseconds
+- Is mutable: Yes
+- Description: The minimum compaction interval when the previous compaction failed.
+- Introduced in: -
+
+##### lake_compaction_warehouse
+
+- Default: default_warehouse
+- Type: String
+- Unit: -
+- Is mutable: Yes
+- Description: The warehouse used for compaction operations in shared-data mode.
+- Introduced in: -
+
+##### lake_background_warehouse
+
+- Default: default_warehouse
+- Type: String
+- Unit: -
+- Is mutable: Yes
+- Description: The warehouse used for background operations in shared-data mode.
+- Introduced in: -
+
+##### lake_warehouse_max_compute_replica
+
+- Default: 3
+- Type: Int
+- Unit: -
+- Is mutable: Yes
+- Description: The maximum number of compute replicas per warehouse in shared-data mode.
+- Introduced in: -
+
+##### warehouse_idle_check_interval_seconds
+
+- Default: 60
+- Type: Long
+- Unit: Seconds
+- Is mutable: Yes
+- Description: Time interval to check whether warehouse is idle.
+- Introduced in: -
+
+##### warehouse_idle_check_enable
+
+- Default: false
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: Whether to start warehouse idle checker.
+- Introduced in: -
+
 ##### lake_publish_version_max_threads
 
 - Default: 512
@@ -3461,6 +3809,51 @@ Starting from version 3.3.0, the system defaults to refreshing one partition at 
 - Is mutable: Yes
 - Description: If a partition has no updates (loading, DELETE, or Compactions) within this time range, the system will not perform AutoVacuum on this partition.
 - Introduced in: v3.1.0
+
+##### lake_autovacuum_detect_vaccumed_version
+
+- Default: true
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: Determine whether a vacuum operation needs to be initiated based on the vacuum version.
+- Introduced in: -
+
+##### lake_fullvacuum_parallel_partitions
+
+- Default: 16
+- Type: Int
+- Unit: -
+- Is mutable: No
+- Description: How many partitions can fullvacuum execute simultaneously at most.
+- Introduced in: -
+
+##### lake_fullvacuum_partition_naptime_seconds
+
+- Default: 86400
+- Type: Long
+- Unit: Seconds
+- Is mutable: Yes
+- Description: The minimum delay between full vacuum runs on any given partition. Default is 1 day.
+- Introduced in: -
+
+##### lake_fullvacuum_meta_expired_seconds
+
+- Default: 172800
+- Type: Long
+- Unit: Seconds
+- Is mutable: Yes
+- Description: Metadata expired time from full vacuum begin running. Default is 2 days.
+- Introduced in: -
+
+##### lake_vacuum_immediately_partition_ids
+
+- Default: Empty string
+- Type: String
+- Unit: -
+- Is mutable: Yes
+- Description: Partitions which can be vacuumed immediately, test only. Format: 'id1;id2'.
+- Introduced in: -
 
 ##### lake_enable_ingest_slowdown
 
@@ -4534,6 +4927,15 @@ Starting from version 3.3.0, the system defaults to refreshing one partition at 
 - Introduced in: -
 -->
 
+##### enable_paimon_refresh_manifest_files
+
+- Default: false
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: Paimon metadata cache preheat. Whether to enable refreshing Paimon manifest files.
+- Introduced in: -
+
 ##### es_state_sync_interval_second
 
 - Default: 10
@@ -5220,11 +5622,11 @@ Starting from version 3.3.0, the system defaults to refreshing one partition at 
 
 ##### mv_plan_cache_thread_pool_size
 
-- Default: 3
+- Default: 8
 - Type: Int
 - Unit: -
 - Is mutable: Yes
-- Description: The default thread pool size of materialized view plan cache (which is used for materialized view rewrite).
+- Description: The default thread pool size of materialized view plan cache.
 - Introduced in: v3.2
 
 ##### mv_plan_cache_max_size
@@ -5592,6 +5994,69 @@ Starting from version 3.3.0, the system defaults to refreshing one partition at 
 - Description: Whether to enable prefixes with materialized view names in logs for better debug.
 - Introduced in: v3.4.0
 
+##### mv_rewrite_consider_data_layout_mode
+
+- Default: enable
+- Type: String
+- Unit: -
+- Is mutable: Yes
+- Description: Whether materialized view rewrite should consider underlying table data layout (e.g., colocation property, table sort keys) when deciding rewrite applicability. Valid values: enable/disable/force.
+- Introduced in: -
+
+##### enable_mv_automatic_repairing_for_broken_base_tables
+
+- Default: true
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: Whether to enable automatic repairing of materialized views that are broken due to base table schema changes.
+- Introduced in: -
+
+##### enable_mv_automatic_inactive_by_base_table_changes
+
+- Default: true
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: Whether to enable the automatic related materialized views since of base table's schema changes.
+- Introduced in: -
+
+##### enable_mv_list_partition_for_external_table
+
+- Default: false
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: Whether to enable using list partition rather than range partition for all external table partition types.
+- Introduced in: -
+
+##### mv_use_creator_based_authorization
+
+- Default: true
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: Whether to use the creator-based authorization or root for MV refresh. Creator-based: record the creator (user) of MV, refresh the MV with same user. Root-based: always use the ROOT to refresh the MV.
+- Introduced in: -
+
+##### mv_auto_analyze_async
+
+- Default: true
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: Whether to analyze the MV after refresh in async mode.
+- Introduced in: -
+
+##### mv_async_reload_wait_timeout_second
+
+- Default: 180
+- Type: Int
+- Unit: Seconds
+- Is mutable: Yes
+- Description: The timeout for waiting async MV reload done. Default is 3 minutes.
+- Introduced in: -
+
 ##### enable_mv_post_image_reload_cache
 
 - Default: true
@@ -5618,5 +6083,428 @@ Starting from version 3.3.0, the system defaults to refreshing one partition at 
 - Is mutable: Yes
 - Description: Whether to prefer string type for fixed length varchar columns in materialized view creation and CTAS operations.
 - Introduced in: v4.0.0
+
+##### compound_predicate_flatten_threshold
+
+- Default: 512
+- Type: Int
+- Unit: -
+- Is mutable: Yes
+- Description: The threshold to flatten compound predicate from deep tree to a balanced tree to avoid stack overflow.
+- Introduced in: -
+
+##### enable_desensitize_query_dump
+
+- Default: false
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: Enable desensitize SQL in query dump.
+- Introduced in: -
+
+##### ui_queries_sql_statement_max_length
+
+- Default: 128
+- Type: Int
+- Unit: -
+- Is mutable: No
+- Description: Maximum length of SQL statement displayed in the UI queries page.
+- Introduced in: -
+
+##### enable_dynamic_tablet
+
+- Default: false
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: Whether to enable dynamic tablet feature.
+- Introduced in: -
+
+##### dynamic_tablet_job_scheduler_interval_ms
+
+- Default: 10
+- Type: Long
+- Unit: Milliseconds
+- Is mutable: No
+- Description: The default scheduler interval for dynamic tablet jobs.
+- Introduced in: -
+
+##### dynamic_tablet_history_job_keep_max_ms
+
+- Default: 259200000
+- Type: Long
+- Unit: Milliseconds
+- Is mutable: Yes
+- Description: The maximum keep time of dynamic tablet history jobs. Default is 3 days.
+- Introduced in: -
+
+##### dynamic_tablet_max_parallel_tablets
+
+- Default: 10240
+- Type: Long
+- Unit: -
+- Is mutable: Yes
+- Description: The maximum number of tablets that can do tablet splitting and merging in parallel.
+- Introduced in: -
+
+##### dynamic_tablet_split_size
+
+- Default: 4294967296
+- Type: Long
+- Unit: Bytes
+- Is mutable: Yes
+- Description: Tablets with size larger than this value will be considered to split. Default is 4 GB.
+- Introduced in: -
+
+##### dynamic_tablet_max_split_count
+
+- Default: 8
+- Type: Int
+- Unit: -
+- Is mutable: Yes
+- Description: The maximum number of new tablets that an old tablet can be split into.
+- Introduced in: -
+
+##### deploy_serialization_thread_pool_size
+
+- Default: -1
+- Type: Int
+- Unit: -
+- Is mutable: No
+- Description: The size of the thread pool for deploy serialization. If set to `-1`, it means same as CPU core number.
+- Introduced in: -
+
+##### deploy_serialization_queue_size
+
+- Default: -1
+- Type: Int
+- Unit: -
+- Is mutable: No
+- Description: The size of the queue for deploy serialization thread pool. If set to `-1`, it means same as CPU core number * 2.
+- Introduced in: -
+
+##### min_graceful_exit_time_second
+
+- Default: 15
+- Type: Long
+- Unit: Seconds
+- Is mutable: Yes
+- Description: The minimum time to wait before graceful exit. The process must be stopped after the load balancing detection becomes Unhealthy to avoid new connections being forwarded to the machine where the FE node is located.
+- Introduced in: -
+
+##### max_graceful_exit_time_second
+
+- Default: 60
+- Type: Long
+- Unit: Seconds
+- Is mutable: Yes
+- Description: The maximum timeout for graceful exit.
+- Introduced in: -
+
+##### max_spm_cache_baseline_size
+
+- Default: 1000
+- Type: Int
+- Unit: -
+- Is mutable: No
+- Description: The maximum size of the SPM (SQL Plan Management) cache baseline.
+- Introduced in: -
+
+##### max_get_partitions_meta_result_count
+
+- Default: 100000
+- Type: Int
+- Unit: -
+- Is mutable: Yes
+- Description: Maximum partition meta count that will be returned when BE/CN calls GetPartitionsMeta. If one table's partition count exceeds this, it will return all partitions for this table.
+- Introduced in: -
+
+##### max_show_proc_transactions_entry
+
+- Default: 2000
+- Type: Int
+- Unit: -
+- Is mutable: Yes
+- Description: Maximum number of transaction entries to show in SHOW PROC.
+- Introduced in: -
+
+##### transaction_state_print_partition_info
+
+- Default: true
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: Whether to print partition information in transaction state.
+- Introduced in: -
+
+##### group_provider
+
+- Default: Empty array
+- Type: String[]
+- Unit: -
+- Is mutable: Yes
+- Description: The name of the group provider. If there are multiple, separate them with commas.
+- Introduced in: -
+
+##### group_provider_refresh_thread_num
+
+- Default: 4
+- Type: Int
+- Unit: -
+- Is mutable: No
+- Description: Used to refresh the LDAP group cache. All LDAP group providers share the same thread pool.
+- Introduced in: -
+
+##### oauth2_connect_wait_timeout
+
+- Default: 300
+- Type: Long
+- Unit: Seconds
+- Is mutable: No
+- Description: Maximum duration of the authorization connection wait time. Default is 5 minutes.
+- Introduced in: -
+
+##### arrow_flight_port
+
+- Default: -1
+- Type: Int
+- Unit: -
+- Is mutable: No
+- Description: Enable Arrow Flight SQL server only when the port is set to a positive value.
+- Introduced in: -
+
+##### arrow_token_cache_size
+
+- Default: 1024
+- Type: Int
+- Unit: -
+- Is mutable: Yes
+- Description: The size of Arrow Flight SQL token cache.
+- Introduced in: -
+
+##### arrow_token_cache_expire_second
+
+- Default: 259200
+- Type: Int
+- Unit: Seconds
+- Is mutable: Yes
+- Description: Expiration time for Arrow Flight SQL tokens. Default is 3 days. Expired tokens will be removed from the cache and the associated connection will be closed.
+- Introduced in: -
+
+##### arrow_max_service_task_threads_num
+
+- Default: 4096
+- Type: Int
+- Unit: -
+- Is mutable: Yes
+- Description: Maximum number of threads for Arrow Flight SQL service tasks.
+- Introduced in: -
+
+##### query_deploy_threadpool_size
+
+- Default: max(50, availableProcessors * 10)
+- Type: Int
+- Unit: -
+- Is mutable: No
+- Description: The size of the thread pool for query deployment.
+- Introduced in: -
+
+##### max_historical_automated_cluster_snapshot_jobs
+
+- Default: 100
+- Type: Int
+- Unit: -
+- Is mutable: Yes
+- Description: The maximum number of historical automated cluster snapshot jobs to keep.
+- Introduced in: -
+
+##### default_statistics_output_row_count
+
+- Default: 1
+- Type: Long
+- Unit: -
+- Is mutable: Yes
+- Description: The default output row count for statistics.
+- Introduced in: -
+
+##### merge_commit_gc_check_interval_ms
+
+- Default: 60000
+- Type: Int
+- Unit: Milliseconds
+- Is mutable: Yes
+- Description: The interval for merge commit GC check.
+- Introduced in: -
+
+##### merge_commit_idle_ms
+
+- Default: 3600000
+- Type: Int
+- Unit: Milliseconds
+- Is mutable: Yes
+- Description: The idle time for merge commit. Default is 1 hour.
+- Introduced in: -
+
+##### merge_commit_executor_threads_num
+
+- Default: 4096
+- Type: Int
+- Unit: -
+- Is mutable: No
+- Description: The number of executor threads for merge commit.
+- Introduced in: -
+
+##### merge_commit_txn_state_dispatch_retry_times
+
+- Default: 3
+- Type: Int
+- Unit: -
+- Is mutable: Yes
+- Description: The retry times for merge commit transaction state dispatch.
+- Introduced in: -
+
+##### merge_commit_txn_state_dispatch_retry_interval_ms
+
+- Default: 200
+- Type: Int
+- Unit: Milliseconds
+- Is mutable: Yes
+- Description: The retry interval for merge commit transaction state dispatch.
+- Introduced in: -
+
+##### merge_commit_be_assigner_schedule_interval_ms
+
+- Default: 5000
+- Type: Int
+- Unit: Milliseconds
+- Is mutable: Yes
+- Description: The schedule interval for merge commit BE assigner.
+- Introduced in: -
+
+##### merge_commit_be_assigner_balance_factor_threshold
+
+- Default: 0.1
+- Type: Double
+- Unit: -
+- Is mutable: Yes
+- Description: Defines the maximum balance factor allowed between any two nodes before triggering a balance.
+- Introduced in: -
+
+##### lake_remove_partition_thread_num
+
+- Default: 8
+- Type: Int
+- Unit: -
+- Is mutable: No
+- Description: The number of threads for removing partitions in shared-data mode.
+- Introduced in: -
+
+##### lake_remove_table_thread_num
+
+- Default: 4
+- Type: Int
+- Unit: -
+- Is mutable: No
+- Description: The number of threads for removing tables in shared-data mode.
+- Introduced in: -
+
+##### enable_print_sql
+
+- Default: false
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: Whether to print SQL before parser.
+- Introduced in: -
+
+##### partition_hash_join_min_cardinality_rate
+
+- Default: 0.3
+- Type: Double
+- Unit: -
+- Is mutable: Yes
+- Description: The minimum cardinality rate for partition hash join.
+- Introduced in: -
+
+##### thrift_max_message_size
+
+- Default: 1073741824
+- Type: Int
+- Unit: Bytes
+- Is mutable: Yes
+- Description: The maximum message size for Thrift. Default is 1 GB. Since thrift@0.16.0, it adds a default setting max_message_size = 100M which may prevent large bytes from being deserialized successfully.
+- Introduced in: -
+
+##### thrift_max_frame_size
+
+- Default: 16384000
+- Type: Int
+- Unit: Bytes
+- Is mutable: Yes
+- Description: The maximum frame size for Thrift.
+- Introduced in: -
+
+##### thrift_max_recursion_depth
+
+- Default: 64
+- Type: Int
+- Unit: -
+- Is mutable: Yes
+- Description: The maximum recursion depth for Thrift.
+- Introduced in: -
+
+##### enable_alter_struct_column
+
+- Default: true
+- Type: Boolean
+- Unit: -
+- Is mutable: No
+- Description: Whether to enable altering struct columns.
+- Introduced in: -
+
+##### enable_parser_context_cache
+
+- Default: true
+- Type: Boolean
+- Unit: -
+- Is mutable: No
+- Description: Whether to enable parser context cache.
+- Introduced in: -
+
+##### max_varchar_length
+
+- Default: 1048576
+- Type: Int
+- Unit: -
+- Is mutable: Yes
+- Description: The longest supported VARCHAR length.
+- Introduced in: -
+
+##### adaptive_choose_instances_threshold
+
+- Default: 32
+- Type: Int
+- Unit: -
+- Is mutable: Yes
+- Description: The threshold for adaptive choosing instances.
+- Introduced in: -
+
+##### show_execution_groups
+
+- Default: true
+- Type: Boolean
+- Unit: -
+- Is mutable: Yes
+- Description: Whether to show execution groups.
+- Introduced in: -
+
+##### black_host_penalty_min_ms
+
+- Default: 500
+- Type: Long
+- Unit: Milliseconds
+- Is mutable: Yes
+- Description: The minimal time in milliseconds for the node to stay in the blocklist.
+- Introduced in: -
 
 <EditionSpecificFEItem />

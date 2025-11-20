@@ -493,9 +493,59 @@ protected:
 };
 
 using ColumnPtr = Column::Ptr;
-using Columns = std::vector<ColumnPtr>;
 using MutableColumnPtr = Column::MutablePtr;
-using MutableColumns = std::vector<MutableColumnPtr>;
+
+// Forward declaration
+class Columns;
+
+// MutableColumns class that wraps std::vector<MutableColumnPtr> and implements all vector APIs
+class MutableColumns : public std::vector<MutableColumnPtr> {
+public:
+    // Inherit all constructors from std::vector
+    using std::vector<MutableColumnPtr>::vector;
+
+    // Move-only semantics: copying a collection of mutable column pointers is not allowed.
+    MutableColumns(const MutableColumns&) = delete;
+    MutableColumns& operator=(const MutableColumns&) = delete;
+    MutableColumns(MutableColumns&&) noexcept = default;
+    MutableColumns& operator=(MutableColumns&&) noexcept = default;
+
+    // Initializer list constructor that moves elements (for brace initialization)
+    // This allows: MutableColumns{std::move(col1), std::move(col2)}
+    // Note: std::initializer_list provides const access, but we can safely
+    // const_cast and move because the elements are temporaries from std::move()
+    MutableColumns(std::initializer_list<MutableColumnPtr> init) : std::vector<MutableColumnPtr>() {
+        reserve(init.size());
+        for (auto it = init.begin(); it != init.end(); ++it) {
+            // Safe to const_cast and move because init contains temporaries
+            push_back(std::move(const_cast<MutableColumnPtr&>(*it)));
+        }
+    }
+};
+
+// Columns class that wraps std::vector<ColumnPtr> and implements all vector APIs
+class Columns : public std::vector<ColumnPtr> {
+public:
+    // Inherit all constructors from std::vector
+    using std::vector<ColumnPtr>::vector;
+
+    // Initializer list constructor (ColumnPtr is copyable, so this works)
+    // This allows: Columns{col1, col2} or Columns{std::move(col1), std::move(col2)}
+    Columns(std::initializer_list<ColumnPtr> init) : std::vector<ColumnPtr>(init) {}
+
+    // Implicit conversion from MutableColumns
+    Columns(MutableColumns&& other) noexcept {
+        reserve(other.size());
+        for (auto& ptr : other) {
+            // Move mutable pointer to immutable pointer
+            if (ptr) {
+                emplace_back(ColumnPtr(std::move(ptr)));
+            } else {
+                emplace_back(nullptr);
+            }
+        }
+    }
+};
 
 template <typename... Args>
 struct IsMutableColumns;

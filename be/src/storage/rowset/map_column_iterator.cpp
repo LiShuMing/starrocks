@@ -72,8 +72,8 @@ Status MapColumnIterator::next_batch(size_t* n, Column* dst) {
     if (dst->is_nullable()) {
         auto* nullable_column = down_cast<NullableColumn*>(dst);
 
-        map_column = down_cast<MapColumn*>(nullable_column->data_column().get());
-        null_column = down_cast<NullColumn*>(nullable_column->null_column().get());
+        map_column = down_cast<MapColumn*>(nullable_column->mutable_data_column());
+        null_column = down_cast<NullColumn*>(nullable_column->mutable_null_column());
     } else {
         map_column = down_cast<MapColumn*>(dst);
     }
@@ -107,22 +107,22 @@ Status MapColumnIterator::next_batch(size_t* n, Column* dst) {
     if (_access_keys) {
         RETURN_IF_ERROR(_keys->next_batch(&num_to_read, map_column->keys_column().get()));
     } else {
-        if (!map_column->keys_column()->is_constant()) {
-            map_column->keys_column()->append_default(1);
-            map_column->keys_column() = ConstColumn::create(map_column->keys_column(), num_to_read);
+        if (!map_column->_keys->is_constant()) {
+            map_column->_keys->append_default(1);
+            map_column->_keys = ConstColumn::create(map_column->_keys, num_to_read);
         } else {
-            map_column->keys_column()->append_default(num_to_read);
+            map_column->_keys->append_default(num_to_read);
         }
     }
 
     if (_access_values) {
         RETURN_IF_ERROR(_values->next_batch(&num_to_read, map_column->values_column().get()));
     } else {
-        if (!map_column->values_column()->is_constant()) {
-            map_column->values_column()->append_default(1);
-            map_column->values_column() = ConstColumn::create(map_column->values_column(), num_to_read);
+        if (!map_column->_values->is_constant()) {
+            map_column->_values->append_default(1);
+            map_column->_values = ConstColumn::create(map_column->_values, num_to_read);
         } else {
-            map_column->values_column()->append_default(num_to_read);
+            map_column->_values->append_default(num_to_read);
         }
     }
 
@@ -135,8 +135,8 @@ Status MapColumnIterator::next_batch(const SparseRange<>& range, Column* dst) {
     if (dst->is_nullable()) {
         auto* nullable_column = down_cast<NullableColumn*>(dst);
 
-        map_column = down_cast<MapColumn*>(nullable_column->data_column().get());
-        null_column = down_cast<NullColumn*>(nullable_column->null_column().get());
+        map_column = down_cast<MapColumn*>(nullable_column->mutable_data_column());
+        null_column = down_cast<NullColumn*>(nullable_column->mutable_null_column());
     } else {
         map_column = down_cast<MapColumn*>(dst);
     }
@@ -158,22 +158,22 @@ Status MapColumnIterator::next_batch(const SparseRange<>& range, Column* dst) {
     if (_access_keys) {
         RETURN_IF_ERROR(_keys->next_batch(element_read_range, map_column->keys_column().get()));
     } else {
-        if (!map_column->keys_column()->is_constant()) {
-            map_column->keys_column()->append_default(1);
-            map_column->keys_column() = ConstColumn::create(map_column->keys_column(), read_rows);
+        if (!map_column->_keys->is_constant()) {
+            map_column->_keys->append_default(1);
+            map_column->_keys = ConstColumn::create(map_column->_keys, read_rows);
         } else {
-            map_column->keys_column()->append_default(read_rows);
+            map_column->_keys->append_default(read_rows);
         }
     }
 
     if (_access_values) {
         RETURN_IF_ERROR(_values->next_batch(element_read_range, map_column->values_column().get()));
     } else {
-        if (!map_column->values_column()->is_constant()) {
-            map_column->values_column()->append_default(1);
-            map_column->values_column() = ConstColumn::create(map_column->values_column(), read_rows);
+        if (!map_column->_values->is_constant()) {
+            map_column->_values->append_default(1);
+            map_column->_values = ConstColumn::create(map_column->_values, read_rows);
         } else {
-            map_column->values_column()->append_default(read_rows);
+            map_column->_values->append_default(read_rows);
         }
     }
 
@@ -186,8 +186,8 @@ Status MapColumnIterator::fetch_values_by_rowid(const rowid_t* rowids, size_t si
     // 1. Read null column
     if (_nulls != nullptr) {
         auto* nullable_column = down_cast<NullableColumn*>(values);
-        map_column = down_cast<MapColumn*>(nullable_column->data_column().get());
-        null_column = down_cast<NullColumn*>(nullable_column->null_column().get());
+        map_column = down_cast<MapColumn*>(nullable_column->mutable_data_column());
+        null_column = down_cast<NullColumn*>(nullable_column->mutable_null_column());
         RETURN_IF_ERROR(_nulls->fetch_values_by_rowid(rowids, size, null_column));
         nullable_column->update_has_null();
     } else {
@@ -229,20 +229,20 @@ Status MapColumnIterator::fetch_values_by_rowid(const rowid_t* rowids, size_t si
     }
 
     if (!_access_keys) {
-        if (!map_column->keys_column()->is_constant()) {
-            map_column->keys_column()->append_default(1);
-            map_column->keys_column() = ConstColumn::create(map_column->keys_column(), offset - start);
+        if (!map_column->_keys->is_constant()) {
+            map_column->_keys->append_default(1);
+            map_column->_keys = ConstColumn::create(map_column->_keys, offset - start);
         } else {
-            map_column->keys_column()->append_default(offset - start);
+            map_column->_keys->append_default(offset - start);
         }
     }
 
     if (!_access_values) {
-        if (!map_column->values_column()->is_constant()) {
-            map_column->values_column()->append_default(1);
-            map_column->values_column() = ConstColumn::create(map_column->values_column(), offset - start);
+        if (!map_column->_values->is_constant()) {
+            map_column->_values->append_default(1);
+            map_column->_values = ConstColumn::create(map_column->_values, offset - start);
         } else {
-            map_column->values_column()->append_default(offset - start);
+            map_column->_values->append_default(offset - start);
         }
     }
 
@@ -322,7 +322,7 @@ StatusOr<std::vector<std::pair<int64_t, int64_t>>> MapColumnIterator::get_io_ran
     MapColumn* map_column = nullptr;
     if (dst->is_nullable()) {
         auto* nullable_column = down_cast<NullableColumn*>(dst);
-        map_column = down_cast<MapColumn*>(nullable_column->data_column().get());
+        map_column = down_cast<MapColumn*>(nullable_column->mutable_data_column());
     } else {
         map_column = down_cast<MapColumn*>(dst);
     }

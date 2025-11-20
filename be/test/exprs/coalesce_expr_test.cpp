@@ -33,7 +33,7 @@ public:
         expr_node.__isset.opcode = true;
         expr_node.__isset.child_type = true;
         expr_node.type = gen_type_desc(TPrimitiveType::BIGINT);
-        tttype_desc.push_back(expr_node.type);
+        tttype_desc.emplace_back(expr_node.type);
 
         TTypeDesc ttype_desc;
         ttype_desc.__isset.types = true;
@@ -44,7 +44,7 @@ public:
         ttype_desc.types.back().__set_scalar_type(TScalarType());
         ttype_desc.types.back().scalar_type.__set_type(TPrimitiveType::INT);
         ttype_desc.types.back().scalar_type.__set_len(10);
-        tttype_desc.push_back(ttype_desc);
+        tttype_desc.emplace_back(ttype_desc);
     }
 
 private:
@@ -56,25 +56,25 @@ TEST_F(VectorizedCoalesceExprTest, coalesceArray) {
     expr_node.type = tttype_desc[1];
     auto expr = std::unique_ptr<Expr>(VectorizedConditionExprFactory::create_coalesce_expr(expr_node));
     TypeDescriptor type_arr_int = array_type(TYPE_INT);
-    ColumnPtr array0 = ColumnHelper::create_column(type_arr_int, true);
+    auto array0 = ColumnHelper::create_column(type_arr_int, true);
     array0->append_datum(DatumArray{Datum((int32_t)1), Datum((int32_t)4)}); // [1,4]
     array0->append_datum(DatumArray{Datum(), Datum()});                     // [NULL, NULL]
     array0->append_datum(Datum{});                                          // NULL
     auto array_expr0 = MockExpr(type_arr_int, array0);
 
-    ColumnPtr array1 = ColumnHelper::create_column(type_arr_int, false);
+    auto array1 = ColumnHelper::create_column(type_arr_int, false);
     array1->append_datum(DatumArray{Datum((int32_t)11), Datum((int32_t)41)}); // [11,41]
     array1->append_datum(DatumArray{Datum(), Datum()});                       // [NULL, NULL]
     array1->append_datum(DatumArray{Datum(), Datum((int32_t)1)});             // [NULL, 1]
     auto array_expr1 = MockExpr(type_arr_int, array1);
 
-    expr->_children.push_back(&array_expr0);
-    expr->_children.push_back(&array_expr1);
+    expr->_children.emplace_back(&array_expr0);
+    expr->_children.emplace_back(&array_expr1);
 
     {
         ColumnPtr ptr = expr->evaluate(nullptr, nullptr);
         if (ptr->is_nullable()) {
-            ptr = down_cast<NullableColumn*>(ptr.get())->data_column();
+            ptr = down_cast<const NullableColumn*>(ptr.get())->data_column();
         }
         ASSERT_TRUE(ptr->is_array());
         ASSERT_TRUE(array0->equals(0, *ptr, 0));
@@ -84,7 +84,7 @@ TEST_F(VectorizedCoalesceExprTest, coalesceArray) {
 }
 
 TEST_F(VectorizedCoalesceExprTest, coalesceAllNotNull) {
-    for (auto desc : tttype_desc) {
+    for (const auto& desc : tttype_desc) {
         expr_node.type = desc;
         auto expr = std::unique_ptr<Expr>(VectorizedConditionExprFactory::create_coalesce_expr(expr_node));
         expr->set_type(TypeDescriptor(TYPE_BIGINT));
@@ -92,8 +92,8 @@ TEST_F(VectorizedCoalesceExprTest, coalesceAllNotNull) {
         MockVectorizedExpr<TYPE_BIGINT> col1(expr_node, 10, 10);
         MockVectorizedExpr<TYPE_BIGINT> col2(expr_node, 10, 20);
 
-        expr->_children.push_back(&col1);
-        expr->_children.push_back(&col2);
+        expr->_children.emplace_back(&col1);
+        expr->_children.emplace_back(&col2);
         {
             Chunk chunk;
             ColumnPtr ptr = expr->evaluate(nullptr, &chunk);
@@ -108,7 +108,7 @@ TEST_F(VectorizedCoalesceExprTest, coalesceAllNotNull) {
 }
 
 TEST_F(VectorizedCoalesceExprTest, coalesceAllNull) {
-    for (auto desc : tttype_desc) {
+    for (const auto& desc : tttype_desc) {
         expr_node.type = desc;
         auto expr = std::unique_ptr<Expr>(VectorizedConditionExprFactory::create_coalesce_expr(expr_node));
         expr->set_type(TypeDescriptor(TYPE_BIGINT));
@@ -117,8 +117,8 @@ TEST_F(VectorizedCoalesceExprTest, coalesceAllNull) {
 
         col1.all_null = true;
         col2.all_null = true;
-        expr->_children.push_back(&col1);
-        expr->_children.push_back(&col2);
+        expr->_children.emplace_back(&col1);
+        expr->_children.emplace_back(&col2);
         {
             Chunk chunk;
             ColumnPtr ptr = expr->evaluate(nullptr, &chunk);
@@ -128,7 +128,7 @@ TEST_F(VectorizedCoalesceExprTest, coalesceAllNull) {
 }
 
 TEST_F(VectorizedCoalesceExprTest, coalesceNull) {
-    for (auto desc : tttype_desc) {
+    for (const auto& desc : tttype_desc) {
         expr_node.type = desc;
         auto expr = std::unique_ptr<Expr>(VectorizedConditionExprFactory::create_coalesce_expr(expr_node));
         expr->set_type(TypeDescriptor(TYPE_BIGINT));
@@ -136,13 +136,13 @@ TEST_F(VectorizedCoalesceExprTest, coalesceNull) {
         MockNullVectorizedExpr<TYPE_BIGINT> col1(expr_node, 10, 10);
         MockVectorizedExpr<TYPE_BIGINT> col2(expr_node, 10, 20);
 
-        expr->_children.push_back(&col1);
-        expr->_children.push_back(&col2);
+        expr->_children.emplace_back(&col1);
+        expr->_children.emplace_back(&col2);
         {
             Chunk chunk;
             ColumnPtr ptr = expr->evaluate(nullptr, &chunk);
             if (ptr->is_nullable()) {
-                ptr = down_cast<NullableColumn*>(ptr.get())->data_column();
+                ptr = down_cast<const NullableColumn*>(ptr.get())->data_column();
             }
             ASSERT_TRUE(ptr->is_numeric());
 
@@ -159,7 +159,7 @@ TEST_F(VectorizedCoalesceExprTest, coalesceNull) {
 }
 
 TEST_F(VectorizedCoalesceExprTest, coalesceSameNull) {
-    for (auto desc : tttype_desc) {
+    for (const auto& desc : tttype_desc) {
         expr_node.type = desc;
         auto expr = std::unique_ptr<Expr>(VectorizedConditionExprFactory::create_coalesce_expr(expr_node));
         expr->set_type(TypeDescriptor(TYPE_BIGINT));
@@ -167,8 +167,8 @@ TEST_F(VectorizedCoalesceExprTest, coalesceSameNull) {
         MockNullVectorizedExpr<TYPE_BIGINT> col1(expr_node, 10, 10);
         MockNullVectorizedExpr<TYPE_BIGINT> col2(expr_node, 10, 20);
 
-        expr->_children.push_back(&col1);
-        expr->_children.push_back(&col2);
+        expr->_children.emplace_back(&col1);
+        expr->_children.emplace_back(&col2);
         {
             Chunk chunk;
             ColumnPtr ptr = expr->evaluate(nullptr, &chunk);
@@ -190,7 +190,7 @@ TEST_F(VectorizedCoalesceExprTest, coalesceSameNull) {
 }
 
 TEST_F(VectorizedCoalesceExprTest, coalesceConstNULL) {
-    for (auto desc : tttype_desc) {
+    for (const auto& desc : tttype_desc) {
         expr_node.type = desc;
         auto expr = std::unique_ptr<Expr>(VectorizedConditionExprFactory::create_coalesce_expr(expr_node));
         expr->set_type(TypeDescriptor(TYPE_BIGINT));
@@ -198,8 +198,8 @@ TEST_F(VectorizedCoalesceExprTest, coalesceConstNULL) {
         MockNullVectorizedExpr<TYPE_BIGINT> col1(expr_node, 10, 10, true); // only null
         MockNullVectorizedExpr<TYPE_BIGINT> col2(expr_node, 10, 20, true); // only null
 
-        expr->_children.push_back(&col1);
-        expr->_children.push_back(&col2);
+        expr->_children.emplace_back(&col1);
+        expr->_children.emplace_back(&col2);
         {
             Chunk chunk;
             ColumnPtr ptr = expr->evaluate(nullptr, &chunk);
@@ -214,7 +214,7 @@ TEST_F(VectorizedCoalesceExprTest, coalesceConstNULL) {
 }
 
 TEST_F(VectorizedCoalesceExprTest, coalesceConst) {
-    for (auto desc : tttype_desc) {
+    for (const auto& desc : tttype_desc) {
         expr_node.type = desc;
         auto expr = std::unique_ptr<Expr>(VectorizedConditionExprFactory::create_coalesce_expr(expr_node));
         expr->set_type(TypeDescriptor(TYPE_BIGINT));
@@ -222,13 +222,13 @@ TEST_F(VectorizedCoalesceExprTest, coalesceConst) {
         MockNullVectorizedExpr<TYPE_BIGINT> col1(expr_node, 10, 10);
         MockConstVectorizedExpr<TYPE_BIGINT> col2(expr_node, 20); // const
 
-        expr->_children.push_back(&col1);
-        expr->_children.push_back(&col2);
+        expr->_children.emplace_back(&col1);
+        expr->_children.emplace_back(&col2);
         {
             Chunk chunk;
             ColumnPtr ptr = expr->evaluate(nullptr, &chunk);
             if (ptr->is_nullable()) {
-                ptr = down_cast<NullableColumn*>(ptr.get())->data_column();
+                ptr = down_cast<const NullableColumn*>(ptr.get())->data_column();
             }
             ASSERT_TRUE(ptr->is_numeric());
 

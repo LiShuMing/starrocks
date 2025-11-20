@@ -432,7 +432,7 @@ TEST_F(BlockCompressionTest, MultiThread_LZ4_benchmark_compression) {
     std::string str = random_string(str_length);
     std::vector<std::shared_ptr<std::thread>> threads;
     for (int i = 0; i < kBenchmarkCompressionConcurrentThreads; i++) {
-        threads.push_back(std::shared_ptr<std::thread>(
+        threads.emplace_back(std::shared_ptr<std::thread>(
                 new std::thread([this, &str] { benchmark_compression(starrocks::CompressionTypePB::LZ4, str); })));
     }
     for (int i = 0; i < threads.size(); ++i) {
@@ -444,7 +444,7 @@ TEST_F(BlockCompressionTest, MultiThread_LZ4_benchmark_compression_buffer) {
     std::string str = random_string(str_length);
     std::vector<std::shared_ptr<std::thread>> threads;
     for (int i = 0; i < kBenchmarkCompressionConcurrentThreads; i++) {
-        threads.push_back(std::shared_ptr<std::thread>(new std::thread(
+        threads.emplace_back(std::shared_ptr<std::thread>(new std::thread(
                 [this, &str] { benchmark_compression_buffer(starrocks::CompressionTypePB::LZ4, str); })));
     }
     for (int i = 0; i < threads.size(); ++i) {
@@ -456,7 +456,7 @@ TEST_F(BlockCompressionTest, MultiThread_LZ4_benchmark_decompression) {
     std::string str = random_string(str_length);
     std::vector<std::shared_ptr<std::thread>> threads;
     for (int i = 0; i < kBenchmarkCompressionConcurrentThreads; i++) {
-        threads.push_back(std::shared_ptr<std::thread>(
+        threads.emplace_back(std::shared_ptr<std::thread>(
                 new std::thread([this, &str] { benchmark_decompression(starrocks::CompressionTypePB::LZ4, str); })));
     }
     for (int i = 0; i < threads.size(); ++i) {
@@ -490,7 +490,7 @@ TEST_F(BlockCompressionTest, MultiThread_LZ4F_benchmark_compression) {
     std::string str = random_string(str_length);
     std::vector<std::shared_ptr<std::thread>> threads;
     for (int i = 0; i < kBenchmarkCompressionConcurrentThreads; i++) {
-        threads.push_back(std::shared_ptr<std::thread>(new std::thread(
+        threads.emplace_back(std::shared_ptr<std::thread>(new std::thread(
                 [this, &str] { benchmark_compression(starrocks::CompressionTypePB::LZ4_FRAME, str); })));
     }
     for (int i = 0; i < threads.size(); ++i) {
@@ -502,7 +502,7 @@ TEST_F(BlockCompressionTest, MultiThread_LZ4F_benchmark_compression_buffer) {
     std::string str = random_string(str_length);
     std::vector<std::shared_ptr<std::thread>> threads;
     for (int i = 0; i < kBenchmarkCompressionConcurrentThreads; i++) {
-        threads.push_back(std::shared_ptr<std::thread>(new std::thread(
+        threads.emplace_back(std::shared_ptr<std::thread>(new std::thread(
                 [this, &str] { benchmark_compression_buffer(starrocks::CompressionTypePB::LZ4_FRAME, str); })));
     }
     for (int i = 0; i < threads.size(); ++i) {
@@ -514,7 +514,7 @@ TEST_F(BlockCompressionTest, MultiThread_LZ4F_benchmark_decompression) {
     std::string str = random_string(str_length);
     std::vector<std::shared_ptr<std::thread>> threads;
     for (int i = 0; i < kBenchmarkCompressionConcurrentThreads; i++) {
-        threads.push_back(std::shared_ptr<std::thread>(new std::thread(
+        threads.emplace_back(std::shared_ptr<std::thread>(new std::thread(
                 [this, &str] { benchmark_decompression(starrocks::CompressionTypePB::LZ4_FRAME, str); })));
     }
     for (int i = 0; i < threads.size(); ++i) {
@@ -548,7 +548,7 @@ TEST_F(BlockCompressionTest, MultiThread_ZSTD_benchmark_compression) {
     std::string str = random_string(str_length);
     std::vector<std::shared_ptr<std::thread>> threads;
     for (int i = 0; i < kBenchmarkCompressionConcurrentThreads; i++) {
-        threads.push_back(std::shared_ptr<std::thread>(
+        threads.emplace_back(std::shared_ptr<std::thread>(
                 new std::thread([this, &str] { benchmark_compression(starrocks::CompressionTypePB::ZSTD, str); })));
     }
     for (int i = 0; i < threads.size(); ++i) {
@@ -560,7 +560,7 @@ TEST_F(BlockCompressionTest, MultiThread_ZSTD_benchmark_compression_buffer) {
     std::string str = random_string(str_length);
     std::vector<std::shared_ptr<std::thread>> threads;
     for (int i = 0; i < kBenchmarkCompressionConcurrentThreads; i++) {
-        threads.push_back(std::shared_ptr<std::thread>(new std::thread(
+        threads.emplace_back(std::shared_ptr<std::thread>(new std::thread(
                 [this, &str] { benchmark_compression_buffer(starrocks::CompressionTypePB::ZSTD, str); })));
     }
     for (int i = 0; i < threads.size(); ++i) {
@@ -572,7 +572,7 @@ TEST_F(BlockCompressionTest, MultiThread_ZSTD_benchmark_decompression) {
     std::string str = random_string(str_length);
     std::vector<std::shared_ptr<std::thread>> threads;
     for (int i = 0; i < kBenchmarkCompressionConcurrentThreads; i++) {
-        threads.push_back(std::shared_ptr<std::thread>(
+        threads.emplace_back(std::shared_ptr<std::thread>(
                 new std::thread([this, &str] { benchmark_decompression(starrocks::CompressionTypePB::ZSTD, str); })));
     }
     for (int i = 0; i < threads.size(); ++i) {

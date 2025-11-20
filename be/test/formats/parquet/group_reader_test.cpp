@@ -43,7 +43,7 @@ public:
 
     Status prepare() override { return Status::OK(); }
 
-    Status read_range(const Range<uint64_t>& range, const Filter* filter, ColumnPtr& dst) override {
+    Status read_range(const Range<uint64_t>& range, const Filter* filter, MutableColumnPtr& dst) override {
         size_t num_rows = static_cast<size_t>(range.span_size());
         if (_step > 1) {
             return Status::EndOfFile("");
@@ -218,7 +218,7 @@ void GroupReaderTest::_check_double_column(Column* column, size_t start, size_t 
 void GroupReaderTest::_check_chunk(GroupReaderParam* param, const ChunkPtr& chunk, size_t start, size_t count) {
     ASSERT_EQ(param->read_cols.size(), chunk->num_columns());
     for (size_t i = 0; i < param->read_cols.size(); i++) {
-        auto column = chunk->columns()[i].get();
+        auto column = chunk->mutable_columns()[i].get();
         auto _type = param->read_cols[i].type_in_parquet;
         size_t num_rows = count;
 
@@ -389,7 +389,7 @@ static void replace_column_readers(GroupReader* group_reader, GroupReaderParam* 
     for (size_t i = 0; i < param->read_cols.size(); i++) {
         auto r = std::make_unique<MockColumnReader>(param->read_cols[i].type_in_parquet);
         group_reader->_column_readers[i] = std::move(r);
-        group_reader->_active_column_indices.push_back(i);
+        group_reader->_active_column_indices.emplace_back(i);
     }
 }
 
@@ -486,7 +486,7 @@ TEST_F(GroupReaderTest, FixedValueColumnReaderTest) {
     col1->collect_column_io_range(nullptr, nullptr, ColumnIOType::PAGES, true);
     SparseRange<uint64_t> sparse_range;
     col1->select_offset_index(sparse_range, 100);
-    ColumnPtr column = ColumnHelper::create_column(TypeDescriptor::create_varchar_type(100), true);
+    MutableColumnPtr column = ColumnHelper::create_column(TypeDescriptor::create_varchar_type(100), true);
     Range<uint64_t> range(0, 100);
     ASSERT_FALSE(col1->read_range(range, nullptr, column).ok());
 
@@ -495,8 +495,8 @@ TEST_F(GroupReaderTest, FixedValueColumnReaderTest) {
     ColumnPredicate* is_not_null_predicate = _pool.add(new_column_null_predicate(type_info, 1, false));
 
     std::vector<const ColumnPredicate*> predicates;
-    predicates.push_back(is_null_predicate);
-    predicates.push_back(is_not_null_predicate);
+    predicates.emplace_back(is_null_predicate);
+    predicates.emplace_back(is_not_null_predicate);
 
     ASSERT_TRUE(col1->row_group_zone_map_filter(predicates, CompoundNodeType::AND, 1, 100).value());
     ASSERT_FALSE(col1->row_group_zone_map_filter(predicates, CompoundNodeType::OR, 1, 100).value());

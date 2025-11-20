@@ -73,7 +73,7 @@ TEST(ChunkAggregatorTest, testNoneAggregator) {
 
     ASSERT_EQ(1, ck->num_rows());
 
-    auto r_col = down_cast<Int32Column*>(ck->get_column_by_index(1).get());
+    auto r_col = down_cast<const Int32Column*>(ck->get_column_by_index(1).get());
 
     ASSERT_EQ(1024, r_col->get_data()[0]);
 
@@ -99,9 +99,9 @@ TEST(ChunkAggregatorTest, testNonKeyColumnsByMask) {
     for (int i = 0; i < 1024; ++i) {
         v_col->append(1);
         if (i % 2 == 0) {
-            source_masks.emplace_back(RowSourceMask{0, false});
+            source_masks.emplace_back(0, false);
         } else {
-            source_masks.emplace_back(RowSourceMask{0, true});
+            source_masks.emplace_back(0, true);
         }
     }
     Columns cols{std::move(v_col)};
@@ -120,7 +120,7 @@ TEST(ChunkAggregatorTest, testNonKeyColumnsByMask) {
 
     auto ck = aggregator.aggregate_result();
     ASSERT_EQ(512, ck->num_rows());
-    auto r_col = down_cast<Int32Column*>(ck->get_column_by_index(0).get());
+    auto r_col = down_cast<const Int32Column*>(ck->get_column_by_index(0).get());
     for (size_t i = 0; i < ck->num_rows(); ++i) {
         ASSERT_EQ(2, r_col->get_data()[i]);
     }

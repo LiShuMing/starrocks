@@ -107,7 +107,7 @@ void test_agg_state_union_basic(FunctionContext* ctx, const AggregateFunction* f
 
     // Serialize result
     ColumnPtr result_column = ColumnHelper::create_column(intermediate_type, is_result_nullable);
-    union_func.finalize_to_column(ctx, state->state(), result_column.get());
+    union_func.finalize_to_column(ctx, state->state(), const_cast<Column*>(result_column.get()));
 
     // Verify result
     ASSERT_NE(result_column, nullptr);
@@ -155,7 +155,7 @@ void test_agg_state_union_nullable(FunctionContext* ctx, const AggregateFunction
 
     // Serialize result
     ColumnPtr result_column = ColumnHelper::create_column(intermediate_type, is_result_nullable);
-    union_func.finalize_to_column(ctx, state->state(), result_column.get());
+    union_func.finalize_to_column(ctx, state->state(), const_cast<Column*>(result_column.get()));
 
     // Verify result
     ASSERT_NE(result_column, nullptr);
@@ -196,7 +196,7 @@ void test_agg_state_union_empty_column(FunctionContext* ctx, const AggregateFunc
 
     // Serialize result
     ColumnPtr result_column = ColumnHelper::create_column(intermediate_type, is_result_nullable);
-    union_func.finalize_to_column(ctx, state->state(), result_column.get());
+    union_func.finalize_to_column(ctx, state->state(), const_cast<Column*>(result_column.get()));
 
     ASSERT_NE(result_column, nullptr);
 }
@@ -222,13 +222,13 @@ TEST_F(AggStateFunctionsTest, test_agg_state_union_sum) {
     auto ctx = utils->get_fn_ctx();
 
     {
-        auto func = get_aggregate_function("sum", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("sum", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_basic<int32_t>(ctx, func, "sum", arg_type_descs, return_type_desc, return_type_desc,
                                             false);
     }
     {
-        auto func = get_aggregate_function("sum", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("sum", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_basic<int32_t>(ctx, func, "sum", arg_type_descs, return_type_desc, return_type_desc, true);
         test_agg_state_union_nullable<int32_t>(ctx, func, "sum", arg_type_descs, return_type_desc, return_type_desc,
@@ -249,13 +249,13 @@ TEST_F(AggStateFunctionsTest, test_agg_state_union_count) {
     auto ctx = utils->get_fn_ctx();
 
     {
-        auto func = get_aggregate_function("count", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("count", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_basic<int32_t>(ctx, func, "count", arg_type_descs, return_type_desc, return_type_desc,
                                             false);
     }
     {
-        auto func = get_aggregate_function("count", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("count", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_basic<int32_t>(ctx, func, "count", arg_type_descs, return_type_desc, return_type_desc,
                                             false);
@@ -277,13 +277,13 @@ TEST_F(AggStateFunctionsTest, test_agg_state_union_max) {
     auto ctx = utils->get_fn_ctx();
 
     {
-        auto func = get_aggregate_function("max", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("max", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_basic<int32_t>(ctx, func, "max", arg_type_descs, return_type_desc, return_type_desc,
                                             false);
     }
     {
-        auto func = get_aggregate_function("max", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("max", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_basic<int32_t>(ctx, func, "max", arg_type_descs, return_type_desc, return_type_desc, true);
         test_agg_state_union_nullable<int32_t>(ctx, func, "max", arg_type_descs, return_type_desc, return_type_desc,
@@ -304,13 +304,13 @@ TEST_F(AggStateFunctionsTest, test_agg_state_union_min) {
     auto ctx = utils->get_fn_ctx();
 
     {
-        auto func = get_aggregate_function("min", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("min", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_basic<int32_t>(ctx, func, "min", arg_type_descs, return_type_desc, return_type_desc,
                                             false);
     }
     {
-        auto func = get_aggregate_function("min", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("min", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_basic<int32_t>(ctx, func, "min", arg_type_descs, return_type_desc, return_type_desc, true);
         test_agg_state_union_nullable<int32_t>(ctx, func, "min", arg_type_descs, return_type_desc, return_type_desc,
@@ -333,13 +333,13 @@ TEST_F(AggStateFunctionsTest, test_agg_state_union_avg) {
     auto ctx = utils->get_fn_ctx();
 
     {
-        auto func = get_aggregate_function("avg", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("avg", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_basic<int32_t>(ctx, func, "avg", arg_type_descs, return_type_desc, intermediate_type_desc,
                                             false);
     }
     {
-        auto func = get_aggregate_function("avg", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("avg", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_basic<int32_t>(ctx, func, "avg", arg_type_descs, return_type_desc, intermediate_type_desc,
                                             true);
@@ -390,7 +390,7 @@ void test_agg_state_merge_basic(FunctionContext* ctx, const AggregateFunction* f
 
     // Serialize result
     ColumnPtr result_column = ColumnHelper::create_column(ret_type, is_result_nullable);
-    merge_func.finalize_to_column(ctx, state->state(), result_column.get());
+    merge_func.finalize_to_column(ctx, state->state(), const_cast<Column*>(result_column.get()));
 
     // Verify result
     ASSERT_NE(result_column, nullptr);
@@ -438,7 +438,7 @@ void test_agg_state_merge_nullable(FunctionContext* ctx, const AggregateFunction
 
     // Serialize result
     ColumnPtr result_column = ColumnHelper::create_column(ret_type, is_result_nullable);
-    merge_func.finalize_to_column(ctx, state->state(), result_column.get());
+    merge_func.finalize_to_column(ctx, state->state(), const_cast<Column*>(result_column.get()));
 
     // Verify result
     ASSERT_NE(result_column, nullptr);
@@ -485,7 +485,7 @@ void test_agg_state_merge_empty_column(FunctionContext* ctx, const AggregateFunc
 
     // Serialize result
     ColumnPtr result_column = ColumnHelper::create_column(ret_type, is_result_nullable);
-    merge_func.finalize_to_column(ctx, state->state(), result_column.get());
+    merge_func.finalize_to_column(ctx, state->state(), const_cast<Column*>(result_column.get()));
 
     // Verify result
     ASSERT_NE(result_column, nullptr);
@@ -512,13 +512,13 @@ TEST_F(AggStateFunctionsTest, test_agg_state_merge_min) {
     auto ctx = utils->get_fn_ctx();
 
     {
-        auto func = get_aggregate_function("min", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("min", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_merge_basic<int32_t>(ctx, func, "min", arg_type_descs, return_type_desc, return_type_desc,
                                             false);
     }
     {
-        auto func = get_aggregate_function("min", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("min", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_merge_basic<int32_t>(ctx, func, "min", arg_type_descs, return_type_desc, return_type_desc, true);
         test_agg_state_merge_nullable<int32_t>(ctx, func, "min", arg_type_descs, return_type_desc, return_type_desc,
@@ -539,13 +539,13 @@ TEST_F(AggStateFunctionsTest, test_agg_state_merge_max) {
     auto ctx = utils->get_fn_ctx();
 
     {
-        auto func = get_aggregate_function("max", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("max", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_merge_basic<int32_t>(ctx, func, "max", arg_type_descs, return_type_desc, return_type_desc,
                                             false);
     }
     {
-        auto func = get_aggregate_function("max", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("max", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_merge_basic<int32_t>(ctx, func, "max", arg_type_descs, return_type_desc, return_type_desc, true);
         test_agg_state_merge_nullable<int32_t>(ctx, func, "max", arg_type_descs, return_type_desc, return_type_desc,
@@ -568,13 +568,13 @@ TEST_F(AggStateFunctionsTest, test_agg_state_merge_avg) {
     auto ctx = utils->get_fn_ctx();
 
     {
-        auto func = get_aggregate_function("avg", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("avg", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_merge_basic<int32_t>(ctx, func, "avg", arg_type_descs, return_type_desc, intermediate_type_desc,
                                             false);
     }
     {
-        auto func = get_aggregate_function("avg", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("avg", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_merge_basic<int32_t>(ctx, func, "avg", arg_type_descs, return_type_desc, intermediate_type_desc,
                                             true);
@@ -596,13 +596,13 @@ TEST_F(AggStateFunctionsTest, test_agg_state_merge_sum) {
     auto ctx = utils->get_fn_ctx();
 
     {
-        auto func = get_aggregate_function("sum", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("sum", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_merge_basic<int64_t>(ctx, func, "sum", arg_type_descs, return_type_desc, return_type_desc,
                                             false);
     }
     {
-        auto func = get_aggregate_function("sum", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("sum", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_merge_basic<int64_t>(ctx, func, "sum", arg_type_descs, return_type_desc, return_type_desc, true);
         test_agg_state_merge_nullable<int64_t>(ctx, func, "sum", arg_type_descs, return_type_desc, return_type_desc,
@@ -623,13 +623,13 @@ TEST_F(AggStateFunctionsTest, test_agg_state_merge_count) {
     auto ctx = utils->get_fn_ctx();
 
     {
-        auto func = get_aggregate_function("count", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("count", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_merge_basic<int64_t>(ctx, func, "count", arg_type_descs, return_type_desc, return_type_desc,
                                             false);
     }
     {
-        auto func = get_aggregate_function("count", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("count", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_merge_basic<int64_t>(ctx, func, "count", arg_type_descs, return_type_desc, return_type_desc,
                                             false);
@@ -742,12 +742,12 @@ TEST_F(AggStateFunctionsTest, test_state_function_sum) {
     auto ctx = utils->get_fn_ctx();
 
     {
-        auto func = get_aggregate_function("sum", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("sum", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_state_function_basic<int64_t>(ctx, func, "sum", arg_type_descs, return_type_desc, return_type_desc, false);
     }
     {
-        auto func = get_aggregate_function("sum", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("sum", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_state_function_basic<int64_t>(ctx, func, "sum", arg_type_descs, return_type_desc, return_type_desc, true);
         test_state_function_nullable<int64_t>(ctx, func, "sum", arg_type_descs, return_type_desc, return_type_desc,
@@ -767,7 +767,7 @@ TEST_F(AggStateFunctionsTest, test_state_function_count) {
     auto ctx = utils->get_fn_ctx();
 
     {
-        auto func = get_aggregate_function("count", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("count", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_state_function_basic<int64_t>(ctx, func, "count", arg_type_descs, return_type_desc, return_type_desc,
                                            false);
@@ -784,12 +784,12 @@ TEST_F(AggStateFunctionsTest, test_state_function_min) {
     auto ctx = utils->get_fn_ctx();
 
     {
-        auto func = get_aggregate_function("min", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("min", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_state_function_basic<int32_t>(ctx, func, "min", arg_type_descs, return_type_desc, return_type_desc, false);
     }
     {
-        auto func = get_aggregate_function("min", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("min", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_state_function_basic<int32_t>(ctx, func, "min", arg_type_descs, return_type_desc, return_type_desc, true);
         test_state_function_nullable<int32_t>(ctx, func, "min", arg_type_descs, return_type_desc, return_type_desc,
@@ -811,13 +811,13 @@ TEST_F(AggStateFunctionsTest, test_state_function_avg) {
     auto ctx = utils->get_fn_ctx();
 
     {
-        auto func = get_aggregate_function("avg", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("avg", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_state_function_basic<int32_t>(ctx, func, "avg", arg_type_descs, return_type_desc, intermediate_type_desc,
                                            false);
     }
     {
-        auto func = get_aggregate_function("avg", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("avg", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_state_function_basic<int32_t>(ctx, func, "avg", arg_type_descs, return_type_desc, intermediate_type_desc,
                                            true);
@@ -925,13 +925,13 @@ TEST_F(AggStateFunctionsTest, test_agg_state_union_function_sum) {
     auto ctx = utils->get_fn_ctx();
 
     {
-        auto func = get_aggregate_function("sum", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("sum", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_function_basic<int32_t>(ctx, func, "sum", arg_type_descs, return_type_desc,
                                                      return_type_desc, false);
     }
     {
-        auto func = get_aggregate_function("sum", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("sum", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_function_nullable<int32_t>(ctx, func, "sum", arg_type_descs, return_type_desc,
                                                         return_type_desc, true);
@@ -946,7 +946,7 @@ TEST_F(AggStateFunctionsTest, test_agg_state_union_function_count) {
     auto utils = std::make_unique<FunctionUtils>(nullptr, return_type_desc, arg_type_descs);
     auto ctx = utils->get_fn_ctx();
     {
-        auto func = get_aggregate_function("count", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("count", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_function_basic<int32_t>(ctx, func, "count", arg_type_descs, return_type_desc,
                                                      return_type_desc, false);
@@ -961,13 +961,13 @@ TEST_F(AggStateFunctionsTest, test_agg_state_union_function_max) {
     auto utils = std::make_unique<FunctionUtils>(nullptr, return_type_desc, arg_type_descs);
     auto ctx = utils->get_fn_ctx();
     {
-        auto func = get_aggregate_function("max", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("max", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_function_basic<int32_t>(ctx, func, "max", arg_type_descs, return_type_desc,
                                                      return_type_desc, false);
     }
     {
-        auto func = get_aggregate_function("max", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("max", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_function_nullable<int32_t>(ctx, func, "max", arg_type_descs, return_type_desc,
                                                         return_type_desc, true);
@@ -982,13 +982,13 @@ TEST_F(AggStateFunctionsTest, test_agg_state_union_function_min) {
     auto utils = std::make_unique<FunctionUtils>(nullptr, return_type_desc, arg_type_descs);
     auto ctx = utils->get_fn_ctx();
     {
-        auto func = get_aggregate_function("min", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("min", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_function_basic<int32_t>(ctx, func, "min", arg_type_descs, return_type_desc,
                                                      return_type_desc, false);
     }
     {
-        auto func = get_aggregate_function("min", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("min", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_function_nullable<int32_t>(ctx, func, "min", arg_type_descs, return_type_desc,
                                                         return_type_desc, true);
@@ -1004,13 +1004,13 @@ TEST_F(AggStateFunctionsTest, test_agg_state_union_function_avg) {
     auto utils = std::make_unique<FunctionUtils>(nullptr, return_type_desc, arg_type_descs);
     auto ctx = utils->get_fn_ctx();
     {
-        auto func = get_aggregate_function("avg", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("avg", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_function_basic<int32_t>(ctx, func, "avg", arg_type_descs, return_type_desc,
                                                      intermediate_type_desc, false);
     }
     {
-        auto func = get_aggregate_function("avg", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("avg", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_function_nullable<int32_t>(ctx, func, "avg", arg_type_descs, return_type_desc,
                                                         intermediate_type_desc, true);
@@ -1025,13 +1025,13 @@ TEST_F(AggStateFunctionsTest, test_agg_state_union_function_string) {
     auto utils = std::make_unique<FunctionUtils>(nullptr, return_type_desc, arg_type_descs);
     auto ctx = utils->get_fn_ctx();
     {
-        auto func = get_aggregate_function("any_value", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("any_value", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_function_basic<Slice>(ctx, func, "any_value", arg_type_descs, return_type_desc,
                                                    return_type_desc, false);
     }
     {
-        auto func = get_aggregate_function("any_value", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("any_value", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_function_nullable<Slice>(ctx, func, "any_value", arg_type_descs, return_type_desc,
                                                       return_type_desc, true);
@@ -1046,14 +1046,14 @@ TEST_F(AggStateFunctionsTest, test_agg_state_union_function_decimal) {
     auto utils = std::make_unique<FunctionUtils>(nullptr, return_type_desc, arg_type_descs);
     auto ctx = utils->get_fn_ctx();
     {
-        auto func = get_aggregate_function("sum", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("sum", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
 
         test_agg_state_union_function_basic<DecimalV2Value>(ctx, func, "sum", arg_type_descs, return_type_desc,
                                                             return_type_desc, false);
     }
     {
-        auto func = get_aggregate_function("sum", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("sum", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_function_nullable<DecimalV2Value>(ctx, func, "sum", arg_type_descs, return_type_desc,
                                                                return_type_desc, true);
@@ -1068,14 +1068,14 @@ TEST_F(AggStateFunctionsTest, test_agg_state_union_function_timestamp) {
     auto utils = std::make_unique<FunctionUtils>(nullptr, return_type_desc, arg_type_descs);
     auto ctx = utils->get_fn_ctx();
     {
-        auto func = get_aggregate_function("max", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("max", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
 
         test_agg_state_union_function_basic<TimestampValue>(ctx, func, "max", arg_type_descs, return_type_desc,
                                                             return_type_desc, false);
     }
     {
-        auto func = get_aggregate_function("max", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("max", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_function_nullable<TimestampValue>(ctx, func, "max", arg_type_descs, return_type_desc,
                                                                return_type_desc, true);
@@ -1090,14 +1090,14 @@ TEST_F(AggStateFunctionsTest, test_agg_state_union_function_date) {
     auto utils = std::make_unique<FunctionUtils>(nullptr, return_type_desc, arg_type_descs);
     auto ctx = utils->get_fn_ctx();
     {
-        auto func = get_aggregate_function("min", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("min", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
 
         test_agg_state_union_function_basic<DateValue>(ctx, func, "min", arg_type_descs, return_type_desc,
                                                        return_type_desc, false);
     }
     {
-        auto func = get_aggregate_function("min", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("min", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_union_function_nullable<DateValue>(ctx, func, "min", arg_type_descs, return_type_desc,
                                                           return_type_desc, true);
@@ -1191,14 +1191,14 @@ TEST_F(AggStateFunctionsTest, test_agg_state_merge_function_sum) {
     auto utils = std::make_unique<FunctionUtils>(nullptr, return_type_desc, arg_type_descs);
     auto ctx = utils->get_fn_ctx();
     {
-        auto func = get_aggregate_function("sum", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("sum", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
 
         test_agg_state_merge_function_basic<int32_t>(ctx, func, "sum", arg_type_descs, return_type_desc,
                                                      return_type_desc, false);
     }
     {
-        auto func = get_aggregate_function("sum", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("sum", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_merge_function_nullable<int32_t>(ctx, func, "sum", arg_type_descs, return_type_desc,
                                                         return_type_desc, true);
@@ -1213,7 +1213,7 @@ TEST_F(AggStateFunctionsTest, test_agg_state_merge_function_count) {
     auto utils = std::make_unique<FunctionUtils>(nullptr, return_type_desc, arg_type_descs);
     auto ctx = utils->get_fn_ctx();
     {
-        auto func = get_aggregate_function("count", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("count", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
 
         test_agg_state_merge_function_basic<int32_t>(ctx, func, "count", arg_type_descs, return_type_desc,
@@ -1229,14 +1229,14 @@ TEST_F(AggStateFunctionsTest, test_agg_state_merge_function_max) {
     auto utils = std::make_unique<FunctionUtils>(nullptr, return_type_desc, arg_type_descs);
     auto ctx = utils->get_fn_ctx();
     {
-        auto func = get_aggregate_function("max", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("max", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
 
         test_agg_state_merge_function_basic<int32_t>(ctx, func, "max", arg_type_descs, return_type_desc,
                                                      return_type_desc);
     }
     {
-        auto func = get_aggregate_function("max", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("max", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_merge_function_nullable<int32_t>(ctx, func, "max", arg_type_descs, return_type_desc,
                                                         return_type_desc);
@@ -1251,14 +1251,14 @@ TEST_F(AggStateFunctionsTest, test_agg_state_merge_function_min) {
     auto utils = std::make_unique<FunctionUtils>(nullptr, return_type_desc, arg_type_descs);
     auto ctx = utils->get_fn_ctx();
     {
-        auto func = get_aggregate_function("min", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("min", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
 
         test_agg_state_merge_function_basic<int32_t>(ctx, func, "min", arg_type_descs, return_type_desc,
                                                      return_type_desc);
     }
     {
-        auto func = get_aggregate_function("min", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("min", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_merge_function_nullable<int32_t>(ctx, func, "min", arg_type_descs, return_type_desc,
                                                         return_type_desc);
@@ -1274,14 +1274,14 @@ TEST_F(AggStateFunctionsTest, test_agg_state_merge_function_avg) {
     auto utils = std::make_unique<FunctionUtils>(nullptr, return_type_desc, arg_type_descs);
     auto ctx = utils->get_fn_ctx();
     {
-        auto func = get_aggregate_function("avg", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("avg", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
 
         test_agg_state_merge_function_basic<int32_t>(ctx, func, "avg", arg_type_descs, return_type_desc,
                                                      intermediate_type_desc);
     }
     {
-        auto func = get_aggregate_function("avg", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("avg", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_merge_function_nullable<int32_t>(ctx, func, "avg", arg_type_descs, return_type_desc,
                                                         intermediate_type_desc);
@@ -1296,14 +1296,14 @@ TEST_F(AggStateFunctionsTest, test_agg_state_merge_function_string) {
     auto utils = std::make_unique<FunctionUtils>(nullptr, return_type_desc, arg_type_descs);
     auto ctx = utils->get_fn_ctx();
     {
-        auto func = get_aggregate_function("any_value", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("any_value", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
 
         test_agg_state_merge_function_basic<Slice>(ctx, func, "any_value", arg_type_descs, return_type_desc,
                                                    return_type_desc);
     }
     {
-        auto func = get_aggregate_function("any_value", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("any_value", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_merge_function_nullable<Slice>(ctx, func, "any_value", arg_type_descs, return_type_desc,
                                                       return_type_desc);
@@ -1318,14 +1318,14 @@ TEST_F(AggStateFunctionsTest, test_agg_state_merge_function_decimal) {
     auto utils = std::make_unique<FunctionUtils>(nullptr, return_type_desc, arg_type_descs);
     auto ctx = utils->get_fn_ctx();
     {
-        auto func = get_aggregate_function("sum", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("sum", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
 
         test_agg_state_merge_function_basic<DecimalV2Value>(ctx, func, "sum", arg_type_descs, return_type_desc,
                                                             return_type_desc);
     }
     {
-        auto func = get_aggregate_function("sum", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("sum", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_merge_function_nullable<DecimalV2Value>(ctx, func, "sum", arg_type_descs, return_type_desc,
                                                                return_type_desc);
@@ -1340,13 +1340,13 @@ TEST_F(AggStateFunctionsTest, test_agg_state_merge_function_timestamp) {
     auto utils = std::make_unique<FunctionUtils>(nullptr, return_type_desc, arg_type_descs);
     auto ctx = utils->get_fn_ctx();
     {
-        auto func = get_aggregate_function("max", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("max", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_merge_function_basic<TimestampValue>(ctx, func, "max", arg_type_descs, return_type_desc,
                                                             return_type_desc);
     }
     {
-        auto func = get_aggregate_function("max", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("max", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_merge_function_nullable<TimestampValue>(ctx, func, "max", arg_type_descs, return_type_desc,
                                                                return_type_desc);
@@ -1361,14 +1361,14 @@ TEST_F(AggStateFunctionsTest, test_agg_state_merge_function_date) {
     auto utils = std::make_unique<FunctionUtils>(nullptr, return_type_desc, arg_type_descs);
     auto ctx = utils->get_fn_ctx();
     {
-        auto func = get_aggregate_function("min", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("min", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
 
         test_agg_state_merge_function_basic<DateValue>(ctx, func, "min", arg_type_descs, return_type_desc,
                                                        return_type_desc);
     }
     {
-        auto func = get_aggregate_function("min", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("min", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_merge_function_nullable<DateValue>(ctx, func, "min", arg_type_descs, return_type_desc,
                                                           return_type_desc);
@@ -1382,7 +1382,7 @@ TEST_F(AggStateFunctionsTest, test_agg_state_merge_function_memory_allocation) {
     std::vector<TypeDescriptor> arg_type_descs = {TypeDescriptor(arg_type)};
     auto utils = std::make_unique<FunctionUtils>(nullptr, return_type_desc, arg_type_descs);
     auto ctx = utils->get_fn_ctx();
-    auto func = get_aggregate_function("sum", {arg_type}, return_type, false);
+    auto func = get_aggregate_function("sum", arg_type, return_type, false);
     ASSERT_NE(func, nullptr);
 
     // Create AggStateDesc
@@ -1534,8 +1534,8 @@ void test_agg_state_combine_convert_format(FunctionContext* ctx, const Aggregate
 
     // Test convert_to_serialize_format
     Columns input_columns = {input_column};
-    ColumnPtr output_column = ColumnHelper::create_column(intermediate_type, is_nullable);
-    combine_func.convert_to_serialize_format(ctx, input_columns, input_column->size(), &output_column);
+    MutableColumnPtr output_column = ColumnHelper::create_column(intermediate_type, is_nullable);
+    combine_func.convert_to_serialize_format(ctx, input_columns, input_column->size(), output_column);
 
     // The output column should be populated with converted data
     ASSERT_EQ(output_column->size(), input_column->size());
@@ -1554,7 +1554,7 @@ void test_agg_state_combine_error_cases(FunctionContext* ctx, const std::string&
     // AggStateCombine null_combine_func(agg_state_desc, nullptr);
 
     // Test convert_to_serialize_format with wrong number of columns
-    auto base_func = get_aggregate_function(func_name, {TYPE_INT}, TYPE_BIGINT, false);
+    auto base_func = get_aggregate_function(func_name, TYPE_INT, TYPE_BIGINT, false);
     ASSERT_NE(base_func, nullptr);
 
     AggStateCombine combine_func(agg_state_desc, base_func);
@@ -1582,7 +1582,7 @@ TEST_F(AggStateFunctionsTest, test_agg_state_combine_sum) {
     auto ctx = utils->get_fn_ctx();
 
     {
-        auto func = get_aggregate_function("sum", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("sum", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_combine_basic<int32_t>(ctx, func, "sum", arg_type_descs, return_type_desc, return_type_desc,
                                               false);
@@ -1592,7 +1592,7 @@ TEST_F(AggStateFunctionsTest, test_agg_state_combine_sum) {
                                                        return_type_desc, false);
     }
     {
-        auto func = get_aggregate_function("sum", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("sum", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_combine_basic<int32_t>(ctx, func, "sum", arg_type_descs, return_type_desc, return_type_desc,
                                               true);
@@ -1613,7 +1613,7 @@ TEST_F(AggStateFunctionsTest, test_agg_state_combine_count) {
     auto ctx = utils->get_fn_ctx();
 
     {
-        auto func = get_aggregate_function("count", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("count", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_combine_basic<int32_t>(ctx, func, "count", arg_type_descs, return_type_desc, return_type_desc,
                                               false);
@@ -1623,7 +1623,7 @@ TEST_F(AggStateFunctionsTest, test_agg_state_combine_count) {
                                                        return_type_desc, false);
     }
     {
-        auto func = get_aggregate_function("count", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("count", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_combine_basic<int32_t>(ctx, func, "count", arg_type_descs, return_type_desc, return_type_desc,
                                               false);
@@ -1646,7 +1646,7 @@ TEST_F(AggStateFunctionsTest, test_agg_state_combine_avg) {
     auto ctx = utils->get_fn_ctx();
 
     {
-        auto func = get_aggregate_function("avg", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("avg", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         // For avg, the immediate type might be different from return type (contains count and sum)
         // Use the function's return type as immediate type for simplicity
@@ -1658,7 +1658,7 @@ TEST_F(AggStateFunctionsTest, test_agg_state_combine_avg) {
                                                        intermediate_type_desc, false);
     }
     {
-        auto func = get_aggregate_function("avg", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("avg", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_combine_basic<int32_t>(ctx, func, "avg", arg_type_descs, return_type_desc,
                                               intermediate_type_desc, true);
@@ -1679,7 +1679,7 @@ TEST_F(AggStateFunctionsTest, test_agg_state_combine_max) {
     auto ctx = utils->get_fn_ctx();
 
     {
-        auto func = get_aggregate_function("max", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("max", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_combine_basic<int32_t>(ctx, func, "max", arg_type_descs, return_type_desc, return_type_desc,
                                               false);
@@ -1689,7 +1689,7 @@ TEST_F(AggStateFunctionsTest, test_agg_state_combine_max) {
                                                        return_type_desc, false);
     }
     {
-        auto func = get_aggregate_function("max", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("max", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_combine_basic<int32_t>(ctx, func, "max", arg_type_descs, return_type_desc, return_type_desc,
                                               true);
@@ -1710,7 +1710,7 @@ TEST_F(AggStateFunctionsTest, test_agg_state_combine_min) {
     auto ctx = utils->get_fn_ctx();
 
     {
-        auto func = get_aggregate_function("min", {arg_type}, return_type, false);
+        auto func = get_aggregate_function("min", arg_type, return_type, false);
         ASSERT_NE(func, nullptr);
         test_agg_state_combine_basic<int32_t>(ctx, func, "min", arg_type_descs, return_type_desc, return_type_desc,
                                               false);
@@ -1720,7 +1720,7 @@ TEST_F(AggStateFunctionsTest, test_agg_state_combine_min) {
                                                        return_type_desc, false);
     }
     {
-        auto func = get_aggregate_function("min", {arg_type}, return_type, true);
+        auto func = get_aggregate_function("min", arg_type, return_type, true);
         ASSERT_NE(func, nullptr);
         test_agg_state_combine_basic<int32_t>(ctx, func, "min", arg_type_descs, return_type_desc, return_type_desc,
                                               true);

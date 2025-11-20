@@ -142,7 +142,7 @@ size_t ColumnHelper::count_nulls(const starrocks::ColumnPtr& col) {
         return col->size();
     }
 
-    const Buffer<uint8_t>& null_data = as_raw_column<NullableColumn>(col)->null_column_data();
+    const ImmutableNullData null_data = as_raw_column<NullableColumn>(col)->null_column_data();
     // @Warn: be careful, should rewrite the code if NullColumn type changed!
     return SIMD::count_nonzero(null_data);
 }
@@ -159,8 +159,10 @@ size_t ColumnHelper::count_true_with_notnull(const starrocks::ColumnPtr& col) {
 
     if (col->is_nullable()) {
         auto tmp = ColumnHelper::as_raw_column<NullableColumn>(col);
-        const Buffer<uint8_t>& null_data = tmp->null_column_data();
-        const Buffer<uint8_t>& bool_data = ColumnHelper::cast_to_raw<TYPE_BOOLEAN>(tmp->data_column())->get_data();
+        const ImmutableNullData null_data = static_cast<const NullableColumn*>(tmp)->null_column_data();
+        const ImmutableNullData bool_data =
+                ColumnHelper::cast_to_raw<TYPE_BOOLEAN>(static_cast<const NullableColumn*>(tmp)->data_column())
+                        ->get_data();
 
         size_t null_count = SIMD::count_nonzero(null_data);
         size_t true_count = SIMD::count_nonzero(bool_data);
@@ -174,7 +176,7 @@ size_t ColumnHelper::count_true_with_notnull(const starrocks::ColumnPtr& col) {
             return null_count;
         }
     } else {
-        const Buffer<uint8_t>& bool_data = ColumnHelper::cast_to_raw<TYPE_BOOLEAN>(col)->get_data();
+        const ImmutableNullData bool_data = ColumnHelper::cast_to_raw<TYPE_BOOLEAN>(col)->get_data();
         return SIMD::count_nonzero(bool_data);
     }
 }
@@ -191,8 +193,10 @@ size_t ColumnHelper::count_false_with_notnull(const starrocks::ColumnPtr& col) {
 
     if (col->is_nullable()) {
         auto tmp = ColumnHelper::as_raw_column<NullableColumn>(col);
-        const Buffer<uint8_t>& null_data = tmp->null_column_data();
-        const Buffer<uint8_t>& bool_data = ColumnHelper::cast_to_raw<TYPE_BOOLEAN>(tmp->data_column())->get_data();
+        const ImmutableNullData null_data = static_cast<const NullableColumn*>(tmp)->null_column_data();
+        const ImmutableNullData bool_data =
+                ColumnHelper::cast_to_raw<TYPE_BOOLEAN>(static_cast<const NullableColumn*>(tmp)->data_column())
+                        ->get_data();
 
         size_t null_count = SIMD::count_nonzero(null_data);
         size_t false_count = SIMD::count_zero(bool_data);
@@ -206,7 +210,7 @@ size_t ColumnHelper::count_false_with_notnull(const starrocks::ColumnPtr& col) {
             return null_count;
         }
     } else {
-        const Buffer<uint8_t>& bool_data = ColumnHelper::cast_to_raw<TYPE_BOOLEAN>(col)->get_data();
+        const ImmutableNullData bool_data = ColumnHelper::cast_to_raw<TYPE_BOOLEAN>(col)->get_data();
         return SIMD::count_zero(bool_data);
     }
 }
@@ -231,19 +235,23 @@ public:
     }
 
     Status do_visit(NullableColumn* column) {
-        RETURN_IF_ERROR(column->data_column()->accept_mutable(this));
+        auto data_col = column->data_column();
+        RETURN_IF_ERROR(data_col->accept_mutable(this));
         column->update_has_null();
         return Status::OK();
     }
 
     Status do_visit(ArrayColumn* column) {
-        RETURN_IF_ERROR(column->elements_column()->accept_mutable(this));
+        auto elements_col = column->elements_column();
+        RETURN_IF_ERROR(elements_col->accept_mutable(this));
         return Status::OK();
     }
 
     Status do_visit(MapColumn* column) {
-        RETURN_IF_ERROR(column->keys_column()->accept_mutable(this));
-        RETURN_IF_ERROR(column->values_column()->accept_mutable(this));
+        auto keys_col = column->keys_column();
+        auto values_col = column->values_column();
+        RETURN_IF_ERROR(keys_col->accept_mutable(this));
+        RETURN_IF_ERROR(values_col->accept_mutable(this));
         return Status::OK();
     }
 
@@ -401,7 +409,7 @@ MutableColumnPtr ColumnHelper::create_column(const TypeDescriptor& type_desc, bo
         auto data = create_column(type_desc.children[0], true, is_const, size);
         p = ArrayColumn::create(std::move(data), std::move(offsets));
     } else if (type_desc.type == LogicalType::TYPE_MAP) {
-        MutableColumnPtr offsets = UInt32Column::create(size);
+        auto offsets = UInt32Column::create(size);
         MutableColumnPtr keys = nullptr;
         MutableColumnPtr values = nullptr;
         if (type_desc.children[0].is_unknown_type()) {

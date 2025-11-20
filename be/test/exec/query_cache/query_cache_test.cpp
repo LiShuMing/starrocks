@@ -222,9 +222,9 @@ Tasks create_test_pipelines(const query_cache::CacheParam& cache_param, size_t d
     auto conjugate_op =
             std::make_shared<query_cache::ConjugateOperatorFactory>(per_tablet_reduce_sink, per_tablet_reduce_source);
     std::vector<OperatorFactoryPtr> opFactories;
-    opFactories.push_back(mul2);
-    opFactories.push_back(plus1);
-    opFactories.push_back(conjugate_op);
+    opFactories.emplace_back(mul2);
+    opFactories.emplace_back(plus1);
+    opFactories.emplace_back(conjugate_op);
 
     auto cache_id = ++id;
     auto plan_node_id = ++id;
@@ -233,11 +233,11 @@ Tasks create_test_pipelines(const query_cache::CacheParam& cache_param, size_t d
     for (auto& opFactorie : opFactories) {
         opFactorie = std::make_shared<query_cache::MultilaneOperatorFactory>(++id, opFactorie, cache_param.num_lanes);
     }
-    opFactories.push_back(cache_op_factory);
+    opFactories.emplace_back(cache_op_factory);
     auto reducer = std::make_shared<ReducerFactory>(init_value, reduce_func, 1);
     auto reduce_sink = std::make_shared<ReduceSinkOperatorFactory>(++id, reducer.get());
     auto reduce_source = std::make_shared<ReduceSourceOperatorFactory>(++id, reducer);
-    opFactories.push_back(reduce_sink);
+    opFactories.emplace_back(reduce_sink);
     Tasks tasks;
     tasks.resize(dop);
     for (auto i = 0; i < dop; ++i) {
@@ -264,7 +264,7 @@ Tasks create_test_pipelines(const query_cache::CacheParam& cache_param, size_t d
         for (size_t i = 0, size = cache_op_idx; i < size; ++i) {
             auto* ml_op = dynamic_cast<query_cache::MultilaneOperator*>(upstream[i].get());
             ml_op->set_lane_arbiter(cache_op->lane_arbiter());
-            multilane_operators.push_back(ml_op);
+            multilane_operators.emplace_back(ml_op);
         }
         tasks[k].cache_operator->set_multilane_operators(std::move(multilane_operators));
 
@@ -528,12 +528,12 @@ void test_framework_with_with_options(const query_cache::CacheManagerPtr& cache_
     ASSERT_TRUE(chunk_or_status.ok());
     auto chunk = chunk_or_status.value();
     auto column = chunk->get_column_by_slot_id(SlotId(1));
-    auto& data = dynamic_cast<DoubleColumn*>(column.get())->get_data();
+    auto& data = dynamic_cast<DoubleColumn*>(column->as_mutable_ptr().get())->get_data();
     validate_func(data[0]);
 }
 
-void test_framework(query_cache::CacheManagerPtr cache_mgr, int num_lanes, int dop, RuntimeState& state_object,
-                    MapFunc map1, MapFunc map2, double init_value, ReduceFunc reduce,
+void test_framework(const query_cache::CacheManagerPtr& cache_mgr, int num_lanes, int dop, RuntimeState& state_object,
+                    const MapFunc& map1, const MapFunc& map2, double init_value, const ReduceFunc& reduce,
                     const Actions& pre_passthrough_actions, const Actions& post_passthrough_actions,
                     const ValidateFunc& validate_func) {
     test_framework_with_with_options(std::move(cache_mgr), false, false, num_lanes, dop, state_object, std::move(map1),
@@ -541,24 +541,22 @@ void test_framework(query_cache::CacheManagerPtr cache_mgr, int num_lanes, int d
                                      post_passthrough_actions, std::move(validate_func));
 }
 
-void test_framework_force_populate(query_cache::CacheManagerPtr cache_mgr, int num_lanes, int dop,
-                                   RuntimeState& state_object, MapFunc map1, MapFunc map2, double init_value,
-                                   ReduceFunc reduce, const Actions& pre_passthrough_actions,
+void test_framework_force_populate(const query_cache::CacheManagerPtr& cache_mgr, int num_lanes, int dop,
+                                   RuntimeState& state_object, const MapFunc& map1, const MapFunc& map2,
+                                   double init_value, const ReduceFunc& reduce, const Actions& pre_passthrough_actions,
                                    const Actions& post_passthrough_actions, const ValidateFunc& validate_func) {
-    test_framework_with_with_options(std::move(cache_mgr), true, false, num_lanes, dop, state_object, std::move(map1),
-                                     std::move(map2), init_value, std::move(reduce), pre_passthrough_actions,
-                                     post_passthrough_actions, std::move(validate_func));
+    test_framework_with_with_options(cache_mgr, true, false, num_lanes, dop, state_object, map1, map2, init_value,
+                                     reduce, pre_passthrough_actions, post_passthrough_actions, validate_func);
 }
 
-void test_framework_force_populate_and_passthrough(query_cache::CacheManagerPtr cache_mgr, int num_lanes, int dop,
-                                                   RuntimeState& state_object, MapFunc map1, MapFunc map2,
-                                                   double init_value, ReduceFunc reduce,
+void test_framework_force_populate_and_passthrough(const query_cache::CacheManagerPtr& cache_mgr, int num_lanes,
+                                                   int dop, RuntimeState& state_object, const MapFunc& map1,
+                                                   const MapFunc& map2, double init_value, const ReduceFunc& reduce,
                                                    const Actions& pre_passthrough_actions,
                                                    const Actions& post_passthrough_actions,
                                                    const ValidateFunc& validate_func) {
-    test_framework_with_with_options(std::move(cache_mgr), true, true, num_lanes, dop, state_object, std::move(map1),
-                                     std::move(map2), init_value, std::move(reduce), pre_passthrough_actions,
-                                     post_passthrough_actions, std::move(validate_func));
+    test_framework_with_with_options(cache_mgr, true, true, num_lanes, dop, state_object, map1, map2, init_value,
+                                     reduce, pre_passthrough_actions, post_passthrough_actions, validate_func);
 }
 
 TEST_F(QueryCacheTest, testMultilane) {

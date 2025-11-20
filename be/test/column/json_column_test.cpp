@@ -167,23 +167,23 @@ PARALLEL_TEST(JsonColumnTest, test_compare) {
     std::vector<JsonValue> column;
 
     // bool
-    column.push_back(JsonValue::parse(R"({"a": false})").value());
-    column.push_back(JsonValue::parse(R"({"a": true})").value());
+    column.emplace_back(JsonValue::parse(R"({"a": false})").value());
+    column.emplace_back(JsonValue::parse(R"({"a": true})").value());
     // object
-    column.push_back(JsonValue::parse(R"({"a": {"b": 1}})").value());
-    column.push_back(JsonValue::parse(R"({"a": {"b": 2}})").value());
+    column.emplace_back(JsonValue::parse(R"({"a": {"b": 1}})").value());
+    column.emplace_back(JsonValue::parse(R"({"a": {"b": 2}})").value());
     // string
-    column.push_back(JsonValue::parse(R"({"a": "a"})").value());
-    column.push_back(JsonValue::parse(R"({"a": "b"})").value());
+    column.emplace_back(JsonValue::parse(R"({"a": "a"})").value());
+    column.emplace_back(JsonValue::parse(R"({"a": "b"})").value());
     // double
-    column.push_back(JsonValue::parse(R"({"a": 1.0})").value());
-    column.push_back(JsonValue::parse(R"({"a": 2.0})").value());
+    column.emplace_back(JsonValue::parse(R"({"a": 1.0})").value());
+    column.emplace_back(JsonValue::parse(R"({"a": 2.0})").value());
     // small int
-    column.push_back(JsonValue::parse(R"({"a": 3})").value());
-    column.push_back(JsonValue::parse(R"({"a": 4})").value());
+    column.emplace_back(JsonValue::parse(R"({"a": 3})").value());
+    column.emplace_back(JsonValue::parse(R"({"a": 4})").value());
     // int
-    column.push_back(JsonValue::parse(R"({"a": 3046})").value());
-    column.push_back(JsonValue::parse(R"({"a": 4048})").value());
+    column.emplace_back(JsonValue::parse(R"({"a": 3046})").value());
+    column.emplace_back(JsonValue::parse(R"({"a": 4048})").value());
 
     // same type
     std::vector<std::pair<int, int>> same_type_cases = {
@@ -296,7 +296,7 @@ PARALLEL_TEST(JsonColumnTest, test_hash) {
 PARALLEL_TEST(JsonColumnTest, test_filter) {
     // TODO(mofei)
     const int N = 100;
-    JsonColumn::Ptr json_column = JsonColumn::create();
+    auto json_column = JsonColumn::create();
     for (int i = 0; i < N; i++) {
         std::string json_str = strings::Substitute("{\"a\": $0}", i);
         json_column->append(JsonValue::parse(json_str).value());
@@ -309,7 +309,7 @@ PARALLEL_TEST(JsonColumnTest, test_filter) {
 
 // NOLINTNEXTLINE
 PARALLEL_TEST(JsonColumnTest, put_mysql_buffer) {
-    JsonColumn::Ptr json_column = JsonColumn::create();
+    auto json_column = JsonColumn::create();
     json_column->append(JsonValue::parse("{\"a\": 0}").value());
 
     MysqlRowBuffer rowBuffer;
@@ -345,14 +345,14 @@ PARALLEL_TEST(JsonColumnTest, test_column_builder) {
         builder.append(&json);
         auto result = builder.build(false);
 
-        JsonColumn::Ptr json_column_ptr = ColumnHelper::cast_to<TYPE_JSON>(std::move(result));
-        JsonColumn* json_column = json_column_ptr.get();
+        JsonColumn::MutablePtr json_column_ptr = ColumnHelper::cast_to<TYPE_JSON>(std::move(result));
+        auto json_column = ColumnHelper::as_raw_column<JsonColumn>(json_column_ptr.get());
         ASSERT_EQ(1, json_column->size());
         ASSERT_EQ(0, json_column->get_object(0)->compare(json));
     }
     // clone
     {
-        JsonColumn::Ptr column = JsonColumn::create();
+        auto column = JsonColumn::create();
         column->append(JsonValue::parse("1").value());
 
         {
@@ -380,12 +380,12 @@ PARALLEL_TEST(JsonColumnTest, test_column_builder) {
         // clone json_column by helper
         {
             TypeDescriptor desc = TypeDescriptor::create_json_type();
-            ColumnPtr copy = ColumnHelper::clone_column(desc, false, column, column->size());
+            auto copy = ColumnHelper::clone_column(desc, false, column, column->size());
             ASSERT_EQ(1, copy->size());
             ASSERT_EQ(0, copy->compare_at(0, 0, *column, 0));
             ASSERT_FALSE(copy->is_nullable());
 
-            JsonColumn::Ptr json_column_ptr = ColumnHelper::cast_to<TYPE_JSON>(copy);
+            auto json_column_ptr = ColumnHelper::cast_to<TYPE_JSON>(copy);
             ASSERT_EQ(1, json_column_ptr->size());
             ASSERT_EQ(0, json_column_ptr->compare_at(0, 0, *column, 0));
 

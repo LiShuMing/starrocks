@@ -241,15 +241,15 @@ protected:
         }
         case TYPE_STRUCT: {
             // For struct type, use field types from TypeDescriptor
-            std::vector<ColumnPtr> fields;
+            Columns fields;
             for (const auto& field_type : type_desc.children) {
-                fields.push_back(create_random_column(field_type, size));
+                fields.emplace_back(create_random_column(field_type, size));
             }
 
             // If no field types specified, create default fields
             if (fields.empty()) {
-                fields.push_back(create_random_column(TypeDescriptor(TYPE_INT), size));
-                fields.push_back(create_random_column(TypeDescriptor(TYPE_VARCHAR), size));
+                fields.emplace_back(create_random_column(TypeDescriptor(TYPE_INT), size));
+                fields.emplace_back(create_random_column(TypeDescriptor(TYPE_VARCHAR), size));
             }
 
             return StructColumn::create(fields);
@@ -344,31 +344,31 @@ protected:
     }
 
     // Generate all possible column variations (base, nullable, const, nullable+const)
-    std::vector<ColumnPtr> generate_column_variations(const TypeDescriptor& type_desc, size_t size = 10) {
-        std::vector<ColumnPtr> variations;
+    Columns generate_column_variations(const TypeDescriptor& type_desc, size_t size = 10) {
+        Columns variations;
 
         // Base column
         auto base_column = create_random_column(type_desc, size);
         if (base_column && !base_column->empty()) {
-            variations.push_back(base_column);
+            variations.emplace_back(base_column);
 
             // Nullable column
-            variations.push_back(make_nullable(base_column->clone()));
+            variations.emplace_back(make_nullable(base_column->clone()));
 
             // Const column
-            variations.push_back(make_const(base_column->clone()));
+            variations.emplace_back(make_const(base_column->clone()));
 
             // Nullable + Const column
-            variations.push_back(make_const(make_nullable(base_column->clone())));
+            variations.emplace_back(make_const(make_nullable(base_column->clone())));
         }
 
         // Array columns
         // auto array_column = create_random_array_column(type_desc.type, size);
         // if (array_column && !array_column->empty()) {
-        //     variations.push_back(array_column);
-        //     variations.push_back(make_nullable(array_column->clone()));
-        //     variations.push_back(make_const(array_column->clone()));
-        //     variations.push_back(make_const(make_nullable(array_column->clone())));
+        //     variations.emplace_back(array_column);
+        //     variations.emplace_back(make_nullable(array_column->clone()));
+        //     variations.emplace_back(make_const(array_column->clone()));
+        //     variations.emplace_back(make_const(make_nullable(array_column->clone())));
         // }
 
         return variations;

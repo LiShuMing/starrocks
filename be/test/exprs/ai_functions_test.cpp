@@ -256,7 +256,7 @@ TEST_F(AiFunctionsTest, AiQueryWithNullValues) {
     ASSERT_EQ(result_column->size(), 2) << "Result should contain 2 entries";
 
     // Check if result column is nullable
-    auto* nullable_result = dynamic_cast<NullableColumn*>(result_column.get());
+    auto* nullable_result = dynamic_cast<const NullableColumn*>(result_column.get());
     if (nullable_result != nullptr) {
         // If result is nullable, verify null handling
         const auto& null_data = nullable_result->null_column_data();
@@ -311,7 +311,7 @@ TEST_F(AiFunctionsTest, DISABLED_MultipleSameSentimentAnalysisCalls) {
     std::string base_prompt = std::string(SENTIMENT_ANALYSIS_PROMPT_PREFIX) + "I am very happy today!";
 
     for (int i = 0; i < num_calls; ++i) {
-        prompts.push_back(base_prompt);
+        prompts.emplace_back(base_prompt);
     }
 
     auto config = createTestConfig(DEEPSEEK_ENDPOINT, DEEPSEEK_MODEL, TEST_API_KEY);
@@ -345,7 +345,7 @@ TEST_F(AiFunctionsTest, DISABLED_DiverseSentimentAnalysisCalls) {
 
     std::vector<std::string> prompts;
     for (const auto& sample : text_samples) {
-        prompts.push_back(std::string(SENTIMENT_ANALYSIS_PROMPT_PREFIX) + sample);
+        prompts.emplace_back(std::string(SENTIMENT_ANALYSIS_PROMPT_PREFIX) + sample);
     }
 
     auto config = createTestConfig(DEEPSEEK_ENDPOINT, DEEPSEEK_MODEL, TEST_API_KEY);

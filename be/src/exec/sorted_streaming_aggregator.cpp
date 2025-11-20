@@ -178,9 +178,10 @@ public:
 
     Status do_visit(NullableColumn* column) {
         auto col = down_cast<NullableColumn*>(_column);
-        AppendWithMask data_appender(col->data_column().get(), _sel_mask, _selected_size);
-        RETURN_IF_ERROR(column->data_column()->accept_mutable(&data_appender));
-        AppendWithMask null_appender(col->null_column().get(), _sel_mask, _selected_size);
+        AppendWithMask data_appender(col->mutable_data_column(), _sel_mask, _selected_size);
+        RETURN_IF_ERROR(column->mutable_data_column()->accept_mutable(&data_appender));
+        auto null_col_ptr = col->null_column();
+        AppendWithMask null_appender(null_col_ptr.get(), _sel_mask, _selected_size);
         RETURN_IF_ERROR(column->null_column()->accept_mutable(&null_appender));
         column->update_has_null();
         return Status::OK();
@@ -381,7 +382,8 @@ StatusOr<ChunkPtr> SortedStreamingAggregator::streaming_compute_distinct(size_t 
     size_t selected_size = _init_selector(selector, chunk_size);
     auto res_group_by_columns = _create_group_by_columns(chunk_size);
     RETURN_IF_ERROR(_build_group_by_columns(chunk_size, selected_size, selector, res_group_by_columns));
-    auto result_chunk = _build_output_chunk(res_group_by_columns, {}, false);
+    MutableColumns empty_agg_columns;
+    auto result_chunk = _build_output_chunk(res_group_by_columns, empty_agg_columns, false);
 
     // prepare for next
     for (size_t i = 0; i < _last_columns.size(); ++i) {
@@ -475,7 +477,7 @@ Status SortedStreamingAggregator::_update_states(size_t chunk_size, bool is_upda
 }
 
 Status SortedStreamingAggregator::_get_agg_result_columns(size_t chunk_size, const Buffer<uint8_t>& selector,
-                                                          Columns& agg_result_columns) {
+                                                          MutableColumns& agg_result_columns) {
     SCOPED_THREAD_LOCAL_STATE_ALLOCATOR_SETTER(_allocator.get());
     TRY_CATCH_ALLOC_SCOPE_START()
     auto use_intermediate = _use_intermediate_as_output();
@@ -518,7 +520,8 @@ void SortedStreamingAggregator::_close_group_by(size_t chunk_size, const Filter&
 }
 
 Status SortedStreamingAggregator::_build_group_by_columns(size_t chunk_size, size_t selected_size,
-                                                          const Filter& selector, Columns& agg_group_by_columns) {
+                                                          const Filter& selector,
+                                                          MutableColumns& agg_group_by_columns) {
     SCOPED_TIMER(_agg_stat->agg_append_timer);
     if (_cmp_vector[0] != 0 && !_last_columns.empty() && !_last_columns.back()->empty()) {
         for (size_t i = 0; i < agg_group_by_columns.size(); ++i) {
@@ -527,7 +530,8 @@ Status SortedStreamingAggregator::_build_group_by_columns(size_t chunk_size, siz
     }
 
     for (size_t i = 0; i < agg_group_by_columns.size(); ++i) {
-        AppendWithMask appender(_group_by_columns[i].get(), selector, selected_size);
+        auto mutable_col = _group_by_columns[i]->as_mutable_ptr();
+        AppendWithMask appender(mutable_col.get(), selector, selected_size);
         RETURN_IF_ERROR(agg_group_by_columns[i]->accept_mutable(&appender));
     }
     return Status::OK();
@@ -540,7 +544,7 @@ StatusOr<ChunkPtr> SortedStreamingAggregator::pull_eos_chunk() {
     SCOPED_THREAD_LOCAL_STATE_ALLOCATOR_SETTER(_allocator.get());
     bool use_intermediate = _use_intermediate_as_output();
     auto agg_result_columns = _create_agg_result_columns(1, use_intermediate);
-    auto group_by_columns = _last_columns;
+    MutableColumns group_by_columns = std::move(_last_columns);
     if (use_intermediate) {
         TRY_CATCH_BAD_ALLOC(_serialize_to_chunk(_last_state, agg_result_columns));
     } else {

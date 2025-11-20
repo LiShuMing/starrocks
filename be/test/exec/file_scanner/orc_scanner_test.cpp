@@ -79,7 +79,7 @@ public:
         params->json_file_size_limit = 1024 * 1024;
         for (int i = 0; i < types.size(); i++) {
             params->expr_of_dest_slot[i] = TExpr();
-            params->expr_of_dest_slot[i].nodes.emplace_back(TExprNode());
+            params->expr_of_dest_slot[i].nodes.emplace_back();
             params->expr_of_dest_slot[i].nodes[0].__set_type(types[i].to_thrift());
             params->expr_of_dest_slot[i].nodes[0].__set_node_type(TExprNodeType::SLOT_REF);
             params->expr_of_dest_slot[i].nodes[0].__set_is_nullable(true);
@@ -189,11 +189,11 @@ TEST_F(ORCScannerTest, implicit_cast) {
     range.__set_path(_test_exec_dir + "/test_data/orc_scanner/boolean_type.orc");
     range.__set_start_offset(0);
     range.__set_size(-1);
-    ranges.push_back(range);
+    ranges.emplace_back(range);
     range.__set_path(_test_exec_dir + "/test_data/orc_scanner/date_type.orc");
     range.__set_start_offset(0);
     range.__set_size(-1);
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     auto scanner = create_orc_scanner(types, {"col_0", "col_1"}, ranges);
 
@@ -253,7 +253,7 @@ Status ORCScannerTest::_scan_multi_stripes(const std::vector<TBrokerRangeDesc>& 
     out_rows->clear();
 
     std::vector<TypeDescriptor> types;
-    types.emplace_back(TypeDescriptor(TYPE_INT));
+    types.emplace_back(TYPE_INT);
     types.emplace_back(TypeDescriptor::create_varchar_type(1048576));
     std::vector<std::string> col_names = {"c0", "c1"};
 

@@ -82,7 +82,7 @@ public:
         ASSERT_TRUE(tablet->add_rowset(src_rowset).ok());
     }
 
-    void delete_specify_version(const TabletSharedPtr& tablet, int64_t version, RowsetSharedPtr to_check) {
+    void delete_specify_version(const TabletSharedPtr& tablet, int64_t version, const RowsetSharedPtr& to_check) {
         std::vector<RowsetSharedPtr> to_add;
         std::vector<RowsetSharedPtr> to_delete;
         std::vector<RowsetSharedPtr> to_replace;
@@ -97,7 +97,7 @@ public:
         auto src_rowset = *rowset_writer->build();
         ASSERT_TRUE(src_rowset != nullptr);
         ASSERT_EQ(1024, src_rowset->num_rows());
-        to_delete.push_back(src_rowset);
+        to_delete.emplace_back(src_rowset);
 
         tablet->modify_rowsets_without_lock(to_add, to_delete, &to_replace);
         ASSERT_EQ(to_replace.size(), 1);
@@ -238,8 +238,8 @@ public:
         for (size_t j = 0; j < 8; ++j) {
             auto chunk = ChunkHelper::new_chunk(schema, 128);
             for (size_t i = 0; i < 128; ++i) {
-                test_data.push_back("well" + std::to_string(i));
-                auto& cols = chunk->columns();
+                test_data.emplace_back("well" + std::to_string(i));
+                auto cols = chunk->mutable_columns();
                 cols[0]->append_datum(Datum(static_cast<int32_t>(i)));
                 Slice field_1(test_data[i]);
                 cols[1]->append_datum(Datum(field_1));

@@ -43,8 +43,8 @@ public:
         _tablet_metadata = generate_simple_tablet_metadata(PRIMARY_KEYS);
         _tablet_metadata->set_enable_persistent_index(GetParam().enable_persistent_index);
 
-        _referenced_column_ids.push_back(0);
-        _referenced_column_ids.push_back(1);
+        _referenced_column_ids.emplace_back(0);
+        _referenced_column_ids.emplace_back(1);
         _partial_tablet_schema = TabletSchema::create(_tablet_metadata->schema());
         _partial_schema = std::make_shared<Schema>(ChunkHelper::convert_schema(_partial_tablet_schema));
 

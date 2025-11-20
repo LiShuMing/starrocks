@@ -68,7 +68,7 @@ protected:
         params->src_tuple_id = 0;
         for (int i = 0; i < types.size(); i++) {
             params->expr_of_dest_slot[i] = TExpr();
-            params->expr_of_dest_slot[i].nodes.emplace_back(TExprNode());
+            params->expr_of_dest_slot[i].nodes.emplace_back();
             params->expr_of_dest_slot[i].nodes[0].__set_type(types[i].to_thrift());
             params->expr_of_dest_slot[i].nodes[0].__set_node_type(TExprNodeType::SLOT_REF);
             params->expr_of_dest_slot[i].nodes[0].__set_is_nullable(true);
@@ -134,13 +134,13 @@ TEST_P(CSVScannerTest, test_scalar_types) {
     range_one.__set_path("./be/test/exec/test_data/csv_scanner/csv_file1");
     range_one.__set_start_offset(0);
     range_one.__set_num_of_columns_from_file(types.size());
-    ranges.push_back(range_one);
+    ranges.emplace_back(range_one);
 
     TBrokerRangeDesc range_second;
     range_second.__set_path("./be/test/exec/test_data/csv_scanner/csv_file2");
     range_second.__set_start_offset(0);
     range_second.__set_num_of_columns_from_file(types.size());
-    ranges.push_back(range_second);
+    ranges.emplace_back(range_second);
 
     auto scanner = create_csv_scanner(types, ranges);
     EXPECT_NE(scanner, nullptr);
@@ -208,7 +208,7 @@ TEST_P(CSVScannerTest, test_adaptive_nullable_column1) {
     TBrokerRangeDesc range;
     range.__set_num_of_columns_from_file(3);
     range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file20");
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     auto scanner = create_csv_scanner(types, ranges, "\n", ",", 0, true, '\'', '\\');
     Status st = scanner->open();
@@ -240,7 +240,7 @@ TEST_P(CSVScannerTest, test_adaptive_nullable_column2) {
     TBrokerRangeDesc range;
     range.__set_num_of_columns_from_file(3);
     range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file21");
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     auto scanner = create_csv_scanner(types, ranges, "\n", ",", 0, true, '\'', '\\');
     Status st = scanner->open();
@@ -272,12 +272,12 @@ TEST_P(CSVScannerTest, test_adaptive_nullable_column3) {
     TBrokerRangeDesc range;
     range.__set_num_of_columns_from_file(3);
     range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file20");
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     TBrokerRangeDesc range2;
     range2.__set_num_of_columns_from_file(3);
     range2.__set_path("./be/test/exec/test_data/csv_scanner/csv_file21");
-    ranges.push_back(range2);
+    ranges.emplace_back(range2);
 
     auto scanner = create_csv_scanner(types, ranges, "\n", ",", 0, true, '\'', '\\');
     Status st = scanner->open();
@@ -336,7 +336,7 @@ TEST_P(CSVScannerTest, test_multi_seprator) {
     range_one.__set_path("./be/test/exec/test_data/csv_scanner/csv_file14");
     range_one.__set_start_offset(0);
     range_one.__set_num_of_columns_from_file(types.size());
-    ranges.push_back(range_one);
+    ranges.emplace_back(range_one);
 
     auto scanner = create_csv_scanner(types, ranges, "<br>", "^^");
     EXPECT_NE(scanner, nullptr);
@@ -380,7 +380,7 @@ TEST_P(CSVScannerTest, test_array_of_int) {
     range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file3");
     range.__set_start_offset(0);
     range.__set_num_of_columns_from_file(1);
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     auto scanner = create_csv_scanner({t}, ranges);
     EXPECT_NE(scanner, nullptr);
@@ -430,7 +430,7 @@ TEST_P(CSVScannerTest, test_array_of_string) {
     range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file4");
     range.__set_start_offset(0);
     range.__set_num_of_columns_from_file(types.size());
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     auto scanner = create_csv_scanner(types, ranges);
     EXPECT_NE(scanner, nullptr);
@@ -481,7 +481,7 @@ TEST_P(CSVScannerTest, test_array_of_date) {
     range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file5");
     range.__set_start_offset(0);
     range.__set_num_of_columns_from_file(1);
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     auto scanner = create_csv_scanner({t}, ranges);
     EXPECT_NE(scanner, nullptr);
@@ -528,7 +528,7 @@ TEST_P(CSVScannerTest, test_nested_array_of_int) {
     range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file6");
     range.__set_start_offset(0);
     range.__set_num_of_columns_from_file(1);
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     auto scanner = create_csv_scanner({t}, ranges);
     EXPECT_NE(scanner, nullptr);
@@ -598,7 +598,7 @@ TEST_P(CSVScannerTest, test_invalid_field_as_null) {
     range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file7");
     range.__set_start_offset(0);
     range.__set_num_of_columns_from_file(types.size());
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     auto scanner = create_csv_scanner({types}, ranges);
     EXPECT_NE(scanner, nullptr);
@@ -628,7 +628,7 @@ TEST_P(CSVScannerTest, test_invalid_field_of_array_as_null) {
     range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file8");
     range.__set_start_offset(0);
     range.__set_num_of_columns_from_file(types.size());
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     auto scanner = create_csv_scanner(types, ranges);
     EXPECT_NE(scanner, nullptr);
@@ -657,7 +657,7 @@ TEST_P(CSVScannerTest, test_start_offset) {
     range.__set_start_offset(4);
     range.__set_size(10);
     range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file9");
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     auto scanner = create_csv_scanner(types, ranges);
     Status st = scanner->open();
@@ -697,7 +697,7 @@ TEST_P(CSVScannerTest, test_split_multi_scan_ranges) {
         range.__set_start_offset(0);
         range.__set_size(4);
         range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file9");
-        ranges.push_back(range);
+        ranges.emplace_back(range);
 
         auto scanner = create_csv_scanner(types, ranges);
         Status st = scanner->open();
@@ -724,7 +724,7 @@ TEST_P(CSVScannerTest, test_split_multi_scan_ranges) {
         range.__set_start_offset(4);
         range.__set_size(7);
         range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file9");
-        ranges.push_back(range);
+        ranges.emplace_back(range);
 
         auto scanner = create_csv_scanner(types, ranges);
         Status st = scanner->open();
@@ -750,7 +750,7 @@ TEST_P(CSVScannerTest, test_split_multi_scan_ranges) {
         range.__set_start_offset(11);
         range.__set_size(6);
         range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file9");
-        ranges.push_back(range);
+        ranges.emplace_back(range);
 
         auto scanner = create_csv_scanner(types, ranges);
         Status st = scanner->open();
@@ -774,7 +774,7 @@ TEST_P(CSVScannerTest, test_split_multi_scan_ranges) {
         range.__set_start_offset(17);
         range.__set_size(3);
         range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file9");
-        ranges.push_back(range);
+        ranges.emplace_back(range);
 
         auto scanner = create_csv_scanner(types, ranges);
         Status st = scanner->open();
@@ -795,7 +795,7 @@ TEST_P(CSVScannerTest, test_skip_header) {
     range.__set_start_offset(0);
     range.__set_num_of_columns_from_file(2);
     range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file15");
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     auto scanner = create_csv_scanner(types, ranges, "\n", "|", 4);
     Status st = scanner->open();
@@ -828,7 +828,7 @@ TEST_P(CSVScannerTest, test_skip_header_start_offset_not_0) {
     range.__set_start_offset(1);
     range.__set_num_of_columns_from_file(2);
     range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file15");
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     auto scanner = create_csv_scanner(types, ranges, "\n", "|", 4);
     Status st = scanner->open();
@@ -865,7 +865,7 @@ TEST_P(CSVScannerTrimSpaceTest, test_trim_space) {
     TBrokerRangeDesc range;
     range.__set_num_of_columns_from_file(2);
     range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file16");
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     auto scanner = create_csv_scanner(types, ranges, "\n", "|", 0, true, '"');
     Status st = scanner->open();
@@ -890,7 +890,7 @@ TEST_P(CSVScannerTrimSpaceTest, test_trim_space_with_ENCLOSE) {
     TBrokerRangeDesc range;
     range.__set_num_of_columns_from_file(3);
     range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file19");
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     auto scanner = create_csv_scanner(types, ranges, "\n", ",", 0, true, '\'', '\\');
     Status st = scanner->open();
@@ -923,7 +923,7 @@ TEST_P(CSVScannerTest, test_ENCLOSE) {
     TBrokerRangeDesc range;
     range.__set_num_of_columns_from_file(3);
     range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file17");
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     auto scanner = create_csv_scanner(types, ranges, "\n", "|", 0, true, '"', '\\');
     Status st = scanner->open();
@@ -965,7 +965,7 @@ TEST_P(CSVScannerTest, test_ESCAPE) {
     TBrokerRangeDesc range;
     range.__set_num_of_columns_from_file(3);
     range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file18");
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     auto scanner = create_csv_scanner(types, ranges, "\n", "|", 0, true, '"', '\\');
     Status st = scanner->open();
@@ -1001,7 +1001,7 @@ TEST_P(CSVScannerTest, TEST_Pile_not_ended_with_record_delimiter) {
     range.__set_start_offset(0);
     range.__set_num_of_columns_from_file(types.size());
     range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file10");
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     auto scanner = create_csv_scanner(types, ranges);
     Status st = scanner->open();
@@ -1057,7 +1057,7 @@ TEST_P(CSVScannerTest, test_large_record_size) {
     range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file11");
     range.__set_start_offset(0);
     range.__set_num_of_columns_from_file(types.size());
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     auto scanner = create_csv_scanner(types, ranges);
     EXPECT_NE(scanner, nullptr);
@@ -1108,7 +1108,7 @@ TEST_P(CSVScannerTest, test_record_length_exceed_limit) {
     range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file12");
     range.__set_start_offset(0);
     range.__set_num_of_columns_from_file(types.size());
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     auto scanner = create_csv_scanner(types, ranges);
     EXPECT_NE(scanner, nullptr);
@@ -1133,7 +1133,7 @@ TEST_P(CSVScannerTest, test_empty) {
         range.__set_start_offset(0);
         range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file13");
         range.__set_num_of_columns_from_file(types.size());
-        ranges.push_back(range);
+        ranges.emplace_back(range);
 
         auto scanner = create_csv_scanner(types, ranges);
         ASSERT_TRUE(scanner->open().ok());
@@ -1159,7 +1159,7 @@ TEST_P(CSVScannerTest, test_enclose_fanatics) {
     TBrokerRangeDesc range;
     range.__set_num_of_columns_from_file(types.size());
     range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file22");
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     auto scanner = create_csv_scanner(types, ranges, "\n", ",", 0, true, '"', '\\');
     Status st = scanner->open();
@@ -1192,7 +1192,7 @@ TEST_P(CSVScannerTest, test_column_count_inconsistent) {
     range_one.__set_path("./be/test/exec/test_data/csv_scanner/csv_file1");
     range_one.__set_start_offset(0);
     range_one.__set_num_of_columns_from_file(types.size());
-    ranges.push_back(range_one);
+    ranges.emplace_back(range_one);
 
     auto scanner = create_csv_scanner(types, ranges);
     EXPECT_NE(scanner, nullptr);
@@ -1231,7 +1231,7 @@ TEST_P(CSVScannerTest, test_get_schema) {
         TBrokerRangeDesc range;
         range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file23");
         range.__set_num_of_columns_from_file(0);
-        ranges.push_back(range);
+        ranges.emplace_back(range);
 
         TBrokerScanRangeParams* params = _obj_pool.add(new TBrokerScanRangeParams());
         params->__set_row_delimiter('\n');
@@ -1261,7 +1261,7 @@ TEST_P(CSVScannerTest, test_get_schema) {
         TBrokerRangeDesc range;
         range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file23");
         range.__set_num_of_columns_from_file(0);
-        ranges.push_back(range);
+        ranges.emplace_back(range);
 
         TBrokerScanRangeParams* params = _obj_pool.add(new TBrokerScanRangeParams());
         params->__set_row_delimiter('\n');
@@ -1288,7 +1288,7 @@ TEST_P(CSVScannerTest, test_get_schema) {
         TBrokerRangeDesc range;
         range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file23");
         range.__set_num_of_columns_from_file(0);
-        ranges.push_back(range);
+        ranges.emplace_back(range);
 
         TBrokerScanRangeParams* params = _obj_pool.add(new TBrokerScanRangeParams());
         params->__set_row_delimiter('\n');
@@ -1325,7 +1325,7 @@ TEST_P(CSVScannerTest, test_flexible_column_mapping) {
     range.__set_start_offset(0);
     range.__set_path("./be/test/exec/test_data/csv_scanner/csv_file1");
     range.__set_num_of_columns_from_file(types.size());
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     TBrokerScanRangeParams* params = _obj_pool.add(new TBrokerScanRangeParams());
     params->__set_row_delimiter('\n');
@@ -1352,7 +1352,7 @@ TEST_P(CSVScannerTest, test_skip_headers) {
     TBrokerRangeDesc range;
     range.__set_path("./be/test/exec/test_data/csv_scanner/small.csv");
     range.__set_num_of_columns_from_file(0);
-    ranges.push_back(range);
+    ranges.emplace_back(range);
 
     TBrokerScanRangeParams* params = _obj_pool.add(new TBrokerScanRangeParams());
     params->__set_row_delimiter('\n');

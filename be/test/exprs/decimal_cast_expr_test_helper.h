@@ -80,15 +80,15 @@ ColumnPtr create_column(RunTimeCppType<Type> value, size_t front_fill_size, size
         auto data_column = RunTimeColumnType<Type>::create(std::forward<Args>(args)...);
         auto nulls = NullColumn::create();
         column = NullableColumn::create(std::move(data_column), std::move(nulls));
-        column->reserve(rows_num);
-        column->append_nulls(front_fill_size);
-        column->append_datum(Datum(value));
-        column->append_nulls(rear_fill_size);
+        column->as_mutable_ptr()->reserve(rows_num);
+        column->as_mutable_ptr()->append_nulls(front_fill_size);
+        column->as_mutable_ptr()->append_datum(Datum(value));
+        column->as_mutable_ptr()->append_nulls(rear_fill_size);
     } else {
         column = RunTimeColumnType<Type>::create(std::forward<Args>(args)...);
-        column->reserve(rows_num);
+        column->as_mutable_ptr()->reserve(rows_num);
         for (auto i = 0; i < rows_num; ++i) {
-            column->append_datum(Datum(value));
+            column->as_mutable_ptr()->append_datum(Datum(value));
         }
     }
     return column;
@@ -225,7 +225,7 @@ void test_cast_nullable(CastTestCase const& tc, size_t front_fill_size, size_t r
             cast_single_test_case<FromType, ToType, ColumnPackedType::NULLABLE>(tc, front_fill_size, rear_fill_size);
     ASSERT_TRUE(column->is_nullable());
     auto data_column = ColumnHelper::get_data_column(column.get());
-    auto binary_column = down_cast<BinaryColumn*>(data_column);
+    auto binary_column = down_cast<const BinaryColumn*>(data_column);
     auto actual = binary_column->get_slice(front_fill_size).to_string();
     int precision = std::get<3>(tc);
     int scale = std::get<4>(tc);

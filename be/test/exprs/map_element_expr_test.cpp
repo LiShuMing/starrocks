@@ -90,12 +90,12 @@ private:
 TEST_F(MapElementExprTest, test_map_int_int) {
     TypeDescriptor type_map_int_int;
     type_map_int_int.type = LogicalType::TYPE_MAP;
-    type_map_int_int.children.emplace_back(TypeDescriptor(LogicalType::TYPE_INT));
-    type_map_int_int.children.emplace_back(TypeDescriptor(LogicalType::TYPE_INT));
+    type_map_int_int.children.emplace_back(LogicalType::TYPE_INT);
+    type_map_int_int.children.emplace_back(LogicalType::TYPE_INT);
 
     TypeDescriptor type_int(LogicalType::TYPE_INT);
 
-    ColumnPtr column = ColumnHelper::create_column(type_map_int_int, false);
+    auto column = ColumnHelper::create_column(type_map_int_int, false);
 
     DatumMap map;
     map[(int32_t)1] = (int32_t)11;
@@ -253,7 +253,7 @@ TEST_F(MapElementExprTest, test_map_varchar_int) {
 
     TypeDescriptor type_int(LogicalType::TYPE_INT);
 
-    ColumnPtr column = ColumnHelper::create_column(type_map_varchar_int, true);
+    auto column = ColumnHelper::create_column(type_map_varchar_int, true);
 
     DatumMap map;
     map[(Slice) "a"] = (int32_t)11;
@@ -367,12 +367,12 @@ TEST_F(MapElementExprTest, test_map_varchar_int) {
 TEST_F(MapElementExprTest, test_map_const) {
     TypeDescriptor type_map_int_int;
     type_map_int_int.type = LogicalType::TYPE_MAP;
-    type_map_int_int.children.emplace_back(TypeDescriptor(LogicalType::TYPE_INT));
-    type_map_int_int.children.emplace_back(TypeDescriptor(LogicalType::TYPE_INT));
+    type_map_int_int.children.emplace_back(LogicalType::TYPE_INT);
+    type_map_int_int.children.emplace_back(LogicalType::TYPE_INT);
 
     TypeDescriptor type_int(LogicalType::TYPE_INT);
 
-    ColumnPtr column = ColumnHelper::create_column(type_map_int_int, false);
+    auto column = ColumnHelper::create_column(type_map_int_int, false);
 
     DatumMap map;
     map[(int32_t)1] = (int32_t)11;
@@ -472,12 +472,12 @@ TEST_F(MapElementExprTest, test_map_const) {
 TEST_F(MapElementExprTest, test_const_map_int_variable_int) {
     TypeDescriptor type_map_int_int;
     type_map_int_int.type = LogicalType::TYPE_MAP;
-    type_map_int_int.children.emplace_back(TypeDescriptor(LogicalType::TYPE_INT));
-    type_map_int_int.children.emplace_back(TypeDescriptor(LogicalType::TYPE_INT));
+    type_map_int_int.children.emplace_back(LogicalType::TYPE_INT);
+    type_map_int_int.children.emplace_back(LogicalType::TYPE_INT);
 
     TypeDescriptor type_int(LogicalType::TYPE_INT);
 
-    ColumnPtr column = ColumnHelper::create_column(type_map_int_int, false);
+    auto column = ColumnHelper::create_column(type_map_int_int, false);
 
     DatumMap map;
     map[(int32_t)1] = (int32_t)11;
@@ -502,7 +502,7 @@ TEST_F(MapElementExprTest, test_const_map_int_variable_int) {
     //   11
     //   22
     //   33
-    RunTimeColumnType<TYPE_INT>::Ptr key = RunTimeColumnType<TYPE_INT>::create();
+    auto key = RunTimeColumnType<TYPE_INT>::create();
     key->append(1);
     key->append(2);
     key->append(3);
@@ -540,7 +540,7 @@ TEST_F(MapElementExprTest, test_map_null_key) {
 
     TypeDescriptor type_int(LogicalType::TYPE_INT);
 
-    ColumnPtr column = ColumnHelper::create_column(type_map_varchar_int, false);
+    auto column = ColumnHelper::create_column(type_map_varchar_int, false);
 
     DatumMap map;
     map[(Slice) "a"] = (int32_t)11;

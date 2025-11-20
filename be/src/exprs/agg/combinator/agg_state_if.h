@@ -52,7 +52,7 @@ public:
     }
 
     void convert_to_serialize_format([[maybe_unused]] FunctionContext* ctx, const Columns& srcs, size_t chunk_size,
-                                     ColumnPtr* dst) const override {
+                                     MutableColumnPtr& dst) const override {
         auto column_size = ctx->get_num_args() + 1;
         const Column* data_columns[column_size - 1];
         ColumnPtr new_nullable_column;
@@ -172,8 +172,7 @@ public:
         if (data_column->is_nullable()) {
             NullableColumn* original_nullable_column =
                     const_cast<NullableColumn*>(down_cast<const NullableColumn*>(data_column.get()));
-            new_nullable_column =
-                    NullableColumn::create(original_nullable_column->data_column_mutable_ptr(), fake_null_column);
+            new_nullable_column = NullableColumn::create(original_nullable_column->data_column(), fake_null_column);
         } else {
             new_nullable_column = NullableColumn::create(data_column, fake_null_column);
         }

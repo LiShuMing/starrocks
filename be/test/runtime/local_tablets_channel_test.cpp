@@ -50,7 +50,7 @@ protected:
             node.set_node_id(i);
             node.set_host(fmt::format("127.0.0.{}", i));
             node.set_port(8060);
-            _nodes.push_back(node);
+            _nodes.emplace_back(node);
         }
         _load_id.set_hi(456789);
         _load_id.set_lo(987654);
@@ -89,7 +89,7 @@ protected:
         std::vector<PNetworkAddress> nodes;
     };
 
-    void _open_channel(int64_t node_id, std::vector<ReplicaInfo> replica_infos) {
+    void _open_channel(int64_t node_id, const std::vector<ReplicaInfo>& replica_infos) {
         PTabletWriterOpenRequest request;
         _create_open_request(node_id, replica_infos, &request);
         std::shared_ptr<OlapTableSchemaParam> schema_param(new OlapTableSchemaParam());
@@ -110,7 +110,7 @@ protected:
                 continue;
             }
             tablet_ids.emplace(tablet_id);
-            _tablets.push_back(_create_tablet(tablet_id, rand()));
+            _tablets.emplace_back(_create_tablet(tablet_id, rand()));
         }
     }
 
@@ -127,13 +127,13 @@ protected:
         c0.column_name = "c0";
         c0.__set_is_key(true);
         c0.column_type.type = TPrimitiveType::INT;
-        request.tablet_schema.columns.push_back(c0);
+        request.tablet_schema.columns.emplace_back(c0);
 
         TColumn c1;
         c1.column_name = "c1";
         c1.__set_is_key(false);
         c1.column_type.type = TPrimitiveType::INT;
-        request.tablet_schema.columns.push_back(c1);
+        request.tablet_schema.columns.emplace_back(c1);
 
         auto st = StorageEngine::instance()->create_tablet(request);
         CHECK(st.ok()) << st.to_string();
@@ -641,7 +641,7 @@ void LocalTabletsChannelTest::test_secondary_replicas_waiter_base(SecondaryRepli
     // open as the secondary replica of 3 replicas
     std::vector<ReplicaInfo> replica_infos;
     for (auto& tablet : _tablets) {
-        replica_infos.push_back(ReplicaInfo{tablet->tablet_id(), _nodes});
+        replica_infos.emplace_back(ReplicaInfo{tablet->tablet_id(), _nodes});
     }
     _open_channel(_nodes[1].node_id(), replica_infos);
     std::unordered_map<int64_t, AsyncDeltaWriter*> writer_map;
@@ -690,7 +690,7 @@ void LocalTabletsChannelTest::test_secondary_replicas_waiter_base(SecondaryRepli
         ReusableClosure<PLoadReplicaStatusResult>* response =
                 (ReusableClosure<PLoadReplicaStatusResult>*)rpc_pair->second;
         if (!step.mock_response) {
-            closures_to_release.push_back(response);
+            closures_to_release.emplace_back(response);
             return;
         }
         if (step.rpc_fail) {
@@ -749,26 +749,26 @@ TEST_F(LocalTabletsChannelTest, test_secondary_replicas_waiter) {
     step1.replica_states = {LoadReplicaStatePB::NOT_PRESENT, LoadReplicaStatePB::IN_PROCESSING,
                             LoadReplicaStatePB::IN_PROCESSING};
     step1.messages = {"not found", "", ""};
-    test_case.steps.push_back(step1);
+    test_case.steps.emplace_back(step1);
 
     RpcStep step2;
     step2.num_tablets = 2;
     step2.rpc_fail = true;
     step2.rpc_fail_msg = "rpc artificial failure 1";
-    test_case.steps.push_back(step2);
+    test_case.steps.emplace_back(step2);
 
     RpcStep step3;
     step3.num_tablets = 2;
     step3.rpc_fail = true;
     step3.rpc_fail_msg = "rpc artificial failure 2";
-    test_case.steps.push_back(step3);
+    test_case.steps.emplace_back(step3);
 
     RpcStep step4;
     step4.num_tablets = 2;
     step4.rpc_fail = false;
     step4.replica_states = {LoadReplicaStatePB::FAILED, LoadReplicaStatePB::FAILED};
     step4.messages = {"artificial failure 1", "artificial failure 2"};
-    test_case.steps.push_back(step4);
+    test_case.steps.emplace_back(step4);
 
     test_case.final_states = {
             TabletExpectedState{
@@ -792,7 +792,7 @@ TEST_F(LocalTabletsChannelTest, test_secondary_repclias_waiter_rpc_fail) {
         step.num_tablets = 3;
         step.rpc_fail = true;
         step.rpc_fail_msg = "rpc artificial failure";
-        test_case.steps.push_back(step);
+        test_case.steps.emplace_back(step);
     }
     test_case.final_states = {
             TabletExpectedState{kAborted,
@@ -810,7 +810,7 @@ TEST_F(LocalTabletsChannelTest, test_secondary_repclias_waiter_timeout) {
     RpcStep step;
     step.num_tablets = 3;
     step.mock_response = false;
-    test_case.steps.push_back(step);
+    test_case.steps.emplace_back(step);
     test_case.final_states = {TabletExpectedState{kWriting, Status::OK()}, TabletExpectedState{kWriting, Status::OK()},
                               TabletExpectedState{kWriting, Status::OK()}};
     test_secondary_replicas_waiter_base(test_case);
@@ -822,7 +822,7 @@ TEST_F(LocalTabletsChannelTest, test_get_replica_status) {
     std::vector<ReplicaInfo> replica_infos;
     for (int i = 0; i < 3; i++) {
         auto& tablet = _tablets[i];
-        replica_infos.push_back(ReplicaInfo{tablet->tablet_id(), _nodes});
+        replica_infos.emplace_back(ReplicaInfo{tablet->tablet_id(), _nodes});
     }
     _open_channel(_nodes[0].node_id(), replica_infos);
 

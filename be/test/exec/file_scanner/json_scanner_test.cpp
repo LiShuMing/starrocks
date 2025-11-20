@@ -64,7 +64,7 @@ protected:
         params->json_file_size_limit = 1024 * 1024;
         for (int i = 0; i < types.size(); i++) {
             params->expr_of_dest_slot[i] = TExpr();
-            params->expr_of_dest_slot[i].nodes.emplace_back(TExprNode());
+            params->expr_of_dest_slot[i].nodes.emplace_back();
             params->expr_of_dest_slot[i].nodes[0].__set_type(types[i].to_thrift());
             params->expr_of_dest_slot[i].nodes[0].__set_node_type(TExprNodeType::SLOT_REF);
             params->expr_of_dest_slot[i].nodes[0].__set_is_nullable(true);
@@ -148,7 +148,7 @@ protected:
         return runtime_state;
     }
 
-    static void write_json_to_file(std::string filename, std::string json_data) {
+    static void write_json_to_file(const std::string& filename, const std::string& json_data) {
         std::ofstream ofs;
         ofs.open(filename, std::ofstream::out);
         ofs << json_data;
@@ -985,7 +985,7 @@ TEST_F(JsonScannerTest, test_string_single_column) {
     std::string datapath = "./be/test/exec/test_data/json_scanner/test_ndjson_chinese.json";
     {
         std::string jsonpath1 = R"(["$"])";
-        ChunkPtr result1 = test_whole_row_json(1, datapath, jsonpath1, {"$"});
+        const ChunkPtr& result1 = test_whole_row_json(1, datapath, jsonpath1, {"$"});
         EXPECT_EQ(1, result1->num_columns());
         EXPECT_EQ(5, result1->num_rows());
 
@@ -1007,7 +1007,7 @@ TEST_F(JsonScannerTest, test_native_json_single_column) {
 
     {
         std::string jsonpath1 = R"(["$"])";
-        ChunkPtr result1 = test_with_jsonpath(1, datapath, jsonpath1, {"$"});
+        const ChunkPtr& result1 = test_with_jsonpath(1, datapath, jsonpath1, {"$"});
         EXPECT_EQ(1, result1->num_columns());
         EXPECT_EQ(5, result1->num_rows());
 
@@ -1024,7 +1024,7 @@ TEST_F(JsonScannerTest, test_native_json_single_column) {
     }
     {
         std::string jsonpath1 = R"(["$", "$.k1"])";
-        ChunkPtr result1 = test_with_jsonpath(2, datapath, jsonpath1, {"$", "$.k1"});
+        const ChunkPtr& result1 = test_with_jsonpath(2, datapath, jsonpath1, {"$", "$.k1"});
         EXPECT_EQ(2, result1->num_columns());
         EXPECT_EQ(5, result1->num_rows());
 
@@ -1041,7 +1041,7 @@ TEST_F(JsonScannerTest, test_native_json_single_column) {
     }
     {
         std::string jsonpath1 = R"(["$.k1","$"])";
-        ChunkPtr result1 = test_with_jsonpath(2, datapath, jsonpath1, {"$.k1", "$"});
+        const ChunkPtr& result1 = test_with_jsonpath(2, datapath, jsonpath1, {"$.k1", "$"});
         EXPECT_EQ(2, result1->num_columns());
         EXPECT_EQ(5, result1->num_rows());
 
@@ -1058,7 +1058,7 @@ TEST_F(JsonScannerTest, test_native_json_single_column) {
     }
     {
         std::string jsonpath1 = R"(["$.k1", "$.kind", "$"])";
-        ChunkPtr result1 = test_with_jsonpath(3, datapath, jsonpath1, {"$.k1", "$.kind", "$"});
+        const ChunkPtr& result1 = test_with_jsonpath(3, datapath, jsonpath1, {"$.k1", "$.kind", "$"});
         EXPECT_EQ(3, result1->num_columns());
         EXPECT_EQ(5, result1->num_rows());
 
@@ -1076,7 +1076,7 @@ TEST_F(JsonScannerTest, test_native_json_single_column) {
     }
     {
         std::string jsonpath1 = R"(["$.k1", "$.kind", "$", "$.k2"])";
-        ChunkPtr result1 = test_with_jsonpath(4, datapath, jsonpath1, {"$.k1", "$.kind", "$", "$.k2"});
+        const ChunkPtr& result1 = test_with_jsonpath(4, datapath, jsonpath1, {"$.k1", "$.kind", "$", "$.k2"});
         EXPECT_EQ(4, result1->num_columns());
         EXPECT_EQ(5, result1->num_rows());
 

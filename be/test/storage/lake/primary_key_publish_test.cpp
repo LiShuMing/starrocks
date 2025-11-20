@@ -437,7 +437,7 @@ TEST_P(LakePrimaryKeyPublishTest, test_publish_multi_times) {
         ASSERT_OK(publish_single_version(tablet_id, version + 1, txn_id).status());
         EXPECT_TRUE(_update_mgr->TEST_check_update_state_cache_absent(tablet_id, txn_id));
         version++;
-        txns.push_back(txn_id);
+        txns.emplace_back(txn_id);
     }
     ASSERT_EQ(kChunkSize, read_rows(tablet_id, version));
     ASSIGN_OR_ABORT(auto new_tablet_metadata, _tablet_mgr->get_tablet_metadata(tablet_id, version));
@@ -575,7 +575,7 @@ TEST_P(LakePrimaryKeyPublishTest, test_resolve_conflict) {
         // will preload update state here.
         ASSERT_OK(delta_writer->finish_with_txnlog());
         delta_writer->close();
-        txn_ids.push_back(txn_id);
+        txn_ids.emplace_back(txn_id);
     }
     // publish in order
     for (int64_t txn_id : txn_ids) {
@@ -1310,17 +1310,17 @@ TEST_P(LakePrimaryKeyPublishTest, test_write_with_cloud_native_index_rebuild) {
     std::vector<ChunkPtr> chunk_vec;
     std::vector<std::vector<uint32_t>> indexes_vec;
     auto [chunk0, indexes0] = gen_data_and_index(kChunkSize * 3, 0, true, true);
-    chunk_vec.push_back(chunk0);
-    indexes_vec.push_back(indexes0);
+    chunk_vec.emplace_back(chunk0);
+    indexes_vec.emplace_back(indexes0);
     auto [chunk1, indexes1] = gen_data_and_index(kChunkSize * 3, 1, true, true);
-    chunk_vec.push_back(chunk1);
-    indexes_vec.push_back(indexes1);
+    chunk_vec.emplace_back(chunk1);
+    indexes_vec.emplace_back(indexes1);
     auto [chunk2, indexes2] = gen_data_and_index(kChunkSize * 3, 2, true, true);
-    chunk_vec.push_back(chunk2);
-    indexes_vec.push_back(indexes2);
+    chunk_vec.emplace_back(chunk2);
+    indexes_vec.emplace_back(indexes2);
     auto [chunk3, indexes3] = gen_data_and_index(kChunkSize * 3, 3, true, true);
-    chunk_vec.push_back(chunk3);
-    indexes_vec.push_back(indexes3);
+    chunk_vec.emplace_back(chunk3);
+    indexes_vec.emplace_back(indexes3);
     auto version = 1;
     auto tablet_id = _tablet_metadata->id();
     auto do_load_func = [&]() {
@@ -1361,9 +1361,9 @@ TEST_P(LakePrimaryKeyPublishTest, test_write_with_cloud_native_index_rebuild) {
 TEST_P(LakePrimaryKeyPublishTest, test_index_rebuild_with_dels) {
     std::vector<std::pair<ChunkPtr, std::vector<uint32_t>>> chunks;
     // upsert + delete
-    chunks.push_back(gen_data_and_index(kChunkSize, 0, true, true));
-    chunks.push_back(gen_data_and_index(kChunkSize, 0, false, false));
-    chunks.push_back(gen_data_and_index(kChunkSize, 1, true, true));
+    chunks.emplace_back(gen_data_and_index(kChunkSize, 0, true, true));
+    chunks.emplace_back(gen_data_and_index(kChunkSize, 0, false, false));
+    chunks.emplace_back(gen_data_and_index(kChunkSize, 1, true, true));
     auto version = 1;
     auto tablet_id = _tablet_metadata->id();
     auto old_val = config::l0_max_mem_usage;
@@ -1518,8 +1518,8 @@ TEST_P(LakePrimaryKeyPublishTest, test_index_rebuild_with_dels) {
 TEST_P(LakePrimaryKeyPublishTest, test_index_rebuild_with_dels2) {
     std::vector<std::pair<ChunkPtr, std::vector<uint32_t>>> chunks;
     // upsert + delete
-    chunks.push_back(gen_data_and_index(kChunkSize, 0, true, true));
-    chunks.push_back(gen_data_and_index(kChunkSize, 0, false, false));
+    chunks.emplace_back(gen_data_and_index(kChunkSize, 0, true, true));
+    chunks.emplace_back(gen_data_and_index(kChunkSize, 0, false, false));
     auto version = 1;
     auto tablet_id = _tablet_metadata->id();
     const int64_t old_size = config::write_buffer_size;
@@ -1599,8 +1599,8 @@ TEST_P(LakePrimaryKeyPublishTest, test_index_rebuild_with_dels3) {
     }
     std::vector<std::pair<ChunkPtr, std::vector<uint32_t>>> chunks;
     //delete * 2
-    chunks.push_back(gen_data_and_index(kChunkSize, 0, false, false));
-    chunks.push_back(gen_data_and_index(kChunkSize, 1, true, false));
+    chunks.emplace_back(gen_data_and_index(kChunkSize, 0, false, false));
+    chunks.emplace_back(gen_data_and_index(kChunkSize, 1, true, false));
     auto version = 1;
     auto tablet_id = _tablet_metadata->id();
     // publish two delete on different txn
@@ -1665,8 +1665,8 @@ TEST_P(LakePrimaryKeyPublishTest, test_index_rebuild_with_dels3) {
 TEST_P(LakePrimaryKeyPublishTest, test_index_rebuild_with_dels4) {
     std::vector<std::pair<ChunkPtr, std::vector<uint32_t>>> chunks;
     // upsert + delete
-    chunks.push_back(gen_data_and_index(kChunkSize, 0, true, true));
-    chunks.push_back(gen_data_and_index(kChunkSize, 0, false, false));
+    chunks.emplace_back(gen_data_and_index(kChunkSize, 0, true, true));
+    chunks.emplace_back(gen_data_and_index(kChunkSize, 0, false, false));
     auto version = 1;
     auto tablet_id = _tablet_metadata->id();
     const int64_t old_size = config::write_buffer_size;
@@ -1970,16 +1970,16 @@ TEST_P(LakePrimaryKeyPublishTest, test_aggregate_publish_version) {
     std::vector<int64_t> tablet_ids;
     // tablet 1
     auto tablet_id1 = _tablet_metadata->id();
-    tablet_ids.push_back(tablet_id1);
+    tablet_ids.emplace_back(tablet_id1);
     // tablet 2
     _tablet_metadata->set_id(next_id());
     auto tablet_id2 = _tablet_metadata->id();
-    tablet_ids.push_back(tablet_id2);
+    tablet_ids.emplace_back(tablet_id2);
     CHECK_OK(_tablet_mgr->put_tablet_metadata(*_tablet_metadata));
     // tablet 3
     _tablet_metadata->set_id(next_id());
     auto tablet_id3 = _tablet_metadata->id();
-    tablet_ids.push_back(tablet_id3);
+    tablet_ids.emplace_back(tablet_id3);
     CHECK_OK(_tablet_mgr->put_tablet_metadata(*_tablet_metadata));
 
     int64_t txn_id = next_id();
@@ -2015,17 +2015,17 @@ TEST_P(LakePrimaryKeyPublishTest, test_data_file_sharing) {
     auto version = 1;
     // tablet-1
     auto tablet_id1 = _tablet_metadata->id();
-    tablet_ids.push_back(tablet_id1);
+    tablet_ids.emplace_back(tablet_id1);
     // tablet-2
     _tablet_metadata->set_id(next_id());
     ASSERT_OK(_tablet_mgr->put_tablet_metadata(*_tablet_metadata));
     auto tablet_id2 = _tablet_metadata->id();
-    tablet_ids.push_back(tablet_id2);
+    tablet_ids.emplace_back(tablet_id2);
     // tablet-3
     _tablet_metadata->set_id(next_id());
     ASSERT_OK(_tablet_mgr->put_tablet_metadata(*_tablet_metadata));
     auto tablet_id3 = _tablet_metadata->id();
-    tablet_ids.push_back(tablet_id3);
+    tablet_ids.emplace_back(tablet_id3);
     for (int i = 0; i < 3; i++) {
         std::unique_ptr<BundleWritableFileContext> context = std::make_unique<BundleWritableFileContext>();
         int64_t txn_id = next_id();
@@ -2042,7 +2042,7 @@ TEST_P(LakePrimaryKeyPublishTest, test_data_file_sharing) {
                                                        .set_bundle_writable_file_context(context.get())
                                                        .build());
             ASSERT_OK(delta_writer->open());
-            delta_writers.push_back(std::move(delta_writer));
+            delta_writers.emplace_back(std::move(delta_writer));
         }
         for (auto& delta_writer : delta_writers) {
             ASSERT_OK(delta_writer->write(*chunk0, indexes.data(), indexes.size()));

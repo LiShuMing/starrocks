@@ -49,7 +49,7 @@ PARALLEL_TEST(TimeBoundedStreamLoadPipeTest, read_buffer_finish) {
 
     auto ret = pipe.read();
     ASSERT_TRUE(ret.ok());
-    auto read_buf = ret.value();
+    const auto& read_buf = ret.value();
     ASSERT_EQ(64, read_buf->limit);
     for (int i = 0; i < read_buf->pos; ++i) {
         ASSERT_EQ('0' + i, *(read_buf->ptr + i));

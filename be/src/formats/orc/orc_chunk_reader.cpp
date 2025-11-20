@@ -512,7 +512,7 @@ Status OrcChunkReader::_fill_chunk(ChunkPtr* chunk, const std::vector<SlotDescri
                 }
             }
         }
-        ColumnPtr& col = (*chunk)->get_column_by_slot_id(slot_desc->id());
+        auto col = (*chunk)->get_mutable_column_by_slot_id(slot_desc->id());
         RETURN_IF_ERROR(_column_readers[src_index]->get_next(cvb, col, 0, _batch->numElements));
     }
 
@@ -1214,7 +1214,7 @@ Status OrcChunkReader::build_search_argument_by_predicates(const OrcPredicates* 
 StatusOr<MutableColumnPtr> OrcChunkReader::get_row_delete_filter(const SkipRowsContextPtr& skip_rows_ctx) {
     int64_t start_pos = _row_reader->getRowNumber();
     auto num_rows = _batch->numElements;
-    MutableColumnPtr filter_column = BooleanColumn::create(num_rows, 1);
+    auto filter_column = BooleanColumn::create(num_rows, 1);
     auto& filter = static_cast<BooleanColumn*>(filter_column.get())->get_data();
 
     if (skip_rows_ctx == nullptr || !skip_rows_ctx->has_skip_rows()) {
@@ -1260,7 +1260,7 @@ Status OrcChunkReader::apply_dict_filter_eval_cache(const std::unordered_map<Slo
         uint64_t column_id = _root_mapping->get_orc_type_child_mapping(pos_in_src_slot_descs).orc_type->getColumnId();
 
         const Filter& dict_filter = (*it.second);
-        MutableColumnPtr data_filter = BooleanColumn::create(size);
+        auto data_filter = BooleanColumn::create(size);
         Filter& data = static_cast<BooleanColumn*>(data_filter.get())->get_data();
         DCHECK(data.size() == size);
 

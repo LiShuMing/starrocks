@@ -361,7 +361,7 @@ TEST_F(RuntimeMembershipFilterTest, TestJoinRuntimeFilter) {
     EXPECT_EQ(minmax.max_value(&_pool), 187);
 
     // test evaluate.
-    ColumnPtr column = ColumnHelper::create_column(TYPE_INT_DESC, false);
+    auto column = ColumnHelper::create_column(TYPE_INT_DESC, false);
     auto* col = ColumnHelper::as_raw_column<RunTimeTypeTraits<TYPE_INT>::ColumnType>(column);
     for (int i = 0; i <= 200; i += 1) {
         col->append(i);
@@ -447,7 +447,7 @@ TEST_P(RuntimeMembershipFilterTestFixture, TestJoinRuntimeFilterSerialize2) {
     std::vector<std::string> data = {"aa", "bb", "cc", "dd"};
     std::vector<Slice> values;
     for (const auto& s : data) {
-        values.emplace_back(Slice(s));
+        values.emplace_back(s);
     }
     bf1.membership_filter().init(200);
     for (auto& s : values) {
@@ -516,7 +516,7 @@ TEST_F(RuntimeMembershipFilterTest, TestJoinRuntimeFilterMerge2) {
     {
         std::vector<Slice> values;
         for (const auto& s : data) {
-            values.emplace_back(Slice(s));
+            values.emplace_back(s);
         }
         bf0.membership_filter().init(100);
         for (auto& s : values) {
@@ -534,7 +534,7 @@ TEST_F(RuntimeMembershipFilterTest, TestJoinRuntimeFilterMerge2) {
     {
         std::vector<Slice> values;
         for (const auto& s : data2) {
-            values.emplace_back(Slice(s));
+            values.emplace_back(s);
         }
         bf1.membership_filter().init(100);
         for (auto& s : values) {
@@ -561,7 +561,7 @@ TEST_P(RuntimeMembershipFilterTestFixture, TestJoinRuntimeFilterMerge3) {
         std::vector<std::string> data = {"bb", "cc", "dd"};
         std::vector<Slice> values;
         for (const auto& s : data) {
-            values.emplace_back(Slice(s));
+            values.emplace_back(s);
         }
         bf0.membership_filter().init(100);
         for (auto& s : values) {
@@ -586,7 +586,7 @@ TEST_P(RuntimeMembershipFilterTestFixture, TestJoinRuntimeFilterMerge3) {
         std::vector<std::string> data = {"aa", "cc", "dc"};
         std::vector<Slice> values;
         for (const auto& s : data) {
-            values.emplace_back(Slice(s));
+            values.emplace_back(s);
         }
         bf1.membership_filter().init(100);
         for (auto& s : values) {
@@ -694,20 +694,20 @@ void split_merged_rf(const RuntimeFilterLayout& layout, const std::vector<Runtim
         num_instances = 1;
         rfs_per_instance.reserve(1);
         DCHECK(rfs.size() == num_instances);
-        rfs_per_instance.push_back(std::vector<RuntimeFilter*>{rfs[0]});
-        columns_per_instance.push_back(Columns{columns[0]});
+        rfs_per_instance.emplace_back(std::vector<RuntimeFilter*>{rfs[0]});
+        columns_per_instance.emplace_back(Columns{columns[0]});
     } else if (local_layout == TRuntimeFilterLayoutMode::PIPELINE_SHUFFLE) {
         num_instances = layout.num_instances();
         DCHECK(rfs.size() == num_instances * layout.num_drivers_per_instance());
         for (auto i = 0; i < num_instances; ++i) {
-            rfs_per_instance.push_back(std::vector<RuntimeFilter*>{});
-            columns_per_instance.push_back(Columns{});
+            rfs_per_instance.emplace_back();
+            columns_per_instance.emplace_back();
             auto& current_rfs = rfs_per_instance.back();
             auto& current_columns = columns_per_instance.back();
             for (auto d = 0; d < layout.num_drivers_per_instance(); ++d) {
                 auto idx = i * layout.num_drivers_per_instance() + d;
-                current_rfs.push_back(rfs[idx]);
-                current_columns.push_back(columns[idx]);
+                current_rfs.emplace_back(rfs[idx]);
+                current_columns.emplace_back(columns[idx]);
             }
         }
     } else if (local_layout == TRuntimeFilterLayoutMode::PIPELINE_BUCKET ||
@@ -736,27 +736,27 @@ void split_merged_rf(const RuntimeFilterLayout& layout, const std::vector<Runtim
                 auto num_drivers = drivers.size();
                 ASSERT_TRUE(std::all_of(drivers.begin(), drivers.end(),
                                         [num_drivers](auto d) { return 0 <= d && d < num_drivers; }));
-                rfs_per_instance.push_back(std::vector<RuntimeFilter*>{});
-                columns_per_instance.push_back(Columns{});
+                rfs_per_instance.emplace_back(std::vector<RuntimeFilter*>{});
+                columns_per_instance.emplace_back(Columns{});
                 auto& current_rfs = rfs_per_instance.back();
                 auto& current_columns = columns_per_instance.back();
                 for (auto d = 0; d < num_drivers; ++d) {
                     auto idx = next_rf_idx++;
-                    current_rfs.push_back(rfs[idx]);
-                    current_columns.push_back(columns[idx]);
+                    current_rfs.emplace_back(rfs[idx]);
+                    current_columns.emplace_back(columns[idx]);
                 }
             }
         } else {
             DCHECK(rfs.size() == num_instances * layout.num_drivers_per_instance());
             for (auto i = 0; i < num_instances; ++i) {
-                rfs_per_instance.push_back(std::vector<RuntimeFilter*>{});
-                columns_per_instance.push_back(Columns{});
+                rfs_per_instance.emplace_back(std::vector<RuntimeFilter*>{});
+                columns_per_instance.emplace_back(Columns{});
                 auto& current_rfs = rfs_per_instance.back();
                 auto& current_columns = columns_per_instance.back();
                 for (auto d = 0; d < layout.num_drivers_per_instance(); ++d) {
                     auto idx = i * layout.num_drivers_per_instance() + d;
-                    current_rfs.push_back(rfs[idx]);
-                    current_columns.push_back(columns[idx]);
+                    current_rfs.emplace_back(rfs[idx]);
+                    current_columns.emplace_back(columns[idx]);
                 }
             }
         }
@@ -783,12 +783,12 @@ void test_pipeline_level_grf_helper_template(TRuntimeFilterBuildJoinMode::type j
                                         join_mode == TRuntimeFilterBuildJoinMode::SHUFFLE_HASH_BUCKET);
     auto part_func = part_func_gen(is_reduce);
     part_func(column.get(), hash_values, num_rows_per_partitions);
-    Columns columns(num_partitions);
+    MutableColumns columns(num_partitions);
     for (auto p = 0; p < num_partitions; ++p) {
         auto size = num_rows_per_partitions[p];
         bfs[p].membership_filter().init(size);
         columns[p] = BinaryColumn::create();
-        columns[p]->reserve(size);
+        columns[p]->as_mutable_ptr()->reserve(size);
     }
 
     int num_bucket_absent = 0;
@@ -806,7 +806,7 @@ void test_pipeline_level_grf_helper_template(TRuntimeFilterBuildJoinMode::type j
     int rf_version = RF_VERSION_V2;
     std::vector<std::vector<RuntimeFilter*>> rfs_per_instance;
     std::vector<Columns> columns_per_instance;
-    split_merged_rf(layout, rfs, columns, rfs_per_instance, columns_per_instance);
+    split_merged_rf(layout, rfs, std::move(columns), rfs_per_instance, columns_per_instance);
     std::vector<ComposedRuntimeBloomFilter<TYPE_VARCHAR>> pipeline_level_bfs_per_instance(rfs_per_instance.size());
     std::vector<RuntimeFilter*> merged_rf_per_instance(rfs_per_instance.size());
     std::vector<std::string> serialized_rfs(merged_rf_per_instance.size());
@@ -1126,9 +1126,8 @@ void test_pipeline_level_broadcast(size_t num_rows, TRuntimeFilterBuildJoinMode:
     test_pipeline_level_helper(join_mode, layout, num_rows, 1);
 }
 
-void TestMultiColumnsOnRuntimeFilter(TRuntimeFilterBuildJoinMode::type join_mode, std::vector<ColumnPtr> columns,
-                                     int64_t num_rows, int64_t num_partitions,
-                                     std::vector<int32_t> bucketseq_to_partition) {
+void TestMultiColumnsOnRuntimeFilter(TRuntimeFilterBuildJoinMode::type join_mode, Columns columns, int64_t num_rows,
+                                     int64_t num_partitions, std::vector<int32_t> bucketseq_to_partition) {
     std::vector<uint32_t> expected_hash_values;
     std::vector<size_t> num_rows_per_partitions(num_partitions, 0);
 
@@ -1179,7 +1178,7 @@ void TestMultiColumnsOnRuntimeFilter(TRuntimeFilterBuildJoinMode::type join_mode
     running_ctx.compatibility = true;
     std::vector<const Column*> column_ptrs;
     for (auto& column : columns) {
-        column_ptrs.push_back(column.get());
+        column_ptrs.emplace_back(column.get());
     }
 
     int32_t num_column = columns.size();
@@ -1239,11 +1238,11 @@ ColumnPtr CreateSeriesColumnInt32(int32_t num_rows, bool nullable) {
 }
 
 TEST_F(RuntimeFilterTest, TestMultiColumnsOnRuntimeFilter_BucketJoin) {
-    std::vector<ColumnPtr> columns;
+    Columns columns;
     int32_t num_rows = 100;
     int32_t num_partition = 10;
     for (int i = 0; i < 10; i++) {
-        columns.push_back(CreateSeriesColumnInt32(100, true));
+        columns.emplace_back(CreateSeriesColumnInt32(100, true));
     }
 
     return TestMultiColumnsOnRuntimeFilter(TRuntimeFilterBuildJoinMode::LOCAL_HASH_BUCKET, columns, num_rows,
@@ -1251,11 +1250,11 @@ TEST_F(RuntimeFilterTest, TestMultiColumnsOnRuntimeFilter_BucketJoin) {
 }
 
 TEST_F(RuntimeFilterTest, TestMultiColumnsOnRuntimeFilter_ShuffleJoin) {
-    std::vector<ColumnPtr> columns;
+    Columns columns;
     int32_t num_rows = 100;
     int32_t num_partition = 10;
     for (int i = 0; i < 10; i++) {
-        columns.push_back(CreateSeriesColumnInt32(100, true));
+        columns.emplace_back(CreateSeriesColumnInt32(100, true));
     }
     return TestMultiColumnsOnRuntimeFilter(TRuntimeFilterBuildJoinMode::PARTITIONED, columns, num_rows, num_partition,
                                            {});

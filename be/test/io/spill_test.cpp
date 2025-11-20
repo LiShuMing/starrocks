@@ -76,14 +76,14 @@ public:
         scalar_tp.__set_scale(9);
         ttpe.__set_scalar_type(scalar_tp);
         ttpe.type = TTypeNodeType::SCALAR;
-        tdesc.types.push_back(std::move(ttpe));
+        tdesc.types.emplace_back(std::move(ttpe));
         node.__set_type(tdesc);
         TSlotRef slot_ref;
         slot_ref.__set_tuple_id(tuple_id);
         slot_ref.__set_slot_id(column_id++);
         node.__set_slot_ref(slot_ref);
-        expr.nodes.push_back(std::move(node));
-        res.push_back(expr);
+        expr.nodes.emplace_back(std::move(node));
+        res.emplace_back(expr);
         return *this;
     }
     std::vector<TExpr> get_res() { return res; }
@@ -309,7 +309,7 @@ TEST_F(SpillTest, unsorted_process) {
 
     auto ctx_st = no_partition_context(&pool, &dummy_rt_st, order_by_slots, tuple_slots);
     ASSERT_OK(ctx_st.status());
-    auto ctx = ctx_st.value();
+    const auto& ctx = ctx_st.value();
 
     auto& tuple = ctx->sort_exprs.sort_tuple_slot_expr_ctxs();
 
@@ -345,7 +345,7 @@ TEST_F(SpillTest, unsorted_process) {
             auto chunk = chunk_builder.gen(tuple, nullables);
             ASSERT_OK(caller.spill<SyncExecutor>(&dummy_rt_st, chunk, EmptyMemGuard{}));
             ASSERT_OK(spiller->_spilled_task_status);
-            holder.push_back(chunk);
+            holder.emplace_back(chunk);
         }
         ASSERT_OK(caller.flush<SyncExecutor>(&dummy_rt_st, EmptyMemGuard{}));
     }
@@ -433,7 +433,7 @@ TEST_F(SpillTest, yield_with_failed_guard) {
 
     auto ctx_st = no_partition_context(&pool, &dummy_rt_st, order_by_slots, tuple_slots);
     ASSERT_OK(ctx_st.status());
-    auto ctx = ctx_st.value();
+    const auto& ctx = ctx_st.value();
 
     auto& tuple = ctx->sort_exprs.sort_tuple_slot_expr_ctxs();
 
@@ -469,7 +469,7 @@ TEST_F(SpillTest, yield_with_failed_guard) {
             auto chunk = chunk_builder.gen(tuple, nullables);
             ASSERT_OK(caller.spill<SyncExecutor>(&dummy_rt_st, chunk, EmptyMemGuard{}));
             ASSERT_OK(spiller->_spilled_task_status);
-            holder.push_back(chunk);
+            holder.emplace_back(chunk);
         }
         ASSERT_OK(caller.flush<SyncExecutor>(&dummy_rt_st, FailedGuard{}));
     }
@@ -489,7 +489,7 @@ TEST_F(SpillTest, order_by_process) {
 
     auto ctx_st = no_partition_context(&pool, &dummy_rt_st, order_by_slots, tuple_slots);
     ASSERT_OK(ctx_st.status());
-    auto ctx = ctx_st.value();
+    const auto& ctx = ctx_st.value();
 
     auto& tuple = ctx->sort_exprs.sort_tuple_slot_expr_ctxs();
 
@@ -529,7 +529,7 @@ TEST_F(SpillTest, order_by_process) {
                 auto chunk = chunk_builder.gen(tuple, nullables);
                 ASSERT_OK(caller.spill<SyncExecutor>(&dummy_rt_st, chunk, EmptyMemGuard{}));
                 ASSERT_OK(spiller->_spilled_task_status);
-                holder.push_back(chunk);
+                holder.emplace_back(chunk);
                 contain_rows += chunk->num_rows();
             }
             ASSERT_OK(caller.flush<SyncExecutor>(&dummy_rt_st, EmptyMemGuard{}));
@@ -571,7 +571,7 @@ TEST_F(SpillTest, partition_process) {
 
     auto ctx_st = no_partition_context(&pool, &dummy_rt_st, {}, tuple_slots);
     ASSERT_OK(ctx_st.status());
-    auto ctx = ctx_st.value();
+    const auto& ctx = ctx_st.value();
     (void)ctx;
 
     std::vector<ExprContext*> tuple;
@@ -611,7 +611,7 @@ TEST_F(SpillTest, partition_process) {
             chunk->append_column(std::move(hash_column), -1);
             ASSERT_OK(spiller->spill<SyncExecutor>(&dummy_rt_st, chunk, EmptyMemGuard{}));
             ASSERT_OK(spiller->_spilled_task_status);
-            holder.push_back(chunk);
+            holder.emplace_back(chunk);
         }
         ASSERT_OK(spiller->flush<SyncExecutor>(&dummy_rt_st, EmptyMemGuard{}));
     }
@@ -623,7 +623,7 @@ TEST_F(SpillTest, partition_process) {
             chunk->append_column(std::move(hash_column), -1);
             ASSERT_OK(spiller->spill<SyncExecutor>(&dummy_rt_st, chunk, EmptyMemGuard{}));
             ASSERT_OK(spiller->_spilled_task_status);
-            holder.push_back(chunk);
+            holder.emplace_back(chunk);
         }
         ASSERT_OK(spiller->flush<SyncExecutor>(&dummy_rt_st, FailedGuard{}));
     }
@@ -654,7 +654,7 @@ TEST_F(SpillTest, partition_yield_with_failed) {
 
     auto ctx_st = no_partition_context(&pool, &dummy_rt_st, {}, tuple_slots);
     ASSERT_OK(ctx_st.status());
-    auto ctx = ctx_st.value();
+    const auto& ctx = ctx_st.value();
     (void)ctx;
 
     std::vector<ExprContext*> tuple;
@@ -694,7 +694,7 @@ TEST_F(SpillTest, partition_yield_with_failed) {
             chunk->append_column(std::move(hash_column), -1);
             ASSERT_OK(spiller->spill<SyncExecutor>(&dummy_rt_st, chunk, EmptyMemGuard{}));
             ASSERT_OK(spiller->_spilled_task_status);
-            holder.push_back(chunk);
+            holder.emplace_back(chunk);
         }
 
         PredoSyncExecutor::predo = [&]() { spiller.reset(); };
@@ -773,7 +773,7 @@ TEST_F(SpillTest, file_group_test) {
         auto res = stream->read(context);
         ASSERT_OK(res.status());
         auto chunk = std::move(res.value());
-        auto icol = down_cast<Int32Column*>(chunk->columns()[0].get());
+        auto icol = down_cast<Int32Column*>(chunk->mutable_columns()[0].get());
         auto data = icol->get_data();
         DCHECK(std::is_sorted(data.begin(), data.end()));
         DCHECK_GE(data[0], last_value);

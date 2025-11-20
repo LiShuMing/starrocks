@@ -103,8 +103,8 @@ void ParquetUTBase::append_datetime_conjunct(TExprOpcode::type opcode, SlotId sl
     tExprs->emplace_back(t_expr);
 }
 
-void ParquetUTBase::append_string_conjunct(TExprOpcode::type opcode, starrocks::SlotId slot_id, std::string value,
-                                           std::vector<TExpr>* tExprs) {
+void ParquetUTBase::append_string_conjunct(TExprOpcode::type opcode, starrocks::SlotId slot_id,
+                                           const std::string& value, std::vector<TExpr>* tExprs) {
     TTypeDesc varchar_type = ExprsTestHelper::create_varchar_type_desc(10);
 
     TExprNode pre_node = ExprsTestHelper::create_binary_pred_node(TPrimitiveType::VARCHAR, opcode);
@@ -154,7 +154,7 @@ void ParquetUTBase::create_in_predicate_int_conjunct_ctxs(TExprOpcode::type opco
     nodes.emplace_back(ExprsTestHelper::create_in_pred_node<TYPE_INT>(values.size() + 1));
     nodes.emplace_back(ExprsTestHelper::create_slot_expr_node_t<TYPE_INT>(0, slot_id, true));
 
-    for (int32_t value : values) {
+    for (const int32_t& value : values) {
         nodes.emplace_back(ExprsTestHelper::create_literal<TYPE_INT, int32_t>(value, false));
     }
 
@@ -190,7 +190,7 @@ void ParquetUTBase::create_in_predicate_string_conjunct_ctxs(TExprOpcode::type o
     node1.is_nullable = true;
     nodes.emplace_back(node1);
 
-    for (std::string value : values) {
+    for (const std::string& value : values) {
         TExprNode node;
         node.node_type = TExprNodeType::STRING_LITERAL;
         node.type = gen_type_desc(TPrimitiveType::VARCHAR);
@@ -234,7 +234,7 @@ void ParquetUTBase::create_in_predicate_date_conjunct_ctxs(TExprOpcode::type opc
     node1.is_nullable = true;
     nodes.emplace_back(node1);
 
-    for (std::string value : values) {
+    for (const std::string& value : values) {
         TExprNode node;
         node.node_type = TExprNodeType::DATE_LITERAL;
         node.type = gen_type_desc(type);

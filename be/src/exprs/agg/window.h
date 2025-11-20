@@ -82,7 +82,7 @@ class WindowFunction : public AggregateFunctionStateHelper<State> {
     }
 
     void convert_to_serialize_format(FunctionContext* ctx, const Columns& src, size_t chunk_size,
-                                     ColumnPtr* dst) const override {
+                                     MutableColumnPtr& dst) const override {
         DCHECK(false) << "Shouldn't call this method for window function!";
     }
 };
@@ -794,7 +794,7 @@ public:
         auto& s = this->data(state);
         if (dst->is_nullable()) {
             auto* nullable_dst = down_cast<NullableColumn*>(dst);
-            auto* data_column = down_cast<Int64Column*>(nullable_dst->data_column().get());
+            auto* data_column = down_cast<Int64Column*>(nullable_dst->mutable_data_column());
             for (size_t i = start; i < end; ++i) {
                 data_column->get_data()[i] = s.session_id;
             }

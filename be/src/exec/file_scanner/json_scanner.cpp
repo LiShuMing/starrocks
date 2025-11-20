@@ -263,7 +263,7 @@ void JsonScanner::_materialize_src_chunk_adaptive_nullable_column(ChunkPtr& chun
     chunk->materialized_nullable();
     for (int i = 0; i < chunk->num_columns(); i++) {
         AdaptiveNullableColumn* adaptive_column =
-                down_cast<AdaptiveNullableColumn*>(chunk->get_column_by_index(i).get());
+                down_cast<AdaptiveNullableColumn*>(chunk->get_mutable_column_by_index(i).get());
         chunk->update_column_by_index(NullableColumn::create(adaptive_column->materialized_raw_data_column(),
                                                              adaptive_column->materialized_raw_null_column()),
                                       i);
@@ -585,7 +585,7 @@ Status JsonReader::_construct_row_without_jsonpath(simdjson::ondemand::object* r
             } else {
                 _parsed_columns[column_index] = true;
             }
-            auto& column = chunk->get_column_by_index(column_index);
+            auto column = chunk->get_mutable_column_by_index(column_index);
             simdjson::ondemand::value val = field.value();
 
             // construct column with value.
@@ -603,7 +603,7 @@ Status JsonReader::_construct_row_without_jsonpath(simdjson::ondemand::object* r
     // append null to the column without data.
     for (int i = 0; i < chunk->num_columns(); i++) {
         if (!_parsed_columns[i]) {
-            auto& column = chunk->get_column_by_index(i);
+            auto column = chunk->get_mutable_column_by_index(i);
             if (UNLIKELY(i == _op_col_index)) {
                 // special treatment for __op column, fill default value '0' rather than null
                 if (column->is_binary()) {
@@ -629,7 +629,7 @@ Status JsonReader::_construct_row_with_jsonpath(simdjson::ondemand::object* row,
         const char* column_name = _slot_descs[i]->col_name().c_str();
 
         // The columns in JsonReader's chunk are all in NullableColumn type;
-        auto column = down_cast<NullableColumn*>(chunk->get_column_by_slot_id(_slot_descs[i]->id()).get());
+        auto column = down_cast<NullableColumn*>(chunk->get_mutable_column_by_slot_id(_slot_descs[i]->id()).get());
         if (i >= jsonpath_size) {
             if (strcmp(column_name, "__op") == 0) {
                 // special treatment for __op column, fill default value '0' rather than null

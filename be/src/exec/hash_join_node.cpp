@@ -692,8 +692,10 @@ Status HashJoinNode::_evaluate_build_keys(const ChunkPtr& chunk) {
             _key_columns.emplace_back(std::move(column));
         } else if (key_column->is_constant()) {
             auto* const_column = ColumnHelper::as_raw_column<ConstColumn>(key_column);
-            const_column->data_column()->assign(num_rows, 0);
-            _key_columns.emplace_back(const_column->data_column());
+            auto data_col = const_column->data_column();
+            auto mutable_data = data_col->as_mutable_ptr();
+            mutable_data->assign(num_rows, 0);
+            _key_columns.emplace_back(std::move(mutable_data));
         } else {
             _key_columns.emplace_back(key_column);
         }
@@ -743,12 +745,12 @@ Status HashJoinNode::_probe(RuntimeState* state, ScopedTimer<MonotonicStopWatch>
                                     _pre_left_input_chunk = std::move(_cur_left_input_chunk);
                                 } else {
                                     // TODO: copy the small chunk to big chunk
-                                    auto& dest_columns = _pre_left_input_chunk->columns();
                                     auto& src_columns = _cur_left_input_chunk->columns();
                                     size_t num_rows = _cur_left_input_chunk->num_rows();
                                     // copy the new read chunk to the reserved
-                                    for (size_t i = 0; i < dest_columns.size(); i++) {
-                                        dest_columns[i]->append(*src_columns[i], 0, num_rows);
+                                    for (size_t i = 0; i < src_columns.size(); i++) {
+                                        auto dest_column = _pre_left_input_chunk->get_mutable_column_by_index(i);
+                                        dest_column->append(*src_columns[i], 0, num_rows);
                                     }
                                     _cur_left_input_chunk.reset();
                                     continue;
@@ -771,8 +773,10 @@ Status HashJoinNode::_probe(RuntimeState* state, ScopedTimer<MonotonicStopWatch>
                             _key_columns.emplace_back(std::move(column));
                         } else if (column_ptr->is_constant()) {
                             auto* const_column = ColumnHelper::as_raw_column<ConstColumn>(column_ptr);
-                            const_column->data_column()->assign(_probing_chunk->num_rows(), 0);
-                            _key_columns.emplace_back(const_column->data_column());
+                            auto data_col = const_column->data_column();
+                            auto mutable_data = data_col->as_mutable_ptr();
+                            mutable_data->assign(_probing_chunk->num_rows(), 0);
+                            _key_columns.emplace_back(std::move(mutable_data));
                         } else {
                             _key_columns.emplace_back(column_ptr);
                         }
@@ -885,7 +889,7 @@ void HashJoinNode::_process_row_for_other_conjunct(ChunkPtr* chunk, size_t start
                                                    bool filter_all, bool hit_all, const Filter& filter) {
     if (filter_all) {
         for (size_t i = start_column; i < start_column + column_count; i++) {
-            auto* null_column = ColumnHelper::as_raw_column<NullableColumn>((*chunk)->columns()[i]);
+            auto* null_column = down_cast<NullableColumn*>((*chunk)->columns()[i]->as_mutable_raw_ptr());
             auto& null_data = null_column->mutable_null_column()->get_data();
             for (size_t j = 0; j < (*chunk)->num_rows(); j++) {
                 null_data[j] = 1;
@@ -898,7 +902,7 @@ void HashJoinNode::_process_row_for_other_conjunct(ChunkPtr* chunk, size_t start
         }
 
         for (size_t i = start_column; i < start_column + column_count; i++) {
-            auto* null_column = ColumnHelper::as_raw_column<NullableColumn>((*chunk)->columns()[i]);
+            auto* null_column = down_cast<NullableColumn*>((*chunk)->columns()[i]->as_mutable_raw_ptr());
             auto& null_data = null_column->mutable_null_column()->get_data();
             for (size_t j = 0; j < filter.size(); j++) {
                 if (filter[j] == 0) {

@@ -399,7 +399,7 @@ TEST_F(TabletMetaManagerTest, delta_column_group_operations) {
         for (int v = 1; v <= 20; v++) {
             auto dcg = std::make_shared<DeltaColumnGroup>();
             dcg->init(v, {{1, 10, 100}}, {"1110.cols"});
-            dcgs.push_back(std::move(dcg));
+            dcgs.emplace_back(std::move(dcg));
         }
         WriteBatch wb;
         CHECK(TabletMetaManager::put_delta_column_group(_data_dir.get(), &wb, tablet_id, segid, dcgs).ok());

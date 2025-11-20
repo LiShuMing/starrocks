@@ -3836,7 +3836,7 @@ TEST_F(FileReaderTest, low_card_reader) {
 
     std::vector<std::string> values;
     for (int i = 0; i < 100; ++i) {
-        values.push_back(std::to_string(i));
+        values.emplace_back(std::to_string(i));
     }
     std::sort(values.begin(), values.end());
 
@@ -3891,7 +3891,7 @@ TEST_F(FileReaderTest, low_card_reader_filter_group) {
 
     std::vector<std::string> values;
     for (int i = 0; i < 100; ++i) {
-        values.push_back(std::to_string(i));
+        values.emplace_back(std::to_string(i));
     }
     std::sort(values.begin(), values.end());
 
@@ -3931,7 +3931,7 @@ TEST_F(FileReaderTest, low_card_reader_dict_not_match) {
 
     std::vector<std::string> values;
     for (int i = 0; i < 90; ++i) {
-        values.push_back(std::to_string(i));
+        values.emplace_back(std::to_string(i));
     }
     std::sort(values.begin(), values.end());
 
@@ -3971,7 +3971,7 @@ TEST_F(FileReaderTest, no_matched_reader) {
 
     std::vector<std::string> values;
     for (int i = 0; i < 100; ++i) {
-        values.push_back(std::to_string(i));
+        values.emplace_back(std::to_string(i));
     }
     std::sort(values.begin(), values.end());
 
@@ -4005,7 +4005,7 @@ TEST_F(FileReaderTest, low_rows_reader) {
 
     std::vector<std::string> values;
     for (int i = 0; i < 100; ++i) {
-        values.push_back(std::to_string(i));
+        values.emplace_back(std::to_string(i));
     }
     std::sort(values.begin(), values.end());
 
@@ -4075,7 +4075,7 @@ TEST_F(FileReaderTest, low_rows_reader_empty_not_null_not_match) {
 
     std::vector<std::string> values;
     for (int i = 0; i < 100; ++i) {
-        values.push_back(std::to_string(i));
+        values.emplace_back(std::to_string(i));
     }
     std::sort(values.begin(), values.end());
 
@@ -4114,9 +4114,9 @@ TEST_F(FileReaderTest, low_rows_reader_empty_not_null) {
 
     std::vector<std::string> values;
     for (int i = 0; i < 100; ++i) {
-        values.push_back(std::to_string(i));
+        values.emplace_back(std::to_string(i));
     }
-    values.push_back("");
+    values.emplace_back("");
     std::sort(values.begin(), values.end());
 
     ColumnIdToGlobalDictMap dict_map;
@@ -4178,7 +4178,7 @@ TEST_F(FileReaderTest, low_rows_reader_filter_group) {
 
     std::vector<std::string> values;
     for (int i = 0; i < 100; ++i) {
-        values.push_back(std::to_string(i));
+        values.emplace_back(std::to_string(i));
     }
     std::sort(values.begin(), values.end());
 

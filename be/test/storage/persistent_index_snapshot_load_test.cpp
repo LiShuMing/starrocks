@@ -63,14 +63,14 @@ public:
                 keys[i] = i;
                 values.emplace_back(i * 2);
                 key_slices.emplace_back(reinterpret_cast<const uint8_t*>(&keys[i]), sizeof(Key));
-                idxes.push_back(i);
+                idxes.emplace_back(i);
             } else {
                 ASSERT_FALSE(GetParam().fixed_key_size)
                         << "KeyType is std::string, but GetParam().fixed_key_size is true.";
                 keys[i] = "test_varlen_" + std::to_string(i);
                 values.emplace_back(i * 2);
                 key_slices.emplace_back(keys[i]);
-                idxes.push_back(i);
+                idxes.emplace_back(i);
             }
         }
         auto check_fn = [&](MutableIndex* idx) {

@@ -73,7 +73,7 @@ protected:
         params->src_tuple_id = 0;
         for (int i = 0; i < types.size(); i++) {
             params->expr_of_dest_slot[i] = TExpr();
-            params->expr_of_dest_slot[i].nodes.emplace_back(TExprNode());
+            params->expr_of_dest_slot[i].nodes.emplace_back();
             params->expr_of_dest_slot[i].nodes[0].__set_type(types[i].to_thrift());
             params->expr_of_dest_slot[i].nodes[0].__set_node_type(TExprNodeType::SLOT_REF);
             params->expr_of_dest_slot[i].nodes[0].__set_is_nullable(true);
@@ -131,7 +131,7 @@ protected:
         avro_generic_value_new(avro_helper.iface, &avro_helper.avro_val);
     }
 
-    Status write_avro_data(AvroHelper& avro_helper, std::string data_path) {
+    Status write_avro_data(AvroHelper& avro_helper, const std::string& data_path) {
         avro_file_writer_t db;
         int rval = avro_file_writer_create(data_path.c_str(), avro_helper.schema, &db);
         if (rval) {
@@ -173,38 +173,38 @@ TEST_F(AvroScannerTest, test_basic_type) {
     });
 
     avro_value_t boolean_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "booleantype", &boolean_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "booleantype", &boolean_value, nullptr) == 0) {
         avro_value_set_boolean(&boolean_value, true);
     }
 
     avro_value_t int_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "inttype", &int_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "inttype", &int_value, nullptr) == 0) {
         avro_value_set_int(&int_value, 10);
     }
 
     avro_value_t long_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "longtype", &long_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "longtype", &long_value, nullptr) == 0) {
         avro_value_set_long(&long_value, 4294967296);
     }
 
     avro_value_t double_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "doubletype", &double_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "doubletype", &double_value, nullptr) == 0) {
         avro_value_set_double(&double_value, 1.234567);
     }
 
     avro_value_t string_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "stringtype", &string_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "stringtype", &string_value, nullptr) == 0) {
         avro_value_set_string(&string_value, "abcdefg");
     }
 
     avro_value_t bytes_value;
     std::string byte_str = "hijklmn";
-    if (avro_value_get_by_name(&avro_helper.avro_val, "bytestype", &bytes_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "bytestype", &bytes_value, nullptr) == 0) {
         avro_value_set_bytes(&bytes_value, byte_str.data(), byte_str.size());
     }
 
     avro_value_t enum_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "enumtype", &enum_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "enumtype", &enum_value, nullptr) == 0) {
         avro_value_set_enum(&enum_value, 2);
     }
     std::string data_path = "./be/test/exec/test_data/avro_scanner/tmp/avro_basic_data.json";
@@ -258,38 +258,38 @@ TEST_F(AvroScannerTest, test_basic_type_to_json_or_string) {
     });
 
     avro_value_t boolean_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "booleantype", &boolean_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "booleantype", &boolean_value, nullptr) == 0) {
         avro_value_set_boolean(&boolean_value, true);
     }
 
     avro_value_t int_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "inttype", &int_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "inttype", &int_value, nullptr) == 0) {
         avro_value_set_int(&int_value, 10);
     }
 
     avro_value_t long_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "longtype", &long_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "longtype", &long_value, nullptr) == 0) {
         avro_value_set_long(&long_value, 4294967296);
     }
 
     avro_value_t double_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "doubletype", &double_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "doubletype", &double_value, nullptr) == 0) {
         avro_value_set_double(&double_value, 1.234567);
     }
 
     avro_value_t string_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "stringtype", &string_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "stringtype", &string_value, nullptr) == 0) {
         avro_value_set_string(&string_value, "abcdefg");
     }
 
     avro_value_t bytes_value;
     std::string byte_str = "hijklmn";
-    if (avro_value_get_by_name(&avro_helper.avro_val, "bytestype", &bytes_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "bytestype", &bytes_value, nullptr) == 0) {
         avro_value_set_bytes(&bytes_value, byte_str.data(), byte_str.size());
     }
 
     avro_value_t enum_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "enumtype", &enum_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "enumtype", &enum_value, nullptr) == 0) {
         avro_value_set_enum(&enum_value, 2);
     }
     std::string data_path = "./be/test/exec/test_data/avro_scanner/tmp/avro_basic_data.json";
@@ -412,35 +412,35 @@ TEST_F(AvroScannerTest, test_jsonpaths) {
     });
 
     avro_value_t boolean_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "booleantype", &boolean_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "booleantype", &boolean_value, nullptr) == 0) {
         avro_value_set_boolean(&boolean_value, true);
     }
 
     avro_value_t long_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "longtype", &long_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "longtype", &long_value, nullptr) == 0) {
         avro_value_set_long(&long_value, 4294967296);
     }
 
     avro_value_t double_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "doubletype", &double_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "doubletype", &double_value, nullptr) == 0) {
         avro_value_set_double(&double_value, 1.234567);
     }
 
     avro_value_t string_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "stringtype", &string_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "stringtype", &string_value, nullptr) == 0) {
         avro_value_set_string(&string_value, "abcdefg");
     }
 
     avro_value_t nest_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "nesttype", &nest_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "nesttype", &nest_value, nullptr) == 0) {
         {
             avro_value_t boolean_value;
-            if (avro_value_get_by_name(&nest_value, "booleantype", &boolean_value, NULL) == 0) {
+            if (avro_value_get_by_name(&nest_value, "booleantype", &boolean_value, nullptr) == 0) {
                 avro_value_set_boolean(&boolean_value, false);
             }
 
             avro_value_t long_value;
-            if (avro_value_get_by_name(&nest_value, "longtype", &long_value, NULL) == 0) {
+            if (avro_value_get_by_name(&nest_value, "longtype", &long_value, nullptr) == 0) {
                 avro_value_set_long(&long_value, 4294967297);
             }
         }
@@ -493,35 +493,35 @@ TEST_F(AvroScannerTest, test_json_type) {
     });
 
     avro_value_t boolean_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "booleantype", &boolean_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "booleantype", &boolean_value, nullptr) == 0) {
         avro_value_set_boolean(&boolean_value, true);
     }
 
     avro_value_t long_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "longtype", &long_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "longtype", &long_value, nullptr) == 0) {
         avro_value_set_long(&long_value, 4294967296);
     }
 
     avro_value_t double_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "doubletype", &double_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "doubletype", &double_value, nullptr) == 0) {
         avro_value_set_double(&double_value, 1.234567);
     }
 
     avro_value_t string_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "stringtype", &string_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "stringtype", &string_value, nullptr) == 0) {
         avro_value_set_string(&string_value, "abcdefg");
     }
 
     avro_value_t nest_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "nesttype", &nest_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "nesttype", &nest_value, nullptr) == 0) {
         {
             avro_value_t boolean_value;
-            if (avro_value_get_by_name(&nest_value, "booleantype", &boolean_value, NULL) == 0) {
+            if (avro_value_get_by_name(&nest_value, "booleantype", &boolean_value, nullptr) == 0) {
                 avro_value_set_boolean(&boolean_value, false);
             }
 
             avro_value_t long_value;
-            if (avro_value_get_by_name(&nest_value, "longtype", &long_value, NULL) == 0) {
+            if (avro_value_get_by_name(&nest_value, "longtype", &long_value, nullptr) == 0) {
                 avro_value_set_long(&long_value, 4294967297);
             }
         }
@@ -575,22 +575,22 @@ TEST_F(AvroScannerTest, test_union_type_null) {
     });
 
     avro_value_t boolean_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "booleantype", &boolean_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "booleantype", &boolean_value, nullptr) == 0) {
         avro_value_set_boolean(&boolean_value, true);
     }
 
     avro_value_t long_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "longtype", &long_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "longtype", &long_value, nullptr) == 0) {
         avro_value_set_long(&long_value, 4294967296);
     }
 
     avro_value_t double_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "doubletype", &double_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "doubletype", &double_value, nullptr) == 0) {
         avro_value_set_double(&double_value, 1.234567);
     }
 
     avro_value_t union_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "uniontype", &union_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "uniontype", &union_value, nullptr) == 0) {
         avro_value_t null_value;
         avro_value_set_branch(&union_value, 0, &null_value);
         avro_value_set_null(&null_value);
@@ -643,22 +643,22 @@ TEST_F(AvroScannerTest, test_union_type_null_without_jsonpath) {
     });
 
     avro_value_t boolean_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "booleantype", &boolean_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "booleantype", &boolean_value, nullptr) == 0) {
         avro_value_set_boolean(&boolean_value, true);
     }
 
     avro_value_t long_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "longtype", &long_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "longtype", &long_value, nullptr) == 0) {
         avro_value_set_long(&long_value, 4294967296);
     }
 
     avro_value_t double_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "doubletype", &double_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "doubletype", &double_value, nullptr) == 0) {
         avro_value_set_double(&double_value, 1.234567);
     }
 
     avro_value_t union_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "uniontype", &union_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "uniontype", &union_value, nullptr) == 0) {
         avro_value_t null_value;
         avro_value_set_branch(&union_value, 0, &null_value);
         avro_value_set_null(&null_value);
@@ -709,22 +709,22 @@ TEST_F(AvroScannerTest, test_union_type_basic) {
     });
 
     avro_value_t boolean_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "booleantype", &boolean_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "booleantype", &boolean_value, nullptr) == 0) {
         avro_value_set_boolean(&boolean_value, true);
     }
 
     avro_value_t long_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "longtype", &long_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "longtype", &long_value, nullptr) == 0) {
         avro_value_set_long(&long_value, 4294967296);
     }
 
     avro_value_t double_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "doubletype", &double_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "doubletype", &double_value, nullptr) == 0) {
         avro_value_set_double(&double_value, 1.234567);
     }
 
     avro_value_t union_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "uniontype", &union_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "uniontype", &union_value, nullptr) == 0) {
         avro_value_t string_value;
         avro_value_set_branch(&union_value, 1, &string_value);
         avro_value_set_string(&string_value, "abcdefg");
@@ -776,28 +776,28 @@ TEST_F(AvroScannerTest, test_array) {
     });
 
     avro_value_t boolean_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "booleantype", &boolean_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "booleantype", &boolean_value, nullptr) == 0) {
         avro_value_set_boolean(&boolean_value, true);
     }
 
     avro_value_t long_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "longtype", &long_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "longtype", &long_value, nullptr) == 0) {
         avro_value_set_long(&long_value, 4294967296);
     }
 
     avro_value_t double_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "doubletype", &double_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "doubletype", &double_value, nullptr) == 0) {
         avro_value_set_double(&double_value, 1.234567);
     }
 
     avro_value_t array_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "arraytype", &array_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "arraytype", &array_value, nullptr) == 0) {
         avro_value_t ele1;
-        avro_value_append(&array_value, &ele1, NULL);
+        avro_value_append(&array_value, &ele1, nullptr);
         avro_value_set_long(&ele1, 4294967297);
 
         avro_value_t ele2;
-        avro_value_append(&array_value, &ele2, NULL);
+        avro_value_append(&array_value, &ele2, nullptr);
         avro_value_set_long(&ele2, 4294967298);
     }
 
@@ -851,42 +851,42 @@ TEST_F(AvroScannerTest, test_complex_schema) {
     avro_value_t decoded_logs_value;
     avro_value_set_branch(&avro_helper.avro_val, 1, &decoded_logs_value);
     avro_value_t id_value;
-    if (avro_value_get_by_name(&decoded_logs_value, "id", &id_value, NULL) == 0) {
+    if (avro_value_get_by_name(&decoded_logs_value, "id", &id_value, nullptr) == 0) {
         avro_value_set_string(&id_value, "12345");
     }
 
     avro_value_t event_signature_val;
-    if (avro_value_get_by_name(&decoded_logs_value, "eventsignature", &event_signature_val, NULL) == 0) {
+    if (avro_value_get_by_name(&decoded_logs_value, "eventsignature", &event_signature_val, nullptr) == 0) {
         avro_value_t null_vale;
         avro_value_set_branch(&event_signature_val, 0, &null_vale);
         avro_value_set_null(&null_vale);
     }
 
     avro_value_t event_params_val;
-    if (avro_value_get_by_name(&decoded_logs_value, "eventparams", &event_params_val, NULL) == 0) {
+    if (avro_value_get_by_name(&decoded_logs_value, "eventparams", &event_params_val, nullptr) == 0) {
         avro_value_t array_value;
         avro_value_set_branch(&event_params_val, 1, &array_value);
 
         avro_value_t ele1;
-        avro_value_append(&array_value, &ele1, NULL);
+        avro_value_append(&array_value, &ele1, nullptr);
         avro_value_set_string(&ele1, "abc");
 
         avro_value_t ele2;
-        avro_value_append(&array_value, &ele2, NULL);
+        avro_value_append(&array_value, &ele2, nullptr);
         avro_value_set_string(&ele2, "def");
     }
 
     avro_value_t raw_log_val;
-    if (avro_value_get_by_name(&decoded_logs_value, "rawlog", &raw_log_val, NULL) == 0) {
+    if (avro_value_get_by_name(&decoded_logs_value, "rawlog", &raw_log_val, nullptr) == 0) {
         avro_value_t record_value;
         avro_value_set_branch(&raw_log_val, 1, &record_value);
 
         avro_value_t id_value;
-        if (avro_value_get_by_name(&record_value, "id", &id_value, NULL) == 0) {
+        if (avro_value_get_by_name(&record_value, "id", &id_value, nullptr) == 0) {
             avro_value_set_string(&id_value, "iop");
         }
         avro_value_t data_value;
-        if (avro_value_get_by_name(&record_value, "data", &data_value, NULL) == 0) {
+        if (avro_value_get_by_name(&record_value, "data", &data_value, nullptr) == 0) {
             avro_value_set_string(&data_value, "klj");
         }
     }
@@ -942,42 +942,42 @@ TEST_F(AvroScannerTest, test_complex_schema_to_json) {
     avro_value_t decoded_logs_value;
     avro_value_set_branch(&avro_helper.avro_val, 1, &decoded_logs_value);
     avro_value_t id_value;
-    if (avro_value_get_by_name(&decoded_logs_value, "id", &id_value, NULL) == 0) {
+    if (avro_value_get_by_name(&decoded_logs_value, "id", &id_value, nullptr) == 0) {
         avro_value_set_string(&id_value, "12345");
     }
 
     avro_value_t event_signature_val;
-    if (avro_value_get_by_name(&decoded_logs_value, "eventsignature", &event_signature_val, NULL) == 0) {
+    if (avro_value_get_by_name(&decoded_logs_value, "eventsignature", &event_signature_val, nullptr) == 0) {
         avro_value_t null_vale;
         avro_value_set_branch(&event_signature_val, 0, &null_vale);
         avro_value_set_null(&null_vale);
     }
 
     avro_value_t event_params_val;
-    if (avro_value_get_by_name(&decoded_logs_value, "eventparams", &event_params_val, NULL) == 0) {
+    if (avro_value_get_by_name(&decoded_logs_value, "eventparams", &event_params_val, nullptr) == 0) {
         avro_value_t array_value;
         avro_value_set_branch(&event_params_val, 1, &array_value);
 
         avro_value_t ele1;
-        avro_value_append(&array_value, &ele1, NULL);
+        avro_value_append(&array_value, &ele1, nullptr);
         avro_value_set_string(&ele1, "abc");
 
         avro_value_t ele2;
-        avro_value_append(&array_value, &ele2, NULL);
+        avro_value_append(&array_value, &ele2, nullptr);
         avro_value_set_string(&ele2, "def");
     }
 
     avro_value_t raw_log_val;
-    if (avro_value_get_by_name(&decoded_logs_value, "rawlog", &raw_log_val, NULL) == 0) {
+    if (avro_value_get_by_name(&decoded_logs_value, "rawlog", &raw_log_val, nullptr) == 0) {
         avro_value_t record_value;
         avro_value_set_branch(&raw_log_val, 1, &record_value);
 
         avro_value_t id_value;
-        if (avro_value_get_by_name(&record_value, "id", &id_value, NULL) == 0) {
+        if (avro_value_get_by_name(&record_value, "id", &id_value, nullptr) == 0) {
             avro_value_set_string(&id_value, "iop");
         }
         avro_value_t data_value;
-        if (avro_value_get_by_name(&record_value, "data", &data_value, NULL) == 0) {
+        if (avro_value_get_by_name(&record_value, "data", &data_value, nullptr) == 0) {
             avro_value_set_string(&data_value, "klj");
         }
     }
@@ -1050,33 +1050,33 @@ TEST_F(AvroScannerTest, test_complex_schema_null_data) {
     avro_value_t decoded_logs_value;
     avro_value_set_branch(&avro_helper.avro_val, 1, &decoded_logs_value);
     avro_value_t id_value;
-    if (avro_value_get_by_name(&decoded_logs_value, "id", &id_value, NULL) == 0) {
+    if (avro_value_get_by_name(&decoded_logs_value, "id", &id_value, nullptr) == 0) {
         avro_value_set_string(&id_value, "12345");
     }
 
     avro_value_t event_signature_val;
-    if (avro_value_get_by_name(&decoded_logs_value, "eventsignature", &event_signature_val, NULL) == 0) {
+    if (avro_value_get_by_name(&decoded_logs_value, "eventsignature", &event_signature_val, nullptr) == 0) {
         avro_value_t null_vale;
         avro_value_set_branch(&event_signature_val, 0, &null_vale);
         avro_value_set_null(&null_vale);
     }
 
     avro_value_t event_params_val;
-    if (avro_value_get_by_name(&decoded_logs_value, "eventparams", &event_params_val, NULL) == 0) {
+    if (avro_value_get_by_name(&decoded_logs_value, "eventparams", &event_params_val, nullptr) == 0) {
         avro_value_t array_value;
         avro_value_set_branch(&event_params_val, 1, &array_value);
 
         avro_value_t ele1;
-        avro_value_append(&array_value, &ele1, NULL);
+        avro_value_append(&array_value, &ele1, nullptr);
         avro_value_set_string(&ele1, "abc");
 
         avro_value_t ele2;
-        avro_value_append(&array_value, &ele2, NULL);
+        avro_value_append(&array_value, &ele2, nullptr);
         avro_value_set_string(&ele2, "def");
     }
 
     avro_value_t raw_log_val;
-    if (avro_value_get_by_name(&decoded_logs_value, "rawlog", &raw_log_val, NULL) == 0) {
+    if (avro_value_get_by_name(&decoded_logs_value, "rawlog", &raw_log_val, nullptr) == 0) {
         avro_value_t null_vale;
         avro_value_set_branch(&raw_log_val, 0, &null_vale);
         avro_value_set_null(&null_vale);
@@ -1103,7 +1103,7 @@ TEST_F(AvroScannerTest, test_complex_schema_null_data) {
     range.__set_path(data_path);
     ranges.emplace_back(range);
 
-    auto scanner = create_avro_scanner(types, ranges, {{"id", "eventsignature", "eventparams", "data"}},
+    auto scanner = create_avro_scanner(types, ranges, {"id", "eventsignature", "eventparams", "data"},
                                        avro_helper.schema_text);
     Status st = scanner->open();
     ASSERT_TRUE(st.ok());
@@ -1135,33 +1135,33 @@ TEST_F(AvroScannerTest, test_complex_schema_null_data_to_json) {
     avro_value_t decoded_logs_value;
     avro_value_set_branch(&avro_helper.avro_val, 1, &decoded_logs_value);
     avro_value_t id_value;
-    if (avro_value_get_by_name(&decoded_logs_value, "id", &id_value, NULL) == 0) {
+    if (avro_value_get_by_name(&decoded_logs_value, "id", &id_value, nullptr) == 0) {
         avro_value_set_string(&id_value, "12345");
     }
 
     avro_value_t event_signature_val;
-    if (avro_value_get_by_name(&decoded_logs_value, "eventsignature", &event_signature_val, NULL) == 0) {
+    if (avro_value_get_by_name(&decoded_logs_value, "eventsignature", &event_signature_val, nullptr) == 0) {
         avro_value_t null_vale;
         avro_value_set_branch(&event_signature_val, 0, &null_vale);
         avro_value_set_null(&null_vale);
     }
 
     avro_value_t event_params_val;
-    if (avro_value_get_by_name(&decoded_logs_value, "eventparams", &event_params_val, NULL) == 0) {
+    if (avro_value_get_by_name(&decoded_logs_value, "eventparams", &event_params_val, nullptr) == 0) {
         avro_value_t array_value;
         avro_value_set_branch(&event_params_val, 1, &array_value);
 
         avro_value_t ele1;
-        avro_value_append(&array_value, &ele1, NULL);
+        avro_value_append(&array_value, &ele1, nullptr);
         avro_value_set_string(&ele1, "abc");
 
         avro_value_t ele2;
-        avro_value_append(&array_value, &ele2, NULL);
+        avro_value_append(&array_value, &ele2, nullptr);
         avro_value_set_string(&ele2, "def");
     }
 
     avro_value_t raw_log_val;
-    if (avro_value_get_by_name(&decoded_logs_value, "rawlog", &raw_log_val, NULL) == 0) {
+    if (avro_value_get_by_name(&decoded_logs_value, "rawlog", &raw_log_val, nullptr) == 0) {
         avro_value_t null_vale;
         avro_value_set_branch(&raw_log_val, 0, &null_vale);
         avro_value_set_null(&null_vale);
@@ -1235,28 +1235,28 @@ TEST_F(AvroScannerTest, test_map_to_json) {
     });
 
     avro_value_t boolean_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "booleantype", &boolean_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "booleantype", &boolean_value, nullptr) == 0) {
         avro_value_set_boolean(&boolean_value, true);
     }
 
     avro_value_t long_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "longtype", &long_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "longtype", &long_value, nullptr) == 0) {
         avro_value_set_long(&long_value, 4294967296);
     }
 
     avro_value_t double_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "doubletype", &double_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "doubletype", &double_value, nullptr) == 0) {
         avro_value_set_double(&double_value, 1.234567);
     }
 
     avro_value_t map_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "maptype", &map_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "maptype", &map_value, nullptr) == 0) {
         avro_value_t ele1;
-        avro_value_add(&map_value, "ele1", &ele1, NULL, NULL);
+        avro_value_add(&map_value, "ele1", &ele1, nullptr, nullptr);
         avro_value_set_long(&ele1, 4294967297);
 
         avro_value_t ele2;
-        avro_value_add(&map_value, "ele2", &ele2, NULL, NULL);
+        avro_value_add(&map_value, "ele2", &ele2, nullptr, nullptr);
         avro_value_set_long(&ele2, 4294967298);
     }
 
@@ -1384,45 +1384,45 @@ void AvroScannerTest::test_map_nested_struct() {
     std::vector<std::map<std::string, std::string>> cookies = {{{"key1", "value1"}}, {{"key2", "null"}}};
 
     avro_value_t headers_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "headers", &headers_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "headers", &headers_value, nullptr) == 0) {
         { // set user agent array
             avro_value_t ua_arr;
-            avro_value_add(&headers_value, "User-Agent", &ua_arr, NULL, NULL);
+            avro_value_add(&headers_value, "User-Agent", &ua_arr, nullptr, nullptr);
 
             for (auto& val : user_agents) {
                 avro_value_t ua_value;
-                avro_value_append(&ua_arr, &ua_value, NULL);
+                avro_value_append(&ua_arr, &ua_value, nullptr);
                 avro_value_set_string(&ua_value, val.c_str());
             }
         }
         { // set x-forward-for array value
             avro_value_t xfwd_arr;
-            avro_value_add(&headers_value, "X-Forwarded-For", &xfwd_arr, NULL, NULL);
+            avro_value_add(&headers_value, "X-Forwarded-For", &xfwd_arr, nullptr, nullptr);
 
             for (auto& val : xfwd_for) {
                 avro_value_t fwd_value;
-                avro_value_append(&xfwd_arr, &fwd_value, NULL);
+                avro_value_append(&xfwd_arr, &fwd_value, nullptr);
                 avro_value_set_string(&fwd_value, val.c_str());
             }
         }
     }
 
     avro_value_t cookies_value;
-    ASSERT_EQ(0, avro_value_get_by_name(&avro_helper.avro_val, "cookies", &cookies_value, NULL));
+    ASSERT_EQ(0, avro_value_get_by_name(&avro_helper.avro_val, "cookies", &cookies_value, nullptr));
     { // set cookies
         avro_value_t cookies_arr;
-        ASSERT_EQ(0, avro_value_add(&cookies_value, "session", &cookies_arr, NULL, NULL));
+        ASSERT_EQ(0, avro_value_add(&cookies_value, "session", &cookies_arr, nullptr, nullptr));
 
         for (auto& val : cookies) {
             avro_value_t cookie_pairs;
-            ASSERT_EQ(0, avro_value_append(&cookies_arr, &cookie_pairs, NULL));
+            ASSERT_EQ(0, avro_value_append(&cookies_arr, &cookie_pairs, nullptr));
             for (auto& [k, v] : val) {
                 avro_value_t cookie_pair_name;
-                ASSERT_EQ(0, avro_value_get_by_name(&cookie_pairs, "name", &cookie_pair_name, NULL));
+                ASSERT_EQ(0, avro_value_get_by_name(&cookie_pairs, "name", &cookie_pair_name, nullptr));
                 avro_value_set_string(&cookie_pair_name, k.c_str());
 
                 avro_value_t union_value;
-                ASSERT_EQ(0, avro_value_get_by_name(&cookie_pairs, "value", &union_value, NULL));
+                ASSERT_EQ(0, avro_value_get_by_name(&cookie_pairs, "value", &union_value, nullptr));
                 avro_value_t cookie_pair_val;
                 if (v == "null") {
                     avro_value_set_branch(&union_value, 0, &cookie_pair_val);
@@ -1562,60 +1562,60 @@ TEST_F(AvroScannerTest, test_root_array) {
 
     {
         avro_value_t ele;
-        avro_value_append(&avro_helper.avro_val, &ele, NULL);
+        avro_value_append(&avro_helper.avro_val, &ele, nullptr);
 
         avro_value_t boolean_value;
-        if (avro_value_get_by_name(&ele, "booleantype", &boolean_value, NULL) == 0) {
+        if (avro_value_get_by_name(&ele, "booleantype", &boolean_value, nullptr) == 0) {
             avro_value_set_boolean(&boolean_value, true);
         }
 
         avro_value_t long_value;
-        if (avro_value_get_by_name(&ele, "longtype", &long_value, NULL) == 0) {
+        if (avro_value_get_by_name(&ele, "longtype", &long_value, nullptr) == 0) {
             avro_value_set_long(&long_value, 4294967296);
         }
 
         avro_value_t double_value;
-        if (avro_value_get_by_name(&ele, "doubletype", &double_value, NULL) == 0) {
+        if (avro_value_get_by_name(&ele, "doubletype", &double_value, nullptr) == 0) {
             avro_value_set_double(&double_value, 1.234567);
         }
 
         avro_value_t string_value;
-        if (avro_value_get_by_name(&ele, "stringtype", &string_value, NULL) == 0) {
+        if (avro_value_get_by_name(&ele, "stringtype", &string_value, nullptr) == 0) {
             avro_value_set_string(&string_value, "abcdefg");
         }
 
         avro_value_t enum_value;
-        if (avro_value_get_by_name(&ele, "enumtype", &enum_value, NULL) == 0) {
+        if (avro_value_get_by_name(&ele, "enumtype", &enum_value, nullptr) == 0) {
             avro_value_set_enum(&enum_value, 2);
         }
     }
 
     {
         avro_value_t ele;
-        avro_value_append(&avro_helper.avro_val, &ele, NULL);
+        avro_value_append(&avro_helper.avro_val, &ele, nullptr);
 
         avro_value_t boolean_value;
-        if (avro_value_get_by_name(&ele, "booleantype", &boolean_value, NULL) == 0) {
+        if (avro_value_get_by_name(&ele, "booleantype", &boolean_value, nullptr) == 0) {
             avro_value_set_boolean(&boolean_value, true);
         }
 
         avro_value_t long_value;
-        if (avro_value_get_by_name(&ele, "longtype", &long_value, NULL) == 0) {
+        if (avro_value_get_by_name(&ele, "longtype", &long_value, nullptr) == 0) {
             avro_value_set_long(&long_value, 429496);
         }
 
         avro_value_t double_value;
-        if (avro_value_get_by_name(&ele, "doubletype", &double_value, NULL) == 0) {
+        if (avro_value_get_by_name(&ele, "doubletype", &double_value, nullptr) == 0) {
             avro_value_set_double(&double_value, 1.23457);
         }
 
         avro_value_t string_value;
-        if (avro_value_get_by_name(&ele, "stringtype", &string_value, NULL) == 0) {
+        if (avro_value_get_by_name(&ele, "stringtype", &string_value, nullptr) == 0) {
             avro_value_set_string(&string_value, "aaafg");
         }
 
         avro_value_t enum_value;
-        if (avro_value_get_by_name(&ele, "enumtype", &enum_value, NULL) == 0) {
+        if (avro_value_get_by_name(&ele, "enumtype", &enum_value, nullptr) == 0) {
             avro_value_set_enum(&enum_value, 1);
         }
     }

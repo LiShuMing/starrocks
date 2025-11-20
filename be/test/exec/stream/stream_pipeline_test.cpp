@@ -76,7 +76,7 @@ Status StreamPipelineTest::prepare() {
     DCHECK(_pipeline_builder != nullptr);
     _pipelines.clear();
     _pipeline_builder(_fragment_ctx->runtime_state());
-    for (auto pipeline : _pipelines) {
+    for (const auto& pipeline : _pipelines) {
         exec_group->add_pipeline(std::move(pipeline.get()));
     }
     _fragment_ctx->set_pipelines({exec_group}, std::move(_pipelines));
@@ -175,7 +175,7 @@ void StreamPipelineTest::cancel_mv() {
 
 Status StreamPipelineTest::start_epoch(const std::vector<int64_t>& tablet_ids, const EpochInfo& epoch_info) {
     std::unordered_map<int64_t, BinlogOffset> binlog_offsets;
-    for (auto tablet_id : tablet_ids) {
+    for (const auto& tablet_id : tablet_ids) {
         binlog_offsets.insert({tablet_id, BinlogOffset{}});
     }
     std::unordered_map<int64_t, std::unordered_map<int64_t, BinlogOffset>> node_id_binlog_offsets;

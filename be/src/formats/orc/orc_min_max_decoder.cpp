@@ -34,7 +34,7 @@ namespace starrocks {
     } while (0)
 
 static Status decode_int_min_max(LogicalType ltype, const orc::proto::ColumnStatistics& colStats,
-                                 const ColumnPtr& min_col, const ColumnPtr& max_col) {
+                                 const MutableColumnPtr& min_col, const MutableColumnPtr& max_col) {
     if (colStats.has_intstatistics() && colStats.intstatistics().has_minimum() &&
         colStats.intstatistics().has_maximum()) {
         const auto& stats = colStats.intstatistics();
@@ -58,7 +58,7 @@ static Status decode_int_min_max(LogicalType ltype, const orc::proto::ColumnStat
 }
 
 static Status decode_double_min_max(LogicalType ltype, const orc::proto::ColumnStatistics& colStats,
-                                    const ColumnPtr& min_col, const ColumnPtr& max_col) {
+                                    const MutableColumnPtr& min_col, const MutableColumnPtr& max_col) {
     if (colStats.has_doublestatistics() && colStats.doublestatistics().has_minimum() &&
         colStats.doublestatistics().has_maximum()) {
         const auto& stats = colStats.doublestatistics();
@@ -76,7 +76,7 @@ static Status decode_double_min_max(LogicalType ltype, const orc::proto::ColumnS
     return Status::NotFound("OrcMinMaxFilter: double column stats not found");
 }
 static Status decode_string_min_max(LogicalType ltype, const orc::proto::ColumnStatistics& colStats,
-                                    const ColumnPtr& min_col, const ColumnPtr& max_col) {
+                                    const MutableColumnPtr& min_col, const MutableColumnPtr& max_col) {
     if (colStats.has_stringstatistics() && colStats.stringstatistics().has_minimum() &&
         colStats.stringstatistics().has_maximum()) {
         const auto& stats = colStats.stringstatistics();
@@ -102,8 +102,8 @@ static Status decode_string_min_max(LogicalType ltype, const orc::proto::ColumnS
     return Status::NotFound("OrcMinMaxFilter: string column stats not found");
 }
 
-static Status decode_date_min_max(const orc::proto::ColumnStatistics& colStats, const ColumnPtr& min_col,
-                                  const ColumnPtr& max_col) {
+static Status decode_date_min_max(const orc::proto::ColumnStatistics& colStats, const MutableColumnPtr& min_col,
+                                  const MutableColumnPtr& max_col) {
     if (colStats.has_datestatistics() && colStats.datestatistics().has_minimum() &&
         colStats.datestatistics().has_maximum()) {
         const auto& stats = colStats.datestatistics();
@@ -119,8 +119,8 @@ static Status decode_date_min_max(const orc::proto::ColumnStatistics& colStats, 
 // but timestamp column vector batch stores seconds since unix epoch time.
 // https://orc.apache.org/specification/ORCv1/
 static Status decode_datetime_min_max(const orc::Type* orc_type, const orc::proto::ColumnStatistics& colStats,
-                                      int64_t tz_offset_in_seconds, const ColumnPtr& min_col,
-                                      const ColumnPtr& max_col) {
+                                      int64_t tz_offset_in_seconds, const MutableColumnPtr& min_col,
+                                      const MutableColumnPtr& max_col) {
     if (orc_type->getKind() != orc::TypeKind::TIMESTAMP && orc_type->getKind() != orc::TypeKind::TIMESTAMP_INSTANT) {
         return Status::InvalidArgument("OrcMinMaxFilter: Invalid ORC timestamp kind");
     }
@@ -159,7 +159,7 @@ static Status decode_datetime_min_max(const orc::Type* orc_type, const orc::prot
 }
 
 Status OrcMinMaxDecoder::decode(SlotDescriptor* slot, const orc::Type* type, const orc::proto::ColumnStatistics& stats,
-                                ColumnPtr min_col, ColumnPtr max_col, int64_t tz_offset_in_seconds) {
+                                MutableColumnPtr min_col, MutableColumnPtr max_col, int64_t tz_offset_in_seconds) {
     if (slot->is_nullable()) {
         auto* a = ColumnHelper::as_raw_column<NullableColumn>(min_col);
         auto* b = ColumnHelper::as_raw_column<NullableColumn>(max_col);

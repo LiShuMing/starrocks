@@ -97,14 +97,14 @@ TEST_F(KafkaConsumerPipeTest, append_read_json) {
     st = k_pipe.finish();
     ASSERT_TRUE(st.ok());
 
-    StatusOr<ByteBufferPtr> buf_st1 = k_pipe.read();
+    const StatusOr<ByteBufferPtr>& buf_st1 = k_pipe.read();
     ASSERT_OK(buf_st1.status());
-    auto buf1 = buf_st1.value();
+    const auto& buf1 = buf_st1.value();
     ASSERT_EQ(NoneByteBufferMeta::instance(), buf1->meta());
 
-    StatusOr<ByteBufferPtr> buf_st2 = k_pipe.read();
+    const StatusOr<ByteBufferPtr>& buf_st2 = k_pipe.read();
     ASSERT_OK(buf_st2.status());
-    auto buf2 = buf_st2.value();
+    const auto& buf2 = buf_st2.value();
     ByteBufferMeta* meta = buf2->meta();
     ASSERT_EQ(ByteBufferMetaType::KAFKA, meta->type());
     KafkaByteBufferMeta* kafka_meta = static_cast<KafkaByteBufferMeta*>(meta);

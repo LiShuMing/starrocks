@@ -24,7 +24,7 @@ namespace starrocks {
 
 class SchemaFeTabletSchedulesScannerTest : public ::testing::Test {
 private:
-    ChunkPtr create_chunk(const std::vector<SlotDescriptor*> slot_descs) {
+    ChunkPtr create_chunk(const std::vector<SlotDescriptor*>& slot_descs) {
         ChunkPtr chunk = std::make_shared<Chunk>();
         for (const auto* slot_desc : slot_descs) {
             MutableColumnPtr column = ColumnHelper::create_column(slot_desc->type(), slot_desc->is_nullable());

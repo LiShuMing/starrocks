@@ -150,7 +150,7 @@ TEST_F(ChunkPredicateBuilderTest, normalized_in_has_null) {
     ASSERT_OK(ExprsTestHelper::create_and_open_conjunct_ctxs(&_pool, &_runtime_state, &_texprs, &_expr_ctxs));
     ASSERT_EQ(_expr_ctxs.size(), 1);
 
-    _expr_containers.emplace_back(BoxedExprContext(_expr_ctxs[0]));
+    _expr_containers.emplace_back(_expr_ctxs[0]);
 
     ChunkPredicateBuilder<BoxedExprContext, CompoundNodeType::AND> builder(_opts, _expr_containers, true);
     ASSIGN_OR_ASSERT_FAIL(auto normalized, builder.parse_conjuncts());
@@ -173,7 +173,7 @@ TEST_F(ChunkPredicateBuilderTest, normalized_in_has_null_larger_than_1024) {
     ASSERT_OK(ExprsTestHelper::create_and_open_conjunct_ctxs(&_pool, &_runtime_state, &_texprs, &_expr_ctxs));
     ASSERT_EQ(_expr_ctxs.size(), 1);
 
-    _expr_containers.emplace_back(BoxedExprContext(_expr_ctxs[0]));
+    _expr_containers.emplace_back(_expr_ctxs[0]);
 
     ChunkPredicateBuilder<BoxedExprContext, CompoundNodeType::AND> builder(_opts, _expr_containers, true);
     ASSIGN_OR_ASSERT_FAIL(auto normalized, builder.parse_conjuncts());
@@ -195,7 +195,7 @@ TEST_F(ChunkPredicateBuilderTest, normalized_in_has_null_null_equal) {
 
     auto* in_const_expr = reinterpret_cast<VectorizedInConstPredicate<TYPE_INT>*>(_expr_ctxs[0]->root());
     in_const_expr->set_eq_null(true);
-    _expr_containers.emplace_back(BoxedExprContext(_expr_ctxs[0]));
+    _expr_containers.emplace_back(_expr_ctxs[0]);
 
     ChunkPredicateBuilder<BoxedExprContext, CompoundNodeType::AND> builder(_opts, _expr_containers, true);
     ASSIGN_OR_ASSERT_FAIL(auto normalized, builder.parse_conjuncts());
@@ -215,7 +215,7 @@ TEST_F(ChunkPredicateBuilderTest, normalized_in_has_null_date) {
     ASSERT_OK(ExprsTestHelper::create_and_open_conjunct_ctxs(&_pool, &_runtime_state, &_texprs, &_expr_ctxs));
     ASSERT_EQ(_expr_ctxs.size(), 1);
 
-    _expr_containers.emplace_back(BoxedExprContext(_expr_ctxs[0]));
+    _expr_containers.emplace_back(_expr_ctxs[0]);
 
     ChunkPredicateBuilder<BoxedExprContext, CompoundNodeType::AND> builder(_opts, _expr_containers, true);
     ASSIGN_OR_ASSERT_FAIL(auto normalized, builder.parse_conjuncts());
@@ -237,7 +237,7 @@ TEST_F(ChunkPredicateBuilderTest, normalized_in_has_null_date_null_equal) {
 
     auto* in_const_expr = reinterpret_cast<VectorizedInConstPredicate<TYPE_DATE>*>(_expr_ctxs[0]->root());
     in_const_expr->set_eq_null(true);
-    _expr_containers.emplace_back(BoxedExprContext(_expr_ctxs[0]));
+    _expr_containers.emplace_back(_expr_ctxs[0]);
 
     ChunkPredicateBuilder<BoxedExprContext, CompoundNodeType::AND> builder(_opts, _expr_containers, true);
     ASSIGN_OR_ASSERT_FAIL(auto normalized, builder.parse_conjuncts());
@@ -257,8 +257,8 @@ TEST_F(ChunkPredicateBuilderTest, normalize_or_in_has_null) {
             slot_id, std::vector<int32_t>{1, 3, 5, 7, 9}, true));
     ASSERT_OK(ExprsTestHelper::create_and_open_conjunct_ctxs(&_pool, &_runtime_state, &_texprs, &_expr_ctxs));
     ASSERT_EQ(_expr_ctxs.size(), 2);
-    _expr_containers.emplace_back(BoxedExprContext(_expr_ctxs[0]));
-    _expr_containers.emplace_back(BoxedExprContext(_expr_ctxs[1]));
+    _expr_containers.emplace_back(_expr_ctxs[0]);
+    _expr_containers.emplace_back(_expr_ctxs[1]);
 
     ChunkPredicateBuilder<BoxedExprContext, CompoundNodeType::OR> builder(_opts, _expr_containers, false);
     ASSIGN_OR_ASSERT_FAIL(auto normalized, builder.parse_conjuncts());
@@ -278,8 +278,8 @@ TEST_F(ChunkPredicateBuilderTest, normalize_or_in_has_null_date) {
             slot_id, {"2014-01-01", "2014-01-02", "2014-01-03"}, true));
     ASSERT_OK(ExprsTestHelper::create_and_open_conjunct_ctxs(&_pool, &_runtime_state, &_texprs, &_expr_ctxs));
     ASSERT_EQ(_expr_ctxs.size(), 2);
-    _expr_containers.emplace_back(BoxedExprContext(_expr_ctxs[0]));
-    _expr_containers.emplace_back(BoxedExprContext(_expr_ctxs[1]));
+    _expr_containers.emplace_back(_expr_ctxs[0]);
+    _expr_containers.emplace_back(_expr_ctxs[1]);
 
     ChunkPredicateBuilder<BoxedExprContext, CompoundNodeType::OR> builder(_opts, _expr_containers, false);
     ASSIGN_OR_ASSERT_FAIL(auto normalized, builder.parse_conjuncts());
@@ -295,7 +295,7 @@ TEST_F(ChunkPredicateBuilderTest, normalized_not_in_has_null) {
     ASSERT_OK(ExprsTestHelper::create_and_open_conjunct_ctxs(&_pool, &_runtime_state, &_texprs, &_expr_ctxs));
     ASSERT_EQ(_expr_ctxs.size(), 1);
 
-    _expr_containers.emplace_back(BoxedExprContext(_expr_ctxs[0]));
+    _expr_containers.emplace_back(_expr_ctxs[0]);
 
     ChunkPredicateBuilder<BoxedExprContext, CompoundNodeType::AND> builder(_opts, _expr_containers, true);
     auto ret = builder.parse_conjuncts();
@@ -316,7 +316,7 @@ TEST_F(ChunkPredicateBuilderTest, normalized_not_in_has_null_larger_than_1024) {
     ASSERT_OK(ExprsTestHelper::create_and_open_conjunct_ctxs(&_pool, &_runtime_state, &_texprs, &_expr_ctxs));
     ASSERT_EQ(_expr_ctxs.size(), 1);
 
-    _expr_containers.emplace_back(BoxedExprContext(_expr_ctxs[0]));
+    _expr_containers.emplace_back(_expr_ctxs[0]);
 
     ChunkPredicateBuilder<BoxedExprContext, CompoundNodeType::AND> builder(_opts, _expr_containers, true);
     ASSIGN_OR_ASSERT_FAIL(auto normalized, builder.parse_conjuncts());
@@ -336,8 +336,8 @@ TEST_F(ChunkPredicateBuilderTest, normalize_or_not_in_has_null) {
             slot_id, std::vector<int32_t>{1, 3, 5, 7, 9}, true));
     ASSERT_OK(ExprsTestHelper::create_and_open_conjunct_ctxs(&_pool, &_runtime_state, &_texprs, &_expr_ctxs));
     ASSERT_EQ(_expr_ctxs.size(), 2);
-    _expr_containers.emplace_back(BoxedExprContext(_expr_ctxs[0]));
-    _expr_containers.emplace_back(BoxedExprContext(_expr_ctxs[1]));
+    _expr_containers.emplace_back(_expr_ctxs[0]);
+    _expr_containers.emplace_back(_expr_ctxs[1]);
 
     ChunkPredicateBuilder<BoxedExprContext, CompoundNodeType::OR> builder(_opts, _expr_containers, false);
     ASSIGN_OR_ASSERT_FAIL(auto normalized, builder.parse_conjuncts());
@@ -354,8 +354,8 @@ TEST_F(ChunkPredicateBuilderTest, normalize_or_not_in_has_null_date) {
             slot_id, {"2014-01-01", "2014-01-02", "2014-01-03"}, true));
     ASSERT_OK(ExprsTestHelper::create_and_open_conjunct_ctxs(&_pool, &_runtime_state, &_texprs, &_expr_ctxs));
     ASSERT_EQ(_expr_ctxs.size(), 2);
-    _expr_containers.emplace_back(BoxedExprContext(_expr_ctxs[0]));
-    _expr_containers.emplace_back(BoxedExprContext(_expr_ctxs[1]));
+    _expr_containers.emplace_back(_expr_ctxs[0]);
+    _expr_containers.emplace_back(_expr_ctxs[1]);
 
     ChunkPredicateBuilder<BoxedExprContext, CompoundNodeType::OR> builder(_opts, _expr_containers, false);
     ASSIGN_OR_ASSERT_FAIL(auto normalized, builder.parse_conjuncts());
@@ -515,7 +515,7 @@ TEST_F(ChunkPredicateBuilderTest, in_runtime_filter_has_null) {
 
     ExprContext* expr_ctx = builder.get_in_const_predicate();
 
-    _expr_containers.emplace_back(BoxedExprContext(expr_ctx));
+    _expr_containers.emplace_back(expr_ctx);
 
     ChunkPredicateBuilder<BoxedExprContext, CompoundNodeType::AND> pred_builder(_opts, _expr_containers, true);
     auto ret = pred_builder.parse_conjuncts();
@@ -546,7 +546,7 @@ TEST_F(ChunkPredicateBuilderTest, in_runtime_filter_has_no_null) {
 
     ExprContext* expr_ctx = builder.get_in_const_predicate();
 
-    _expr_containers.emplace_back(BoxedExprContext(expr_ctx));
+    _expr_containers.emplace_back(expr_ctx);
 
     ChunkPredicateBuilder<BoxedExprContext, CompoundNodeType::AND> pred_builder(_opts, _expr_containers, true);
     auto ret = pred_builder.parse_conjuncts();

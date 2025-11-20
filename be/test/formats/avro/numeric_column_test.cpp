@@ -38,7 +38,7 @@ namespace starrocks {
 
 class AvroAddNumericColumnTest : public ::testing::Test {};
 
-static void init_avro_value(std::string schema_path, AvroHelper& avro_helper) {
+static void init_avro_value(const std::string& schema_path, AvroHelper& avro_helper) {
     std::ifstream infile_schema;
     infile_schema.open(schema_path);
     std::stringstream ss;
@@ -127,17 +127,17 @@ TEST_F(AvroAddNumericColumnTest, test_add_invalid) {
     });
 
     avro_value_t boolean_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "booleantype", &boolean_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "booleantype", &boolean_value, nullptr) == 0) {
         avro_value_set_boolean(&boolean_value, true);
     }
 
     avro_value_t long_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "longtype", &long_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "longtype", &long_value, nullptr) == 0) {
         avro_value_set_long(&long_value, 4294967296);
     }
 
     avro_value_t double_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "doubletype", &double_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "doubletype", &double_value, nullptr) == 0) {
         avro_value_set_double(&double_value, 1.234567);
     }
 

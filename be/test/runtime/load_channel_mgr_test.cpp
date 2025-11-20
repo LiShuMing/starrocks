@@ -68,13 +68,13 @@ protected:
         c0.column_name = "c0";
         c0.__set_is_key(true);
         c0.column_type.type = TPrimitiveType::INT;
-        request.tablet_schema.columns.push_back(c0);
+        request.tablet_schema.columns.emplace_back(c0);
 
         TColumn c1;
         c1.column_name = "c1";
         c1.__set_is_key(false);
         c1.column_type.type = TPrimitiveType::INT;
-        request.tablet_schema.columns.push_back(c1);
+        request.tablet_schema.columns.emplace_back(c1);
 
         auto st = StorageEngine::instance()->create_tablet(request);
         CHECK(st.ok()) << st.to_string();

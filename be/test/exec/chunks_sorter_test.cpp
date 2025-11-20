@@ -560,7 +560,7 @@ static Permutation make_permutation(int len) {
         ChunkPtr chunk;
         (void)sorter.get_next(&chunk, &eos);
         if (chunk) {
-            result.push_back(chunk);
+            result.emplace_back(chunk);
         }
     }
     return result;
@@ -586,13 +586,13 @@ static ChunkPtr consume_page_from_sorter(ChunksSorter& sorter) {
 
 TEST_F(ChunksSorterTest, full_sort_incremental) {
     std::vector<bool> is_asc, is_null_first;
-    is_asc.push_back(false); // cust_key
-    is_asc.push_back(true);  // cust_key
-    is_null_first.push_back(true);
-    is_null_first.push_back(true);
+    is_asc.emplace_back(false); // cust_key
+    is_asc.emplace_back(true);  // cust_key
+    is_null_first.emplace_back(true);
+    is_null_first.emplace_back(true);
     std::vector<ExprContext*> sort_exprs;
-    sort_exprs.push_back(new ExprContext(_expr_region.get()));
-    sort_exprs.push_back(new ExprContext(_expr_cust_key.get()));
+    sort_exprs.emplace_back(new ExprContext(_expr_region.get()));
+    sort_exprs.emplace_back(new ExprContext(_expr_cust_key.get()));
     ASSERT_OK(Expr::prepare(sort_exprs, _runtime_state.get()));
     ASSERT_OK(Expr::open(sort_exprs, _runtime_state.get()));
     auto pool = std::make_unique<ObjectPool>();
@@ -615,7 +615,7 @@ TEST_F(ChunksSorterTest, full_sort_incremental) {
     std::vector<int32_t> permutation{69, 70, 71, 2, 4, 6, 12, 16, 24, 41, 49, 52, 54, 55, 56, 58};
     std::vector<int> result;
     for (size_t i = 0; i < Size; ++i) {
-        result.push_back(page_1->get(i).get(0).get_int32());
+        result.emplace_back(page_1->get(i).get(0).get_int32());
     }
     EXPECT_EQ(permutation, result);
 
@@ -631,7 +631,7 @@ TEST_F(ChunksSorterTest, full_sort_incremental) {
 //     DeferOp defer([&]() { clear_sort_exprs(sort_exprs); });
 
 //     std::string big_string(1024, 'a');
-//     MutableColumnPtr big_column   = ColumnHelper::create_column(TypeDescriptor(TYPE_VARCHAR), false);
+//     MutableMutableColumnPtr big_column   = ColumnHelper::create_column(TypeDescriptor(TYPE_VARCHAR), false);
 //     for (int i = 0; i < 1024; i++) {
 //         big_column->append_datum(Datum(Slice(big_string)));
 //     }
@@ -682,7 +682,7 @@ TEST_F(ChunksSorterTest, topn_sort_limit_prune) {
         auto data = std::vector<int32_t>{0, 0, 0, 2, 2, 2, 3, 3, 4, 5, 6};
         auto null_data = std::vector<uint8_t>{1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
         ColumnPtr column = ColumnTestHelper::build_nullable_column(data, null_data);
-        std::vector<ColumnPtr> columns{column};
+        Columns columns{column};
         auto null_pred = [&](PermutationItem item) { return column->is_null(item.index_in_chunk); };
         std::pair<int, int> range{0, column->size()};
 
@@ -714,8 +714,8 @@ TEST_F(ChunksSorterTest, topn_sort_with_limit) {
         std::vector<bool> is_asc{true, true};
         std::vector<bool> is_null_first{true, true};
         std::vector<ExprContext*> sort_exprs;
-        sort_exprs.push_back(new ExprContext(column));
-        sort_exprs.push_back(new ExprContext(_expr_cust_key.get()));
+        sort_exprs.emplace_back(new ExprContext(column));
+        sort_exprs.emplace_back(new ExprContext(_expr_cust_key.get()));
         ASSERT_OK(Expr::prepare(sort_exprs, _runtime_state.get()));
         ASSERT_OK(Expr::open(sort_exprs, _runtime_state.get()));
 
@@ -736,7 +736,7 @@ TEST_F(ChunksSorterTest, topn_sort_with_limit) {
             std::vector<int32_t> permutation = expected;
             std::vector<int> result;
             for (size_t i = 0; i < page_1->num_rows(); ++i) {
-                result.push_back(page_1->get(i).get(0).get_int32());
+                result.emplace_back(page_1->get(i).get(0).get_int32());
             }
             permutation.resize(limit);
             EXPECT_EQ(permutation, result);
@@ -751,7 +751,7 @@ TEST_F(ChunksSorterTest, rank_topn) {
     std::vector<bool> is_asc{true};
     std::vector<bool> is_null_first{true};
     std::vector<ExprContext*> sort_exprs;
-    sort_exprs.push_back(new ExprContext(_expr_ranking_key.get()));
+    sort_exprs.emplace_back(new ExprContext(_expr_ranking_key.get()));
     ASSERT_OK(Expr::prepare(sort_exprs, _runtime_state.get()));
     ASSERT_OK(Expr::open(sort_exprs, _runtime_state.get()));
 
@@ -785,7 +785,7 @@ TEST_F(ChunksSorterTest, rank_topn) {
             std::vector<int32_t> permutation = expected_perm;
             std::vector<int32_t> result;
             for (size_t i = 0; i < page->num_rows(); ++i) {
-                result.push_back(page->get(i).get(0).get_int32());
+                result.emplace_back(page->get(i).get(0).get_int32());
             }
             permutation.resize(res_num_rows);
             EXPECT_EQ(permutation, result);
@@ -798,13 +798,13 @@ TEST_F(ChunksSorterTest, rank_topn) {
 // NOLINTNEXTLINE
 TEST_F(ChunksSorterTest, full_sort_by_2_columns_null_first) {
     std::vector<bool> is_asc, is_null_first;
-    is_asc.push_back(false); // region
-    is_asc.push_back(true);  // cust_key
-    is_null_first.push_back(true);
-    is_null_first.push_back(true);
+    is_asc.emplace_back(false); // region
+    is_asc.emplace_back(true);  // cust_key
+    is_null_first.emplace_back(true);
+    is_null_first.emplace_back(true);
     std::vector<ExprContext*> sort_exprs;
-    sort_exprs.push_back(new ExprContext(_expr_region.get()));
-    sort_exprs.push_back(new ExprContext(_expr_cust_key.get()));
+    sort_exprs.emplace_back(new ExprContext(_expr_region.get()));
+    sort_exprs.emplace_back(new ExprContext(_expr_cust_key.get()));
     ASSERT_OK(Expr::prepare(sort_exprs, _runtime_state.get()));
     ASSERT_OK(Expr::open(sort_exprs, _runtime_state.get()));
 
@@ -828,7 +828,7 @@ TEST_F(ChunksSorterTest, full_sort_by_2_columns_null_first) {
     std::vector<int32_t> permutation{69, 70, 71, 2, 4, 6, 12, 16, 24, 41, 49, 52, 54, 55, 56, 58};
     std::vector<int32_t> result;
     for (size_t i = 0; i < Size; ++i) {
-        result.push_back(page_1->get(i).get(0).get_int32());
+        result.emplace_back(page_1->get(i).get(0).get_int32());
     }
     EXPECT_EQ(permutation, result);
 
@@ -838,13 +838,13 @@ TEST_F(ChunksSorterTest, full_sort_by_2_columns_null_first) {
 // NOLINTNEXTLINE
 TEST_F(ChunksSorterTest, full_sort_by_2_columns_null_last) {
     std::vector<bool> is_asc, is_null_first;
-    is_asc.push_back(true);  // region
-    is_asc.push_back(false); // cust_key
-    is_null_first.push_back(false);
-    is_null_first.push_back(false);
+    is_asc.emplace_back(true);  // region
+    is_asc.emplace_back(false); // cust_key
+    is_null_first.emplace_back(false);
+    is_null_first.emplace_back(false);
     std::vector<ExprContext*> sort_exprs;
-    sort_exprs.push_back(new ExprContext(_expr_region.get()));
-    sort_exprs.push_back(new ExprContext(_expr_cust_key.get()));
+    sort_exprs.emplace_back(new ExprContext(_expr_region.get()));
+    sort_exprs.emplace_back(new ExprContext(_expr_cust_key.get()));
     ASSERT_OK(Expr::prepare(sort_exprs, _runtime_state.get()));
     ASSERT_OK(Expr::open(sort_exprs, _runtime_state.get()));
 
@@ -868,7 +868,7 @@ TEST_F(ChunksSorterTest, full_sort_by_2_columns_null_last) {
     std::vector<int32_t> permutation{58, 56, 55, 54, 52, 49, 41, 24, 16, 12, 6, 4, 2, 71, 70, 69};
     std::vector<int32_t> result;
     for (size_t i = 0; i < Size; ++i) {
-        result.push_back(page_1->get(i).get(0).get_int32());
+        result.emplace_back(page_1->get(i).get(0).get_int32());
     }
     EXPECT_EQ(permutation, result);
 
@@ -878,16 +878,16 @@ TEST_F(ChunksSorterTest, full_sort_by_2_columns_null_last) {
 // NOLINTNEXTLINE
 TEST_F(ChunksSorterTest, full_sort_by_3_columns) {
     std::vector<bool> is_asc, is_null_first;
-    is_asc.push_back(false); // region
-    is_asc.push_back(true);  // nation
-    is_asc.push_back(false); // cust_key
-    is_null_first.push_back(true);
-    is_null_first.push_back(true);
-    is_null_first.push_back(true);
+    is_asc.emplace_back(false); // region
+    is_asc.emplace_back(true);  // nation
+    is_asc.emplace_back(false); // cust_key
+    is_null_first.emplace_back(true);
+    is_null_first.emplace_back(true);
+    is_null_first.emplace_back(true);
     std::vector<ExprContext*> sort_exprs;
-    sort_exprs.push_back(new ExprContext(_expr_region.get()));
-    sort_exprs.push_back(new ExprContext(_expr_nation.get()));
-    sort_exprs.push_back(new ExprContext(_expr_cust_key.get()));
+    sort_exprs.emplace_back(new ExprContext(_expr_region.get()));
+    sort_exprs.emplace_back(new ExprContext(_expr_nation.get()));
+    sort_exprs.emplace_back(new ExprContext(_expr_cust_key.get()));
     ASSERT_OK(Expr::prepare(sort_exprs, _runtime_state.get()));
     ASSERT_OK(Expr::open(sort_exprs, _runtime_state.get()));
 
@@ -911,7 +911,7 @@ TEST_F(ChunksSorterTest, full_sort_by_3_columns) {
     std::vector<int32_t> permutation{71, 70, 69, 54, 4, 56, 55, 49, 41, 16, 52, 58, 24, 12, 2, 6};
     std::vector<int32_t> result;
     for (size_t i = 0; i < Size; ++i) {
-        result.push_back(page_1->get(i).get(0).get_int32());
+        result.emplace_back(page_1->get(i).get(0).get_int32());
     }
     ASSERT_EQ(permutation, result);
 
@@ -921,19 +921,19 @@ TEST_F(ChunksSorterTest, full_sort_by_3_columns) {
 // NOLINTNEXTLINE
 TEST_F(ChunksSorterTest, full_sort_by_4_columns) {
     std::vector<bool> is_asc, is_null_first;
-    is_asc.push_back(false); // mtk_sgmt
-    is_asc.push_back(true);  // region
-    is_asc.push_back(false); // nation
-    is_asc.push_back(false); // cust_key
-    is_null_first.push_back(false);
-    is_null_first.push_back(true);
-    is_null_first.push_back(true);
-    is_null_first.push_back(false);
+    is_asc.emplace_back(false); // mtk_sgmt
+    is_asc.emplace_back(true);  // region
+    is_asc.emplace_back(false); // nation
+    is_asc.emplace_back(false); // cust_key
+    is_null_first.emplace_back(false);
+    is_null_first.emplace_back(true);
+    is_null_first.emplace_back(true);
+    is_null_first.emplace_back(false);
     std::vector<ExprContext*> sort_exprs;
-    sort_exprs.push_back(new ExprContext(_expr_mkt_sgmt.get()));
-    sort_exprs.push_back(new ExprContext(_expr_region.get()));
-    sort_exprs.push_back(new ExprContext(_expr_nation.get()));
-    sort_exprs.push_back(new ExprContext(_expr_cust_key.get()));
+    sort_exprs.emplace_back(new ExprContext(_expr_mkt_sgmt.get()));
+    sort_exprs.emplace_back(new ExprContext(_expr_region.get()));
+    sort_exprs.emplace_back(new ExprContext(_expr_nation.get()));
+    sort_exprs.emplace_back(new ExprContext(_expr_cust_key.get()));
     ASSERT_OK(Expr::prepare(sort_exprs, _runtime_state.get()));
     ASSERT_OK(Expr::open(sort_exprs, _runtime_state.get()));
 
@@ -958,7 +958,7 @@ TEST_F(ChunksSorterTest, full_sort_by_4_columns) {
     std::vector<int32_t> permutation{24, 55, 4, 58, 12, 52, 41, 56, 49, 16, 6, 2, 54, 71, 70, 69};
     std::vector<int32_t> result;
     for (size_t i = 0; i < Size; ++i) {
-        result.push_back(page_1->get(i).get(0).get_int32());
+        result.emplace_back(page_1->get(i).get(0).get_int32());
     }
     EXPECT_EQ(permutation, result);
 
@@ -968,16 +968,16 @@ TEST_F(ChunksSorterTest, full_sort_by_4_columns) {
 // NOLINTNEXTLINE
 TEST_F(ChunksSorterTest, part_sort_by_3_columns_null_fisrt) {
     std::vector<bool> is_asc, is_null_first;
-    is_asc.push_back(false); // region
-    is_asc.push_back(true);  // nation
-    is_asc.push_back(true);  // cust_key
-    is_null_first.push_back(true);
-    is_null_first.push_back(true);
-    is_null_first.push_back(true);
+    is_asc.emplace_back(false); // region
+    is_asc.emplace_back(true);  // nation
+    is_asc.emplace_back(true);  // cust_key
+    is_null_first.emplace_back(true);
+    is_null_first.emplace_back(true);
+    is_null_first.emplace_back(true);
     std::vector<ExprContext*> sort_exprs;
-    sort_exprs.push_back(new ExprContext(_expr_region.get()));
-    sort_exprs.push_back(new ExprContext(_expr_nation.get()));
-    sort_exprs.push_back(new ExprContext(_expr_cust_key.get()));
+    sort_exprs.emplace_back(new ExprContext(_expr_region.get()));
+    sort_exprs.emplace_back(new ExprContext(_expr_nation.get()));
+    sort_exprs.emplace_back(new ExprContext(_expr_cust_key.get()));
     ASSERT_OK(Expr::prepare(sort_exprs, _runtime_state.get()));
     ASSERT_OK(Expr::open(sort_exprs, _runtime_state.get()));
 
@@ -1007,16 +1007,16 @@ TEST_F(ChunksSorterTest, part_sort_by_3_columns_null_fisrt) {
 // NOLINTNEXTLINE
 TEST_F(ChunksSorterTest, part_sort_by_3_columns_null_last) {
     std::vector<bool> is_asc, is_null_first;
-    is_asc.push_back(false); // region
-    is_asc.push_back(true);  // nation
-    is_asc.push_back(true);  // cust_key
-    is_null_first.push_back(false);
-    is_null_first.push_back(false);
-    is_null_first.push_back(false);
+    is_asc.emplace_back(false); // region
+    is_asc.emplace_back(true);  // nation
+    is_asc.emplace_back(true);  // cust_key
+    is_null_first.emplace_back(false);
+    is_null_first.emplace_back(false);
+    is_null_first.emplace_back(false);
     std::vector<ExprContext*> sort_exprs;
-    sort_exprs.push_back(new ExprContext(_expr_region.get()));
-    sort_exprs.push_back(new ExprContext(_expr_nation.get()));
-    sort_exprs.push_back(new ExprContext(_expr_cust_key.get()));
+    sort_exprs.emplace_back(new ExprContext(_expr_region.get()));
+    sort_exprs.emplace_back(new ExprContext(_expr_nation.get()));
+    sort_exprs.emplace_back(new ExprContext(_expr_cust_key.get()));
     ASSERT_OK(Expr::prepare(sort_exprs, _runtime_state.get()));
     ASSERT_OK(Expr::open(sort_exprs, _runtime_state.get()));
 
@@ -1039,7 +1039,7 @@ TEST_F(ChunksSorterTest, part_sort_by_3_columns_null_last) {
         std::vector<int32_t> permutation{52, 2, 12, 24, 58, 6, 69, 70, 71};
         std::vector<int32_t> result;
         for (size_t i = 0; i < page_1->num_rows(); ++i) {
-            result.push_back(page_1->get(i).get(0).get_int32());
+            result.emplace_back(page_1->get(i).get(0).get_int32());
         }
         permutation.resize(limit);
         EXPECT_EQ(permutation, result);
@@ -1062,13 +1062,13 @@ TEST_F(ChunksSorterTest, part_sort_by_3_columns_null_last) {
 // NOLINTNEXTLINE
 TEST_F(ChunksSorterTest, order_by_with_unequal_sized_chunks) {
     std::vector<bool> is_asc, is_null_first;
-    is_asc.push_back(false); // nation
-    is_asc.push_back(false); // cust_key
-    is_null_first.push_back(false);
-    is_null_first.push_back(false);
+    is_asc.emplace_back(false); // nation
+    is_asc.emplace_back(false); // cust_key
+    is_null_first.emplace_back(false);
+    is_null_first.emplace_back(false);
     std::vector<ExprContext*> sort_exprs;
-    sort_exprs.push_back(new ExprContext(_expr_nation.get()));
-    sort_exprs.push_back(new ExprContext(_expr_cust_key.get()));
+    sort_exprs.emplace_back(new ExprContext(_expr_nation.get()));
+    sort_exprs.emplace_back(new ExprContext(_expr_cust_key.get()));
     ASSERT_OK(Expr::prepare(sort_exprs, _runtime_state.get()));
     ASSERT_OK(Expr::open(sort_exprs, _runtime_state.get()));
 
@@ -1079,8 +1079,8 @@ TEST_F(ChunksSorterTest, order_by_with_unequal_sized_chunks) {
     ChunkPtr chunk_1 = _chunk_1->clone_empty();
     ChunkPtr chunk_2 = _chunk_2->clone_empty();
     for (size_t i = 0; i < _chunk_1->num_columns(); ++i) {
-        chunk_1->get_column_by_index(i)->append(*(_chunk_1->get_column_by_index(i)), 0, 1);
-        chunk_2->get_column_by_index(i)->append(*(_chunk_2->get_column_by_index(i)), 0, 1);
+        chunk_1->get_mutable_column_by_index(i)->append(*(_chunk_1->get_mutable_column_by_index(i)), 0, 1);
+        chunk_2->get_mutable_column_by_index(i)->append(*(_chunk_2->get_mutable_column_by_index(i)), 0, 1);
     }
     ASSERT_OK(full_sorter.update(_runtime_state.get(), chunk_1));
     ASSERT_OK(full_sorter.update(_runtime_state.get(), chunk_2));
@@ -1109,8 +1109,8 @@ static void reset_permutation(SmallPermutation& permutation, int n) {
 TEST_F(ChunksSorterTest, stable_sort) {
     constexpr int N = 7;
     TypeDescriptor type_desc = TypeDescriptor(TYPE_INT);
-    ColumnPtr col1 = ColumnHelper::create_column(type_desc, false);
-    ColumnPtr col2 = ColumnHelper::create_column(type_desc, false);
+    MutableColumnPtr col1 = ColumnHelper::create_column(type_desc, false);
+    MutableColumnPtr col2 = ColumnHelper::create_column(type_desc, false);
     Columns columns{col1, col2};
     std::vector<int32_t> elements_col1{3, 1, 1, 2, 1, 2, 3};
     std::vector<int32_t> elements_col2{3, 2, 1, 3, 1, 2, 3};
@@ -1153,8 +1153,8 @@ TEST_F(ChunksSorterTest, get_filter_test) {
     ObjectPool pool;
 
     std::vector<ExprContext*> sort_exprs;
-    sort_exprs.push_back(pool.add(new ExprContext(c0.get())));
-    sort_exprs.push_back(pool.add(new ExprContext(c1.get())));
+    sort_exprs.emplace_back(pool.add(new ExprContext(c0.get())));
+    sort_exprs.emplace_back(pool.add(new ExprContext(c1.get())));
     ASSERT_OK(Expr::prepare(sort_exprs, _runtime_state.get()));
     ASSERT_OK(Expr::open(sort_exprs, _runtime_state.get()));
 
@@ -1193,7 +1193,7 @@ TEST_F(ChunksSorterTest, get_filter_test) {
     unmerged_segment.init(&sort_exprs, unmerged_chunk);
 
     std::vector<DataSegment> segments;
-    segments.push_back(std::move(unmerged_segment));
+    segments.emplace_back(std::move(unmerged_segment));
 
     std::vector<std::vector<uint8_t>> filter_array;
     filter_array.resize(1);
@@ -1226,7 +1226,7 @@ TEST_F(ChunksSorterTest, get_filter_test) {
 
 TEST_F(ChunksSorterTest, column_incremental_sort) {
     TypeDescriptor type_desc = TypeDescriptor(TYPE_INT);
-    ColumnPtr nullable_column = ColumnHelper::create_column(type_desc, true);
+    MutableColumnPtr nullable_column = ColumnHelper::create_column(type_desc, true);
 
     // sort empty column
     SmallPermutation permutation;
@@ -1340,7 +1340,7 @@ TEST_F(ChunksSorterTest, test_compare_column) {
 
     // get filter array x < 1
     TypeDescriptor type_desc = TypeDescriptor(TYPE_INT);
-    ColumnPtr nullable_column = ColumnHelper::create_column(type_desc, true);
+    MutableColumnPtr nullable_column = ColumnHelper::create_column(type_desc, true);
 
     nullable_column->append_datum(Datum(1));
     nullable_column->append_datum(Datum(2));

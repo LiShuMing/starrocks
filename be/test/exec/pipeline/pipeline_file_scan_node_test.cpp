@@ -154,7 +154,7 @@ std::vector<TScanRangeParams> PipeLineFileScanNodeTest::_create_csv_scan_ranges(
     params->src_tuple_id = 0;
     for (int i = 0; i < types.size(); i++) {
         params->expr_of_dest_slot[i] = TExpr();
-        params->expr_of_dest_slot[i].nodes.emplace_back(TExprNode());
+        params->expr_of_dest_slot[i].nodes.emplace_back();
         params->expr_of_dest_slot[i].nodes[0].__set_type(types[i].to_thrift());
         params->expr_of_dest_slot[i].nodes[0].__set_node_type(TExprNodeType::SLOT_REF);
         params->expr_of_dest_slot[i].nodes[0].__set_is_nullable(true);
@@ -407,10 +407,10 @@ TEST_F(PipeLineFileScanNodeTest, CSVBasic) {
 
     OpFactories op_factories = file_scan_node->decompose_to_pipeline(_context);
 
-    op_factories.push_back(std::make_shared<starrocks::pipeline::TestFileScanSinkOperatorFactory>(
+    op_factories.emplace_back(std::make_shared<starrocks::pipeline::TestFileScanSinkOperatorFactory>(
             _context->next_operator_id(), 0, sinkCounter));
 
-    _pipelines.push_back(
+    _pipelines.emplace_back(
             std::make_shared<starrocks::pipeline::Pipeline>(_context->next_pipe_id(), op_factories, exec_group.get()));
     exec_group->add_pipeline(_pipelines.back().get());
     auto pipelines = _pipelines;

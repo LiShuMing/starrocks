@@ -127,7 +127,7 @@ StatusOr<ColumnPtr> CastJsonToStruct::evaluate_checked(ExprContext* context, Chu
     if (column->is_constant()) {
         res = ConstColumn::create(std::move(res), column->size());
     }
-    return res;
+    return std::move(res);
 }
 
 } // namespace starrocks

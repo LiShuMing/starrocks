@@ -433,7 +433,7 @@ TEST_F(LLMQueryServiceTest, ConcurrentQueries) {
     // Submit multiple queries concurrently
     for (int i = 0; i < num_queries; ++i) {
         std::string prompt = "Concurrent query " + std::to_string(i);
-        futures.push_back(service->async_query(prompt, config));
+        futures.emplace_back(service->async_query(prompt, config));
     }
 
     // Wait for all queries to complete
@@ -650,7 +650,7 @@ TEST_F(LLMQueryServiceTest, ManySequentialQueries) {
         std::string prompt = "Sequential query " + std::to_string(i);
         auto result = service->query(prompt, config);
         ASSERT_TRUE(result.ok()) << "Sequential query " << i << " failed: " << result.status().message();
-        responses.push_back(result.value());
+        responses.emplace_back(result.value());
     }
 
     auto end_time = std::chrono::steady_clock::now();

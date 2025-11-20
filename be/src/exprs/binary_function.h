@@ -273,37 +273,38 @@ public:
                 data = data_result;
             }
 
-            NullColumnPtr null_flags;
+            // Base (non-nullable) data column
+            ColumnPtr base_data = FunctionHelper::get_data_column_of_nullable(data);
+
+            // Build a fresh null bitmap, seeded from existing nulls if any.
+            NullColumn::MutablePtr null_flags = NullColumn::create();
+            null_flags->resize(base_data->size());
+            auto& null_bits = null_flags->get_data();
             if (data->is_nullable()) {
-                null_flags = ColumnHelper::as_raw_column<NullableColumn>(data)->null_column();
+                auto* nullable_col = ColumnHelper::as_raw_const_column<NullableColumn>(data);
+                const auto orig = nullable_col->null_column_data();
+                std::copy(orig.begin(), orig.end(), null_bits.begin());
             } else {
-                null_flags = RunTimeColumnType<TYPE_NULL>::create();
-                null_flags->resize(data->size());
+                std::fill(null_bits.begin(), null_bits.end(), DATUM_NOT_NULL);
             }
-            const auto& real_data =
-                    ColumnHelper::cast_to_raw<ResultType>(FunctionHelper::get_data_column_of_nullable(data).get());
+
+            const auto* real_data = ColumnHelper::cast_to_raw<ResultType>(base_data.get());
 
             // Avoid calling virtual fuctions `size` in for loop
-            const auto size = data->size();
+            const auto size = base_data->size();
 
             for (size_t i = 0; i < size; ++i) {
                 // DO NOT overwrite null flag if it is already set
-                null_flags->get_data()[i] |=
-                        NULL_OP::template apply<RunTimeCppType<ResultType>, RunTimeCppType<TYPE_BOOLEAN>>(
-                                real_data->immutable_data()[i]);
+                null_bits[i] |= NULL_OP::template apply<RunTimeCppType<ResultType>, RunTimeCppType<TYPE_BOOLEAN>>(
+                        real_data->immutable_data()[i]);
             }
 
-            if (data->is_nullable()) {
-                // null flag may be changed, so update here manually
-                ColumnHelper::as_raw_column<NullableColumn>(data)->update_has_null();
-            } else {
-                if (SIMD::count_nonzero(null_flags->get_data())) {
-                    auto null_result = NullableColumn::create(data, null_flags);
-                    if (data_result->is_constant()) {
-                        return ConstColumn::create(null_result, data_result->size());
-                    }
-                    return null_result;
+            if (SIMD::count_nonzero(null_bits)) {
+                auto null_result = NullableColumn::create(base_data->as_mutable_ptr(), null_flags->as_mutable_ptr());
+                if (data_result->is_constant()) {
+                    return ConstColumn::create(std::move(null_result), data_result->size());
                 }
+                return null_result;
             }
         }
 
@@ -337,7 +338,7 @@ public:
                     PRODUCE_NULL_FN::template evaluate<LType, RType, TYPE_NULL>(v1, data2));
 
             // is null, return only null
-            if (1 == null_result->get_data()[0]) {
+            if (1 == null_result->immutable_data()[0]) {
                 return ColumnHelper::create_const_null_column(v1->size());
             } else {
                 // not null return const column
@@ -365,8 +366,13 @@ public:
 
         ColumnPtr produce_null = PRODUCE_NULL_FN::template evaluate<LType, RType, TYPE_NULL>(data1, data2);
 
-        NullColumnPtr null_result = ColumnHelper::as_column<NullColumn>(produce_null);
-        FunctionHelper::union_produce_nullable_column(v1, v2, &null_result);
+        auto null_col_shared = ColumnHelper::as_column<NullColumn>(produce_null)->clone();
+        NullColumn* null_raw = down_cast<NullColumn*>(null_col_shared->as_mutable_raw_ptr());
+        NullColumn::MutablePtr null_temp = NullColumn::create(0); // Temporary for API
+        null_temp->swap_column(*null_raw);                        // Transfer data
+        FunctionHelper::union_produce_nullable_column(v1, v2, &null_temp);
+        null_raw->swap_column(*null_temp); // Swap back
+        NullColumn::MutablePtr null_result = NullColumn::static_pointer_cast(std::move(null_col_shared));
 
         ColumnPtr data_result = FN::template evaluate<LType, RType, ResultType>(data1, data2);
         // for decimal arithmetics, data_column of nullable lhs op data_column of nullable rhs maybe produce a nullable
@@ -538,8 +544,9 @@ public:
         if (v1->only_null()) {
             auto p = ColumnHelper::as_raw_column<NullableColumn>(
                     ColumnHelper::as_raw_column<ConstColumn>(v1)->data_column());
-            ld = RunTimeColumnType<LType>::create();
-            ld->append_default();
+            auto ld_mut = RunTimeColumnType<LType>::create();
+            ld_mut->append_default();
+            ld = std::move(ld_mut);
             ln = p->null_column();
         } else if (v1->is_constant()) {
             ld = ColumnHelper::as_raw_column<ConstColumn>(v1)->data_column();
@@ -556,8 +563,9 @@ public:
         if (v2->only_null()) {
             auto p = ColumnHelper::as_raw_column<NullableColumn>(
                     ColumnHelper::as_raw_column<ConstColumn>(v2)->data_column());
-            rd = RunTimeColumnType<LType>::create();
-            rd->append_default();
+            auto rd_mut = RunTimeColumnType<LType>::create();
+            rd_mut->append_default();
+            rd = std::move(rd_mut);
             rn = p->null_column();
         } else if (v2->is_constant()) {
             rd = ColumnHelper::as_raw_column<ConstColumn>(v2)->data_column();

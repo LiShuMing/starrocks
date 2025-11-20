@@ -284,7 +284,7 @@ TEST_P(PersistentIndexTest, test_small_varlen_mutable_index) {
         keys[i] = "test_varlen_" + std::to_string(i);
         values.emplace_back(i * 2);
         key_slices.emplace_back(keys[i]);
-        idxes.push_back(i);
+        idxes.emplace_back(i);
     }
     ASSIGN_OR_ABORT(auto idx, MutableIndex::create(0));
     ASSERT_OK(idx->insert(key_slices.data(), values.data(), idxes));
@@ -394,7 +394,7 @@ TEST_P(PersistentIndexTest, test_large_varlen_mutable_index) {
         keys[i] = gen_random_string_of_random_length(42, 128);
         values.emplace_back(i * 2);
         key_slices.emplace_back(keys[i]);
-        idxes.push_back(i);
+        idxes.emplace_back(i);
     }
     ASSIGN_OR_ABORT(auto idx, MutableIndex::create(0));
     ASSERT_OK(idx->insert(key_slices.data(), values.data(), idxes));
@@ -1305,7 +1305,7 @@ TEST_P(PersistentIndexTest, test_flush_fixlen_to_immutable) {
         keys[i] = i;
         values[i] = i * 2;
         key_slices.emplace_back((uint8_t*)(&keys[i]), sizeof(Key));
-        idxes.push_back(i);
+        idxes.emplace_back(i);
     }
     auto rs = MutableIndex::create(sizeof(Key));
     ASSERT_TRUE(rs.ok());
@@ -1434,19 +1434,19 @@ TabletSharedPtr create_tablet(int64_t tablet_id, int32_t schema_hash, bool varch
     ctype.__set_type(varchar_key ? TPrimitiveType::VARCHAR : TPrimitiveType::BIGINT);
     ctype.__set_len(len);
     k1.__set_column_type(ctype);
-    request.tablet_schema.columns.push_back(k1);
+    request.tablet_schema.columns.emplace_back(k1);
 
     TColumn k2;
     k2.column_name = "v1";
     k2.__set_is_key(false);
     k2.column_type.type = TPrimitiveType::SMALLINT;
-    request.tablet_schema.columns.push_back(k2);
+    request.tablet_schema.columns.emplace_back(k2);
 
     TColumn k3;
     k3.column_name = "v2";
     k3.__set_is_key(false);
     k3.column_type.type = TPrimitiveType::INT;
-    request.tablet_schema.columns.push_back(k3);
+    request.tablet_schema.columns.emplace_back(k3);
     auto st = StorageEngine::instance()->create_tablet(request);
     CHECK(st.ok()) << st.to_string();
     return StorageEngine::instance()->tablet_manager()->get_tablet(tablet_id, false);
@@ -1472,7 +1472,7 @@ RowsetSharedPtr create_rowset(const TabletSharedPtr& tablet, const vector<int64_
     size_t size = (tablet->tablet_schema()->column(0).type() == TYPE_VARCHAR) ? varlen_keys.size() : keys.size();
     LOG(INFO) << "key column type: " << tablet->tablet_schema()->column(0).type() << ", size: " << size;
     auto chunk = ChunkHelper::new_chunk(schema, size);
-    auto& cols = chunk->columns();
+    auto cols = chunk->mutable_columns();
     if (tablet->tablet_schema()->column(0).type() == TYPE_VARCHAR) {
         for (size_t i = 0; i < size; i++) {
             cols[0]->append_datum(Datum(varlen_keys[i]));
@@ -1542,7 +1542,7 @@ void build_persistent_index_from_tablet(size_t N) {
         LOG(WARNING) << "failed to load rowset update state: " << st.to_string();
         ASSERT_TRUE(false);
     }
-    const std::vector<MutableColumnPtr>& upserts = state.upserts();
+    const MutableColumns& upserts = state.upserts();
 
     PersistentIndex persistent_index(kPersistentIndexDir);
     ASSERT_TRUE(persistent_index.load_from_tablet(tablet.get()).ok());

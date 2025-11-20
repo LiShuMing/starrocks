@@ -53,13 +53,13 @@ public:
 };
 
 TEST_F(ColumnCOWTest, test_int_column) {
-    UInt32Column::Ptr col = UInt32Column::create();
+    auto col = UInt32Column::create();
     col->append(1);
     EXPECT_EQ(1, col->size());
     EXPECT_EQ(1, col->use_count());
 
     {
-        UInt32Column::Ptr col1 = UInt32Column::static_pointer_cast(col);
+        auto col1 = UInt32Column::static_pointer_cast(Column::mutate(std::move(col)));
         // col1 is deep copy of col
         EXPECT_EQ(1, col1->size());
         EXPECT_EQ(2, col1->use_count());
@@ -68,7 +68,7 @@ TEST_F(ColumnCOWTest, test_int_column) {
     }
 
     // mut is as shadow copy of col, because col's use count is 1
-    UInt32Column::MutablePtr mut1 = UInt32Column::static_pointer_cast(Column::mutate(std::move(col)));
+    auto mut1 = UInt32Column::static_pointer_cast(Column::mutate(std::move(col)));
     EXPECT_EQ(nullptr, col);
     EXPECT_EQ(1, mut1->size());
     EXPECT_EQ(1, mut1->use_count());
@@ -77,7 +77,7 @@ TEST_F(ColumnCOWTest, test_int_column) {
     EXPECT_EQ(1, mut1->get(0).get_int32());
     EXPECT_EQ(2, mut1->get(1).get_int32());
 
-    UInt32Column::MutablePtr mut2 = UInt32Column::static_pointer_cast(Column::mutate(std::move(mut1)));
+    auto mut2 = UInt32Column::static_pointer_cast(Column::mutate(std::move(mut1)));
     EXPECT_EQ(nullptr, mut1);
     EXPECT_EQ(2, mut2->size());
     EXPECT_EQ(1, mut2->use_count());
@@ -94,30 +94,30 @@ TEST_F(ColumnCOWTest, test_nullable_column) {
     col->append_datum(2);
 
     // COW: mut1 is as shadow copy of col, because col's use count is 1
-    NullableColumn::Ptr mut1 = NullableColumn::static_pointer_cast(Column::mutate(std::move(col)));
+    auto mut1 = NullableColumn::static_pointer_cast(Column::mutate(std::move(col)));
     EXPECT_EQ(nullptr, col);
     EXPECT_EQ(2, mut1->size());
     EXPECT_EQ(1, mut1->use_count());
-    auto& mut1_data = mut1->data_column();
-    auto& mut1_null = mut1->null_column();
+    auto mut1_data = mut1->data_column();
+    auto mut1_null = mut1->null_column();
     EXPECT_EQ(1, mut1_data->use_count());
     EXPECT_EQ(1, mut1_null->use_count());
 
     // mut2 is shadow copy of mut1 which is not mutable
-    NullableColumn::Ptr mut2 = mut1;
+    auto mut2 = std::move(mut1);
     EXPECT_EQ(mut1.get(), mut2.get());
     EXPECT_EQ(2, mut2->size());
     EXPECT_EQ(2, mut1->use_count());
     EXPECT_EQ(2, mut2->use_count());
 
     // COW: mut3 is a deep copy of mut1
-    NullableColumn::Ptr mut3 = NullableColumn::static_pointer_cast(Column::mutate(std::move(mut1)));
+    auto mut3 = NullableColumn::static_pointer_cast(Column::mutate(std::move(mut1)));
     EXPECT_EQ(nullptr, mut1);
     EXPECT_NE(mut2.get(), mut3.get());
     EXPECT_EQ(2, mut3->size());
     EXPECT_EQ(1, mut3->use_count());
-    auto& mut3_data = mut3->data_column();
-    auto& mut3_null = mut3->null_column();
+    auto mut3_data = mut3->data_column();
+    auto mut3_null = mut3->null_column();
     EXPECT_EQ(1, mut3_data->use_count());
     EXPECT_EQ(1, mut3_null->use_count());
 }
@@ -142,36 +142,36 @@ TEST_F(ColumnCOWTest, test_array_column) {
     ASSERT_EQ(2, col->size());
 
     // mut is as shadow copy of col, because col's use count is 1
-    ArrayColumn::Ptr mut1 = ArrayColumn::static_pointer_cast(Column::mutate(std::move(col)));
+    auto mut1 = ArrayColumn::static_pointer_cast(Column::mutate(std::move(col)));
     EXPECT_EQ(nullptr, col);
     EXPECT_EQ(2, mut1->size());
     EXPECT_EQ(1, mut1->use_count());
-    auto& mut_elements = mut1->elements_column();
-    auto& mut_offsets = mut1->offsets_column();
+    auto mut_elements = mut1->elements_column();
+    auto mut_offsets = mut1->offsets_column();
     EXPECT_EQ(1, mut_elements->use_count());
     EXPECT_EQ(1, mut_offsets->use_count());
 
     // ref count +1
-    ArrayColumn::Ptr mut2 = mut1;
+    auto mut2 = std::move(mut1);
     EXPECT_EQ(mut1.get(), mut2.get());
     EXPECT_EQ(2, mut2->size());
     EXPECT_EQ(2, mut1->use_count());
     EXPECT_EQ(2, mut2->use_count());
 
     // mut3 is a deep copy of mut1
-    ArrayColumn::Ptr mut3 = ArrayColumn::static_pointer_cast(Column::mutate(std::move(mut1)));
+    auto mut3 = ArrayColumn::static_pointer_cast(Column::mutate(std::move(mut1)));
     EXPECT_EQ(nullptr, mut1);
     EXPECT_NE(mut2.get(), mut3.get());
     EXPECT_EQ(2, mut3->size());
     EXPECT_EQ(1, mut3->use_count());
-    auto& mut3_elements = mut3->elements_column();
-    auto& mut3_offsets = mut3->offsets_column();
+    auto mut3_elements = mut3->elements_column();
+    auto mut3_offsets = mut3->offsets_column();
     EXPECT_EQ(1, mut3_elements->use_count());
     EXPECT_EQ(1, mut3_offsets->use_count());
 }
 
 TEST_F(ColumnCOWTest, test_binary_column) {
-    BinaryColumn::Ptr col = BinaryColumn::create();
+    auto col = BinaryColumn::create();
     for (size_t i = 0; i < 10; i++) {
         col->append(std::to_string(i));
     }
@@ -179,7 +179,7 @@ TEST_F(ColumnCOWTest, test_binary_column) {
 }
 
 TEST_F(ColumnCOWTest, test_json_column) {
-    JsonColumn::Ptr col = JsonColumn::create();
+    auto col = JsonColumn::create();
     col->append(JsonValue::parse("1").value());
     test_column_cow<JsonColumn>(std::move(col));
 }
@@ -188,7 +188,7 @@ TEST_F(ColumnCOWTest, test_struct_column) {
     std::vector<std::string> field_name{"id", "name"};
     auto id = NullableColumn::create(UInt64Column::create(), NullColumn::create());
     auto name = NullableColumn::create(BinaryColumn::create(), NullColumn::create());
-    Columns fields{std::move(id), std::move(name)};
+    MutableColumns fields{std::move(id), std::move(name)};
     auto col = StructColumn::create(std::move(fields), std::move(field_name));
     DatumStruct struct1{uint64_t(1), Slice("smith")};
     DatumStruct struct2{uint64_t(2), Slice("cruise")};
@@ -199,9 +199,9 @@ TEST_F(ColumnCOWTest, test_struct_column) {
 }
 
 TEST_F(ColumnCOWTest, test_map_column) {
-    MapColumn::Ptr column = MapColumn::create(NullableColumn::create(Int32Column::create(), NullColumn::create()),
-                                              NullableColumn::create(Int32Column::create(), NullColumn::create()),
-                                              UInt32Column::create());
+    auto column = MapColumn::create(NullableColumn::create(Int32Column::create(), NullColumn::create()),
+                                    NullableColumn::create(Int32Column::create(), NullColumn::create()),
+                                    UInt32Column::create());
     for (int32_t i = 0; i < 10; i++) {
         column->append_datum(DatumMap{{i, i + 1}});
     }
@@ -209,7 +209,7 @@ TEST_F(ColumnCOWTest, test_map_column) {
 }
 
 TEST_F(ColumnCOWTest, test_object_column) {
-    BitmapColumn::Ptr src_col = BitmapColumn::create();
+    auto src_col = BitmapColumn::create();
     BitmapValue bitmap;
     for (size_t i = 0; i < 64; i++) {
         bitmap.add(i);
@@ -219,10 +219,10 @@ TEST_F(ColumnCOWTest, test_object_column) {
 }
 
 TEST_F(ColumnCOWTest, test_const_column) {
-    Int32Column::Ptr data_column = Int32Column::create();
+    auto data_column = Int32Column::create();
     data_column->append(1);
 
-    ConstColumn::Ptr column = ConstColumn::create(std::move(data_column), 1024);
+    auto column = ConstColumn::create(std::move(data_column), 1024);
     test_column_cow<ConstColumn>(std::move(column));
 }
 

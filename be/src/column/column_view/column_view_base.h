@@ -145,7 +145,7 @@ protected:
     ColumnPtr _default_column;
     const long _concat_rows_limit;
     const long _concat_bytes_limit;
-    mutable std::vector<ColumnPtr> _habitats;
+    mutable Columns _habitats;
     size_t _num_rows{0};
     mutable std::once_flag _to_view_flag;
     mutable std::vector<std::function<void()> > _tasks;

@@ -69,13 +69,13 @@ TEST_F(SubfieldExprTest, subfield_test) {
     auto column = ColumnHelper::create_column(struct_type, false);
 
     DatumStruct datum_struct_1;
-    datum_struct_1.push_back(1);
-    datum_struct_1.push_back("smith");
+    datum_struct_1.emplace_back(1);
+    datum_struct_1.emplace_back("smith");
     column->append_datum(datum_struct_1);
 
     DatumStruct datum_struct_2;
-    datum_struct_2.push_back(2);
-    datum_struct_2.push_back("cruise");
+    datum_struct_2.emplace_back(2);
+    datum_struct_2.emplace_back("cruise");
     column->append_datum(datum_struct_2);
 
     {
@@ -114,15 +114,15 @@ TEST_F(SubfieldExprTest, subfield_null_test) {
         auto column = ColumnHelper::create_column(struct_type, false);
 
         DatumStruct datum_struct_1;
-        datum_struct_1.push_back(1);
-        datum_struct_1.push_back("smith");
+        datum_struct_1.emplace_back(1);
+        datum_struct_1.emplace_back("smith");
         column->append_datum(datum_struct_1);
 
         column->append_nulls(1);
 
         DatumStruct datum_struct_3;
-        datum_struct_3.push_back(3);
-        datum_struct_3.push_back("cruise");
+        datum_struct_3.emplace_back(3);
+        datum_struct_3.emplace_back("cruise");
         column->append_datum(datum_struct_3);
 
         std::unique_ptr<Expr> expr = create_subfield_expr(TypeDescriptor(LogicalType::TYPE_INT), {"id"});
@@ -141,15 +141,15 @@ TEST_F(SubfieldExprTest, subfield_null_test) {
         auto column = ColumnHelper::create_column(struct_type, true);
 
         DatumStruct datum_struct_1;
-        datum_struct_1.push_back(1);
-        datum_struct_1.push_back("smith");
+        datum_struct_1.emplace_back(1);
+        datum_struct_1.emplace_back("smith");
         column->append_datum(datum_struct_1);
 
         column->append_nulls(1);
 
         DatumStruct datum_struct_3;
-        datum_struct_3.push_back(3);
-        datum_struct_3.push_back("cruise");
+        datum_struct_3.emplace_back(3);
+        datum_struct_3.emplace_back("cruise");
         column->append_datum(datum_struct_3);
 
         std::unique_ptr<Expr> expr = create_subfield_expr(TypeDescriptor(LogicalType::TYPE_INT), {"id"});
@@ -175,15 +175,15 @@ TEST_F(SubfieldExprTest, subfield_clone_test) {
     auto column = ColumnHelper::create_column(struct_type, false);
 
     DatumStruct datum_struct_1;
-    datum_struct_1.push_back(1);
-    datum_struct_1.push_back("smith");
+    datum_struct_1.emplace_back(1);
+    datum_struct_1.emplace_back("smith");
     column->append_datum(datum_struct_1);
 
     column->append_nulls(1);
 
     DatumStruct datum_struct_3;
-    datum_struct_3.push_back(3);
-    datum_struct_3.push_back("cruise");
+    datum_struct_3.emplace_back(3);
+    datum_struct_3.emplace_back("cruise");
     column->append_datum(datum_struct_3);
 
     std::unique_ptr<Expr> expr = create_subfield_expr(TypeDescriptor(LogicalType::TYPE_INT), {"id"});
@@ -214,19 +214,19 @@ TEST_F(SubfieldExprTest, subfield_multi_level_test) {
     auto column = ColumnHelper::create_column(struct_type, false);
 
     DatumStruct datum_struct_1_level1;
-    datum_struct_1_level1.push_back(1);
+    datum_struct_1_level1.emplace_back(1);
     DatumStruct datum_struct_1_level2;
-    datum_struct_1_level2.push_back("smith");
-    datum_struct_1_level1.push_back(datum_struct_1_level2);
+    datum_struct_1_level2.emplace_back("smith");
+    datum_struct_1_level1.emplace_back(datum_struct_1_level2);
     column->append_datum(datum_struct_1_level1);
 
     column->append_nulls(1);
 
     DatumStruct datum_struct_3_level1;
-    datum_struct_3_level1.push_back(3);
+    datum_struct_3_level1.emplace_back(3);
     DatumStruct datum_struct_3_level2;
-    datum_struct_3_level2.push_back("cruise");
-    datum_struct_3_level1.push_back(datum_struct_3_level2);
+    datum_struct_3_level2.emplace_back("cruise");
+    datum_struct_3_level1.emplace_back(datum_struct_3_level2);
     column->append_datum(datum_struct_3_level1);
 
     std::unique_ptr<Expr> expr = create_subfield_expr(TypeDescriptor(LogicalType::TYPE_INT), {"level1", "level2"});

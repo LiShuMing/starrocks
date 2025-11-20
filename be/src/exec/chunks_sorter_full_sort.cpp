@@ -80,7 +80,7 @@ static void concat_chunks(ChunkPtr& dst_chunk, const std::vector<ChunkPtr>& src_
     dst_chunk = src_chunks.front()->clone_empty(num_rows);
     const auto num_columns = dst_chunk->num_columns();
     for (auto i = 0; i < num_columns; ++i) {
-        auto dst_col = dst_chunk->get_column_by_index(i);
+        auto dst_col = dst_chunk->get_mutable_column_by_index(i);
         auto* dst_data_col = ColumnHelper::get_data_column(dst_col.get());
         // Reserve memory room for bytes array in BinaryColumn here.
         if (dst_data_col->is_binary()) {
@@ -231,7 +231,7 @@ starrocks::ChunkPtr ChunksSorterFullSort::_late_materialize_tmpl(const starrocks
     static_assert(type_is_ordinal<T>, "T must be uint32_t or uint64_t");
     const auto num_rows = sorted_eager_chunk->num_rows();
     auto sorted_lazy_chunk = _late_materialized_chunks[0]->clone_empty(num_rows);
-    auto ordinal_column = sorted_eager_chunk->get_column_by_slot_id(Chunk::SORT_ORDINAL_COLUMN_SLOT_ID);
+    auto ordinal_column = sorted_eager_chunk->get_mutable_column_by_slot_id(Chunk::SORT_ORDINAL_COLUMN_SLOT_ID);
     auto& ordinal_data = down_cast<OrdinalColumn<T>*>(ordinal_column.get())->get_data();
     T _offset_in_chunk_mask = static_cast<T>((1L << _offset_in_chunk_bits) - 1);
     for (auto i = 0; i < num_rows; ++i) {

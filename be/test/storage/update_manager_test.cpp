@@ -67,7 +67,7 @@ public:
         EXPECT_TRUE(RowsetFactory::create_rowset_writer(writer_context, &writer).ok());
         auto schema = ChunkHelper::convert_schema(_tablet->tablet_schema());
         auto chunk = ChunkHelper::new_chunk(schema, keys.size());
-        auto& cols = chunk->columns();
+        auto cols = chunk->mutable_columns();
         for (long key : keys) {
             cols[0]->append_datum(Datum(key));
             cols[1]->append_datum(Datum((int16_t)(key % 100 + 1)));
@@ -95,19 +95,19 @@ public:
         k1.column_name = "pk";
         k1.__set_is_key(true);
         k1.column_type.type = TPrimitiveType::BIGINT;
-        request.tablet_schema.columns.push_back(k1);
+        request.tablet_schema.columns.emplace_back(k1);
 
         TColumn k2;
         k2.column_name = "v1";
         k2.__set_is_key(false);
         k2.column_type.type = TPrimitiveType::SMALLINT;
-        request.tablet_schema.columns.push_back(k2);
+        request.tablet_schema.columns.emplace_back(k2);
 
         TColumn k3;
         k3.column_name = "v2";
         k3.__set_is_key(false);
         k3.column_type.type = TPrimitiveType::INT;
-        request.tablet_schema.columns.push_back(k3);
+        request.tablet_schema.columns.emplace_back(k3);
         auto st = StorageEngine::instance()->create_tablet(request);
         ASSERT_TRUE(st.ok()) << st.to_string();
         _tablet = StorageEngine::instance()->tablet_manager()->get_tablet(tablet_id);
@@ -168,7 +168,7 @@ TEST_F(UpdateManagerTest, testExpireEntry) {
     const int N = 8000;
     std::vector<int64_t> keys;
     for (int i = 0; i < N; i++) {
-        keys.push_back(i);
+        keys.emplace_back(i);
     }
     // set cache a small expire_ms
     _update_manager->set_cache_expire_ms(1000);
@@ -219,7 +219,7 @@ TEST_F(UpdateManagerTest, test_on_rowset_finished) {
     const int N = 10;
     std::vector<int64_t> keys;
     for (int i = 0; i < N; i++) {
-        keys.push_back(i);
+        keys.emplace_back(i);
     }
     auto rs0 = create_rowset(keys);
     ASSERT_TRUE(_update_manager->on_rowset_finished(_tablet.get(), rs0.get()).ok());

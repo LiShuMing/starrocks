@@ -54,9 +54,9 @@ TEST(HttpResultWriterTest, BasicJsonFormat) {
     std::vector<ExprContext*> expr_ctxs;
     // create c0/c1 ExprContext
     managed_expr_ctxs.emplace_back(std::make_unique<ExprContext>(c0ref.get()));
-    expr_ctxs.push_back(managed_expr_ctxs.back().get());
+    expr_ctxs.emplace_back(managed_expr_ctxs.back().get());
     managed_expr_ctxs.emplace_back(std::make_unique<ExprContext>(c1ref.get()));
-    expr_ctxs.push_back(managed_expr_ctxs.back().get());
+    expr_ctxs.emplace_back(managed_expr_ctxs.back().get());
     ASSERT_OK(Expr::prepare(expr_ctxs, &dummy_state));
     ASSERT_OK(Expr::open(expr_ctxs, &dummy_state));
 

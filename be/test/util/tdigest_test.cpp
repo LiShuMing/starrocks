@@ -142,7 +142,7 @@ TEST_F(TDigestTest, FewValues) {
     for (int i = 0; i < length; ++i) {
         auto const value = (i == 0 || bools(gen)) ? reals(gen) : values[i - 1];
         digest.add(value);
-        values.push_back(value);
+        values.emplace_back(value);
     }
     std::sort(values.begin(), values.end());
     digest.compress();

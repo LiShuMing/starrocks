@@ -77,7 +77,7 @@ TEST_F(DataCacheUtilsTest, parse_cache_space_size_str) {
     ASSERT_TRUE(DataCacheUtils::parse_conf_datacache_mem_size("10%", 10 * 1024, &parsed_size).ok());
     ASSERT_EQ(1024, parsed_size);
 
-    std::string disk_path = cache_dir;
+    const std::string& disk_path = cache_dir;
     const int64_t kMaxLimit = 20L * 1024 * 1024 * 1024 * 1024; // 20T
     int64_t disk_size = 10;
     ASSERT_EQ(DataCacheUtils::parse_conf_datacache_disk_size(disk_path, "10", kMaxLimit).value(), disk_size);
@@ -201,7 +201,7 @@ TEST_F(DataCacheUtilsTest, get_corresponding_starlet_cache_dir) {
         ASSERT_TRUE(fs::create_directories(starlet_dir).ok());
         ASSERT_TRUE(fs::create_directories(storage_dir).ok());
         std::vector<StorePath> store_paths;
-        store_paths.push_back(StorePath(storage_dir));
+        store_paths.emplace_back(storage_dir);
         auto vec_or = DataCacheUtils::get_corresponding_starlet_cache_dir(store_paths, starlet_dir);
         ASSERT_TRUE(vec_or.ok());
         auto vec = *vec_or;
@@ -245,8 +245,8 @@ TEST_F(DataCacheUtilsTest, get_corresponding_starlet_cache_dir) {
         ASSERT_TRUE(fs::create_directories(storage_dir).ok());
         ASSERT_TRUE(fs::create_directories(storage_dir2).ok());
         std::vector<StorePath> store_paths;
-        store_paths.push_back(StorePath(storage_dir));
-        store_paths.push_back(StorePath(storage_dir2));
+        store_paths.emplace_back(storage_dir);
+        store_paths.emplace_back(storage_dir2);
         auto vec_or = DataCacheUtils::get_corresponding_starlet_cache_dir(store_paths, starlet_dir);
         ASSERT_TRUE(vec_or.ok());
         auto vec = *vec_or;

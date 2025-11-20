@@ -57,8 +57,8 @@ static inline std::tuple<ArrayColumn*, NullColumn*> unpack_array_column(Column* 
 
     if (col->is_nullable()) {
         auto nullable = down_cast<NullableColumn*>(col);
-        array_col = down_cast<ArrayColumn*>(nullable->data_column().get());
-        array_null = down_cast<NullColumn*>(nullable->null_column().get());
+        array_col = down_cast<ArrayColumn*>(nullable->mutable_data_column());
+        array_null = down_cast<NullColumn*>(nullable->mutable_null_column());
     } else {
         array_col = down_cast<ArrayColumn*>(col);
     }
@@ -105,11 +105,11 @@ Status ArrayColumnIterator::next_batch(size_t* n, Column* dst) {
     if (_access_values) {
         RETURN_IF_ERROR(_element_iterator->next_batch(&num_to_read, array_column->elements_column().get()));
     } else {
-        if (!array_column->elements_column()->is_constant()) {
-            array_column->elements_column()->append_default(1);
-            array_column->elements_column() = ConstColumn::create(array_column->elements_column(), num_to_read);
+        if (!array_column->_elements->is_constant()) {
+            array_column->_elements->append_default(1);
+            array_column->_elements = ConstColumn::create(array_column->_elements, num_to_read);
         } else {
-            array_column->elements_column()->append_default(num_to_read);
+            array_column->_elements->append_default(num_to_read);
         }
     }
 
@@ -184,11 +184,11 @@ Status ArrayColumnIterator::next_batch(const SparseRange<>& range, Column* dst) 
         DCHECK(element_read_range.empty() || (element_read_range.begin() == _element_iterator->get_current_ordinal()));
         RETURN_IF_ERROR(_element_iterator->next_batch(element_read_range, array_column->elements_column().get()));
     } else {
-        if (!array_column->elements_column()->is_constant()) {
-            array_column->elements_column()->append_default(1);
-            array_column->elements_column() = ConstColumn::create(array_column->elements_column(), read_rows);
+        if (!array_column->_elements->is_constant()) {
+            array_column->_elements->append_default(1);
+            array_column->_elements = ConstColumn::create(array_column->_elements, read_rows);
         } else {
-            array_column->elements_column()->append_default(read_rows);
+            array_column->_elements->append_default(read_rows);
         }
     }
 
@@ -211,9 +211,9 @@ Status ArrayColumnIterator::fetch_values_by_rowid(const rowid_t* rowids, size_t 
     // [1, 2, 3], [4, 5, 6]
     // In memory, it will be transformed to actual offset(0, 3, 6)
     // On disk, offset is stored as length array(3, 3)
-    auto* offsets = array_column->offsets_column().get();
+    auto offsets = array_column->offsets_column();
     offsets->reserve(offsets->size() + array_size.size());
-    size_t offset = offsets->get_data().back();
+    size_t offset = offsets->immutable_data().back();
     for (size_t i = 0; i < array_size.size(); ++i) {
         offset += array_size.get_data()[i];
         offsets->append(offset);
@@ -229,9 +229,9 @@ Status ArrayColumnIterator::fetch_values_by_rowid(const rowid_t* rowids, size_t 
             RETURN_IF_ERROR(_element_iterator->next_batch(&size_to_read, array_column->elements_column().get()));
         }
     } else {
-        if (!array_column->elements_column()->is_constant()) {
-            array_column->elements_column()->append_default(1);
-            array_column->elements_column() = ConstColumn::create(array_column->elements_column());
+        if (!array_column->_elements->is_constant()) {
+            array_column->_elements->append_default(1);
+            array_column->_elements = ConstColumn::create(array_column->_elements);
         }
 
         size_t size_to_read = 0;
@@ -242,7 +242,7 @@ Status ArrayColumnIterator::fetch_values_by_rowid(const rowid_t* rowids, size_t 
             size_to_read += array_size.get_data()[i];
         }
 
-        array_column->elements_column()->append_default(size_to_read);
+        array_column->_elements->append_default(size_to_read);
     }
 
     return Status::OK();
@@ -325,9 +325,9 @@ Status ArrayColumnIterator::fetch_dict_codes_by_rowid(const rowid_t* rowids, siz
     array_size.reserve(size);
     RETURN_IF_ERROR(_array_size_iterator->fetch_values_by_rowid(rowids, size, &array_size));
 
-    auto* offsets = array_column->offsets_column().get();
+    auto offsets = array_column->offsets_column();
     offsets->reserve(offsets->size() + array_size.size());
-    size_t offset = offsets->get_data().back();
+    size_t offset = offsets->immutable_data().back();
     for (size_t i = 0; i < array_size.size(); ++i) {
         offset += array_size.get_data()[i];
         offsets->append(offset);

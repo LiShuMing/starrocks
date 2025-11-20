@@ -33,15 +33,15 @@ public:
 
         const auto& int_type_desc = TypeDescriptor(TYPE_INT);
         const auto& varchar_type_desc = TypeDescriptor::create_varchar_type(TypeDescriptor::MAX_VARCHAR_LENGTH);
-        ColumnPtr col_cust_key_1 = ColumnHelper::create_column(int_type_desc, false);
-        ColumnPtr col_cust_key_2 = ColumnHelper::create_column(int_type_desc, false);
-        ColumnPtr col_cust_key_3 = ColumnHelper::create_column(int_type_desc, false);
-        ColumnPtr col_nation_1 = ColumnHelper::create_column(varchar_type_desc, true);
-        ColumnPtr col_nation_2 = ColumnHelper::create_column(varchar_type_desc, true);
-        ColumnPtr col_nation_3 = ColumnHelper::create_column(varchar_type_desc, true);
-        ColumnPtr col_region_1 = ColumnHelper::create_column(varchar_type_desc, true);
-        ColumnPtr col_region_2 = ColumnHelper::create_column(varchar_type_desc, true);
-        ColumnPtr col_region_3 = ColumnHelper::create_column(varchar_type_desc, true);
+        MutableColumnPtr col_cust_key_1 = ColumnHelper::create_column(int_type_desc, false);
+        MutableColumnPtr col_cust_key_2 = ColumnHelper::create_column(int_type_desc, false);
+        MutableColumnPtr col_cust_key_3 = ColumnHelper::create_column(int_type_desc, false);
+        MutableColumnPtr col_nation_1 = ColumnHelper::create_column(varchar_type_desc, true);
+        MutableColumnPtr col_nation_2 = ColumnHelper::create_column(varchar_type_desc, true);
+        MutableColumnPtr col_nation_3 = ColumnHelper::create_column(varchar_type_desc, true);
+        MutableColumnPtr col_region_1 = ColumnHelper::create_column(varchar_type_desc, true);
+        MutableColumnPtr col_region_2 = ColumnHelper::create_column(varchar_type_desc, true);
+        MutableColumnPtr col_region_3 = ColumnHelper::create_column(varchar_type_desc, true);
 
         col_cust_key_1->append_datum(int32_t(71));
         col_cust_key_1->append_datum(int32_t(70));
@@ -107,20 +107,20 @@ public:
         auto* expr1 = new ColumnRef(TypeDescriptor(TYPE_VARCHAR), 2); // refer to region
         auto* expr2 = new ColumnRef(TypeDescriptor(TYPE_VARCHAR), 1); // refer to nation
         auto* expr3 = new ColumnRef(TypeDescriptor(TYPE_INT), 0);     // refer to cust_key
-        _exprs.push_back(expr1);
-        _exprs.push_back(expr2);
-        _exprs.push_back(expr3);
+        _exprs.emplace_back(expr1);
+        _exprs.emplace_back(expr2);
+        _exprs.emplace_back(expr3);
 
-        _sort_exprs.push_back(new ExprContext(expr1));
-        _sort_exprs.push_back(new ExprContext(expr2));
-        _sort_exprs.push_back(new ExprContext(expr3));
+        _sort_exprs.emplace_back(new ExprContext(expr1));
+        _sort_exprs.emplace_back(new ExprContext(expr2));
+        _sort_exprs.emplace_back(new ExprContext(expr3));
 
-        _is_asc.push_back(false);
-        _is_asc.push_back(true);
-        _is_asc.push_back(false);
-        _is_null_first.push_back(true);
-        _is_null_first.push_back(true);
-        _is_null_first.push_back(true);
+        _is_asc.emplace_back(false);
+        _is_asc.emplace_back(true);
+        _is_asc.emplace_back(false);
+        _is_null_first.emplace_back(true);
+        _is_null_first.emplace_back(true);
+        _is_null_first.emplace_back(true);
 
         _runtime_state = _create_runtime_state();
 
@@ -185,7 +185,8 @@ TEST_F(SortedChunksMergerTest, one_supplier) {
             size_t row_num = src_chunk->num_rows();
             *cnk = src_chunk->clone_empty_with_slot(row_num).release();
             for (size_t c = 0; c < src_chunk->num_columns(); ++c) {
-                (*cnk)->get_column_by_index(c)->append(*(src_chunk->get_column_by_index(c)), 0, row_num);
+                (*cnk)->get_mutable_column_by_index(c)->append(*(src_chunk->get_mutable_column_by_index(c)), 0,
+                                                               row_num);
             }
             ++chunk_index;
         } else {
@@ -231,7 +232,8 @@ TEST_F(SortedChunksMergerTest, two_suppliers) {
                 size_t row_num = src_chunk->num_rows();
                 *cnk = src_chunk->clone_empty_with_slot(row_num).release();
                 for (size_t c = 0; c < src_chunk->num_columns(); ++c) {
-                    (*cnk)->get_column_by_index(c)->append(*(src_chunk->get_column_by_index(c)), 0, row_num);
+                    (*cnk)->get_mutable_column_by_index(c)->append(*(src_chunk->get_mutable_column_by_index(c)), 0,
+                                                                   row_num);
                 }
                 chunk = nullptr;
             } else {
@@ -241,9 +243,9 @@ TEST_F(SortedChunksMergerTest, two_suppliers) {
         };
         auto probe_supplier = [](Chunk** cnk) -> bool { return false; };
         auto has_supplier = []() -> bool { return false; };
-        suppliers.push_back(supplier);
-        probe_suppliers.push_back(probe_supplier);
-        has_suppliers.push_back(has_supplier);
+        suppliers.emplace_back(supplier);
+        probe_suppliers.emplace_back(probe_supplier);
+        has_suppliers.emplace_back(has_supplier);
     }
 
     SortedChunksMerger merger(_runtime_state.get(), false);
@@ -281,7 +283,8 @@ TEST_F(SortedChunksMergerTest, three_suppliers) {
                 size_t row_num = src_chunk->num_rows();
                 *cnk = src_chunk->clone_empty_with_slot(row_num).release();
                 for (size_t c = 0; c < src_chunk->num_columns(); ++c) {
-                    (*cnk)->get_column_by_index(c)->append(*(src_chunk->get_column_by_index(c)), 0, row_num);
+                    (*cnk)->get_mutable_column_by_index(c)->append(*(src_chunk->get_mutable_column_by_index(c)), 0,
+                                                                   row_num);
                 }
                 chunk = nullptr;
             } else {
@@ -291,9 +294,9 @@ TEST_F(SortedChunksMergerTest, three_suppliers) {
         };
         auto probe_supplier = [](Chunk** cnk) -> bool { return false; };
         auto has_supplier = []() -> bool { return false; };
-        suppliers.push_back(supplier);
-        probe_suppliers.push_back(probe_supplier);
-        has_suppliers.push_back(has_supplier);
+        suppliers.emplace_back(supplier);
+        probe_suppliers.emplace_back(probe_supplier);
+        has_suppliers.emplace_back(has_supplier);
     }
 
     SortedChunksMerger merger(_runtime_state.get(), false);

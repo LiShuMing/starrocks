@@ -78,8 +78,8 @@ public:
     static CacheTest* _s_current;
 
     static void Deleter(const CacheKey& key, void* v) {
-        _s_current->_deleted_keys.push_back(DecodeKey(key));
-        _s_current->_deleted_values.push_back(DecodeValue(v));
+        _s_current->_deleted_keys.emplace_back(DecodeKey(key));
+        _s_current->_deleted_values.emplace_back(DecodeValue(v));
     }
 
     static const int kCacheSize = kNumShards * 1000;

@@ -22,7 +22,7 @@
 
 namespace starrocks::parquet {
 
-Status IcebergRowIdReader::read_range(const Range<uint64_t>& range, const Filter* filter, ColumnPtr& dst) {
+Status IcebergRowIdReader::read_range(const Range<uint64_t>& range, const Filter* filter, MutableColumnPtr& dst) {
     if (filter == nullptr) {
         // No filter, generate row ids for all rows in the range
         for (uint64_t i = range.begin(); i < range.end(); ++i) {
@@ -45,8 +45,8 @@ Status IcebergRowIdReader::read_range(const Range<uint64_t>& range, const Filter
     return Status::OK();
 }
 
-Status IcebergRowIdReader::fill_dst_column(ColumnPtr& dst, ColumnPtr& src) {
-    dst->swap_column(*src);
+Status IcebergRowIdReader::fill_dst_column(MutableColumnPtr& dst, ColumnPtr& src) {
+    dst->append(*src);
     return Status::OK();
 }
 

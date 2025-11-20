@@ -1154,7 +1154,7 @@ TEST_P(LakeTabletsChannelMultiSenderTest, test_dont_write_txn_log) {
     auto bids = std::vector<bthread_t>{};
     for (int i = 0; i < num_sender; i++) {
         ASSIGN_OR_ABORT(auto bid, bthreads::start_bthread([&, id = i]() { sender_task(id); }));
-        bids.push_back(bid);
+        bids.emplace_back(bid);
     }
     for (auto bid : bids) {
         (void)bthread_join(bid, nullptr);

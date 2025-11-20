@@ -127,11 +127,12 @@ bool OrcRowReaderFilter::filterMinMax(size_t rowGroupIdx,
                 return false;
             }
             const orc::proto::ColumnStatistics& stats = row_idx_iter->second.entry(rowGroupIdx).statistics();
-            ColumnPtr min_col = min_chunk->columns()[i];
-            ColumnPtr max_col = max_chunk->columns()[i];
+            MutableColumnPtr min_col = min_chunk->columns()[i]->as_mutable_ptr();
+            MutableColumnPtr max_col = max_chunk->columns()[i]->as_mutable_ptr();
             DCHECK(!min_col->is_constant() && !max_col->is_constant());
             int64_t tz_offset_in_seconds = _reader->tzoffset_in_seconds() - _writer_tzoffset_in_seconds;
-            Status st = OrcMinMaxDecoder::decode(slot, orc_type, stats, min_col, max_col, tz_offset_in_seconds);
+            Status st = OrcMinMaxDecoder::decode(slot, orc_type, stats, std::move(min_col), std::move(max_col),
+                                                 tz_offset_in_seconds);
             if (!st.ok()) {
                 LOG(INFO) << strings::Substitute(
                         "OrcMinMaxDecoder decode failed, may occur performance degradation. Because SR's column($0) "
@@ -150,17 +151,17 @@ bool OrcRowReaderFilter::filterMinMax(size_t rowGroupIdx,
             }
             // not found in partition columns.
             if (part_idx == part_size) {
-                min_chunk->columns()[i]->append_nulls(1);
-                max_chunk->columns()[i]->append_nulls(1);
+                min_chunk->get_mutable_column_by_index(i)->append_nulls(1);
+                max_chunk->get_mutable_column_by_index(i)->append_nulls(1);
             } else {
                 auto* const_column = ColumnHelper::as_raw_column<ConstColumn>(_scanner_ctx.partition_values[part_idx]);
                 ColumnPtr data_column = const_column->data_column();
                 if (data_column->is_nullable()) {
-                    min_chunk->columns()[i]->append_nulls(1);
-                    max_chunk->columns()[i]->append_nulls(1);
+                    min_chunk->get_mutable_column_by_index(i)->append_nulls(1);
+                    max_chunk->get_mutable_column_by_index(i)->append_nulls(1);
                 } else {
-                    min_chunk->columns()[i]->append(*data_column, 0, 1);
-                    max_chunk->columns()[i]->append(*data_column, 0, 1);
+                    min_chunk->get_mutable_column_by_index(i)->append(*data_column, 0, 1);
+                    max_chunk->get_mutable_column_by_index(i)->append(*data_column, 0, 1);
                 }
             }
         }
@@ -237,8 +238,8 @@ bool OrcRowReaderFilter::filterOnPickStringDictionary(
         ColumnPtr column_ptr = ColumnHelper::create_column(slot_desc->type(), true);
         dict_value_chunk->append_column(column_ptr, slot_id);
 
-        auto* nullable_column = down_cast<NullableColumn*>(column_ptr.get());
-        auto* dict_value_column = down_cast<BinaryColumn*>(nullable_column->data_column().get());
+        auto* nullable_column = down_cast<NullableColumn*>(column_ptr->as_mutable_raw_ptr());
+        auto* dict_value_column = down_cast<BinaryColumn*>(nullable_column->mutable_data_column());
 
         // copy dict and offset to column.
         Bytes& bytes = dict_value_column->get_bytes();
@@ -280,7 +281,7 @@ bool OrcRowReaderFilter::filterOnPickStringDictionary(
         }
 
         // first (dict_size) th items are all not-null
-        nullable_column->null_column()->append_default(dict_size);
+        nullable_column->mutable_null_column()->append_default(dict_size);
         // and last one is null.
         nullable_column->append_default();
         DCHECK(nullable_column->size() == (dict_size + 1));
@@ -619,7 +620,8 @@ StatusOr<size_t> HdfsOrcScanner::_do_get_next(ChunkPtr* chunk) {
             RETURN_IF_ERROR(_orc_reader->read_next(&position));
             {
                 SCOPED_RAW_TIMER(&_app_stats.build_rowid_filter_ns);
-                ASSIGN_OR_RETURN(row_delete_filter, _orc_reader->get_row_delete_filter(_skip_rows_ctx));
+                ASSIGN_OR_RETURN(auto status, _orc_reader->get_row_delete_filter(_skip_rows_ctx));
+                row_delete_filter = std::move(status);
             }
             // read num values is how many rows actually read before doing dict filtering.
             read_num_values = position.num_values;

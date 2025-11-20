@@ -65,7 +65,7 @@ protected:
         return std::make_shared<Segment>(fs, FileInfo{fname}, 1, _dummy_segment_schema, nullptr);
     }
 
-    ColumnPtr normal_json(const std::string& json, bool is_nullable) {
+    MutableColumnPtr normal_json(const std::string& json, bool is_nullable) {
         auto json_col = JsonColumn::create();
         auto* json_column = down_cast<JsonColumn*>(json_col.get());
         if ("NULL" != json) {
@@ -83,7 +83,7 @@ protected:
         return json_col;
     }
 
-    ColumnPtr flat_json(const std::string& json, bool is_nullable) {
+    MutableColumnPtr flat_json(const std::string& json, bool is_nullable) {
         auto json_col = JsonColumn::create();
         if ("NULL" != json) {
             auto flat_col = JsonColumn::create();
@@ -108,7 +108,7 @@ protected:
         return json_col;
     }
 
-    ColumnPtr more_flat_json(const std::vector<std::string>& jsons, bool is_nullable) {
+    MutableColumnPtr more_flat_json(const std::vector<std::string>& jsons, bool is_nullable) {
         auto json_col = JsonColumn::create();
 
         auto flat_col = JsonColumn::create();
@@ -137,7 +137,7 @@ protected:
         return json_col;
     }
 
-    void test_json(ColumnWriterOptions& writer_opts, std::vector<ColumnPtr>& jsons, ColumnPtr& read_col,
+    void test_json(ColumnWriterOptions& writer_opts, MutableColumns& jsons, MutableColumnPtr& read_col,
                    ColumnAccessPath* path = nullptr) {
         auto fs = std::make_shared<MemoryFileSystem>();
         ASSERT_TRUE(fs->create_dir(TEST_DIR).ok());
@@ -197,13 +197,13 @@ protected:
             ASSERT_TRUE(st.ok()) << st.to_string();
 
             size_t rows_read;
-            std::for_each(jsons.begin(), jsons.end(), [&](ColumnPtr& json) { rows_read += json->size(); });
+            std::for_each(jsons.begin(), jsons.end(), [&](MutableColumnPtr& json) { rows_read += json->size(); });
             st = iter->next_batch(&rows_read, read_col.get());
             ASSERT_TRUE(st.ok());
         }
     }
 
-    void test_compact_path(std::vector<ColumnPtr>& jsons, JsonPathDeriver* deriver) {
+    void test_compact_path(MutableColumns& jsons, JsonPathDeriver* deriver) {
         auto fs = std::make_shared<MemoryFileSystem>();
         ASSERT_TRUE(fs->create_dir(TEST_DIR).ok());
 
@@ -216,7 +216,7 @@ protected:
         for (size_t k = 0; k < jsons.size(); k++) {
             const std::string fname = TEST_DIR + fmt::format("/test_flat_json_compact{}.data", k);
             auto segment = create_dummy_segment(fs, fname);
-            segments.push_back(segment);
+            segments.emplace_back(segment);
             ASSIGN_OR_ABORT(auto wfile, fs->new_writable_file(fname));
             // write data
             ColumnWriterOptions writer_opts;
@@ -251,12 +251,12 @@ protected:
             ASSERT_TRUE(res.ok());
             auto reader = std::move(res).value();
             unique_readers.emplace_back(std::move(reader));
-            readers.push_back(unique_readers.back().get());
+            readers.emplace_back(unique_readers.back().get());
         }
         deriver->derived(readers);
     }
 
-    JsonColumn* get_json_column(ColumnPtr& col) {
+    JsonColumn* get_json_column(MutableColumnPtr& col) {
         if (col->is_nullable()) {
             return down_cast<JsonColumn*>(down_cast<NullableColumn*>(col.get())->data_column().get());
         }
@@ -270,7 +270,7 @@ private:
 
 TEST_F(FlatJsonColumnCompactTest, testJsonCompactToJson) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             normal_json(R"({"a": 1, "b": 21})", false),
             normal_json(R"({"a": 2, "b": 22})", false),
             normal_json(R"({"a": 3, "b": 23})", false),
@@ -279,7 +279,7 @@ TEST_F(FlatJsonColumnCompactTest, testJsonCompactToJson) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = false;
     test_json(writer_opts, jsons, read_col);
@@ -288,7 +288,7 @@ TEST_F(FlatJsonColumnCompactTest, testJsonCompactToJson) {
     EXPECT_FALSE(_meta->json_meta().is_flat());
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     for (size_t i = 0; i < jsons.size(); i++) {
         EXPECT_EQ(jsons[i]->debug_item(0), read_col->debug_item(i));
     }
@@ -296,7 +296,7 @@ TEST_F(FlatJsonColumnCompactTest, testJsonCompactToJson) {
 
 TEST_F(FlatJsonColumnCompactTest, testNullJsonCompactToJson) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             normal_json(R"({"a": 1, "b": 21})", true),
             normal_json(R"({"a": 2, "b": 22})", true),
             normal_json(R"({"a": 3, "b": 23})", true),
@@ -305,7 +305,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullJsonCompactToJson) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = false;
     test_json(writer_opts, jsons, read_col);
@@ -314,7 +314,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullJsonCompactToJson) {
     EXPECT_FALSE(_meta->json_meta().is_flat());
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     for (size_t i = 0; i < jsons.size(); i++) {
         EXPECT_EQ(jsons[i]->debug_item(0), read_col->debug_item(i));
     }
@@ -322,7 +322,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullJsonCompactToJson) {
 
 TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToJson) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1, "b": 21})", false),
             flat_json(R"({"a": 2, "b": 22})", false),
             flat_json(R"({"a": 3, "b": 23})", false),
@@ -331,7 +331,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToJson) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = false;
     test_json(writer_opts, jsons, read_col);
@@ -340,7 +340,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToJson) {
     auto* read_json = get_json_column(read_col);
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b": 21})", read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22})", read_col->debug_item(1));
     EXPECT_EQ(R"({"a": 3, "b": 23})", read_col->debug_item(2));
@@ -350,7 +350,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToJson) {
 
 TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToJsonWithConfig) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
         flat_json(R"({"a": 1, "b": 21})", false),
         flat_json(R"({"a": 2, "b": 22})", false),
         flat_json(R"({"a": 3, "b": 23})", false),
@@ -359,7 +359,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToJsonWithConfig) {
 };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     FlatJsonConfig config;
     writer_opts.need_flat = false;
@@ -370,7 +370,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToJsonWithConfig) {
     auto* read_json = get_json_column(read_col);
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b": 21})", read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22})", read_col->debug_item(1));
     EXPECT_EQ(R"({"a": 3, "b": 23})", read_col->debug_item(2));
@@ -380,7 +380,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToJsonWithConfig) {
 
 TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToJson2) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1, "b": 21})", false),
             flat_json(R"({"a": 2, "b": 22})", false),
             flat_json(R"({"a": 3, "b": 23, "c": 33})", false),
@@ -389,7 +389,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToJson2) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = false;
     test_json(writer_opts, jsons, read_col);
@@ -398,7 +398,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToJson2) {
     EXPECT_FALSE(_meta->json_meta().is_flat());
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
 
     EXPECT_EQ(R"({"a": 1, "b": 21})", read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22})", read_col->debug_item(1));
@@ -409,7 +409,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToJson2) {
 
 TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToJson3) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1, "b": 21, "g": {}})", false),
             flat_json(R"({"a": 2, "b": 22, "k": "abc"})", false),
             flat_json(R"({"a": 3, "b": 23, "c": 33})", false),
@@ -418,7 +418,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToJson3) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = false;
     test_json(writer_opts, jsons, read_col);
@@ -427,7 +427,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToJson3) {
     EXPECT_FALSE(_meta->json_meta().is_flat());
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
 
     EXPECT_EQ(R"({"a": 1, "b": 21, "g": {}})", read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22, "k": "abc"})", read_col->debug_item(1));
@@ -438,7 +438,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToJson3) {
 
 TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToJson4) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1, "b": 21, "b1": {"b2": 1, "b3": {"b4": "ab1", "b5": [1, 2, 3]}}, "g": {}})", false),
             flat_json(R"({"a": 2, "b": 22, "b1": {"b2": 2, "b3": {"b4": "ab2", "b5": {}}}, "k": "abc"})", false),
             flat_json(R"({"a": 3, "b": 23, "b1": {"b2": 3, "b3": {"b4": "ab3", "b5": "a"}}, "c": 33})", false),
@@ -447,7 +447,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToJson4) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = false;
     test_json(writer_opts, jsons, read_col);
@@ -457,7 +457,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToJson4) {
 
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
 
     EXPECT_EQ(R"({"a": 1, "b": 21, "b1": {"b2": 1, "b3": {"b4": "ab1", "b5": [1, 2, 3]}}, "g": {}})",
               read_col->debug_item(0));
@@ -472,7 +472,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToJson4) {
 
 TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactToJson) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1, "b": 21, "b1": {"b2": 1, "b3": {"b4": "ab1", "b5": [1, 2, 3]}}, "g": {}})", false),
             flat_json(R"({"a": 2, "b": 22, "b1": {"b2": 2, "b3": {"b4": "ab2", "b5": {}}}, "k": "abc"})", false),
             normal_json(R"({"a": 3, "b": 23, "b1": {"b2": 3, "b3": {"b4": "ab3", "b5": "a"}}, "c": 33})", false),
@@ -481,7 +481,7 @@ TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactToJson) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = false;
     test_json(writer_opts, jsons, read_col);
@@ -491,7 +491,7 @@ TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactToJson) {
 
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
 
     EXPECT_EQ(R"({"a": 1, "b": 21, "b1": {"b2": 1, "b3": {"b4": "ab1", "b5": [1, 2, 3]}}, "g": {}})",
               read_col->debug_item(0));
@@ -504,7 +504,7 @@ TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactToJson) {
 
 TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToJson) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1, "b": 21})", true),
             flat_json(R"({"a": 2, "b": 22})", true),
             flat_json(R"({"a": 3, "b": 23})", true),
@@ -513,7 +513,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToJson) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = false;
     test_json(writer_opts, jsons, read_col);
@@ -523,7 +523,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToJson) {
 
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b": 21})", read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22})", read_col->debug_item(1));
     EXPECT_EQ(R"({"a": 3, "b": 23})", read_col->debug_item(2));
@@ -533,7 +533,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToJson) {
 
 TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToJsonWithConfig) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
         flat_json(R"({"a": 1, "b": 21})", true),
         flat_json(R"({"a": 2, "b": 22})", true),
         flat_json(R"({"a": 3, "b": 23})", true),
@@ -542,7 +542,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToJsonWithConfig) {
 };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     FlatJsonConfig config;
     writer_opts.need_flat = false;
@@ -554,7 +554,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToJsonWithConfig) {
 
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b": 21})", read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22})", read_col->debug_item(1));
     EXPECT_EQ(R"({"a": 3, "b": 23})", read_col->debug_item(2));
@@ -564,7 +564,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToJsonWithConfig) {
 
 TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToJson2) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1, "b": 21})", true),
             flat_json(R"({"a": 2, "b": 22})", true),
             flat_json(R"({"a": 3, "b": 23, "c": 33})", true),
@@ -573,7 +573,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToJson2) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = false;
     test_json(writer_opts, jsons, read_col);
@@ -582,7 +582,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToJson2) {
     EXPECT_FALSE(_meta->json_meta().is_flat());
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
 
     EXPECT_EQ(R"({"a": 1, "b": 21})", read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22})", read_col->debug_item(1));
@@ -593,7 +593,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToJson2) {
 
 TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToJson3) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1, "b": 21, "g": {}})", true),
             flat_json(R"({"a": 2, "b": 22, "k": "abc"})", true),
             flat_json(R"({"a": 3, "b": 23, "c": 33})", true),
@@ -602,7 +602,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToJson3) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = false;
     test_json(writer_opts, jsons, read_col);
@@ -611,7 +611,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToJson3) {
     EXPECT_FALSE(_meta->json_meta().is_flat());
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b": 21, "g": {}})", read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22, "k": "abc"})", read_col->debug_item(1));
     EXPECT_EQ(R"({"a": 3, "b": 23, "c": 33})", read_col->debug_item(2));
@@ -621,7 +621,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToJson3) {
 
 TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToJson4) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1, "b": 21, "b1": {"b2": 1, "b3": {"b4": "ab1", "b5": [1, 2, 3]}}, "g": {}})", true),
             flat_json(R"({"a": 2, "b": 22, "b1": {"b2": 2, "b3": {"b4": "ab2", "b5": {}}}, "k": "abc"})", true),
             flat_json(R"({"a": 3, "b": 23, "b1": {"b2": 3, "b3": {"b4": "ab3", "b5": "a"}}, "c": 33})", true),
@@ -630,7 +630,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToJson4) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = false;
     test_json(writer_opts, jsons, read_col);
@@ -638,7 +638,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToJson4) {
     auto* read_json = get_json_column(read_col);
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
 
     EXPECT_EQ(R"({"a": 1, "b": 21, "b1": {"b2": 1, "b3": {"b4": "ab1", "b5": [1, 2, 3]}}, "g": {}})",
               read_col->debug_item(0));
@@ -652,7 +652,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToJson4) {
 
 TEST_F(FlatJsonColumnCompactTest, testNullHyperJsonCompactToJson) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1, "b": 21, "b1": {"b2": 1, "b3": {"b4": "ab1", "b5": [1, 2, 3]}}, "g": {}})", true),
             flat_json(R"({"a": 2, "b": 22, "b1": {"b2": 2, "b3": {"b4": "ab2", "b5": {}}}, "k": "abc"})", true),
             normal_json(R"({"a": 3, "b": 23, "b1": {"b2": 3, "b3": {"b4": "ab3", "b5": "a"}}, "c": 33})", true),
@@ -661,7 +661,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullHyperJsonCompactToJson) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = false;
     test_json(writer_opts, jsons, read_col);
@@ -670,7 +670,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullHyperJsonCompactToJson) {
     auto* read_json = get_json_column(read_col);
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
 
     EXPECT_EQ(R"({"a": 1, "b": 21, "b1": {"b2": 1, "b3": {"b4": "ab1", "b5": [1, 2, 3]}}, "g": {}})",
               read_col->debug_item(0));
@@ -683,7 +683,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullHyperJsonCompactToJson) {
 
 TEST_F(FlatJsonColumnCompactTest, testJsonCompactToFlatJson) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             normal_json(R"({"a": 1, "b": 21})", false),
             normal_json(R"({"a": 2, "b": 22})", false),
             normal_json(R"({"a": 3, "b": 23})", false),
@@ -692,7 +692,7 @@ TEST_F(FlatJsonColumnCompactTest, testJsonCompactToFlatJson) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = true;
     test_json(writer_opts, jsons, read_col);
@@ -703,7 +703,7 @@ TEST_F(FlatJsonColumnCompactTest, testJsonCompactToFlatJson) {
     auto* read_json = get_json_column(read_col);
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b": 21})", read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22})", read_col->debug_item(1));
     EXPECT_EQ(R"({"a": 3, "b": 23})", read_col->debug_item(2));
@@ -714,7 +714,7 @@ TEST_F(FlatJsonColumnCompactTest, testJsonCompactToFlatJson) {
 TEST_F(FlatJsonColumnCompactTest, testNullJsonCompactToFlatJson) {
     config::json_flat_null_factor = 0.1;
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             normal_json(R"({"a": 1, "b": 21})", true),
             normal_json(R"({"a": 2, "b": 22})", true),
             normal_json(R"({"a": 3, "b": 23})", true),
@@ -723,7 +723,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullJsonCompactToFlatJson) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = true;
     test_json(writer_opts, jsons, read_col);
@@ -733,7 +733,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullJsonCompactToFlatJson) {
     auto* read_json = get_json_column(read_col);
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b": 21})", read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22})", read_col->debug_item(1));
     EXPECT_EQ(R"({"a": 3, "b": 23})", read_col->debug_item(2));
@@ -745,7 +745,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullJsonCompactToFlatJsonWithConfig) {
     FlatJsonConfig config;
     config.set_flat_json_null_factor(0.1);
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             normal_json(R"({"a": 1, "b": 21})", true),
             normal_json(R"({"a": 2, "b": 22})", true),
             normal_json(R"({"a": 3, "b": 23})", true),
@@ -754,7 +754,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullJsonCompactToFlatJsonWithConfig) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = true;
     writer_opts.flat_json_config = &config;
@@ -766,7 +766,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullJsonCompactToFlatJsonWithConfig) {
     auto* read_json = get_json_column(read_col);
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b": 21})", read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22})", read_col->debug_item(1));
     EXPECT_EQ(R"({"a": 3, "b": 23})", read_col->debug_item(2));
@@ -776,7 +776,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullJsonCompactToFlatJsonWithConfig) {
 
 TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToFlatJson) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1, "b": 21})", false),
             flat_json(R"({"a": 2, "b": 22})", false),
             flat_json(R"({"a": 3, "b": 23})", false),
@@ -785,7 +785,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToFlatJson) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = true;
     test_json(writer_opts, jsons, read_col);
@@ -796,7 +796,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToFlatJson) {
     auto* read_json = get_json_column(read_col);
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b": 21})", read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22})", read_col->debug_item(1));
     EXPECT_EQ(R"({"a": 3, "b": 23})", read_col->debug_item(2));
@@ -806,7 +806,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToFlatJson) {
 
 TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToFlatJsonWithConfig) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
         flat_json(R"({"a": 1, "b": 21})", false),
         flat_json(R"({"a": 2, "b": 22})", false),
         flat_json(R"({"a": 3, "b": 23})", false),
@@ -815,7 +815,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToFlatJsonWithConfig) {
 };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     FlatJsonConfig config;
     writer_opts.need_flat = true;
@@ -829,7 +829,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToFlatJsonWithConfig) {
     auto* read_json = get_json_column(read_col);
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b": 21})", read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22})", read_col->debug_item(1));
     EXPECT_EQ(R"({"a": 3, "b": 23})", read_col->debug_item(2));
@@ -839,7 +839,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToFlatJsonWithConfig) {
 
 TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToFlatJson2) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1, "b": 21})", false),
             flat_json(R"({"a": 2, "b": 22})", false),
             flat_json(R"({"a": 3, "b": 23, "c": 33})", false),
@@ -848,7 +848,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToFlatJson2) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = true;
     test_json(writer_opts, jsons, read_col);
@@ -859,7 +859,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToFlatJson2) {
     auto* read_json = get_json_column(read_col);
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b": 21})", read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22})", read_col->debug_item(1));
     EXPECT_EQ(R"({"a": 3, "b": 23, "c": 33})", read_col->debug_item(2));
@@ -869,7 +869,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToFlatJson2) {
 
 TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToFlatJson3) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1, "b": 21, "g": {}})", false),
             flat_json(R"({"a": 2, "b": 22, "k": "abc"})", false),
             flat_json(R"({"a": 3, "b": 23, "c": 33})", false),
@@ -878,7 +878,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToFlatJson3) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = true;
     test_json(writer_opts, jsons, read_col);
@@ -889,7 +889,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToFlatJson3) {
     auto* read_json = get_json_column(read_col);
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b": 21, "g": {}})", read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22, "k": "abc"})", read_col->debug_item(1));
     EXPECT_EQ(R"({"a": 3, "b": 23, "c": 33})", read_col->debug_item(2));
@@ -899,7 +899,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToFlatJson3) {
 
 TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToFlatJson4) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1, "b": 21, "b1": {"b2": 1, "b3": {"b4": "ab1", "b5": [1, 2, 3]}}, "g": {}})", false),
             flat_json(R"({"a": 2, "b": 22, "b1": {"b2": 2, "b3": {"b4": "ab2", "b5": {}}}, "k": "abc"})", false),
             flat_json(R"({"a": 3, "b": 23, "b1": {"b2": 3, "b3": {"b4": "ab3", "b5": "a"}}, "c": 33})", false),
@@ -908,7 +908,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToFlatJson4) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = true;
     test_json(writer_opts, jsons, read_col);
@@ -923,7 +923,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToFlatJson4) {
     auto* read_json = get_json_column(read_col);
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b": 21, "b1": {"b2": 1, "b3": {"b4": "ab1", "b5": [1, 2, 3]}}, "g": {}})",
               read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22, "b1": {"b2": 2, "b3": {"b4": "ab2", "b5": {}}}, "k": "abc"})",
@@ -937,7 +937,7 @@ TEST_F(FlatJsonColumnCompactTest, testFlatJsonCompactToFlatJson4) {
 
 TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactToFlatJson) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1, "b": 21, "b1": {"b2": 1, "b3": {"b4": "ab1", "b5": [1, 2, 3]}}, "g": {}})", false),
             flat_json(R"({"a": 2, "b": 22, "b1": {"b2": 2, "b3": {"b4": "ab2", "b5": {}}}, "k": "abc"})", false),
             normal_json(R"({"a": 3, "b": 23, "b1": {"b2": 3, "b3": {"b4": "ab3", "b5": "a"}}, "c": 33})", false),
@@ -946,7 +946,7 @@ TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactToFlatJson) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = true;
     test_json(writer_opts, jsons, read_col);
@@ -961,7 +961,7 @@ TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactToFlatJson) {
     auto* read_json = get_json_column(read_col);
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b": 21, "b1": {"b2": 1, "b3": {"b4": "ab1", "b5": [1, 2, 3]}}, "g": {}})",
               read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22, "b1": {"b2": 2, "b3": {"b4": "ab2", "b5": {}}}, "k": "abc"})",
@@ -975,7 +975,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToFlatJson) {
     config::json_flat_null_factor = 1;
     config::json_flat_sparsity_factor = 0.7;
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1, "b": 21})", true),
             flat_json(R"({"a": 2, "b": 22})", true),
             flat_json(R"({"a": 3, "b": 23})", true),
@@ -984,7 +984,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToFlatJson) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = true;
     test_json(writer_opts, jsons, read_col);
@@ -995,7 +995,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToFlatJson) {
     auto* read_json = get_json_column(read_col);
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b": 21})", read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22})", read_col->debug_item(1));
     EXPECT_EQ(R"({"a": 3, "b": 23})", read_col->debug_item(2));
@@ -1008,7 +1008,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToFlatJsonWithConfig) {
     config.set_flat_json_null_factor(1);
     config.set_flat_json_sparsity_factor(0.7);
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
         flat_json(R"({"a": 1, "b": 21})", true),
         flat_json(R"({"a": 2, "b": 22})", true),
         flat_json(R"({"a": 3, "b": 23})", true),
@@ -1017,7 +1017,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToFlatJsonWithConfig) {
 };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = true;
     writer_opts.flat_json_config = &config;
@@ -1030,7 +1030,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToFlatJsonWithConfig) {
     auto* read_json = get_json_column(read_col);
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b": 21})", read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22})", read_col->debug_item(1));
     EXPECT_EQ(R"({"a": 3, "b": 23})", read_col->debug_item(2));
@@ -1042,7 +1042,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToFlatJson2) {
     config::json_flat_null_factor = 1;
     config::json_flat_sparsity_factor = 0.7;
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1, "b": 21})", true),
             flat_json(R"({"a": 2, "b": 22})", true),
             flat_json(R"({"a": 3, "b": 23, "c": 33})", true),
@@ -1051,7 +1051,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToFlatJson2) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = true;
     test_json(writer_opts, jsons, read_col);
@@ -1062,7 +1062,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToFlatJson2) {
     auto* read_json = get_json_column(read_col);
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b": 21})", read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22})", read_col->debug_item(1));
     EXPECT_EQ(R"({"a": 3, "b": 23, "c": 33})", read_col->debug_item(2));
@@ -1075,7 +1075,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToFlatJson2WithConfig) 
     config.set_flat_json_null_factor(1);
     config.set_flat_json_sparsity_factor(0.7);
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
         flat_json(R"({"a": 1, "b": 21})", true),
         flat_json(R"({"a": 2, "b": 22})", true),
         flat_json(R"({"a": 3, "b": 23, "c": 33})", true),
@@ -1084,7 +1084,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToFlatJson2WithConfig) 
 };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = true;
     writer_opts.flat_json_config = &config;
@@ -1097,7 +1097,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToFlatJson2WithConfig) 
     auto* read_json = get_json_column(read_col);
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b": 21})", read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22})", read_col->debug_item(1));
     EXPECT_EQ(R"({"a": 3, "b": 23, "c": 33})", read_col->debug_item(2));
@@ -1109,7 +1109,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToFlatJson3) {
     config::json_flat_null_factor = 1;
     config::json_flat_sparsity_factor = 0.7;
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1, "b": 21, "g": {}})", true),
             flat_json(R"({"a": 2, "b": 22, "k": "abc"})", true),
             flat_json(R"({"a": 3, "b": 23, "c": 33})", true),
@@ -1118,7 +1118,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToFlatJson3) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = true;
     test_json(writer_opts, jsons, read_col);
@@ -1130,7 +1130,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToFlatJson3) {
     auto* read_json = get_json_column(read_col);
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b": 21, "g": {}})", read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22, "k": "abc"})", read_col->debug_item(1));
     EXPECT_EQ(R"({"a": 3, "b": 23, "c": 33})", read_col->debug_item(2));
@@ -1142,7 +1142,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToFlatJson4) {
     config::json_flat_null_factor = 1;
     config::json_flat_sparsity_factor = 0.7;
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1, "b": 21, "b1": {"b2": 1, "b3": {"b4": "ab1", "b5": [1, 2, 3]}}, "g": {}})", true),
             flat_json(R"({"a": 2, "b": 22, "b1": {"b2": 2, "b3": {"b4": "ab2", "b5": {}}}, "k": "abc"})", true),
             flat_json(R"({"a": 3, "b": 23, "b1": {"b2": 3, "b3": {"b4": "ab3", "b5": "a"}}, "c": 33})", true),
@@ -1151,7 +1151,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToFlatJson4) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = true;
     test_json(writer_opts, jsons, read_col);
@@ -1167,7 +1167,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToFlatJson4) {
     auto* read_json = get_json_column(read_col);
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b": 21, "b1": {"b2": 1, "b3": {"b4": "ab1", "b5": [1, 2, 3]}}, "g": {}})",
               read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22, "b1": {"b2": 2, "b3": {"b4": "ab2", "b5": {}}}, "k": "abc"})",
@@ -1180,7 +1180,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullFlatJsonCompactToFlatJson4) {
 
 TEST_F(FlatJsonColumnCompactTest, testNullHyperJsonCompactToFlatJson) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1, "b": 21, "b1": {"b2": 1, "b3": {"b4": "ab1", "b5": [1, 2, 3]}}, "g": {}})", true),
             flat_json(R"({"a": 2, "b": 22, "b1": {"b2": 2, "b3": {"b4": "ab2", "b5": {}}}, "k": "abc"})", true),
             normal_json(R"({"a": 3, "b": 23, "b1": {"b2": 3, "b3": {"b4": "ab3", "b5": "a"}}, "c": 33})", true),
@@ -1189,7 +1189,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullHyperJsonCompactToFlatJson) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = true;
     test_json(writer_opts, jsons, read_col);
@@ -1205,7 +1205,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullHyperJsonCompactToFlatJson) {
     auto* read_json = get_json_column(read_col);
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b": 21, "b1": {"b2": 1, "b3": {"b4": "ab1", "b5": [1, 2, 3]}}, "g": {}})",
               read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b": 22, "b1": {"b2": 2, "b3": {"b4": "ab2", "b5": {}}}, "k": "abc"})",
@@ -1217,7 +1217,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullHyperJsonCompactToFlatJson) {
 
 TEST_F(FlatJsonColumnCompactTest, testNullHyperJsonCompactToFlatJson2) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1,            "b1": {"b2": 1, "b3": {"b4": "ab1", "b5": [1, 2, 3]}}, "g": {}})", true),
             flat_json(R"({"a": 2,            "b1": {"b2": 2, "b3": {"b4": "ab2", "b5": {}}}, "k": "abc"})", true),
             normal_json(R"({"a": 3,          "b1": {"b2": 3, "b3": {"b4": "ab3", "b5": "a"}}, "c": 33})", true),
@@ -1226,7 +1226,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullHyperJsonCompactToFlatJson2) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = true;
     test_json(writer_opts, jsons, read_col);
@@ -1242,7 +1242,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullHyperJsonCompactToFlatJson2) {
     auto* read_json = get_json_column(read_col);
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b1": {"b2": 1, "b3": {"b4": "ab1", "b5": [1, 2, 3]}}, "g": {}})", read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b1": {"b2": 2, "b3": {"b4": "ab2", "b5": {}}}, "k": "abc"})", read_col->debug_item(1));
     for (size_t i = 2; i < jsons.size(); i++) {
@@ -1252,7 +1252,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullHyperJsonCompactToFlatJson2) {
 
 TEST_F(FlatJsonColumnCompactTest, testNullHyperJsonCompactToFlatJson3) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1,                   "b1": {"b2": 1, "b3": {"b4": "ab1", "b5": [1, 2, 3]}}, "g": {}})", true),
             flat_json(R"({"a": 2,                   "b1": {"b2": 2, "b3": {"b4": 123, "b5": {}}}, "k": "abc"})", true),
             normal_json(R"({"a": 3,                 "b1": {"b2": 3, "b3": {"b4": "ab3", "b5": "a"}}, "c": 33})", true),
@@ -1261,7 +1261,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullHyperJsonCompactToFlatJson3) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = true;
     test_json(writer_opts, jsons, read_col);
@@ -1276,7 +1276,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullHyperJsonCompactToFlatJson3) {
     auto* read_json = get_json_column(read_col);
     EXPECT_FALSE(read_json->is_flat_json());
     EXPECT_EQ(5, read_json->size());
-    EXPECT_EQ(0, read_json->get_flat_fields().size());
+    EXPECT_EQ(0, read_json->flat_column_paths().size());
     EXPECT_EQ(R"({"a": 1, "b1": {"b2": 1, "b3": {"b4": "ab1", "b5": [1, 2, 3]}}, "g": {}})", read_col->debug_item(0));
     EXPECT_EQ(R"({"a": 2, "b1": {"b2": 2, "b3": {"b4": 123, "b5": {}}}, "k": "abc"})", read_col->debug_item(1));
     for (size_t i = 2; i < jsons.size(); i++) {
@@ -1286,7 +1286,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullHyperJsonCompactToFlatJson3) {
 
 TEST_F(FlatJsonColumnCompactTest, testNullHyperJsonCompactToFlatJson4) {
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
             flat_json(R"({"a": 1,                   "b1": {"b2": 1, "b3": {"b4": "ab1", "b5": [1, 2, 3]}}, "g": {}})", true),
             flat_json(R"({"a": 2,                   "b1": {"b2": 2, "b3": {"b4": 123, "b5": {}}}, "k": "abc"})", true),
             normal_json(R"({"a": 3,                 "b1": {"b2": 3, "b3": "abc"}, "c": 33})", true),
@@ -1305,7 +1305,7 @@ TEST_F(FlatJsonColumnCompactTest, testNullHyperJsonCompactToFlatJson4) {
 TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactToFlatJsonRemain) {
     config::json_flat_sparsity_factor = 0.6;
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
         more_flat_json({
             R"({"a": 11, "b": "abc1", "c": 11})",
             R"({"a": 12, "b": "abc2", "f": 12})",
@@ -1336,7 +1336,7 @@ TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactToFlatJsonRemain) {
     };
     // clang-format on
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = true;
     test_json(writer_opts, jsons, read_col);
@@ -1359,7 +1359,7 @@ TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactToFlatJsonRemain) {
 TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactToFlatJsonRemain3) {
     config::json_flat_sparsity_factor = 0.6;
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
         more_flat_json({
             R"({"a": 11, "b": "abc1", "c": {"d": 21, "e": 211}})",
             R"({"a": 12, "b": "abc2", "c": {"d": 22, "e": 221}})",
@@ -1400,7 +1400,7 @@ TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactToFlatJsonRemain3) {
 TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactToFlatJsonRemainRead) {
     config::json_flat_sparsity_factor = 0.6;
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
         more_flat_json({
             R"({"a": 11, "b": "abc1", "c": 11})",
             R"({"a": 12, "b": "abc2", "f": 12})",
@@ -1434,7 +1434,7 @@ TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactToFlatJsonRemainRead) {
     ASSIGN_OR_ABORT(auto root, ColumnAccessPath::create(TAccessPathType::FIELD, "root", 0));
     ColumnAccessPath::insert_json_path(root.get(), LogicalType::TYPE_BIGINT, "c");
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = true;
     test_json(writer_opts, jsons, read_col, root.get());
@@ -1455,7 +1455,7 @@ TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactToFlatJsonRemainRead) {
 TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactToFlatJsonRemainReadPaths) {
     config::json_flat_sparsity_factor = 0.6;
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
         more_flat_json({
             R"({"a": 11, "b": "abc1", "c": {"d": 21, "e": 211}})",
             R"({"a": 12, "b": "abc2", "c": {"d": 22, "e": 221}})",
@@ -1495,7 +1495,7 @@ TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactToFlatJsonRemainReadPaths)
 TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactPaths) {
     config::json_flat_sparsity_factor = 0.6;
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
         more_flat_json({
             R"({"a": 11, "b": "abc1", "c": 11})",
             R"({"a": 12, "b": "abc2", "f": 12})",
@@ -1538,7 +1538,7 @@ TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactPathsWithConfig) {
     FlatJsonConfig config;
     config.set_flat_json_sparsity_factor(0.6);
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
         more_flat_json({
             R"({"a": 11, "b": "abc1", "c": 11})",
             R"({"a": 12, "b": "abc2", "f": 12})",
@@ -1581,7 +1581,7 @@ TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactPathsWithConfig) {
 TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactPaths2) {
     config::json_flat_sparsity_factor = 0.6;
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
         more_flat_json({
             R"({"a": 11, "b": "abc1", "c": 11})",
             R"({"a": 12, "b": "abc2", "c": 12})",
@@ -1623,7 +1623,7 @@ TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactPaths2) {
 TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactPaths3) {
     config::json_flat_sparsity_factor = 0.6;
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
         more_flat_json({
             R"({"a": 11, "b": "abc1", "c": {"d": 21, "e": 211}})",
             R"({"a": 12, "b": "abc2", "c": {"d": 22, "e": 221}})",
@@ -1665,7 +1665,7 @@ TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactPaths3) {
 TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactRemainLevel) {
     config::json_flat_sparsity_factor = 0.6;
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
         more_flat_json({
             R"({"a": 11, "b": "abc1", "c": {"d": 21, "e": 211}, "f4": {"m": 141, "n": 341}})",
             R"({"a": 12, "b": "abc2", "c": {"d": 22, "e": 221}, "f4": {"m": 142, "n": 342}})",
@@ -1702,7 +1702,7 @@ TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactRemainLevel) {
     EXPECT_EQ(R"([a(BIGINT), b(VARCHAR), c.d(BIGINT), c.e(BIGINT)])",
               JsonFlatPath::debug_flat_json(deriver.flat_paths(), deriver.flat_types(), deriver.has_remain_json()));
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = true;
     test_json(writer_opts, jsons, read_col, nullptr);
@@ -1719,7 +1719,7 @@ TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactRemainLevelWithConfig) {
     FlatJsonConfig config;
     config.set_flat_json_sparsity_factor(0.6);
     // clang-format off
-    Columns jsons = {
+    MutableColumns jsons = {
         more_flat_json({
             R"({"a": 11, "b": "abc1", "c": {"d": 21, "e": 211}, "f4": {"m": 141, "n": 341}})",
             R"({"a": 12, "b": "abc2", "c": {"d": 22, "e": 221}, "f4": {"m": 142, "n": 342}})",
@@ -1757,7 +1757,7 @@ TEST_F(FlatJsonColumnCompactTest, testHyperJsonCompactRemainLevelWithConfig) {
     EXPECT_EQ(R"([a(BIGINT), b(VARCHAR), c.d(BIGINT), c.e(BIGINT)])",
               JsonFlatPath::debug_flat_json(deriver.flat_paths(), deriver.flat_types(), deriver.has_remain_json()));
 
-    ColumnPtr read_col = jsons[0]->clone_empty();
+    MutableColumnPtr read_col = jsons[0]->clone_empty();
     ColumnWriterOptions writer_opts;
     writer_opts.need_flat = true;
     writer_opts.flat_json_config = &config;

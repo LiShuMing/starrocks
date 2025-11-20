@@ -151,7 +151,7 @@ protected:
             }
             CHECK_OK(st);
             for (int i = 0; i < chunk->num_rows(); i++) {
-                key_list.push_back(chunk->columns()[0]->get(i).get_int32());
+                key_list.emplace_back(chunk->mutable_columns()[0]->get(i).get_int32());
             }
             chunk->reset();
         }
@@ -248,7 +248,7 @@ TEST_P(LakePrimaryKeyCompactionTest, test2) {
     // Prepare data for writing
     std::vector<Chunk> chunks;
     for (int i = 0; i < 3; i++) {
-        chunks.push_back(generate_data(kChunkSize, i));
+        chunks.emplace_back(generate_data(kChunkSize, i));
     }
     auto indexes = std::vector<uint32_t>(kChunkSize);
     for (int i = 0; i < kChunkSize; i++) {
@@ -308,9 +308,9 @@ TEST_P(LakePrimaryKeyCompactionTest, test3) {
     std::vector<Chunk> chunks;
     for (int i = 0; i < 3; i++) {
         if (i == 1) {
-            chunks.push_back(generate_data(0, 0));
+            chunks.emplace_back(generate_data(0, 0));
         } else {
-            chunks.push_back(generate_data(kChunkSize, i));
+            chunks.emplace_back(generate_data(kChunkSize, i));
         }
     }
     auto indexes = std::vector<uint32_t>(kChunkSize);
@@ -374,7 +374,7 @@ TEST_P(LakePrimaryKeyCompactionTest, test_compaction_policy) {
     // Prepare data for writing
     std::vector<Chunk> chunks;
     for (int i = 0; i < 3; i++) {
-        chunks.push_back(generate_data(kChunkSize, i));
+        chunks.emplace_back(generate_data(kChunkSize, i));
     }
     auto indexes = std::vector<uint32_t>(kChunkSize);
     for (int i = 0; i < kChunkSize; i++) {
@@ -425,12 +425,12 @@ TEST_P(LakePrimaryKeyCompactionTest, test_compaction_policy2) {
     std::vector<Chunk> chunks;
     std::vector<std::vector<uint32_t>> indexes_list;
     for (int i = 0; i < 3; i++) {
-        chunks.push_back(generate_data(kChunkSize * (i + 1), i));
+        chunks.emplace_back(generate_data(kChunkSize * (i + 1), i));
         auto indexes = std::vector<uint32_t>(kChunkSize * (i + 1));
         for (int j = 0; j < kChunkSize * (i + 1); j++) {
             indexes[j] = j;
         }
-        indexes_list.push_back(indexes);
+        indexes_list.emplace_back(indexes);
     }
 
     auto version = 1;
@@ -496,12 +496,12 @@ TEST_P(LakePrimaryKeyCompactionTest, test_compaction_policy3) {
     std::vector<Chunk> chunks;
     std::vector<std::vector<uint32_t>> indexes_list;
     for (int i = 0; i < 6; i++) {
-        chunks.push_back(generate_data(kChunkSize, i));
+        chunks.emplace_back(generate_data(kChunkSize, i));
         auto indexes = std::vector<uint32_t>(kChunkSize);
         for (int j = 0; j < kChunkSize; j++) {
             indexes[j] = j;
         }
-        indexes_list.push_back(indexes);
+        indexes_list.emplace_back(indexes);
     }
 
     const int64_t old_size = config::write_buffer_size;
@@ -578,7 +578,7 @@ TEST_P(LakePrimaryKeyCompactionTest, test_compaction_policy_min_input) {
     // Prepare data for writing
     std::vector<Chunk> chunks;
     for (int i = 0; i < 4; i++) {
-        chunks.push_back(generate_data(kChunkSize, i));
+        chunks.emplace_back(generate_data(kChunkSize, i));
     }
     auto indexes = std::vector<uint32_t>(kChunkSize);
     for (int i = 0; i < kChunkSize; i++) {
@@ -650,7 +650,7 @@ TEST_P(LakePrimaryKeyCompactionTest, test_compaction_score_by_policy) {
     // Prepare data for writing
     std::vector<Chunk> chunks;
     for (int i = 0; i < 3; i++) {
-        chunks.push_back(generate_data(kChunkSize, i));
+        chunks.emplace_back(generate_data(kChunkSize, i));
     }
     auto indexes = std::vector<uint32_t>(kChunkSize);
     for (int i = 0; i < kChunkSize; i++) {
@@ -704,7 +704,7 @@ TEST_P(LakePrimaryKeyCompactionTest, test_compaction_score_by_policy2) {
     // Prepare data for writing
     std::vector<Chunk> chunks;
     for (int i = 0; i < 2; i++) {
-        chunks.push_back(generate_data(kChunkSize, i));
+        chunks.emplace_back(generate_data(kChunkSize, i));
     }
     auto indexes = std::vector<uint32_t>(kChunkSize);
     for (int i = 0; i < kChunkSize; i++) {
@@ -737,7 +737,7 @@ TEST_P(LakePrimaryKeyCompactionTest, test_compaction_score_by_policy2) {
     {
         std::vector<Chunk> chunks2;
         for (int i = 0; i < 2; i++) {
-            chunks2.push_back(generate_data(kChunkSize * 10, i));
+            chunks2.emplace_back(generate_data(kChunkSize * 10, i));
         }
         auto indexes2 = std::vector<uint32_t>(kChunkSize * 10);
         for (int i = 0; i < kChunkSize * 10; i++) {
@@ -808,7 +808,7 @@ TEST_P(LakePrimaryKeyCompactionTest, test_compaction_sorted) {
     // Prepare data for writing
     std::vector<Chunk> chunks;
     for (int i = 0; i < 3; i++) {
-        chunks.push_back(generate_data2(kChunkSize, 3, i));
+        chunks.emplace_back(generate_data2(kChunkSize, 3, i));
     }
     auto indexes = std::vector<uint32_t>(kChunkSize);
     for (int i = 0; i < kChunkSize; i++) {
@@ -1043,7 +1043,7 @@ TEST_P(LakePrimaryKeyCompactionTest, test_multi_output_seg) {
     // Prepare data for writing
     std::vector<Chunk> chunks;
     for (int i = 0; i < 3; i++) {
-        chunks.push_back(generate_data(kChunkSize, i));
+        chunks.emplace_back(generate_data(kChunkSize, i));
     }
     auto indexes = std::vector<uint32_t>(kChunkSize);
     for (int i = 0; i < kChunkSize; i++) {
@@ -1108,7 +1108,7 @@ TEST_P(LakePrimaryKeyCompactionTest, test_pk_recover_rowset_order_after_compact)
     // Prepare data for writing
     std::vector<Chunk> chunks;
     for (int i = 0; i < 3; i++) {
-        chunks.push_back(generate_data(kChunkSize, i));
+        chunks.emplace_back(generate_data(kChunkSize, i));
     }
     auto indexes = std::vector<uint32_t>(kChunkSize);
     for (int i = 0; i < kChunkSize; i++) {
@@ -1466,7 +1466,7 @@ TEST_P(LakePrimaryKeyCompactionTest, test_major_compaction) {
     std::vector<Chunk> chunks;
     int N = 10;
     for (int i = 0; i < N; i++) {
-        chunks.push_back(generate_data(kChunkSize, i));
+        chunks.emplace_back(generate_data(kChunkSize, i));
     }
     auto indexes = std::vector<uint32_t>(kChunkSize);
     for (int i = 0; i < kChunkSize; i++) {
@@ -1527,7 +1527,7 @@ TEST_P(LakePrimaryKeyCompactionTest, test_major_compaction_thread_safe) {
     std::vector<Chunk> chunks;
     int N = 10;
     for (int i = 0; i < N; i++) {
-        chunks.push_back(generate_data(kChunkSize, i));
+        chunks.emplace_back(generate_data(kChunkSize, i));
     }
     auto indexes = std::vector<uint32_t>(kChunkSize);
     for (int i = 0; i < kChunkSize; i++) {

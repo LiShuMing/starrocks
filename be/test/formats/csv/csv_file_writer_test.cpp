@@ -46,7 +46,7 @@ protected:
     std::vector<std::string> _make_type_names(const std::vector<TypeDescriptor>& type_descs) {
         std::vector<std::string> names;
         for (auto& desc : type_descs) {
-            names.push_back(desc.debug_string());
+            names.emplace_back(desc.debug_string());
         }
         return names;
     }
@@ -388,8 +388,8 @@ TEST_F(CSVFileWriterTest, TestWriteArray) {
     std::vector<TypeDescriptor> type_descs;
     auto type_int = TypeDescriptor::from_logical_type(TYPE_INT);
     auto type_int_array = TypeDescriptor::from_logical_type(TYPE_ARRAY);
-    type_int_array.children.push_back(type_int);
-    type_descs.push_back(type_int_array);
+    type_int_array.children.emplace_back(type_int);
+    type_descs.emplace_back(type_int_array);
 
     auto column_names = _make_type_names(type_descs);
     auto maybe_output_file = _fs.new_writable_file(_file_path);
@@ -410,9 +410,9 @@ TEST_F(CSVFileWriterTest, TestWriteMap) {
     auto type_int_key = TypeDescriptor::from_logical_type(TYPE_INT);
     auto type_int_value = TypeDescriptor::from_logical_type(TYPE_INT);
     auto type_int_map = TypeDescriptor::from_logical_type(TYPE_MAP);
-    type_int_map.children.push_back(type_int_key);
-    type_int_map.children.push_back(type_int_value);
-    type_descs.push_back(type_int_map);
+    type_int_map.children.emplace_back(type_int_key);
+    type_int_map.children.emplace_back(type_int_value);
+    type_descs.emplace_back(type_int_map);
 
     auto column_names = _make_type_names(type_descs);
     auto maybe_output_file = _fs.new_writable_file(_file_path);
@@ -433,9 +433,9 @@ TEST_F(CSVFileWriterTest, TestWriteNestedArray) {
     auto type_int = TypeDescriptor::from_logical_type(TYPE_INT);
     auto type_int_array = TypeDescriptor::from_logical_type(TYPE_ARRAY);
     auto type_int_array_array = TypeDescriptor::from_logical_type(TYPE_ARRAY);
-    type_int_array.children.push_back(type_int);
-    type_int_array_array.children.push_back(type_int_array);
-    type_descs.push_back(type_int_array_array);
+    type_int_array.children.emplace_back(type_int);
+    type_int_array_array.children.emplace_back(type_int_array);
+    type_descs.emplace_back(type_int_array_array);
 
     auto column_names = _make_type_names(type_descs);
     auto maybe_output_file = _fs.new_writable_file(_file_path);

@@ -62,25 +62,25 @@ public:
         k1.__set_is_key(true);
         k1.__set_default_value("1");
         k1.column_type.type = TPrimitiveType::BIGINT;
-        request.tablet_schema.columns.push_back(k1);
+        request.tablet_schema.columns.emplace_back(k1);
 
         TColumn k2;
         k2.column_name = "k2";
         k2.__set_is_key(true);
         k2.__set_default_value("2");
         k2.column_type.type = TPrimitiveType::BIGINT;
-        request.tablet_schema.columns.push_back(k2);
+        request.tablet_schema.columns.emplace_back(k2);
 
         TColumn k3;
         k3.column_name = "k3";
         k3.__set_is_key(true);
         k3.__set_default_value("3");
         k3.column_type.type = TPrimitiveType::BIGINT;
-        request.tablet_schema.columns.push_back(k3);
+        request.tablet_schema.columns.emplace_back(k3);
 
         if (tcolumns != nullptr) {
             for (auto tcolumn : *tcolumns) {
-                request.tablet_schema.columns.push_back(tcolumn);
+                request.tablet_schema.columns.emplace_back(tcolumn);
             }
         }
 
@@ -88,7 +88,7 @@ public:
     }
 
     static void create_new_dictionary_cache(starrocks::DictionaryCacheManager* dictionary_cache_manager, int64_t dict,
-                                            int64_t txn_id, TabletSharedPtr tablet,
+                                            int64_t txn_id, const TabletSharedPtr& tablet,
                                             const std::vector<TColumn>* tcolumns = nullptr) {
         auto schema = ChunkHelper::convert_schema(tablet->thread_safe_get_tablet_schema());
         auto chunk = ChunkHelper::new_chunk(schema, 0);
@@ -96,10 +96,10 @@ public:
         for (size_t i = 0; i < chunk->num_columns(); ++i) {
             chunk->set_slot_id_to_index(i + 1, i);
             if (i < 3) {
-                down_cast<Int64Column*>(chunk->get_column_by_index(i).get())->append(i);
+                down_cast<Int64Column*>(chunk->get_mutable_column_by_index(i).get())->append(i);
             } else {
                 std::string s(60000, 'a');
-                down_cast<BinaryColumnBase<uint32_t>*>(chunk->get_column_by_index(i).get())->append_string(s);
+                down_cast<BinaryColumnBase<uint32_t>*>(chunk->get_mutable_column_by_index(i).get())->append_string(s);
             }
         }
 
@@ -190,8 +190,8 @@ public:
         return StorageEngine::instance()->tablet_manager()->get_tablet(tablet_id, false);
     }
 
-    static void read_dictionary(starrocks::DictionaryCacheManager* dictionary_cache_manager, TabletSharedPtr tablet,
-                                int64_t dict_id, int64_t txn_id) {
+    static void read_dictionary(starrocks::DictionaryCacheManager* dictionary_cache_manager,
+                                const TabletSharedPtr& tablet, int64_t dict_id, int64_t txn_id) {
         auto res = dictionary_cache_manager->get_dictionary_by_version(dict_id, txn_id);
         ASSERT_TRUE(res.ok());
         DictionaryCachePtr dictionary = std::move(res.value());
@@ -203,10 +203,10 @@ public:
         for (size_t i = 0; i < chunk->num_columns(); ++i) {
             chunk->set_slot_id_to_index(i + 1, i);
             if (i < 3) {
-                down_cast<Int64Column*>(chunk->get_column_by_index(i).get())->append(i);
+                down_cast<Int64Column*>(chunk->get_mutable_column_by_index(i).get())->append(i);
             } else {
                 std::string s(60000, 'a');
-                down_cast<BinaryColumnBase<uint32_t>*>(chunk->get_column_by_index(i).get())->append_string(s);
+                down_cast<BinaryColumnBase<uint32_t>*>(chunk->get_mutable_column_by_index(i).get())->append_string(s);
             }
         }
         std::vector<ColumnId> kids{0};
@@ -216,7 +216,7 @@ public:
         }
 
         ChunkPtr key_chunk = ChunkHelper::new_chunk(Schema(schema.get(), kids), 0);
-        key_chunk->get_column_by_index(0)->append(*chunk->get_column_by_index(0));
+        key_chunk->get_mutable_column_by_index(0)->append(*chunk->get_mutable_column_by_index(0));
 
         ChunkPtr value_chunk = ChunkHelper::new_chunk(Schema(schema.get(), vids), 0);
         auto st = DictionaryCacheManager::probe_given_dictionary_cache(
@@ -281,7 +281,7 @@ TEST_F(DictionaryCacheManagerTest, large_column_refresh_and_read) {
         k.__set_is_key(true);
         k.__set_default_value("");
         k.column_type.type = TPrimitiveType::VARCHAR;
-        large_string_column.push_back(k);
+        large_string_column.emplace_back(k);
     }
     auto test_tablet = create_tablet(9144, 6544, &large_string_column);
     create_new_dictionary_cache(dictionary_cache_manager, 300, 301, test_tablet, &large_string_column);
@@ -333,7 +333,8 @@ TEST_F(DictionaryCacheManagerTest, dictionary_get_expr_test) {
 
     auto res_column = std::move(res.value());
     ASSERT_TRUE(res_column->size() == 1);
-    auto struct_column = down_cast<StructColumn*>(down_cast<NullableColumn*>(res_column.get())->data_column().get());
+    auto struct_column =
+            down_cast<const StructColumn*>(down_cast<const NullableColumn*>(res_column.get())->data_column().get());
     ASSERT_TRUE(struct_column->fields_column().size() == 2);
 }
 

@@ -252,15 +252,16 @@ Status GroupReader::_read_range(const std::vector<int>& read_columns, const Rang
     if (!ignore_reserved_field && _param.reserved_field_slots != nullptr) {
         for (const auto& slot : *_param.reserved_field_slots) {
             SlotId slot_id = slot->id();
-            RETURN_IF_ERROR(
-                    _column_readers[slot_id]->read_range(range, filter, (*chunk)->get_column_by_slot_id(slot_id)));
+            auto mutable_col = (*chunk)->get_mutable_column_by_slot_id(slot_id);
+            RETURN_IF_ERROR(_column_readers[slot_id]->read_range(range, filter, mutable_col));
         }
     }
 
     for (int col_idx : read_columns) {
         auto& column = _param.read_cols[col_idx];
         SlotId slot_id = column.slot_id();
-        RETURN_IF_ERROR(_column_readers[slot_id]->read_range(range, filter, (*chunk)->get_column_by_slot_id(slot_id)));
+        auto mutable_col = (*chunk)->get_mutable_column_by_slot_id(slot_id);
+        RETURN_IF_ERROR(_column_readers[slot_id]->read_range(range, filter, mutable_col));
     }
 
     return Status::OK();
@@ -277,15 +278,14 @@ StatusOr<size_t> GroupReader::_read_range_round_by_round(const Range<uint64_t>& 
     if (_param.reserved_field_slots != nullptr) {
         for (const auto* slot : *_param.reserved_field_slots) {
             SlotId slot_id = slot->id();
-            RETURN_IF_ERROR(
-                    _column_readers[slot_id]->read_range(range, filter, (*chunk)->get_column_by_slot_id(slot_id)));
+            auto mutable_col = (*chunk)->get_mutable_column_by_slot_id(slot_id);
+            RETURN_IF_ERROR(_column_readers[slot_id]->read_range(range, filter, mutable_col));
             if (_left_no_dict_filter_conjuncts_by_slot.find(slot_id) != _left_no_dict_filter_conjuncts_by_slot.end()) {
                 SCOPED_RAW_TIMER(&_param.stats->expr_filter_ns);
                 std::vector<ExprContext*> ctxs = _left_no_dict_filter_conjuncts_by_slot.at(slot_id);
                 auto temp_chunk = std::make_shared<Chunk>();
                 temp_chunk->columns().reserve(1);
-                ColumnPtr& column = (*chunk)->get_column_by_slot_id(slot_id);
-                temp_chunk->append_column(column, slot_id);
+                temp_chunk->append_column(mutable_col, slot_id);
                 ASSIGN_OR_RETURN(hit_count, ExecNode::eval_conjuncts_into_filter(ctxs, temp_chunk.get(), filter));
                 if (hit_count == 0) {
                     break;
@@ -297,15 +297,16 @@ StatusOr<size_t> GroupReader::_read_range_round_by_round(const Range<uint64_t>& 
         auto& column = _param.read_cols[col_idx];
         round_cost += _column_read_order_ctx->get_column_cost(col_idx);
         SlotId slot_id = column.slot_id();
-        RETURN_IF_ERROR(_column_readers[slot_id]->read_range(range, filter, (*chunk)->get_column_by_slot_id(slot_id)));
+        auto mutable_col = (*chunk)->get_mutable_column_by_slot_id(slot_id);
+        RETURN_IF_ERROR(_column_readers[slot_id]->read_range(range, filter, mutable_col));
 
         if (std::find(_dict_column_indices.begin(), _dict_column_indices.end(), col_idx) !=
             _dict_column_indices.end()) {
             SCOPED_RAW_TIMER(&_param.stats->expr_filter_ns);
             SCOPED_RAW_TIMER(&_param.stats->group_dict_filter_ns);
             for (const auto& sub_field_path : _dict_column_sub_field_paths[col_idx]) {
-                RETURN_IF_ERROR(_column_readers[slot_id]->filter_dict_column((*chunk)->get_column_by_slot_id(slot_id),
-                                                                             filter, sub_field_path, 0));
+                auto column = (*chunk)->get_mutable_column_by_slot_id(slot_id);
+                RETURN_IF_ERROR(_column_readers[slot_id]->filter_dict_column(column, filter, sub_field_path, 0));
                 hit_count = SIMD::count_nonzero(*filter);
                 if (hit_count == 0) {
                     return hit_count;
@@ -598,8 +599,8 @@ StatusOr<bool> GroupReader::_filter_chunk_with_dict_filter(ChunkPtr* chunk, Filt
         const auto& column = _param.read_cols[col_idx];
         SlotId slot_id = column.slot_id();
         for (const auto& sub_field_path : _dict_column_sub_field_paths[col_idx]) {
-            RETURN_IF_ERROR(_column_readers[slot_id]->filter_dict_column((*chunk)->get_column_by_slot_id(slot_id),
-                                                                         filter, sub_field_path, 0));
+            auto column = (*chunk)->get_mutable_column_by_slot_id(slot_id);
+            RETURN_IF_ERROR(_column_readers[slot_id]->filter_dict_column(column, filter, sub_field_path, 0));
         }
     }
     return true;
@@ -609,14 +610,16 @@ Status GroupReader::_fill_dst_chunk(ChunkPtr& read_chunk, ChunkPtr* chunk) {
     read_chunk->check_or_die();
     for (const auto& column : _param.read_cols) {
         SlotId slot_id = column.slot_id();
-        RETURN_IF_ERROR(_column_readers[slot_id]->fill_dst_column((*chunk)->get_column_by_slot_id(slot_id),
-                                                                  read_chunk->get_column_by_slot_id(slot_id)));
+        auto mutable_col = (*chunk)->get_mutable_column_by_slot_id(slot_id);
+        RETURN_IF_ERROR(
+                _column_readers[slot_id]->fill_dst_column(mutable_col, read_chunk->get_column_by_slot_id(slot_id)));
     }
     if (_param.reserved_field_slots != nullptr) {
         for (const auto* slot : *_param.reserved_field_slots) {
             SlotId slot_id = slot->id();
-            RETURN_IF_ERROR(_column_readers[slot_id]->fill_dst_column((*chunk)->get_column_by_slot_id(slot_id),
-                                                                      read_chunk->get_column_by_slot_id(slot_id)));
+            auto mutable_col = (*chunk)->get_mutable_column_by_slot_id(slot_id);
+            RETURN_IF_ERROR(
+                    _column_readers[slot_id]->fill_dst_column(mutable_col, read_chunk->get_column_by_slot_id(slot_id)));
         }
     }
     read_chunk->check_or_die();

@@ -105,7 +105,7 @@ protected:
     std::unordered_set<StreamLoadContext*> _to_release_contexts;
 };
 
-void verify_data(std::string expected, ByteBufferPtr actual) {
+void verify_data(const std::string& expected, ByteBufferPtr actual) {
     ASSERT_EQ(expected.size(), actual->limit);
     for (int i = 0; i < actual->pos; ++i) {
         ASSERT_EQ(expected[i], *(actual->ptr + i));

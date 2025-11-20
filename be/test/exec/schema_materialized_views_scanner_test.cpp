@@ -24,7 +24,7 @@ namespace starrocks {
 
 class SchemaMaterializedViewsScannerTest : public ::testing::Test {
 private:
-    ChunkPtr create_chunk(const std::vector<SlotDescriptor*> slot_descs) {
+    ChunkPtr create_chunk(const std::vector<SlotDescriptor*>& slot_descs) {
         ChunkPtr chunk = std::make_shared<Chunk>();
         for (const auto* slot_desc : slot_descs) {
             MutableColumnPtr column = ColumnHelper::create_column(slot_desc->type(), slot_desc->is_nullable());
@@ -265,7 +265,7 @@ TEST_F(SchemaMaterializedViewsScannerTest, test_multiple_materialized_views) {
         mv.__set_last_refresh_process_time("2025-01-01 10:04:30");
         mv.__set_last_refresh_job_id("job_" + std::to_string(i));
 
-        mvs.push_back(mv);
+        mvs.emplace_back(mv);
     }
 
     scanner._mv_results.materialized_views = mvs;

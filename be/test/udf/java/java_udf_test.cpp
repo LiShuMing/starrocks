@@ -89,13 +89,13 @@ void JavaUDFTest::_set_timezone(const std::string& timezone) {
 
 TEST_F(JavaUDFTest, test_time_convert) {
     jclass time_class = _env->FindClass("java/sql/Time");
-    ASSERT_TRUE(time_class != NULL);
+    ASSERT_TRUE(time_class != nullptr);
 
     jmethodID constructor = _env->GetMethodID(time_class, "<init>", "(III)V");
-    ASSERT_TRUE(constructor != NULL);
+    ASSERT_TRUE(constructor != nullptr);
 
-    jobjectArray time_array = _env->NewObjectArray(1, time_class, NULL);
-    ASSERT_TRUE(time_array != NULL);
+    jobjectArray time_array = _env->NewObjectArray(1, time_class, nullptr);
+    ASSERT_TRUE(time_array != nullptr);
 
     jint hour = 1;
     jint minute = 10;

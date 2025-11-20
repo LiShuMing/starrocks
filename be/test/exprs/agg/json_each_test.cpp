@@ -44,7 +44,7 @@ public:
         }
         Columns input_columns;
         if (!inputs.empty()) {
-            input_columns.push_back(json_column->clone());
+            input_columns.emplace_back(json_column->clone());
         }
         TableFunctionState* func_state;
 

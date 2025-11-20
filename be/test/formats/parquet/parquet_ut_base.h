@@ -41,7 +41,7 @@ public:
                                          std::vector<TExpr>* tExprs);
     static void append_decimal_conjunct(TExprOpcode::type opcode, SlotId slot_id, const std::string& value,
                                         std::vector<TExpr>* tExprs);
-    static void append_string_conjunct(TExprOpcode::type opcode, SlotId slot_id, std::string value,
+    static void append_string_conjunct(TExprOpcode::type opcode, SlotId slot_id, const std::string& value,
                                        std::vector<TExpr>* tExprs);
 
     static void is_null_pred(SlotId slot_id, bool null, std::vector<TExpr>* tExprs);

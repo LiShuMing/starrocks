@@ -76,7 +76,7 @@ TEST_F(MergeIteratorTest, heap_merge_overlapping) {
     while (iter->get_next(chunk.get(), &source_masks).ok()) {
         ColumnPtr& c = chunk->get_column_by_index(0);
         for (size_t i = 0; i < c->size(); i++) {
-            real.push_back(c->get(i).get_int32());
+            real.emplace_back(c->get(i).get_int32());
         }
         chunk->reset();
     }
@@ -117,7 +117,7 @@ TEST_F(MergeIteratorTest, heap_merge_no_overlapping) {
     while (iter->get_next(chunk.get()).ok()) {
         ColumnPtr& c = chunk->get_column_by_index(0);
         for (size_t i = 0; i < c->size(); i++) {
-            real.push_back(c->get(i).get_int32());
+            real.emplace_back(c->get(i).get_int32());
         }
         chunk->reset();
     }
@@ -169,7 +169,7 @@ TEST_F(MergeIteratorTest, test_issue_6167) {
     std::vector<ChunkIteratorPtr> subs;
     int chunk_size = 4096;
     for (int i = 0; i < chunk_size; i++) {
-        subs.push_back(std::make_shared<VectorChunkIterator>(_schema, COL_INT({1, 1, 1, 3, 4, 5})));
+        subs.emplace_back(std::make_shared<VectorChunkIterator>(_schema, COL_INT({1, 1, 1, 3, 4, 5})));
     }
     auto iter = new_heap_merge_iterator(subs);
 
@@ -237,7 +237,7 @@ TEST_F(MergeIteratorTest, mask_merge) {
     std::vector<RowSourceMask> source_masks;
     std::vector<uint16_t> expected_sources{0, 0, 0, 0, 0, 0, 1, 1, 2, 1, 2, 2, 1, 1, 1, 1, 2, 2};
     for (unsigned short expected_source : expected_sources) {
-        source_masks.emplace_back(RowSourceMask(expected_source, false));
+        source_masks.emplace_back(expected_source, false);
     }
     RowSourceMaskBuffer mask_buffer(0, config::storage_root_path);
     mask_buffer.write(source_masks);
@@ -259,7 +259,7 @@ TEST_F(MergeIteratorTest, mask_merge) {
     while (iter->get_next(chunk.get(), &source_masks).ok()) {
         ColumnPtr& c = chunk->get_column_by_index(0);
         for (size_t i = 0; i < c->size(); i++) {
-            real.push_back(c->get(i).get_int32());
+            real.emplace_back(c->get(i).get_int32());
         }
         chunk->reset();
     }
@@ -286,49 +286,49 @@ TEST_F(MergeIteratorTest, mask_merge_boundary_test) {
     std::vector<uint16_t> expected_sources;
 
     for (int i = 0; i < 2048; i++) {
-        v1.push_back(0);
-        expected.push_back(0);
-        expected_sources.push_back(0);
+        v1.emplace_back(0);
+        expected.emplace_back(0);
+        expected_sources.emplace_back(0);
     }
 
     for (int i = 0; i < 4096; i++) {
-        v2.push_back(1);
-        expected.push_back(1);
-        expected_sources.push_back(1);
+        v2.emplace_back(1);
+        expected.emplace_back(1);
+        expected_sources.emplace_back(1);
     }
 
     for (int i = 0; i < 1024; i++) {
-        v1.push_back(2);
-        expected.push_back(2);
-        expected_sources.push_back(0);
+        v1.emplace_back(2);
+        expected.emplace_back(2);
+        expected_sources.emplace_back(0);
     }
 
     for (int i = 0; i < 1000; i++) {
-        v3.push_back(3);
-        expected.push_back(3);
-        expected_sources.push_back(2);
+        v3.emplace_back(3);
+        expected.emplace_back(3);
+        expected_sources.emplace_back(2);
     }
 
     for (int i = 0; i < 1024; i++) {
-        v1.push_back(4);
-        expected.push_back(4);
-        expected_sources.push_back(0);
+        v1.emplace_back(4);
+        expected.emplace_back(4);
+        expected_sources.emplace_back(0);
     }
 
     for (int i = 0; i < 2000; i++) {
-        v3.push_back(5);
-        expected.push_back(5);
-        expected_sources.push_back(2);
+        v3.emplace_back(5);
+        expected.emplace_back(5);
+        expected_sources.emplace_back(2);
     }
 
     for (int i = 0; i < 4096; i++) {
-        v4.push_back(6);
-        expected.push_back(6);
-        expected_sources.push_back(3);
+        v4.emplace_back(6);
+        expected.emplace_back(6);
+        expected_sources.emplace_back(3);
     }
 
     for (unsigned short expected_source : expected_sources) {
-        source_masks.emplace_back(RowSourceMask(expected_source, false));
+        source_masks.emplace_back(expected_source, false);
     }
 
     auto sub1 = std::make_shared<VectorChunkIterator>(_schema, COL_INT(v1));
@@ -349,7 +349,7 @@ TEST_F(MergeIteratorTest, mask_merge_boundary_test) {
     while (iter->get_next(chunk.get(), &source_masks).ok()) {
         ColumnPtr& c = chunk->get_column_by_index(0);
         for (size_t i = 0; i < c->size(); i++) {
-            real.push_back(c->get(i).get_int32());
+            real.emplace_back(c->get(i).get_int32());
         }
         chunk->reset();
     }

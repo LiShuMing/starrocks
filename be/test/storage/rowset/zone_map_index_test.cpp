@@ -62,7 +62,7 @@ protected:
 
     void TearDown() override {}
 
-    void test_string(const std::string& testname, TypeInfoPtr type_info) {
+    void test_string(const std::string& testname, const TypeInfoPtr& type_info) {
         std::string filename = kTestDir + "/" + testname;
 
         auto builder = ZoneMapIndexWriter::create(type_info.get());
@@ -117,8 +117,8 @@ protected:
         ASSERT_EQ(false, zone_maps[2].has_not_null());
     }
 
-    void write_file(ZoneMapIndexWriter& builder, ColumnIndexMetaPB& meta, std::string filename);
-    void load_zone_map(ZoneMapIndexReader& reader, ColumnIndexMetaPB& meta, std::string filename);
+    void write_file(ZoneMapIndexWriter& builder, ColumnIndexMetaPB& meta, const std::string& filename);
+    void load_zone_map(ZoneMapIndexReader& reader, ColumnIndexMetaPB& meta, const std::string& filename);
     void check_result(const ZoneMapPB& zone_map, bool has_min, bool has_max, const std::string& min,
                       const std::string& max, bool has_null, bool has_not_null);
 
@@ -153,14 +153,15 @@ void ColumnZoneMapTest::check_result(const ZoneMapPB& zone_map, bool has_min, bo
     ASSERT_EQ(has_not_null, zone_map.has_not_null());
 }
 
-void ColumnZoneMapTest::write_file(ZoneMapIndexWriter& builder, ColumnIndexMetaPB& meta, std::string filename) {
+void ColumnZoneMapTest::write_file(ZoneMapIndexWriter& builder, ColumnIndexMetaPB& meta, const std::string& filename) {
     ASSIGN_OR_ABORT(auto file, _fs->new_writable_file(filename))
     ASSERT_TRUE(builder.finish(file.get(), &meta).ok());
     ASSERT_EQ(ZONE_MAP_INDEX, meta.type());
     ASSERT_OK(file->close());
 }
 
-void ColumnZoneMapTest::load_zone_map(ZoneMapIndexReader& reader, ColumnIndexMetaPB& meta, std::string filename) {
+void ColumnZoneMapTest::load_zone_map(ZoneMapIndexReader& reader, ColumnIndexMetaPB& meta,
+                                      const std::string& filename) {
     IndexReadOptions opts;
     ASSIGN_OR_ABORT(auto rfile, _fs->new_random_access_file(filename))
     opts.read_file = rfile.get();
@@ -483,14 +484,14 @@ TEST_F(ColumnZoneMapTest, StringPrefixZonemapVariants) {
     // Common prefix strings
     std::vector<std::string> cp = {"prefix_0001", "prefix_0002", "prefix_9999"};
     std::vector<Slice> cp_slices;
-    for (auto& s : cp) cp_slices.push_back({s.data(), s.size()});
+    for (auto& s : cp) cp_slices.emplace_back(Slice(s));
     writer->add_values(cp_slices.data(), cp_slices.size());
     writer->flush();
 
     // Random long strings (> 64 to ensure truncation even if config changes)
     std::string long1(80, 'X');
     std::string long2(120, 'Y');
-    std::vector<Slice> longs = {{long1.data(), long1.size()}, {long2.data(), long2.size()}};
+    std::vector<Slice> longs = {Slice(long1), Slice(long2)};
     writer->add_values(longs.data(), longs.size());
     writer->flush();
 

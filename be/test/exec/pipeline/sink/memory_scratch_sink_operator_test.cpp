@@ -40,7 +40,7 @@ public:
 
 class MockEmptyOperatorFactory : public SourceOperatorFactory {
 public:
-    MockEmptyOperatorFactory(int32_t id, std::string name, int32_t plan_node_id)
+    MockEmptyOperatorFactory(int32_t id, const std::string& name, int32_t plan_node_id)
             : SourceOperatorFactory(id, name, plan_node_id) {}
 
     virtual OperatorPtr create(int32_t degree_of_parallelism, int32_t driver_sequence) {

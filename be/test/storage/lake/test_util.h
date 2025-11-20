@@ -362,7 +362,7 @@ inline std::vector<TScanRangeParams> create_scan_ranges_cloud(std::vector<Tablet
 
         TScanRangeParams param;
         param.__set_scan_range(scan_range);
-        scan_ranges.push_back(param);
+        scan_ranges.emplace_back(param);
     }
 
     return scan_ranges;

@@ -65,7 +65,7 @@ public:
         for (size_t i = 0; i < segments.size(); i++) {
             auto& segment = segments[i];
             auto chunk = ChunkHelper::new_chunk(schema, segment.size());
-            auto& cols = chunk->columns();
+            auto cols = chunk->mutable_columns();
             for (auto& row : segment) {
                 CHECK(cols.size() == row.size());
                 for (size_t j = 0; j < row.size(); j++) {
@@ -102,13 +102,13 @@ public:
                 auto& row = segment.emplace_back();
                 auto key = keys[j];
                 if (multi_column_pk) {
-                    row.push_back(Datum(get_pk1(key)));
-                    row.push_back(Datum(get_pk2(key)));
+                    row.emplace_back(get_pk1(key));
+                    row.emplace_back(get_pk2(key));
                 } else {
-                    row.push_back(Datum(key));
+                    row.emplace_back(key);
                 }
-                row.push_back(Datum(get_v1(key)));
-                row.push_back(Datum(get_v2(key)));
+                row.emplace_back(get_v1(key));
+                row.emplace_back(get_v2(key));
             }
             if (sort_key) {
                 const size_t sort_key_idx = multi_column_pk ? 2 : 1;
@@ -150,9 +150,9 @@ public:
         request.tablet_schema.storage_type = TStorageType::COLUMN;
         if (sort_key) {
             if (multi_column_pk) {
-                request.tablet_schema.sort_key_idxes.push_back(2);
+                request.tablet_schema.sort_key_idxes.emplace_back(2);
             } else {
-                request.tablet_schema.sort_key_idxes.push_back(1);
+                request.tablet_schema.sort_key_idxes.emplace_back(1);
             }
         }
 
@@ -161,31 +161,31 @@ public:
             pk1.column_name = "pk1";
             pk1.__set_is_key(true);
             pk1.column_type.type = TPrimitiveType::BIGINT;
-            request.tablet_schema.columns.push_back(pk1);
+            request.tablet_schema.columns.emplace_back(pk1);
             TColumn pk2;
             pk2.column_name = "pk2";
             pk2.__set_is_key(true);
             pk2.column_type.type = TPrimitiveType::BIGINT;
-            request.tablet_schema.columns.push_back(pk2);
+            request.tablet_schema.columns.emplace_back(pk2);
         } else {
             TColumn k1;
             k1.column_name = "pk";
             k1.__set_is_key(true);
             k1.column_type.type = TPrimitiveType::BIGINT;
-            request.tablet_schema.columns.push_back(k1);
+            request.tablet_schema.columns.emplace_back(k1);
         }
 
         TColumn k2;
         k2.column_name = "v1";
         k2.__set_is_key(false);
         k2.column_type.type = TPrimitiveType::BIGINT;
-        request.tablet_schema.columns.push_back(k2);
+        request.tablet_schema.columns.emplace_back(k2);
 
         TColumn k3;
         k3.column_name = "v2";
         k3.__set_is_key(false);
         k3.column_type.type = TPrimitiveType::BIGINT;
-        request.tablet_schema.columns.push_back(k3);
+        request.tablet_schema.columns.emplace_back(k3);
         auto st = StorageEngine::instance()->create_tablet(request);
         CHECK(st.ok()) << st.to_string();
         return StorageEngine::instance()->tablet_manager()->get_tablet(tablet_id, false);

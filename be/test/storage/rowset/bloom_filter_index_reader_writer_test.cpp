@@ -104,7 +104,7 @@ protected:
     }
 
     template <LogicalType Type>
-    void test_bloom_filter_index_reader_writer_template(const std::string file_name,
+    void test_bloom_filter_index_reader_writer_template(const std::string& file_name,
                                                         typename TypeTraits<Type>::CppType* val, size_t num,
                                                         size_t null_num,
                                                         typename TypeTraits<Type>::CppType* not_exist_value,

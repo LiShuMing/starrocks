@@ -68,7 +68,7 @@ class ParquetScannerTest : public ::testing::Test {
             for (auto offset = 0; offset < file_sizes[i]; offset += split_size) {
                 range.start_offset = offset;
                 range.size = split_size < file_sizes[i] - offset ? split_size : file_sizes[i] - offset;
-                ranges.push_back(range);
+                ranges.emplace_back(range);
             }
         }
         return ranges;
@@ -76,7 +76,7 @@ class ParquetScannerTest : public ::testing::Test {
 
     starrocks::TExpr create_column_ref(int32_t slot_id, const TypeDescriptor& type_desc, bool is_nullable) {
         starrocks::TExpr e = starrocks::TExpr();
-        e.nodes.emplace_back(TExprNode());
+        e.nodes.emplace_back();
         e.nodes[0].__set_type(type_desc.to_thrift());
         e.nodes[0].__set_node_type(TExprNodeType::SLOT_REF);
         e.nodes[0].__set_is_nullable(is_nullable);
@@ -87,7 +87,7 @@ class ParquetScannerTest : public ::testing::Test {
 
     starrocks::TExpr create_cast_expr(const starrocks::TExpr& child, const TypeDescriptor& type_desc) {
         starrocks::TExpr e = starrocks::TExpr();
-        e.nodes.emplace_back(TExprNode());
+        e.nodes.emplace_back();
         e.nodes.insert(e.nodes.end(), child.nodes.begin(), child.nodes.end());
         auto& to_expr = e.nodes[0];
         to_expr.__set_type(type_desc.to_thrift());

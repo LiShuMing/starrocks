@@ -525,7 +525,8 @@ public:
 
     static StatusOr<const uint8_t*> deserialize(const uint8_t* buff, StructColumn* column, const int encode_level) {
         for (auto& field : column->fields_column()) {
-            ASSIGN_OR_RETURN(buff, serde::ColumnArraySerde::deserialize(buff, field.get(), false, encode_level));
+            ASSIGN_OR_RETURN(
+                    buff, serde::ColumnArraySerde::deserialize(buff, field->as_mutable_raw_ptr(), false, encode_level));
         }
         return buff;
     }

@@ -160,7 +160,7 @@ void extract_json(const vpack::Slice* json, NullableColumn* result) {
     if (json->isNone()) {
         result->append_nulls(1);
     } else {
-        down_cast<JsonColumn*>(result->data_column().get())->append(JsonValue(*json));
+        down_cast<JsonColumn*>(result->mutable_data_column())->append(JsonValue(*json));
         result->null_column()->append(0);
     }
 }
@@ -970,8 +970,8 @@ void JsonFlattener::_flatten(const Column* json_column, const JsonColumn* json_d
     }
 }
 
-Columns JsonFlattener::mutable_result() {
-    Columns res;
+MutableColumns JsonFlattener::mutable_result() {
+    MutableColumns res;
     for (size_t i = 0; i < _flat_columns.size(); i++) {
         auto cloned = _flat_columns[i]->clone_empty();
         res.emplace_back(std::move(_flat_columns[i]));
@@ -1042,9 +1042,11 @@ ColumnPtr JsonMerger::merge(const Columns& columns) {
     DCHECK_GE(columns.size(), 1);
     DCHECK(_src_columns.empty());
 
-    _result = NullableColumn::create(JsonColumn::create(), NullColumn::create());
-    _json_result = down_cast<JsonColumn*>(down_cast<NullableColumn*>(_result.get())->data_column().get());
-    _null_result = down_cast<NullColumn*>(down_cast<NullableColumn*>(_result.get())->null_column().get());
+    // 使用 MutablePtr 参数版本的 create()，直接返回 MutablePtr
+    _result = NullableColumn::create(JsonColumn::create()->as_mutable_ptr(), NullColumn::create()->as_mutable_ptr());
+    auto* nullable_result = down_cast<NullableColumn*>(_result->as_mutable_raw_ptr());
+    _json_result = down_cast<JsonColumn*>(nullable_result->mutable_data_column());
+    _null_result = down_cast<NullColumn*>(nullable_result->mutable_null_column());
     size_t rows = columns[0]->size();
     _result->reserve(rows);
 
@@ -1569,7 +1571,7 @@ Status HyperJsonTransformer::_equals(const MergeTask& task, const Columns& colum
         auto& col = columns[task.src_index[0]];
         return _cast(task, col);
     }
-    _dst_columns[task.dst_index] = columns[task.src_index[0]];
+    _dst_columns[task.dst_index] = Column::mutate(columns[task.src_index[0]]);
     return Status::OK();
 }
 
@@ -1577,18 +1579,19 @@ Status HyperJsonTransformer::_cast(const MergeTask& task, const ColumnPtr& col) 
     DCHECK(task.need_cast);
     Chunk chunk;
     chunk.append_column(col, task.dst_index);
-    ASSIGN_OR_RETURN(auto res, task.cast_expr->evaluate_checked(nullptr, &chunk));
+    ASSIGN_OR_RETURN(auto res_ptr, task.cast_expr->evaluate_checked(nullptr, &chunk));
+    auto res = Column::mutate(res_ptr);
     res->set_delete_state(col->delete_state());
 
     if (res->only_null()) {
         auto check = _dst_columns[task.dst_index]->append_nulls(col->size());
         DCHECK(check);
     } else if (res->is_constant()) {
-        auto data = down_cast<ConstColumn*>(res.get())->data_column();
+        auto data = down_cast<const ConstColumn*>(res.get())->data_column();
         _dst_columns[task.dst_index]->append_value_multiple_times(*data, 0, col->size());
     } else if (_dst_columns[task.dst_index]->is_nullable() && !res->is_nullable()) {
         auto nl = NullColumn::create(col->size(), 0);
-        _dst_columns[task.dst_index] = NullableColumn::create(res, std::move(nl));
+        _dst_columns[task.dst_index] = NullableColumn::create(std::move(res), std::move(nl));
     } else {
         DCHECK_EQ(_dst_columns[task.dst_index]->is_nullable(), res->is_nullable());
         _dst_columns[task.dst_index].swap(res);
@@ -1602,7 +1605,7 @@ Status HyperJsonTransformer::_merge(const MergeTask& task, const Columns& column
         // output to remain
         if (task.src_index.size() == 1 && task.src_index[0] == _src_paths.size() && !task.merger->has_exclude_paths()) {
             // only use remain
-            _dst_columns[task.dst_index] = columns[task.src_index[0]];
+            _dst_columns[task.dst_index] = Column::mutate(columns[task.src_index[0]]);
             return Status::OK();
         }
     }
@@ -1622,7 +1625,7 @@ Status HyperJsonTransformer::_merge(const MergeTask& task, const Columns& column
     if (task.need_cast) {
         return _cast(task, result);
     } else {
-        _dst_columns[task.dst_index] = result;
+        _dst_columns[task.dst_index] = Column::mutate(result);
     }
     return Status::OK();
 }
@@ -1645,12 +1648,12 @@ void HyperJsonTransformer::_flat(const FlatTask& task, const Columns& columns) {
     auto result = task.flattener->mutable_result();
 
     for (size_t i = 0; i < task.dst_index.size(); i++) {
-        _dst_columns[task.dst_index[i]] = result[i];
+        _dst_columns[task.dst_index[i]] = std::move(result[i]);
     }
 }
 
-Columns HyperJsonTransformer::mutable_result() {
-    Columns res;
+MutableColumns HyperJsonTransformer::mutable_result() {
+    MutableColumns res;
     for (size_t i = 0; i < _dst_columns.size(); i++) {
         auto cloned = _dst_columns[i]->clone_empty();
         res.emplace_back(std::move(_dst_columns[i]));

@@ -29,7 +29,7 @@ typedef std::vector<TestCaseType> TestCaseArray;
 typedef std::vector<NullColumnPtr> NullColumnsType;
 class StringFunctionPadTest : public ::testing::Test {};
 
-Columns prepare_data(size_t num_rows) {
+MutableColumns prepare_data(size_t num_rows) {
     auto str_column = BinaryColumn::create();
     auto len_column = Int32Column::create();
     auto fill_column = BinaryColumn::create();
@@ -71,7 +71,7 @@ void test_pad(int num_rows, TestCaseArray const& cases, NullColumnsType null_col
     auto str_column = down_cast<BinaryColumn*>(columns[0].get());
     auto len_column = down_cast<Int32Column*>(columns[1].get());
     auto fill_column = down_cast<BinaryColumn*>(columns[2].get());
-    NullColumn::Ptr result_nulls = NullColumn::create();
+    auto result_nulls = NullColumn::create();
     for (auto i = 0; i < prepare_size; ++i) {
         result_nulls->append(0);
     }
@@ -92,16 +92,17 @@ void test_pad(int num_rows, TestCaseArray const& cases, NullColumnsType null_col
         if (null_columns[i].get() == nullptr) {
             continue;
         }
-        columns[i] = NullableColumn::create(std::move(columns[i]), null_columns[i]);
-        result_nulls = FunctionHelper::union_null_column(result_nulls, null_columns[i]);
+        // Wrap base column with nullable using mutable pointers to respect COW.
+        columns[i] = NullableColumn::create(columns[i]->as_mutable_ptr(), null_columns[i]->as_mutable_ptr());
+        result_nulls = FunctionHelper::union_null_column(std::move(result_nulls), std::move(null_columns[i]));
     }
     std::shared_ptr<FunctionContext> ctx(FunctionContext::create_test_context());
     if (state != nullptr) {
         ctx->set_function_state(FunctionContext::FRAGMENT_LOCAL, state);
     }
 
-    ColumnPtr lpad_result = StringFunctions::lpad(ctx.get(), columns).value();
-    ColumnPtr rpad_result = StringFunctions::rpad(ctx.get(), columns).value();
+    ColumnPtr lpad_result = StringFunctions::lpad(ctx.get(), std::move(columns)).value();
+    ColumnPtr rpad_result = StringFunctions::rpad(ctx.get(), std::move(columns)).value();
 
     ASSERT_EQ(lpad_result->size(), num_rows);
     ASSERT_EQ(rpad_result->size(), num_rows);
@@ -230,20 +231,25 @@ TEST_F(StringFunctionPadTest, padNotConstUTF8Test) {
 
 void test_const_pad(size_t num_rows, TestCaseType& c) {
     ASSERT_TRUE(num_rows > 0);
-    auto columns = prepare_data(num_rows - 1);
+    MutableColumns mut_columns = prepare_data(num_rows - 1);
     auto [str, len, fill, is_null, lpad_expect, rpad_expect] = c;
-    auto str_column = down_cast<BinaryColumn*>(columns[0].get());
-    auto len_column = down_cast<Int32Column*>(columns[1].get());
-    auto fill_columns = down_cast<BinaryColumn*>(columns[2].get());
+    auto str_column = down_cast<BinaryColumn*>(mut_columns[0].get());
+    auto len_column = down_cast<Int32Column*>(mut_columns[1].get());
+    auto fill_columns = down_cast<BinaryColumn*>(mut_columns[2].get());
     str_column->append(str);
     len_column->append(len);
     fill_columns->append(fill);
     auto state = std::make_unique<PadState>();
     std::shared_ptr<FunctionContext> ctx(FunctionContext::create_test_context());
-    auto const_pad_col = ColumnHelper::create_const_column<TYPE_VARCHAR>(Slice{fill.data(), fill.size()}, 1);
+    ColumnPtr const_pad_col = ColumnHelper::create_const_column<TYPE_VARCHAR>(Slice{fill.data(), fill.size()}, 1);
     ctx->set_constant_columns({nullptr, nullptr, const_pad_col});
-    columns[2] = const_pad_col;
+    // Build immutable columns vector: first two from mutable data, last is const pad.
+    Columns columns;
+    columns.emplace_back(ColumnPtr(std::move(mut_columns[0])));
+    columns.emplace_back(ColumnPtr(std::move(mut_columns[1])));
+    columns.emplace_back(std::move(const_pad_col));
     StringFunctions::pad_prepare(ctx.get(), FunctionContext::FRAGMENT_LOCAL);
+
     auto lpad_result = StringFunctions::lpad(ctx.get(), columns).value();
     auto rpad_result = StringFunctions::rpad(ctx.get(), columns).value();
     StringFunctions::pad_close(ctx.get(), FunctionContext::FRAGMENT_LOCAL);
@@ -309,22 +315,25 @@ TEST_F(StringFunctionPadTest, padConstPadTest) {
 
 void test_const_len_and_pad(size_t num_rows, TestCaseType& c) {
     ASSERT_TRUE(num_rows > 0);
-    auto columns = prepare_data(num_rows - 1);
+    MutableColumns mut_columns = prepare_data(num_rows - 1);
     auto [str, len, fill, is_null, lpad_expect, rpad_expect] = c;
-    auto str_column = down_cast<BinaryColumn*>(columns[0].get());
-    auto len_column = down_cast<Int32Column*>(columns[1].get());
-    auto fill_columns = down_cast<BinaryColumn*>(columns[2].get());
+    auto str_column = down_cast<BinaryColumn*>(mut_columns[0].get());
+    auto len_column = down_cast<Int32Column*>(mut_columns[1].get());
+    auto fill_columns = down_cast<BinaryColumn*>(mut_columns[2].get());
     str_column->append(str);
     len_column->append(len);
     fill_columns->append(fill);
     auto state = std::make_unique<PadState>();
     std::shared_ptr<FunctionContext> ctx(FunctionContext::create_test_context());
     auto const_len_col = ColumnHelper::create_const_column<TYPE_INT>(len, 1);
-    auto const_pad_col = ColumnHelper::create_const_column<TYPE_VARCHAR>(Slice{fill.data(), fill.size()}, 1);
+    ColumnPtr const_pad_col = ColumnHelper::create_const_column<TYPE_VARCHAR>(Slice{fill.data(), fill.size()}, 1);
     ctx->set_constant_columns({nullptr, const_len_col, const_pad_col});
-    columns[1] = const_len_col;
-    columns[2] = const_pad_col;
+    Columns columns;
+    columns.emplace_back(ColumnPtr(std::move(mut_columns[0])));
+    columns.emplace_back(const_len_col);
+    columns.emplace_back(std::move(const_pad_col));
     StringFunctions::pad_prepare(ctx.get(), FunctionContext::FRAGMENT_LOCAL);
+
     auto lpad_result = StringFunctions::lpad(ctx.get(), columns).value();
     auto rpad_result = StringFunctions::rpad(ctx.get(), columns).value();
     StringFunctions::pad_close(ctx.get(), FunctionContext::FRAGMENT_LOCAL);
@@ -427,7 +436,8 @@ TEST_F(StringFunctionPadTest, lpadNullTest) {
     columns.emplace_back(std::move(len));
     columns.emplace_back(NullableColumn::create(std::move(fill), std::move(null)));
 
-    ColumnPtr result = StringFunctions::lpad(ctx.get(), columns).value();
+    Columns immutable_columns = std::move(columns);
+    ColumnPtr result = StringFunctions::lpad(ctx.get(), immutable_columns).value();
     ASSERT_EQ(2, result->size());
     ASSERT_TRUE(result->is_nullable());
     auto v = ColumnHelper::cast_to<TYPE_VARCHAR>(ColumnHelper::as_raw_column<NullableColumn>(result)->data_column());
@@ -458,7 +468,8 @@ TEST_F(StringFunctionPadTest, rpadTest) {
     columns.emplace_back(std::move(len));
     columns.emplace_back(std::move(fill));
 
-    ColumnPtr result = StringFunctions::rpad(ctx.get(), columns).value();
+    Columns immutable_columns = std::move(columns);
+    ColumnPtr result = StringFunctions::rpad(ctx.get(), immutable_columns).value();
     ASSERT_EQ(2, result->size());
 
     auto v = ColumnHelper::cast_to<TYPE_VARCHAR>(result);
@@ -486,7 +497,8 @@ TEST_F(StringFunctionPadTest, rpadChineseTest) {
     columns.emplace_back(std::move(len));
     columns.emplace_back(std::move(fill));
 
-    ColumnPtr result = StringFunctions::rpad(ctx.get(), columns).value();
+    Columns immutable_columns = std::move(columns);
+    ColumnPtr result = StringFunctions::rpad(ctx.get(), immutable_columns).value();
     ASSERT_EQ(2, result->size());
 
     auto v = ColumnHelper::cast_to<TYPE_VARCHAR>(result);
@@ -513,7 +525,8 @@ TEST_F(StringFunctionPadTest, rpadConstTest) {
     columns.emplace_back(std::move(len));
     columns.emplace_back(ConstColumn::create(std::move(fill)));
 
-    ColumnPtr result = StringFunctions::rpad(ctx.get(), columns).value();
+    Columns immutable_columns = std::move(columns);
+    ColumnPtr result = StringFunctions::rpad(ctx.get(), immutable_columns).value();
     ASSERT_EQ(2, result->size());
     ASSERT_TRUE(result->is_nullable());
     auto v = ColumnHelper::cast_to<TYPE_VARCHAR>(ColumnHelper::as_raw_column<NullableColumn>(result)->data_column());
@@ -540,7 +553,7 @@ struct PadNullableStrConstLenFillTestCase {
     std::vector<bool> lpad_expected_nulls;
 
     PadNullableStrConstLenFillTestCase(const std::vector<std::string>& strs, const std::vector<bool>& str_nulls,
-                                       int len, std::string fill, bool rpad_expected_null,
+                                       int len, const std::string& fill, bool rpad_expected_null,
                                        const std::vector<std::string>& rpad_expected_results,
                                        const std::vector<bool>& rpad_expected_nulls, bool lpad_expected_null,
                                        const std::vector<std::string>& lpad_expected_results,
@@ -586,8 +599,9 @@ TEST_P(PadNullableStrConstLenFillTestFixture, pad) {
     columns.emplace_back(std::move(len));
     columns.emplace_back(std::move(fill));
 
+    Columns immutable_columns = std::move(columns);
     // Check rpad result.
-    ColumnPtr rpad_result = StringFunctions::rpad(ctx.get(), columns).value();
+    ColumnPtr rpad_result = StringFunctions::rpad(ctx.get(), immutable_columns).value();
     ASSERT_EQ(num_rows, rpad_result->size());
     ASSERT_EQ(c.rpad_expected_null, rpad_result->is_nullable());
     BinaryColumn::Ptr rpad_v;
@@ -605,7 +619,7 @@ TEST_P(PadNullableStrConstLenFillTestFixture, pad) {
     }
 
     // Check lpad result.
-    ColumnPtr lpad_result = StringFunctions::lpad(ctx.get(), columns).value();
+    ColumnPtr lpad_result = StringFunctions::lpad(ctx.get(), immutable_columns).value();
     ASSERT_EQ(num_rows, lpad_result->size());
     ASSERT_EQ(c.lpad_expected_null, lpad_result->is_nullable());
     BinaryColumn::Ptr lpad_v;

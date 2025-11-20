@@ -140,7 +140,7 @@ Status CastStringToArray::open(RuntimeState* state, ExprContext* context, Functi
 // Cast string to array<ANY>
 StatusOr<ColumnPtr> CastStringToArray::evaluate_checked(ExprContext* context, Chunk* input_chunk) {
     if (_constant_res != nullptr && _constant_res->is_constant()) {
-        auto* input = down_cast<ConstColumn*>(_constant_res.get());
+        const auto* input = down_cast<const ConstColumn*>(_constant_res.get());
         size_t rows = input_chunk == nullptr ? 1 : input_chunk->num_rows();
         if (input->only_null()) {
             return ColumnHelper::create_const_null_column(rows);
@@ -220,7 +220,7 @@ StatusOr<ColumnPtr> CastStringToArray::evaluate_checked(ExprContext* context, Ch
     }
 
     // 3. Assemble elements into array column
-    MutableColumnPtr res = ArrayColumn::create(std::move(elements)->as_mutable_ptr(), std::move(offsets));
+    ColumnPtr res = ArrayColumn::create(std::move(elements), std::move(offsets));
 
     if (column->is_nullable() || has_null) {
         res = NullableColumn::create(std::move(res), std::move(null_column));
@@ -300,7 +300,7 @@ StatusOr<ColumnPtr> CastJsonToArray::evaluate_checked(ExprContext* context, Chun
     }
 
     // 3. Assemble elements into array column
-    MutableColumnPtr res = ArrayColumn::create(std::move(elements)->as_mutable_ptr(), std::move(offsets));
+    ColumnPtr res = ArrayColumn::create(std::move(elements)->as_mutable_ptr(), std::move(offsets));
     if (column->is_nullable()) {
         res = NullableColumn::create(std::move(res), std::move(null_column));
     }

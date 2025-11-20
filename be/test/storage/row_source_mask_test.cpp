@@ -72,14 +72,14 @@ TEST_F(RowSourceMaskTest, memory_masks) {
     std::vector<RowSourceMask> source_masks;
     config::max_row_source_mask_memory_bytes = 1024;
 
-    source_masks.emplace_back(RowSourceMask(0, false));
-    source_masks.emplace_back(RowSourceMask(1, true));
-    source_masks.emplace_back(RowSourceMask(1, false));
+    source_masks.emplace_back(0, false);
+    source_masks.emplace_back(1, true);
+    source_masks.emplace_back(1, false);
     buffer.write(source_masks);
     source_masks.clear();
-    source_masks.emplace_back(RowSourceMask(1, true));
-    source_masks.emplace_back(RowSourceMask(3, true));
-    source_masks.emplace_back(RowSourceMask(2, true));
+    source_masks.emplace_back(1, true);
+    source_masks.emplace_back(3, true);
+    source_masks.emplace_back(2, true);
     buffer.write(source_masks);
     buffer.flush();
 
@@ -153,14 +153,14 @@ TEST_F(RowSourceMaskTest, memory_masks_with_persistence) {
     std::vector<RowSourceMask> source_masks;
     config::max_row_source_mask_memory_bytes = 1;
 
-    source_masks.emplace_back(RowSourceMask(0, false));
-    source_masks.emplace_back(RowSourceMask(1, true));
-    source_masks.emplace_back(RowSourceMask(1, false));
+    source_masks.emplace_back(0, false);
+    source_masks.emplace_back(1, true);
+    source_masks.emplace_back(1, false);
     buffer.write(source_masks);
     source_masks.clear();
-    source_masks.emplace_back(RowSourceMask(1, true));
-    source_masks.emplace_back(RowSourceMask(3, true));
-    source_masks.emplace_back(RowSourceMask(2, true));
+    source_masks.emplace_back(1, true);
+    source_masks.emplace_back(3, true);
+    source_masks.emplace_back(2, true);
     buffer.write(source_masks);
     buffer.flush();
 

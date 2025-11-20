@@ -176,7 +176,7 @@ LogicalType JsonColumn::get_flat_field_type(const std::string& path) const {
 }
 
 void JsonColumn::set_flat_columns(const std::vector<std::string>& paths, const std::vector<LogicalType>& types,
-                                  const Columns& flat_columns) {
+                                  const MutableColumns& flat_columns) {
     DCHECK_EQ(paths.size(), types.size());
     DCHECK(paths.size() == flat_columns.size() || paths.size() + 1 == flat_columns.size()); // may remain column
 
@@ -197,14 +197,18 @@ void JsonColumn::set_flat_columns(const std::vector<std::string>& paths, const s
         } else {
             // change column ptr to wrapper ptr
             _flat_columns.reserve(flat_columns.size());
-            _flat_columns.assign(flat_columns.begin(), flat_columns.end());
+            for (auto& col : flat_columns) {
+                _flat_columns.emplace_back(Column::WrappedPtr(std::move(col)));
+            }
         }
     } else {
         _flat_column_paths = paths;
         _flat_column_types = types;
         // change column ptr to wrapper ptr
         _flat_columns.reserve(flat_columns.size());
-        _flat_columns.assign(flat_columns.begin(), flat_columns.end());
+        for (auto& col : flat_columns) {
+            _flat_columns.emplace_back(Column::WrappedPtr(std::move(col)));
+        }
 
         for (size_t i = 0; i < _flat_column_paths.size(); i++) {
             _path_to_index[_flat_column_paths[i]] = i;
@@ -270,7 +274,7 @@ void JsonColumn::append_selective(const Column& src, const uint32_t* indexes, ui
     if (other_json->is_flat_json() && !is_flat_json()) {
         // only hit in AggregateIterator (Aggregate mode in storage)
         DCHECK_EQ(0, this->size());
-        Columns copy;
+        MutableColumns copy;
         copy.reserve(other_json->_flat_columns.size());
         for (const auto& col : other_json->_flat_columns) {
             copy.emplace_back(col->clone_empty());
@@ -352,7 +356,7 @@ void JsonColumn::append(const Column& src, size_t offset, size_t count) {
     if (other_json->is_flat_json() && !is_flat_json()) {
         // only hit in AggregateIterator (Aggregate mode in storage)
         DCHECK_EQ(0, this->size());
-        Columns copy;
+        MutableColumns copy;
         for (const auto& col : other_json->_flat_columns) {
             copy.emplace_back(col->clone_empty());
         }

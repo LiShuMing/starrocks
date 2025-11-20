@@ -177,7 +177,7 @@ TEST_F(SpillBlockManagerTest, log_block_allocation_test) {
                                         .block_size = 10};
         auto res = log_block_mgr->acquire_block(opts);
         ASSERT_TRUE(res.ok());
-        auto block = res.value();
+        const auto& block = res.value();
         ASSERT_TRUE(block->try_acquire_sizes(10));
         std::string expected = fmt::format("LogBlock[container={}/{}/{}-{}]", local_path, print_id(dummy_query_id),
                                            print_id(dummy_query_id), "node1-1-0");
@@ -193,7 +193,7 @@ TEST_F(SpillBlockManagerTest, log_block_allocation_test) {
                                         .block_size = 10};
         auto res = log_block_mgr->acquire_block(opts);
         ASSERT_TRUE(res.ok());
-        auto block = res.value();
+        const auto& block = res.value();
         std::string expected = fmt::format("LogBlock[container={}/{}/{}-{}]", local_path, print_id(dummy_query_id),
                                            print_id(dummy_query_id), "node1-1-1");
         ASSERT_EQ(block->debug_string(), expected);
@@ -210,7 +210,7 @@ TEST_F(SpillBlockManagerTest, log_block_allocation_test) {
                                         .block_size = 10};
         auto res = log_block_mgr->acquire_block(opts);
         ASSERT_TRUE(res.ok());
-        auto block = res.value();
+        const auto& block = res.value();
         std::string expected = fmt::format("LogBlock[container={}/{}/{}-{}]", local_path, print_id(dummy_query_id),
                                            print_id(dummy_query_id), "node1-1-0");
         ASSERT_EQ(block->debug_string(), expected);
@@ -231,7 +231,7 @@ TEST_F(SpillBlockManagerTest, file_block_allocation_test) {
                                         .block_size = 10};
         auto res = file_block_mgr->acquire_block(opts);
         ASSERT_TRUE(res.ok());
-        auto block = res.value();
+        const auto& block = res.value();
         ASSERT_TRUE(block->try_acquire_sizes(10));
         std::string expected = fmt::format("FileBlock[container={}/{}/{}-{}]", local_path, print_id(dummy_query_id),
                                            print_id(dummy_query_id), "node1-1-0");
@@ -247,7 +247,7 @@ TEST_F(SpillBlockManagerTest, file_block_allocation_test) {
                                         .block_size = 10};
         auto res = file_block_mgr->acquire_block(opts);
         ASSERT_TRUE(res.ok());
-        auto block = res.value();
+        const auto& block = res.value();
         std::string expected = fmt::format("FileBlock[container={}/{}/{}-{}]", local_path, print_id(dummy_query_id),
                                            print_id(dummy_query_id), "node1-1-1");
         ASSERT_EQ(block->debug_string(), expected);
@@ -264,7 +264,7 @@ TEST_F(SpillBlockManagerTest, file_block_allocation_test) {
                                         .block_size = 10};
         auto res = file_block_mgr->acquire_block(opts);
         ASSERT_TRUE(res.ok());
-        auto block = res.value();
+        const auto& block = res.value();
         std::string expected = fmt::format("FileBlock[container={}/{}/{}-{}]", local_path, print_id(dummy_query_id),
                                            print_id(dummy_query_id), "node1-1-2");
         ASSERT_EQ(block->debug_string(), expected);
@@ -293,7 +293,7 @@ TEST_F(SpillBlockManagerTest, hybird_block_allocation_test) {
                                         .block_size = 10};
         auto res = hybird_block_mgr->acquire_block(opts);
         ASSERT_TRUE(res.ok());
-        auto block = res.value();
+        const auto& block = res.value();
         std::string expected = fmt::format("LogBlock[container={}/{}/{}-{}]", local_path, print_id(dummy_query_id),
                                            print_id(dummy_query_id), "node1-1-0");
         ASSERT_EQ(block->debug_string(), expected);
@@ -308,7 +308,7 @@ TEST_F(SpillBlockManagerTest, hybird_block_allocation_test) {
                                         .block_size = 100};
         auto res = hybird_block_mgr->acquire_block(opts);
         ASSERT_TRUE(res.ok());
-        auto block = res.value();
+        const auto& block = res.value();
         std::string expected = fmt::format("FileBlock[container={}/{}/{}-{}]", remote_path, print_id(dummy_query_id),
                                            print_id(dummy_query_id), "node1-1-0");
         ASSERT_EQ(block->debug_string(), expected);
@@ -322,7 +322,7 @@ TEST_F(SpillBlockManagerTest, hybird_block_allocation_test) {
                                         .block_size = 90};
         auto res = hybird_block_mgr->acquire_block(opts);
         ASSERT_TRUE(res.ok());
-        auto block = res.value();
+        const auto& block = res.value();
         std::string expected = fmt::format("LogBlock[container={}/{}/{}-{}]", local_path, print_id(dummy_query_id),
                                            print_id(dummy_query_id), "node1-1-0");
         ASSERT_EQ(block->debug_string(), expected);

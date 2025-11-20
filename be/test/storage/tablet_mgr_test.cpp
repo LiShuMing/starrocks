@@ -87,7 +87,7 @@ public:
 
             auto data_dir = new DataDir(_engine_data_paths[i]);
             data_dir->init();
-            _data_dirs.push_back(data_dir);
+            _data_dirs.emplace_back(data_dir);
         }
 
         _tablet_id = 15007;
@@ -112,7 +112,7 @@ public:
         col1.__set_column_type(col_type);
         col1.__set_is_key(true);
         std::vector<TColumn> cols;
-        cols.push_back(col1);
+        cols.emplace_back(col1);
         TTabletSchema tablet_schema;
         tablet_schema.__set_short_key_column_count(1);
         tablet_schema.__set_schema_hash(schema_hash);
@@ -139,7 +139,7 @@ protected:
 TEST_F(TabletMgrTest, CreateTablet) {
     TCreateTabletReq create_tablet_req = get_create_tablet_request(111, 3333);
     std::vector<DataDir*> data_dirs;
-    data_dirs.push_back(_data_dirs[0]);
+    data_dirs.emplace_back(_data_dirs[0]);
     Status create_st = _tablet_mgr->create_tablet(create_tablet_req, data_dirs);
     ASSERT_TRUE(create_st.ok());
     TabletSharedPtr tablet = _tablet_mgr->get_tablet(111);
@@ -165,7 +165,7 @@ TEST_F(TabletMgrTest, CreateTablet) {
 TEST_F(TabletMgrTest, DropTablet) {
     TCreateTabletReq create_tablet_req = get_create_tablet_request(111, 3333);
     std::vector<DataDir*> data_dirs;
-    data_dirs.push_back(_data_dirs[0]);
+    data_dirs.emplace_back(_data_dirs[0]);
     Status create_st = _tablet_mgr->create_tablet(create_tablet_req, data_dirs);
     ASSERT_TRUE(create_st.ok());
     TabletSharedPtr tablet = _tablet_mgr->get_tablet(111);
@@ -207,7 +207,7 @@ TEST_F(TabletMgrTest, LoadExistTabletFromMeta) {
     {
         TCreateTabletReq create_tablet_req = get_create_tablet_request(111, 3333);
         std::vector<DataDir*> data_dirs;
-        data_dirs.push_back(_data_dirs[0]);
+        data_dirs.emplace_back(_data_dirs[0]);
         Status create_st = _tablet_mgr->create_tablet(create_tablet_req, data_dirs);
         ASSERT_TRUE(create_st.ok());
         TabletSharedPtr tablet = _tablet_mgr->get_tablet(111);
@@ -222,7 +222,7 @@ TEST_F(TabletMgrTest, LoadExistTabletFromMeta) {
         // expect skip this tablet
         TCreateTabletReq create_tablet_req = get_create_tablet_request(111, 4444);
         std::vector<DataDir*> data_dirs;
-        data_dirs.push_back(_data_dirs[1]);
+        data_dirs.emplace_back(_data_dirs[1]);
         Status create_st = _tablet_mgr->create_tablet(create_tablet_req, data_dirs);
         ASSERT_TRUE(create_st.ok());
         TabletSharedPtr tablet = _tablet_mgr->get_tablet(111);
@@ -316,7 +316,7 @@ TEST_F(TabletMgrTest, GetRowsetId) {
 
 TEST_F(TabletMgrTest, GetNextBatchTabletsTest) {
     std::vector<DataDir*> data_dirs;
-    data_dirs.push_back(_data_dirs[0]);
+    data_dirs.emplace_back(_data_dirs[0]);
     for (int i = 0; i < 20; i++) {
         TCreateTabletReq create_tablet_req = get_create_tablet_request(i, 3333);
         Status create_st = StorageEngine::instance()->tablet_manager()->create_tablet(create_tablet_req, data_dirs);
@@ -368,8 +368,8 @@ static void rowset_writer_add_rows(std::unique_ptr<RowsetWriter>& writer, const 
     auto schema = ChunkHelper::convert_schema(tablet_schema);
     auto chunk = ChunkHelper::new_chunk(schema, 1024);
     for (size_t i = 0; i < 1024; ++i) {
-        test_data.push_back("well" + std::to_string(i));
-        auto& cols = chunk->columns();
+        test_data.emplace_back("well" + std::to_string(i));
+        auto cols = chunk->mutable_columns();
         cols[0]->append_datum(Datum(static_cast<int32_t>(i)));
         Slice field_1(test_data[i]);
         cols[1]->append_datum(Datum(field_1));
@@ -391,21 +391,21 @@ static void set_default_create_tablet_request(TCreateTabletReq* request) {
     k1.column_name = "k1";
     k1.__set_is_key(true);
     k1.column_type.type = TPrimitiveType::INT;
-    request->tablet_schema.columns.push_back(k1);
+    request->tablet_schema.columns.emplace_back(k1);
 
     TColumn k2;
     k2.column_name = "k2";
     k2.__set_is_key(true);
     k2.column_type.__set_len(64);
     k2.column_type.type = TPrimitiveType::VARCHAR;
-    request->tablet_schema.columns.push_back(k2);
+    request->tablet_schema.columns.emplace_back(k2);
 
     TColumn v;
     v.column_name = "v1";
     v.__set_is_key(false);
     v.column_type.type = TPrimitiveType::INT;
     v.__set_aggregation_type(TAggregationType::SUM);
-    request->tablet_schema.columns.push_back(v);
+    request->tablet_schema.columns.emplace_back(v);
 }
 
 TEST_F(TabletMgrTest, RsVersionMapTest) {
@@ -451,7 +451,7 @@ TEST_F(TabletMgrTest, RsVersionMapTest) {
         rowset_writer_add_rows(rowset_writer, tablet_schema);
         rowset_writer->flush();
         RowsetSharedPtr src_rowset = *rowset_writer->build();
-        to_add.push_back(std::move(src_rowset));
+        to_add.emplace_back(std::move(src_rowset));
     }
 
     tablet->modify_rowsets_without_lock(to_add, to_remove, &to_replace);
@@ -476,7 +476,7 @@ TEST_F(TabletMgrTest, RsVersionMapTest) {
 
     // delete rowset
     for (int i = 0; i < 3; i++) {
-        to_remove.push_back(to_add[i]);
+        to_remove.emplace_back(to_add[i]);
     }
     to_add.clear();
     tablet->modify_rowsets_without_lock(to_add, to_remove, &to_replace);
@@ -498,7 +498,7 @@ TEST_F(TabletMgrTest, RsVersionMapTest) {
         rowset_writer_add_rows(rowset_writer, tablet_schema);
         rowset_writer->flush();
         RowsetSharedPtr src_rowset = *rowset_writer->build();
-        to_remove.push_back(std::move(src_rowset));
+        to_remove.emplace_back(std::move(src_rowset));
     }
     tablet->modify_rowsets_without_lock(to_add, to_remove, &to_replace);
     ASSERT_EQ(to_replace.size(), 3);
@@ -514,7 +514,7 @@ TEST_F(TabletMgrTest, RemoveTabletInDiskDisable) {
     std::vector<TabletInfo> tablet_info_vec;
     TabletInfo tablet_info(tablet_id, schema_hash, UniqueId::gen_uid());
 
-    tablet_info_vec.push_back(tablet_info);
+    tablet_info_vec.emplace_back(tablet_info);
     _tablet_mgr->drop_tablets_on_error_root_path(tablet_info_vec);
 }
 

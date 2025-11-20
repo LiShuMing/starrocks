@@ -181,9 +181,9 @@ TEST_F(BinaryColumnReaderTest, test_from_complex_type) {
 
         std::vector<avro::GenericDatum> datums;
         int32_t int_v = 10;
-        datums.emplace_back(avro::GenericDatum(int_v));
+        datums.emplace_back(int_v);
         std::string string_v = "abc";
-        datums.emplace_back(avro::GenericDatum(string_v));
+        datums.emplace_back(string_v);
 
         auto record_schema = avro::NodePtr(
                 new avro::NodeRecord(avro::HasName(avro::Name(_col_name)), field_nodes, field_names, datums));
@@ -207,11 +207,11 @@ TEST_F(BinaryColumnReaderTest, test_from_complex_type) {
         auto& array_value = array_datum.value();
         {
             int32_t int_v = 10;
-            array_value.emplace_back(avro::GenericDatum(int_v));
+            array_value.emplace_back(int_v);
         }
         {
             int32_t int_v = 11;
-            array_value.emplace_back(avro::GenericDatum(int_v));
+            array_value.emplace_back(int_v);
         }
 
         auto datum = avro::GenericDatum(array_schema, array_datum);
@@ -228,7 +228,7 @@ TEST_F(BinaryColumnReaderTest, test_from_complex_type) {
         auto& map_value = map_datum.value();
         {
             int32_t int_v = 10;
-            map_value.emplace_back("abc", avro::GenericDatum(int_v));
+            map_value.emplace_back("abc", int_v);
         }
         {
             int32_t int_v = 11;

@@ -24,7 +24,7 @@ namespace starrocks {
 
 class SchemaTaskRunsScannerTest : public ::testing::Test {
 private:
-    ChunkPtr create_chunk(const std::vector<SlotDescriptor*> slot_descs) {
+    ChunkPtr create_chunk(const std::vector<SlotDescriptor*>& slot_descs) {
         ChunkPtr chunk = std::make_shared<Chunk>();
         for (const auto* slot_desc : slot_descs) {
             MutableColumnPtr column = ColumnHelper::create_column(slot_desc->type(), slot_desc->is_nullable());
@@ -198,7 +198,7 @@ TEST_F(SchemaTaskRunsScannerTest, test_multiple_task_runs) {
         task_run.__set_job_id("job_00" + std::to_string(i));
         task_run.__set_process_time(1640995400 + i * 3600);
 
-        task_runs.push_back(task_run);
+        task_runs.emplace_back(task_run);
     }
 
     scanner._task_run_result.task_runs = task_runs;

@@ -132,7 +132,10 @@ set(EXEC_FILES
         ./exprs/array_element_expr_test.cpp
         ./exprs/decimal_binary_function_test.cpp
         ./exprs/array_expr_test.cpp
-        ./exprs/array_functions_test.cpp
+        ./exprs/array_functions_part1_test.cpp
+        ./exprs/array_functions_part2_test.cpp
+        ./exprs/array_functions_part3_test.cpp
+        ./exprs/array_functions_part4_test.cpp
         ./exprs/binary_function_test.cpp
         ./exprs/binary_functions_test.cpp
         ./exprs/binary_predicate_test.cpp
@@ -180,7 +183,9 @@ set(EXEC_FILES
         ./exprs/string_fn_sm3_test.cpp
         ./exprs/string_fn_space_test.cpp
         ./exprs/string_fn_substr_test.cpp
-        ./exprs/string_fn_test.cpp
+        ./exprs/string_fn_part1_test.cpp
+        ./exprs/string_fn_part2_test.cpp
+        ./exprs/string_fn_part3_test.cpp
         ./exprs/string_fn_trim_test.cpp
         ./exprs/string_fn_money_format_decimal_test.cpp
         ./exprs/string_fn_url_extract_parameter_test.cpp

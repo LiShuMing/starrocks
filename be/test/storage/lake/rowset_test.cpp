@@ -301,7 +301,7 @@ TEST_F(LakeRowsetTest, test_read_by_column_hash_is_congruent) {
 
     std::string col_name(_tablet_schema->column(0).name());
     std::vector<ColumnId> input_schema_cids;
-    input_schema_cids.push_back(1);
+    input_schema_cids.emplace_back(1);
     auto mutable_rowset_meta_ptr = const_cast<RowsetMetadataPB*>(&rowset->metadata());
 
     auto record_predicate_pb = mutable_rowset_meta_ptr->mutable_record_predicate();

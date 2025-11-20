@@ -22,9 +22,9 @@
 
 namespace starrocks {
 
-ColumnPtr create_int32_array_column(const std::vector<std::vector<int32_t>>& values) {
-    UInt32Column::Ptr offsets = UInt32Column::create();
-    NullableColumn::Ptr elements = NullableColumn::create(Int32Column::create(), NullColumn::create());
+ArrayColumn::MutablePtr create_int32_array_column(const std::vector<std::vector<int32_t>>& values) {
+    auto offsets = UInt32Column::create();
+    auto elements = NullableColumn::create(Int32Column::create(), NullColumn::create());
     offsets->append(0);
     for (const auto& value : values) {
         for (auto v : value) {

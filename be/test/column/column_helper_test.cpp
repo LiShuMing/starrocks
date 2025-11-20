@@ -25,25 +25,25 @@ public:
     void TearDown() override {}
 
 protected:
-    ColumnPtr create_column() {
+    MutableColumnPtr create_column() {
         ColumnBuilder<TYPE_VARCHAR> builder(1);
         builder.append(Slice("v1"));
         return builder.build(false);
     }
 
-    ColumnPtr create_nullable_column() {
+    MutableColumnPtr create_nullable_column() {
         ColumnBuilder<TYPE_VARCHAR> builder(1);
         builder.append(Slice("v1"), true);
         return builder.build(false);
     }
 
-    ColumnPtr create_const_column() {
+    MutableColumnPtr create_const_column() {
         ColumnBuilder<TYPE_VARCHAR> builder(1);
         builder.append(Slice("v1"));
         return builder.build(true);
     }
 
-    ColumnPtr create_only_null_column() {
+    MutableColumnPtr create_only_null_column() {
         ColumnBuilder<TYPE_VARCHAR> builder(1);
         builder.append_null();
         return builder.build(true);
@@ -71,7 +71,7 @@ TEST_F(ColumnHelperTest, align_return_type) {
 }
 
 TEST_F(ColumnHelperTest, get_data_column_by_type) {
-    ColumnPtr column = create_nullable_column();
+    auto column = create_nullable_column();
     const auto* data_column = ColumnHelper::get_data_column_by_type<TYPE_VARCHAR>(column.get());
     ASSERT_TRUE(data_column->is_binary());
 
@@ -85,7 +85,7 @@ TEST_F(ColumnHelperTest, get_data_column_by_type) {
 }
 
 TEST_F(ColumnHelperTest, get_null_column) {
-    ColumnPtr column = create_nullable_column();
+    auto column = create_nullable_column();
     const auto* null_column = ColumnHelper::get_null_column(column.get());
     ASSERT_EQ(null_column->get_name(), "integral-1");
 

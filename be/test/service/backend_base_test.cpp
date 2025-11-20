@@ -77,7 +77,7 @@ TEST(StatusToThriftTest, bug_case_missing_isset_flag) {
 
     // Simulate the old buggy code in backend_base.cpp (before fix)
     t_status.status_code = TStatusCode::NOT_FOUND;
-    t_status.error_msgs.push_back("context_id=test, send_offset=0, context_offset=100");
+    t_status.error_msgs.emplace_back("context_id=test, send_offset=0, context_offset=100");
     // BUG: Missing t_status.__isset.error_msgs = true;
 
     // Verify the bug: __isset.error_msgs is false by default
@@ -93,7 +93,7 @@ TEST(StatusToThriftTest, bug_case_missing_isset_flag) {
     // Additional verification: Demonstrate the bug through actual serialization/deserialization process
     TStatus buggy_status;
     buggy_status.status_code = TStatusCode::NOT_FOUND;
-    buggy_status.error_msgs.push_back("context_id=test, send_offset=0, context_offset=100");
+    buggy_status.error_msgs.emplace_back("context_id=test, send_offset=0, context_offset=100");
     // Note: Intentionally not setting buggy_status.__isset.error_msgs = true;
 
     // Serialize to show the bug

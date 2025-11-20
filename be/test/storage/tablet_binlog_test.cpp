@@ -48,20 +48,21 @@ public:
         k1.column_name = "k1";
         k1.__set_is_key(true);
         k1.column_type.type = TPrimitiveType::INT;
-        request.tablet_schema.columns.push_back(k1);
+        request.tablet_schema.columns.emplace_back(k1);
 
         TColumn v1;
         v1.column_name = "v1";
         v1.__set_is_key(false);
         v1.column_type.type = TPrimitiveType::INT;
-        request.tablet_schema.columns.push_back(v1);
+        request.tablet_schema.columns.emplace_back(v1);
 
         auto st = StorageEngine::instance()->create_tablet(request);
         CHECK(st.ok()) << st.to_string();
         return StorageEngine::instance()->tablet_manager()->get_tablet(tablet_id, false);
     }
 
-    void create_rowset(TabletSharedPtr tablet, std::vector<int32_t> num_rows_per_segment, RowsetSharedPtr* rowset) {
+    void create_rowset(const TabletSharedPtr& tablet, std::vector<int32_t> num_rows_per_segment,
+                       RowsetSharedPtr* rowset) {
         RowsetWriterContext writer_context;
         RowsetId rowset_id = StorageEngine::instance()->next_rowset_id();
         writer_context.rowset_id = rowset_id;
@@ -81,7 +82,7 @@ public:
         for (int32_t i = 0, total_rows = 0; i < num_rows_per_segment.size(); i++) {
             int32_t num_rows = num_rows_per_segment[i];
             chunk->reset();
-            auto& cols = chunk->columns();
+            auto cols = chunk->mutable_columns();
             for (int32_t j = total_rows; j < total_rows + num_rows; j++) {
                 cols[0]->append_datum(Datum(static_cast<int32_t>(j)));
                 cols[1]->append_datum(Datum(static_cast<int32_t>(j + 1)));
@@ -120,13 +121,13 @@ void TabletBinlogTest::ingest_random_binlog(TabletSharedPtr tablet, int64_t star
         int32_t num_rows_per_segment = std::rand() % 100 + 1;
         std::vector<int32_t> segment_rows;
         for (int i = 0; i < num_segments; i++) {
-            segment_rows.push_back(num_rows_per_segment);
+            segment_rows.emplace_back(num_rows_per_segment);
         }
         RowsetSharedPtr rowset;
         create_rowset(tablet, segment_rows, &rowset);
         ASSERT_OK(tablet->add_inc_rowset(rowset, version));
         int64_t timestamp = rowset->creation_time() * 1000000;
-        version_infos->push_back(DupKeyVersionInfo(version, num_segments, num_rows_per_segment, timestamp));
+        version_infos->emplace_back(version, num_segments, num_rows_per_segment, timestamp);
     }
 }
 
@@ -164,8 +165,8 @@ TEST_F(TabletBinlogTest, test_generate_binlog) {
     BinlogManager* binlog_manager = _tablet->binlog_manager();
     std::map<BinlogLsn, BinlogFilePtr>& lsn_map = binlog_manager->alive_binlog_files();
     std::vector<BinlogFileMetaPBPtr> file_metas;
-    for (auto it : lsn_map) {
-        file_metas.push_back(it.second->file_meta());
+    for (const auto& it : lsn_map) {
+        file_metas.emplace_back(it.second->file_meta());
     }
     verify_dup_key_multiple_versions(version_infos, _tablet->schema_hash_path(), file_metas);
 }
@@ -179,14 +180,14 @@ TEST_F(TabletBinlogTest, test_publish_out_of_order) {
             int32_t num_rows_per_segment = std::rand() % 100 + 1;
             std::vector<int32_t> segment_rows;
             for (int i = 0; i < num_segments; i++) {
-                segment_rows.push_back(num_rows_per_segment);
+                segment_rows.emplace_back(num_rows_per_segment);
             }
             RowsetSharedPtr rowset;
             create_rowset(_tablet, segment_rows, &rowset);
             ASSERT_OK(_tablet->add_inc_rowset(rowset, sub_version));
             int64_t timestamp = rowset->creation_time() * 1000000;
             if (k == 1) {
-                version_infos.push_back(DupKeyVersionInfo(sub_version, num_segments, num_rows_per_segment, timestamp));
+                version_infos.emplace_back(sub_version, num_segments, num_rows_per_segment, timestamp);
             }
         }
     }
@@ -194,8 +195,8 @@ TEST_F(TabletBinlogTest, test_publish_out_of_order) {
     BinlogManager* binlog_manager = _tablet->binlog_manager();
     std::map<BinlogLsn, BinlogFilePtr>& lsn_map = binlog_manager->alive_binlog_files();
     std::vector<BinlogFileMetaPBPtr> file_metas;
-    for (auto it : lsn_map) {
-        file_metas.push_back(it.second->file_meta());
+    for (const auto& it : lsn_map) {
+        file_metas.emplace_back(it.second->file_meta());
     }
     verify_dup_key_multiple_versions(version_infos, _tablet->schema_hash_path(), file_metas);
 }
@@ -231,8 +232,8 @@ TEST_F(TabletBinlogTest, test_load) {
     BinlogManager* binlog_manager = load_tablet->binlog_manager();
     std::map<BinlogLsn, BinlogFilePtr>& lsn_map = binlog_manager->alive_binlog_files();
     std::vector<BinlogFileMetaPBPtr> file_metas;
-    for (auto it : lsn_map) {
-        file_metas.push_back(it.second->file_meta());
+    for (const auto& it : lsn_map) {
+        file_metas.emplace_back(it.second->file_meta());
     }
     verify_dup_key_multiple_versions(version_infos, load_tablet->schema_hash_path(), file_metas);
 }

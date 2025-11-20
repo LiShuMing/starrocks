@@ -94,9 +94,9 @@ public:
                 node.__set_slot_ref(slot_ref);
                 node.__set_type(desc);
 
-                expr.nodes.push_back(node);
+                expr.nodes.emplace_back(node);
             }
-            _exprs.push_back(expr);
+            _exprs.emplace_back(expr);
 
             TExpr expr2;
             {
@@ -119,9 +119,9 @@ public:
                 node.__set_slot_ref(slot_ref);
                 node.__set_type(desc);
 
-                expr2.nodes.push_back(node);
+                expr2.nodes.emplace_back(node);
             }
-            _exprs.push_back(expr2);
+            _exprs.emplace_back(expr2);
         }
     }
 
@@ -178,7 +178,7 @@ public:
         params->src_tuple_id = 0;
         for (int i = 0; i < types.size(); i++) {
             params->expr_of_dest_slot[i] = TExpr();
-            params->expr_of_dest_slot[i].nodes.emplace_back(TExprNode());
+            params->expr_of_dest_slot[i].nodes.emplace_back();
             params->expr_of_dest_slot[i].nodes[0].__set_type(types[i].to_thrift());
             params->expr_of_dest_slot[i].nodes[0].__set_node_type(TExprNodeType::SLOT_REF);
             params->expr_of_dest_slot[i].nodes[0].__set_is_nullable(true);
@@ -248,7 +248,7 @@ void MemoryScratchSinkIssue8676Test::init_desc_tbl() {
     t_table_desc.dbName = "test_db_name";
     t_table_desc.__isset.olapTable = true;
 
-    _t_desc_table.tableDescriptors.push_back(t_table_desc);
+    _t_desc_table.tableDescriptors.emplace_back(t_table_desc);
     _t_desc_table.__isset.tableDescriptors = true;
 
     // TSlotDescriptor
@@ -269,7 +269,7 @@ void MemoryScratchSinkIssue8676Test::init_desc_tbl() {
         t_slot_desc.__set_colName("first_column");
         t_slot_desc.__set_parent(0);
 
-        slot_descs.push_back(t_slot_desc);
+        slot_descs.emplace_back(t_slot_desc);
         offset += sizeof(int32_t);
     }
 
@@ -288,7 +288,7 @@ void MemoryScratchSinkIssue8676Test::init_desc_tbl() {
         t_slot_desc.__set_colName("second_column");
         t_slot_desc.__set_parent(0);
 
-        slot_descs.push_back(t_slot_desc);
+        slot_descs.emplace_back(t_slot_desc);
         offset += sizeof(int32_t);
     }
     _t_desc_table.__set_slotDescriptors(slot_descs);
@@ -300,12 +300,12 @@ void MemoryScratchSinkIssue8676Test::init_desc_tbl() {
     t_tuple_desc.numNullBytes = 1;
     t_tuple_desc.tableId = 0;
     t_tuple_desc.__isset.tableId = true;
-    _t_desc_table.tupleDescriptors.push_back(t_tuple_desc);
+    _t_desc_table.tupleDescriptors.emplace_back(t_tuple_desc);
 
     CHECK(DescriptorTbl::create(_state, &_obj_pool, _t_desc_table, &_desc_tbl, config::vector_chunk_size).ok());
 
     std::vector<TTupleId> row_tids;
-    row_tids.push_back(0);
+    row_tids.emplace_back(0);
 
     _row_desc = _obj_pool.add(new RowDescriptor(*_desc_tbl, row_tids));
 
@@ -314,7 +314,7 @@ void MemoryScratchSinkIssue8676Test::init_desc_tbl() {
     _tnode.node_type = TPlanNodeType::CSV_SCAN_NODE;
     _tnode.num_children = 0;
     _tnode.limit = -1;
-    _tnode.row_tuples.push_back(0);
+    _tnode.row_tuples.emplace_back(0);
 }
 
 TEST_F(MemoryScratchSinkIssue8676Test, work_flow_normal) {
@@ -327,7 +327,7 @@ TEST_F(MemoryScratchSinkIssue8676Test, work_flow_normal) {
     range_one.__set_path("./be/test/runtime/test_data/issue_8576_data");
     range_one.__set_start_offset(0);
     range_one.__set_num_of_columns_from_file(types.size());
-    ranges.push_back(range_one);
+    ranges.emplace_back(range_one);
 
     auto scanner = create_csv_scanner(types, ranges);
     EXPECT_NE(scanner, nullptr);

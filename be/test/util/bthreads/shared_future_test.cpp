@@ -217,7 +217,7 @@ TEST(SharedFutureTest, test_valid01) {
     EXPECT_TRUE(f2.valid());
 }
 
-static void fut_wait(SharedFuture<void> f) {
+static void fut_wait(const SharedFuture<void>& f) {
     f.wait();
 }
 

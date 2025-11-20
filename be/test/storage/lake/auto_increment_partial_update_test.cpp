@@ -385,7 +385,7 @@ TEST_F(LakeAutoIncrementPartialUpdateTest, test_resolve_conflict) {
     std::vector<int64_t> txn_ids;
     for (int i = 0; i < 3; i++) {
         auto txn_id = next_id();
-        txn_ids.push_back(txn_id);
+        txn_ids.emplace_back(txn_id);
         ASSIGN_OR_ABORT(auto delta_writer, DeltaWriterBuilder()
                                                    .set_tablet_manager(_tablet_mgr.get())
                                                    .set_tablet_id(tablet_id)

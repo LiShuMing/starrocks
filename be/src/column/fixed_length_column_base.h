@@ -249,6 +249,8 @@ public:
         return _data;
     }
 
+    const ImmContainer get_data() const { return immutable_data(); }
+
     const ImmContainer immutable_data() const {
         if (!_resource.empty()) {
             return _resource.span<T>();

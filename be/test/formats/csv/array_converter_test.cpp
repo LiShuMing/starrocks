@@ -424,21 +424,21 @@ TEST(ArrayConverterTest, test_get_collection_delimiter) {
     std::vector<char> separators;
 
     for (char i = 1; i <= 8; ++i) {
-        separators.push_back(i);
+        separators.emplace_back(i);
     }
 
-    separators.push_back(11);
+    separators.emplace_back(11);
 
     for (char i = 14; i <= 26; i++) {
-        separators.push_back(i);
+        separators.emplace_back(i);
     }
 
     for (char i = 28; i <= 31; i++) {
-        separators.push_back(i);
+        separators.emplace_back(i);
     }
 
     for (char i = -128; i <= -1; i++) {
-        separators.push_back(i);
+        separators.emplace_back(i);
     }
 
     const char DEFAULT_COLLECTION_DELIMITER = '\002';

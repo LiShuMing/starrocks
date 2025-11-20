@@ -52,10 +52,14 @@ protected:
 
         std::vector<Utils::SlotDesc> slot_descs;
         for (auto& type_desc : type_descs) {
-            auto type_name = type_desc.debug_string();
-            slot_descs.push_back({type_name, type_desc});
+            Utils::SlotDesc desc;
+            desc.name = type_desc.debug_string();
+            desc.type = type_desc;
+            slot_descs.emplace_back(std::move(desc));
         }
-        slot_descs.push_back({""});
+        Utils::SlotDesc terminator;
+        terminator.name = "";
+        slot_descs.emplace_back(std::move(terminator));
 
         TupleDescriptor* tuple_desc =
                 parquet::Utils::create_tuple_descriptor(_runtime_state, &_pool, slot_descs.data());
@@ -81,7 +85,7 @@ protected:
     std::vector<std::string> _make_type_names(const std::vector<TypeDescriptor>& type_descs) {
         std::vector<std::string> names;
         for (auto& desc : type_descs) {
-            names.push_back(desc.debug_string());
+            names.emplace_back(desc.debug_string());
         }
         return names;
     }
@@ -125,7 +129,7 @@ protected:
         }
 
         auto read_chunk = std::make_shared<Chunk>();
-        for (auto type_desc : type_descs) {
+        for (const auto& type_desc : type_descs) {
             auto col = ColumnHelper::create_column(type_desc, true);
             read_chunk->append_column(std::move(col), read_chunk->num_columns());
         }
@@ -427,8 +431,8 @@ TEST_F(FileWriterTest, TestWriteArray) {
     std::vector<TypeDescriptor> type_descs;
     auto type_int = TypeDescriptor::from_logical_type(TYPE_INT);
     auto type_int_array = TypeDescriptor::from_logical_type(TYPE_ARRAY);
-    type_int_array.children.push_back(type_int);
-    type_descs.push_back(type_int_array);
+    type_int_array.children.emplace_back(type_int);
+    type_descs.emplace_back(type_int_array);
 
     // [1], NULL, [], [2, NULL, 3]
     auto chunk = std::make_shared<Chunk>();
@@ -471,8 +475,8 @@ TEST_F(FileWriterTest, TestWriteArrayNullWithOffset) {
     std::vector<TypeDescriptor> type_descs;
     auto type_int = TypeDescriptor::from_logical_type(TYPE_INT);
     auto type_int_array = TypeDescriptor::from_logical_type(TYPE_ARRAY);
-    type_int_array.children.push_back(type_int);
-    type_descs.push_back(type_int_array);
+    type_int_array.children.emplace_back(type_int);
+    type_descs.emplace_back(type_int_array);
 
     // NULL, [10]
     auto chunk = std::make_shared<Chunk>();
@@ -521,7 +525,7 @@ TEST_F(FileWriterTest, TestWriteStruct) {
     auto type_int_struct = TypeDescriptor::from_logical_type(TYPE_STRUCT);
     type_int_struct.children = {type_int_a, type_int_b, type_int_c};
     type_int_struct.field_names = {"a", "b", "c"};
-    type_descs.push_back(type_int_struct);
+    type_descs.emplace_back(type_int_struct);
 
     auto chunk = std::make_shared<Chunk>();
     {
@@ -575,9 +579,9 @@ TEST_F(FileWriterTest, TestWriteMap) {
     auto type_int_key = TypeDescriptor::from_logical_type(TYPE_INT);
     auto type_int_value = TypeDescriptor::from_logical_type(TYPE_INT);
     auto type_int_map = TypeDescriptor::from_logical_type(TYPE_MAP);
-    type_int_map.children.push_back(type_int_key);
-    type_int_map.children.push_back(type_int_value);
-    type_descs.push_back(type_int_map);
+    type_int_map.children.emplace_back(type_int_key);
+    type_int_map.children.emplace_back(type_int_value);
+    type_descs.emplace_back(type_int_map);
 
     // [1 -> 1], NULL, [], [2 -> 2, 3 -> NULL, 4 -> 4]
     auto chunk = std::make_shared<Chunk>();
@@ -629,9 +633,9 @@ TEST_F(FileWriterTest, TestWriteNestedArray) {
     auto type_int = TypeDescriptor::from_logical_type(TYPE_INT);
     auto type_int_array = TypeDescriptor::from_logical_type(TYPE_ARRAY);
     auto type_int_array_array = TypeDescriptor::from_logical_type(TYPE_ARRAY);
-    type_int_array.children.push_back(type_int);
-    type_int_array_array.children.push_back(type_int_array);
-    type_descs.push_back(type_int_array_array);
+    type_int_array.children.emplace_back(type_int);
+    type_int_array_array.children.emplace_back(type_int_array);
+    type_descs.emplace_back(type_int_array_array);
 
     // [[1], NULL, [], [2, NULL, 3]], [[4, 5], [6]], NULL
     auto chunk = std::make_shared<Chunk>();
@@ -720,7 +724,7 @@ TEST_F(FileWriterTest, TestFieldIdWithStruct) {
 
     type_int_struct.children = {type_int_a, type_int_b};
     type_int_struct.field_names = {"a", "b"};
-    type_descs.push_back(type_int_struct);
+    type_descs.emplace_back(type_int_struct);
 
     FileColumnId group_file_id;
     std::vector<FileColumnId> children_file_ids = {{.field_id = 22}, {.field_id = 33}};

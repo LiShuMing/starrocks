@@ -601,8 +601,8 @@ void test_nullable_fixed_size_binary(const TestCaseArray<std::string>& test_case
         auto num_elements = std::get<0>(tc);
         auto value = std::get<1>(tc);
         auto fail = std::get<2>(tc);
-        add_fixed_size_binary_array_to_nullable_binary_column<bytes_width, AT, LT>(col.get(), num_elements, value,
-                                                                                   counter, fail);
+        add_fixed_size_binary_array_to_nullable_binary_column<bytes_width, AT, LT>(col->as_mutable_ptr().get(),
+                                                                                   num_elements, value, counter, fail);
     }
 }
 
@@ -1056,7 +1056,7 @@ void test_decimal(std::shared_ptr<arrow::Decimal128Type> type, const TestCaseArr
                   int precision, int scale) {
     using ColumnType = RunTimeColumnType<LT>;
     using CppType = RunTimeCppType<LT>;
-    ColumnPtr col;
+    MutableColumnPtr col;
     if constexpr (lt_is_decimalv2<LT>) {
         col = ColumnType::create();
     } else {
@@ -1089,7 +1089,7 @@ void test_nullable_decimal(std::shared_ptr<arrow::Decimal128Type> type, const Te
                            int precision, int scale) {
     using ColumnType = RunTimeColumnType<LT>;
     using CppType = RunTimeCppType<LT>;
-    ColumnPtr decimal_column;
+    MutableColumnPtr decimal_column;
     if constexpr (lt_is_decimalv2<LT>) {
         decimal_column = ColumnType::create();
     } else {
@@ -1372,7 +1372,7 @@ static std::shared_ptr<arrow::Array> create_list_array(int64_t num_elements, ssi
 
 PARALLEL_TEST(ArrowConverterTest, test_convert_list_array) {
     TypeDescriptor array_type(TYPE_ARRAY);
-    array_type.children.push_back(TypeDescriptor(LogicalType::TYPE_INT));
+    array_type.children.emplace_back(LogicalType::TYPE_INT);
 
     ConvertFuncTree cf;
     auto [need_cast, st] = get_conv_func(array_type, array_type, cf);
@@ -1394,7 +1394,7 @@ PARALLEL_TEST(ArrowConverterTest, test_convert_list_array) {
 
 PARALLEL_TEST(ArrowConverterTest, test_convert_list_array_cast) {
     TypeDescriptor array_type(TYPE_ARRAY);
-    array_type.children.push_back(TypeDescriptor(LogicalType::TYPE_INT));
+    array_type.children.emplace_back(LogicalType::TYPE_INT);
     std::shared_ptr<arrow::DataType> arrow_type;
     convert_to_arrow_type(array_type, &arrow_type);
     array_type.children[0].type = LogicalType::TYPE_FLOAT; // hack type here
@@ -1441,9 +1441,9 @@ static std::shared_ptr<arrow::Array> create_nest_list_array(int64_t num_parents,
 
 PARALLEL_TEST(ArrowConverterTest, test_convert_nest_list_array) {
     TypeDescriptor array_type0(TYPE_ARRAY);
-    array_type0.children.push_back(TypeDescriptor(LogicalType::TYPE_BIGINT));
+    array_type0.children.emplace_back(LogicalType::TYPE_BIGINT);
     TypeDescriptor array_type(TYPE_ARRAY);
-    array_type.children.push_back(array_type0);
+    array_type.children.emplace_back(array_type0);
 
     ConvertFuncTree cf;
     auto [need_cast, st] = get_conv_func(array_type, array_type, cf);
@@ -1464,14 +1464,14 @@ PARALLEL_TEST(ArrowConverterTest, test_convert_nest_list_array) {
 
 PARALLEL_TEST(ArrowConverterTest, test_convert_nullable_list_array) {
     TypeDescriptor array_type(TYPE_ARRAY);
-    array_type.children.push_back(TypeDescriptor(LogicalType::TYPE_INT));
+    array_type.children.emplace_back(LogicalType::TYPE_INT);
 
     ConvertFuncTree cf;
     auto [need_cast, st] = get_conv_func(array_type, array_type, cf, true);
     ASSERT_STATUS_OK(st);
     ASSERT_FALSE(need_cast);
 
-    ColumnPtr column = ColumnHelper::create_column(array_type, true);
+    auto column = ColumnHelper::create_column(array_type, true);
     column->reserve(4096);
     ssize_t counter = 0;
     int num = 100;
@@ -1522,7 +1522,7 @@ PARALLEL_TEST(ArrowConverterTest, test_convert_nullable_map) {
     map_type.children.emplace_back(TYPE_VARCHAR);
     map_type.children.emplace_back(TYPE_INT);
 
-    ColumnPtr map_column = ColumnHelper::create_column(map_type, true);
+    MutableColumnPtr map_column = ColumnHelper::create_column(map_type, true);
     map_column->reserve(4096);
     size_t counter = 0;
     std::map<std::string, int> map_value = {
@@ -1555,7 +1555,7 @@ PARALLEL_TEST(ArrowConverterTest, test_convert_struct) {
     struct_type.field_names.emplace_back("col2");
     struct_type.field_names.emplace_back("col3");
 
-    ColumnPtr st_col = ColumnHelper::create_column(struct_type, true);
+    MutableColumnPtr st_col = ColumnHelper::create_column(struct_type, true);
 
     auto array = create_struct_array(10, false);
 
@@ -1585,7 +1585,7 @@ PARALLEL_TEST(ArrowConverterTest, test_convert_struct_null) {
     struct_type.field_names.emplace_back("col2");
     struct_type.field_names.emplace_back("col3");
 
-    ColumnPtr st_col = ColumnHelper::create_column(struct_type, true);
+    MutableColumnPtr st_col = ColumnHelper::create_column(struct_type, true);
 
     auto array = create_struct_array(10, true);
     ConvertFuncTree cf;
@@ -1632,7 +1632,7 @@ PARALLEL_TEST(ArrowConverterTest, test_convert_struct_less_column) {
     ASSERT_STATUS_OK(st);
     ASSERT_FALSE(need_cast);
 
-    ColumnPtr st_col = ColumnHelper::create_column(struct_type, true);
+    MutableColumnPtr st_col = ColumnHelper::create_column(struct_type, true);
 
     Filter filter;
     filter.resize(array->length(), 1);
@@ -1652,7 +1652,7 @@ PARALLEL_TEST(ArrowConverterTest, test_convert_struct_more_column) {
     struct_type.field_names.emplace_back("col1");
     struct_type.field_names.emplace_back("col2");
 
-    ColumnPtr st_col = ColumnHelper::create_column(struct_type, true);
+    MutableColumnPtr st_col = ColumnHelper::create_column(struct_type, true);
 
     auto array = create_struct_array(10, false);
     ConvertFuncTree cf;

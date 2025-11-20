@@ -235,15 +235,12 @@ public:
 
     std::string get_name() const override { return "nullable-" + _data_column->get_name(); }
 
-    const ColumnPtr& data_column() const { return _data_column; }
-    ColumnPtr& data_column() { return _data_column; }
-    MutableColumnPtr data_column_mutable_ptr() { return _data_column->as_mutable_ptr(); }
+    // Returns ColumnPtr if this is const (immutable), MutableColumnPtr if this is non-const (mutable)
+    ColumnPtr data_column() const { return _data_column; }
+    MutableColumnPtr data_column() { return _data_column->as_mutable_ptr(); }
 
-    const NullColumnPtr& null_column() const { return _null_column; }
-    NullColumnPtr& null_column() { return _null_column; }
-    NullColumn::MutablePtr null_column_mutable_ptr() {
-        return NullColumn::static_pointer_cast(_null_column->as_mutable_ptr());
-    }
+    NullColumnPtr null_column() const { return _null_column; }
+    NullColumn::MutablePtr null_column() { return NullColumn::static_pointer_cast(_null_column->as_mutable_ptr()); }
 
     const Column& data_column_ref() const { return *_data_column; }
     Column& data_column_ref() { return *_data_column; }
@@ -256,9 +253,8 @@ public:
 
     const Column* immutable_data_column() const { return _data_column.get(); }
 
-    Column* mutable_data_column() { return _data_column.get(); }
-    // TODO(COW): remove const_cast
-    NullColumn* mutable_null_column() const { return const_cast<NullColumn*>(_null_column.get()); }
+    Column* mutable_data_column() { return _data_column->as_mutable_raw_ptr(); }
+    NullColumn* mutable_null_column() const { return down_cast<NullColumn*>(_null_column->as_mutable_raw_ptr()); }
     const NullColumn* immutable_null_column() const { return _null_column.get(); }
 
     size_t null_count() const;
@@ -361,8 +357,8 @@ public:
     }
 
 protected:
-    ColumnPtr _data_column;
-    NullColumnPtr _null_column;
+    Column::WrappedPtr _data_column;
+    NullColumn::WrappedPtr _null_column;
     mutable bool _has_null;
 };
 

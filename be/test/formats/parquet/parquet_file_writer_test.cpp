@@ -51,10 +51,14 @@ protected:
 
         std::vector<parquet::Utils::SlotDesc> slot_descs;
         for (auto& type_desc : type_descs) {
-            auto type_name = type_desc.debug_string();
-            slot_descs.push_back({type_name, type_desc});
+            parquet::Utils::SlotDesc desc;
+            desc.name = type_desc.debug_string();
+            desc.type = type_desc;
+            slot_descs.emplace_back(std::move(desc));
         }
-        slot_descs.push_back({""});
+        parquet::Utils::SlotDesc terminator;
+        terminator.name = "";
+        slot_descs.emplace_back(std::move(terminator));
 
         TupleDescriptor* tuple_desc =
                 parquet::Utils::create_tuple_descriptor(_runtime_state, &_pool, slot_descs.data());
@@ -81,7 +85,7 @@ protected:
     std::vector<std::string> _make_type_names(const std::vector<TypeDescriptor>& type_descs) {
         std::vector<std::string> names;
         for (auto& desc : type_descs) {
-            names.push_back(desc.debug_string());
+            names.emplace_back(desc.debug_string());
         }
         return names;
     }
@@ -99,7 +103,7 @@ protected:
         }
 
         auto read_chunk = std::make_shared<Chunk>();
-        for (auto type_desc : type_descs) {
+        for (const auto& type_desc : type_descs) {
             auto col = ColumnHelper::create_column(type_desc, true);
             read_chunk->append_column(std::move(col), read_chunk->num_columns());
         }
@@ -637,8 +641,8 @@ TEST_F(ParquetFileWriterTest, TestWriteArray) {
     std::vector<TypeDescriptor> type_descs;
     auto type_int = TypeDescriptor::from_logical_type(TYPE_INT);
     auto type_int_array = TypeDescriptor::from_logical_type(TYPE_ARRAY);
-    type_int_array.children.push_back(type_int);
-    type_descs.push_back(type_int_array);
+    type_int_array.children.emplace_back(type_int);
+    type_descs.emplace_back(type_int_array);
 
     auto column_names = _make_type_names(type_descs);
     auto output_file = _fs.new_writable_file(_file_path).value();
@@ -696,7 +700,7 @@ TEST_F(ParquetFileWriterTest, TestWriteStruct) {
     auto type_int_struct = TypeDescriptor::from_logical_type(TYPE_STRUCT);
     type_int_struct.children = {type_int_a, type_int_b, type_int_c};
     type_int_struct.field_names = {"a", "b", "c"};
-    type_descs.push_back(type_int_struct);
+    type_descs.emplace_back(type_int_struct);
 
     auto column_names = _make_type_names(type_descs);
     auto output_file = _fs.new_writable_file(_file_path).value();
@@ -761,9 +765,9 @@ TEST_F(ParquetFileWriterTest, TestWriteMap) {
     auto type_int_key = TypeDescriptor::from_logical_type(TYPE_INT);
     auto type_int_value = TypeDescriptor::from_logical_type(TYPE_INT);
     auto type_int_map = TypeDescriptor::from_logical_type(TYPE_MAP);
-    type_int_map.children.push_back(type_int_key);
-    type_int_map.children.push_back(type_int_value);
-    type_descs.push_back(type_int_map);
+    type_int_map.children.emplace_back(type_int_key);
+    type_int_map.children.emplace_back(type_int_value);
+    type_descs.emplace_back(type_int_map);
 
     auto column_names = _make_type_names(type_descs);
     auto output_file = _fs.new_writable_file(_file_path).value();
@@ -826,9 +830,9 @@ TEST_F(ParquetFileWriterTest, TestWriteMapOfNullKey) {
     auto type_int_key = TypeDescriptor::from_logical_type(TYPE_INT);
     auto type_int_value = TypeDescriptor::from_logical_type(TYPE_INT);
     auto type_int_map = TypeDescriptor::from_logical_type(TYPE_MAP);
-    type_int_map.children.push_back(type_int_key);
-    type_int_map.children.push_back(type_int_value);
-    type_descs.push_back(type_int_map);
+    type_int_map.children.emplace_back(type_int_key);
+    type_int_map.children.emplace_back(type_int_value);
+    type_descs.emplace_back(type_int_map);
 
     auto column_names = _make_type_names(type_descs);
     auto output_file = _fs.new_writable_file(_file_path).value();
@@ -882,9 +886,9 @@ TEST_F(ParquetFileWriterTest, TestWriteNestedArray) {
     auto type_int = TypeDescriptor::from_logical_type(TYPE_INT);
     auto type_int_array = TypeDescriptor::from_logical_type(TYPE_ARRAY);
     auto type_int_array_array = TypeDescriptor::from_logical_type(TYPE_ARRAY);
-    type_int_array.children.push_back(type_int);
-    type_int_array_array.children.push_back(type_int_array);
-    type_descs.push_back(type_int_array_array);
+    type_int_array.children.emplace_back(type_int);
+    type_int_array_array.children.emplace_back(type_int_array);
+    type_descs.emplace_back(type_int_array_array);
 
     auto column_names = _make_type_names(type_descs);
     auto output_file = _fs.new_writable_file(_file_path).value();

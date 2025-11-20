@@ -181,7 +181,7 @@ TEST_F(LakeAsyncDeltaWriterTest, test_write) {
     // Write
     delta_writer->write(&chunk0, indexes.data(), indexes.size(), [&](const Status& st) { ASSERT_OK(st); });
     // finish
-    delta_writer->finish([&](StatusOr<TxnLogPtr> res) {
+    delta_writer->finish([&](const StatusOr<TxnLogPtr>& res) {
         ASSERT_TRUE(res.ok()) << res.ok();
         latch.count_down();
     });
@@ -266,7 +266,7 @@ TEST_F(LakeAsyncDeltaWriterTest, test_write_with_load_id) {
     // Write
     delta_writer->write(&chunk0, indexes.data(), indexes.size(), [&](const Status& st) { ASSERT_OK(st); });
     // finish
-    delta_writer->finish([&](StatusOr<TxnLogPtr> res) {
+    delta_writer->finish([&](const StatusOr<TxnLogPtr>& res) {
         ASSERT_TRUE(res.ok()) << res.ok();
         ASSERT_TRUE(res.value()->has_load_id());
         ASSERT_EQ(123, res.value()->load_id().hi());
@@ -318,7 +318,7 @@ TEST_F(LakeAsyncDeltaWriterTest, test_write_without_multi_statements_txn) {
     // Write
     delta_writer->write(&chunk0, indexes.data(), indexes.size(), [&](const Status& st) { ASSERT_OK(st); });
     // finish
-    delta_writer->finish([&](StatusOr<TxnLogPtr> res) {
+    delta_writer->finish([&](const StatusOr<TxnLogPtr>& res) {
         ASSERT_TRUE(res.ok()) << res.ok();
         ASSERT_FALSE(res.value()->has_load_id());
         latch.count_down();
@@ -383,7 +383,7 @@ TEST_F(LakeAsyncDeltaWriterTest, test_write_concurrently) {
 
     // finish
     CountDownLatch latch(1);
-    delta_writer->finish([&](StatusOr<TxnLogPtr> res) {
+    delta_writer->finish([&](const StatusOr<TxnLogPtr>& res) {
         ASSERT_TRUE(res.ok()) << res.status();
         latch.count_down();
     });
@@ -500,7 +500,7 @@ TEST_F(LakeAsyncDeltaWriterTest, test_finish_after_close) {
 
     auto tid = std::this_thread::get_id();
     // finish()
-    delta_writer->finish([&](StatusOr<TxnLogPtr> res) {
+    delta_writer->finish([&](const StatusOr<TxnLogPtr>& res) {
         ASSERT_FALSE(res.ok());
         ASSERT_EQ(tid, std::this_thread::get_id());
     });
@@ -699,7 +699,7 @@ void LakeAsyncDeltaWriterTest::do_block_merger(bool use_profile) {
     config::write_buffer_size = old_val;
     // finish
     CountDownLatch latch2(1);
-    delta_writer->finish([&](StatusOr<TxnLogPtr> res) {
+    delta_writer->finish([&](const StatusOr<TxnLogPtr>& res) {
         ASSERT_TRUE(res.ok()) << res.ok();
         latch2.count_down();
     });

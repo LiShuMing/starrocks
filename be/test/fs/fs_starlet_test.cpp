@@ -23,6 +23,7 @@
 #include <fstream>
 
 #include "common/config.h"
+#include "fs/fs.h"
 #include "gutil/strings/join.h"
 #include "service/staros_worker.h"
 #include "storage/rowset/page_io.h"

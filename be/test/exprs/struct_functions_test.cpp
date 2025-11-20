@@ -32,19 +32,19 @@ PARALLEL_TEST(StructFunctionsTest, test_new_struct) {
 
     // append 0,1,2,3,4
     for (int i = 0; i < 5; ++i) {
-        input_columns[i]->append_datum({i});
+        input_columns[i]->as_mutable_ptr()->append_datum({i});
     }
     // append NULL,1,NULL,3,NULL
     for (int i = 0; i < 5; ++i) {
         if ((i % 2) == 0) {
-            input_columns[i]->append_nulls(1);
+            input_columns[i]->as_mutable_ptr()->append_nulls(1);
         } else {
-            input_columns[i]->append_datum({i});
+            input_columns[i]->as_mutable_ptr()->append_datum({i});
         }
     }
     // append 5,4,3,2,1
     for (int i = 0; i < 5; ++i) {
-        input_columns[i]->append_datum({5 - i});
+        input_columns[i]->as_mutable_ptr()->append_datum({5 - i});
     }
 
     FunctionContext::TypeDesc ret_type;
@@ -80,17 +80,17 @@ PARALLEL_TEST(StructFunctionsTest, test_named_struct) {
     }
 
     for (int i = 0; i < 6; ++i) {
-        input_columns[i]->append_datum({i});
+        input_columns[i]->as_mutable_ptr()->append_datum({i});
     }
     for (int i = 0; i < 6; ++i) {
         if ((i % 2) == 0) {
-            input_columns[i]->append_nulls(1);
+            input_columns[i]->as_mutable_ptr()->append_nulls(1);
         } else {
-            input_columns[i]->append_datum({1});
+            input_columns[i]->as_mutable_ptr()->append_datum({1});
         }
     }
     for (int i = 0; i < 6; ++i) {
-        input_columns[i]->append_nulls(1);
+        input_columns[i]->as_mutable_ptr()->append_nulls(1);
     }
 
     FunctionContext::TypeDesc ret_type;

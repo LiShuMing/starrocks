@@ -29,7 +29,7 @@ struct CompactionParam {
     bool enable_size_tiered_compaction_strategy = true;
 };
 
-static std::string to_string_param_name(const testing::TestParamInfo<CompactionParam>& info) {
+[[maybe_unused]] static std::string to_string_param_name(const testing::TestParamInfo<CompactionParam>& info) {
     std::stringstream ss;
     ss << CompactionUtils::compaction_algorithm_to_string(info.param.algorithm) << "_"
        << info.param.vertical_compaction_max_columns_per_group << "_" << info.param.enable_persistent_index << "_"

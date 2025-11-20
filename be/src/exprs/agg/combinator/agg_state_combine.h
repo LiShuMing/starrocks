@@ -57,7 +57,7 @@ public:
     }
 
     void convert_to_serialize_format(FunctionContext* ctx, const Columns& srcs, size_t chunk_size,
-                                     ColumnPtr* dst) const override {
+                                     MutableColumnPtr& dst) const override {
         _function->convert_to_serialize_format(ctx, srcs, chunk_size, dst);
     }
 

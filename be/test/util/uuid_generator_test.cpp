@@ -56,7 +56,7 @@ TEST_F(ThreadLocalUUIDGeneratorTest, TestParallelGeneration) {
             for (int i = 0; i < UUIDS_PER_THREAD; i++) {
                 boost::uuids::uuid uuid = ThreadLocalUUIDGenerator::next_uuid();
                 std::string uuid_string = boost::uuids::to_string(uuid);
-                thread_uuids[t].push_back(uuid_string);
+                thread_uuids[t].emplace_back(uuid_string);
             }
         });
     }

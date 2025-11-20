@@ -62,7 +62,7 @@ protected:
         auto key_cols = _make_key_columnss(keys);
         auto chunk_iter_or = state_table->prefix_scan(key_cols, 0);
         DCHECK(chunk_iter_or.ok());
-        auto chunk_iter = chunk_iter_or.value();
+        const auto& chunk_iter = chunk_iter_or.value();
 
         ChunkPtr chunk = ChunkHelper::new_chunk(chunk_iter->schema(), 1);
         auto status = chunk_iter->get_next(chunk.get());
@@ -114,7 +114,7 @@ private:
     Columns _make_key_columnss(const std::vector<int32_t>& keys) {
         Columns cols;
         for (auto& key : keys) {
-            cols.push_back(ColumnTestHelper::build_column<int32_t>({key}));
+            cols.emplace_back(ColumnTestHelper::build_column<int32_t>({key}));
         }
         return cols;
     }

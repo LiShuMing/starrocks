@@ -110,7 +110,7 @@ void PipelineTestBase::_prepare() {
     ASSERT_TRUE(_pipeline_builder != nullptr);
     exec_group = ExecutionGroupBuilder::create_normal_exec_group();
     _pipeline_builder(_fragment_ctx->runtime_state());
-    for (auto pipeline : _pipelines) {
+    for (const auto& pipeline : _pipelines) {
         exec_group->add_pipeline(std::move(pipeline.get()));
     }
     _fragment_ctx->set_pipelines({exec_group}, std::move(_pipelines));
@@ -142,7 +142,7 @@ ChunkPtr PipelineTestBase::_create_and_fill_chunk(const std::vector<SlotDescript
     // add data
     for (size_t i = 0; i < slots.size(); ++i) {
         auto* slot = slots[i];
-        auto& column = chunk->columns()[i];
+        auto& column = chunk->mutable_columns()[i];
 
         Column* data_column = column.get();
         if (data_column->is_nullable()) {
@@ -311,7 +311,7 @@ ChunkPtr PipelineTestBase::_create_and_fill_chunk(size_t row_num) {
 
     std::vector<SlotDescriptor*> p_slots;
     for (auto& slot : slots) {
-        p_slots.push_back(&slot);
+        p_slots.emplace_back(&slot);
     }
 
     return _create_and_fill_chunk(p_slots, row_num);

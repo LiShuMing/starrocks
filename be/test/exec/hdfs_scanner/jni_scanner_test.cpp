@@ -63,7 +63,7 @@ public:
             HdfsScannerContext::ColumnInfo info;
             info.idx_in_chunk = i;
             info.slot_desc = slot;
-            ctx->materialized_columns.push_back(info);
+            ctx->materialized_columns.emplace_back(info);
         }
     }
 
@@ -92,7 +92,7 @@ public:
     TupleDescriptor* create_default_tuple_desc() {
         SlotDesc c0{"c0", TypeDescriptor::from_logical_type(LogicalType::TYPE_INT)};
         SlotDesc c1{"c1", TypeDescriptor::from_logical_type(LogicalType::TYPE_STRUCT)};
-        c1.type.children.push_back(TypeDescriptor::from_logical_type(LogicalType::TYPE_VARCHAR));
+        c1.type.children.emplace_back(TypeDescriptor::from_logical_type(LogicalType::TYPE_VARCHAR));
         c1.type.field_names.emplace_back("Cc1");
 
         SlotDesc slot_descs[] = {c0, c1, {""}};

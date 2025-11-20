@@ -68,13 +68,13 @@ public:
         k1.column_name = "pk";
         k1.__set_is_key(true);
         k1.column_type.type = TPrimitiveType::BIGINT;
-        request.tablet_schema.columns.push_back(k1);
+        request.tablet_schema.columns.emplace_back(k1);
 
         TColumn k2;
         k2.column_name = "v1";
         k2.__set_is_key(false);
         k2.column_type.type = TPrimitiveType::BIGINT;
-        request.tablet_schema.columns.push_back(k2);
+        request.tablet_schema.columns.emplace_back(k2);
 
         auto st = StorageEngine::instance()->create_tablet(request);
         CHECK(st.ok()) << st.to_string();
@@ -96,8 +96,8 @@ public:
             for (size_t j = start; j < end; j++) {
                 auto& row = segment.emplace_back();
                 auto key = keys[j];
-                row.push_back(Datum(key));
-                row.push_back(Datum(static_cast<int64_t>((key * 7919) % 7883)));
+                row.emplace_back(key);
+                row.emplace_back(static_cast<int64_t>((key * 7919) % 7883));
             }
         }
     }
@@ -122,7 +122,7 @@ public:
         for (size_t i = 0; i < segments.size(); i++) {
             auto& segment = segments[i];
             auto chunk = ChunkHelper::new_chunk(schema, segment.size());
-            auto& cols = chunk->columns();
+            auto cols = chunk->mutable_columns();
             for (auto& row : segment) {
                 CHECK(cols.size() == row.size());
                 for (size_t j = 0; j < row.size(); j++) {

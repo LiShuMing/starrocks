@@ -82,9 +82,9 @@ TEST(TxnLogApplierBatchTest, NonPrimaryKeyBatchMergeBasic) {
     auto applier = new_txn_log_applier(tablet, meta, 2, false, true);
 
     TxnLogVector logs;
-    logs.push_back(make_op_write_log(10, 5, 100, {"seg_a"}));
-    logs.push_back(make_op_write_log(11, 7, 140, {"seg_b1", "seg_b2"}));
-    logs.push_back(make_op_write_log(12, 3, 60, {"seg_c"}));
+    logs.emplace_back(make_op_write_log(10, 5, 100, {"seg_a"}));
+    logs.emplace_back(make_op_write_log(11, 7, 140, {"seg_b1", "seg_b2"}));
+    logs.emplace_back(make_op_write_log(12, 3, 60, {"seg_c"}));
 
     Status st = applier->apply(logs);
     EXPECT_TRUE(st.ok()) << st.to_string();

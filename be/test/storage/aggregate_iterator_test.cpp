@@ -25,7 +25,7 @@ static std::vector<Datum> row(const Chunk& chunk, size_t row_id) {
     std::vector<Datum> result;
     for (size_t i = 0; i < chunk.num_columns(); i++) {
         if (chunk.get_column_by_index(i)->is_null(row_id)) {
-            result.emplace_back(Datum());
+            result.emplace_back();
         } else {
             result.emplace_back(chunk.get_column_by_index(i)->get(row_id));
         }
@@ -464,7 +464,7 @@ TEST_F(AggregateIteratorTest, agg_max_small_chunk) {
         }
         auto& c = chunk->get_column_by_index(1);
         // std::vector<int16_t>
-        auto& v = FixedLengthColumn<int16_t>::dynamic_pointer_cast(c)->get_data();
+        auto& v = FixedLengthColumn<int16_t>::dynamic_pointer_cast(c)->immutable_data();
         values.insert(values.end(), v.begin(), v.end());
     }
     ASSERT_TRUE(st.is_end_of_file());
@@ -509,7 +509,7 @@ TEST_F(AggregateIteratorTest, agg_max_all_duplicate) {
         }
         auto& c = chunk->get_column_by_index(1);
         // std::vector<int16_t>
-        auto& v = FixedLengthColumn<int16_t>::dynamic_pointer_cast(c)->get_data();
+        auto& v = FixedLengthColumn<int16_t>::dynamic_pointer_cast(c)->immutable_data();
         values.insert(values.end(), v.begin(), v.end());
     }
     ASSERT_TRUE(st.is_end_of_file());
@@ -552,7 +552,7 @@ TEST_F(AggregateIteratorTest, agg_boolean_key) {
         }
         auto& c = chunk->get_column_by_index(1);
         // std::vector<int16_t>
-        auto& v = FixedLengthColumn<int16_t>::dynamic_pointer_cast(c)->get_data();
+        auto& v = FixedLengthColumn<int16_t>::dynamic_pointer_cast(c)->immutable_data();
         values.insert(values.end(), v.begin(), v.end());
     }
     ASSERT_TRUE(st.is_end_of_file());
@@ -592,7 +592,7 @@ TEST_F(AggregateIteratorTest, agg_varchar_key) {
             }
             auto& c = chunk->get_column_by_index(1);
             // std::vector<int16_t>
-            auto& v = FixedLengthColumn<int16_t>::dynamic_pointer_cast(c)->get_data();
+            auto& v = FixedLengthColumn<int16_t>::dynamic_pointer_cast(c)->immutable_data();
             values.insert(values.end(), v.begin(), v.end());
         }
         ASSERT_TRUE(st.is_end_of_file());
@@ -622,7 +622,7 @@ TEST_F(AggregateIteratorTest, agg_varchar_key) {
             }
             auto& c = chunk->get_column_by_index(1);
             // std::vector<int16_t>
-            auto& v = FixedLengthColumn<int16_t>::dynamic_pointer_cast(c)->get_data();
+            auto& v = FixedLengthColumn<int16_t>::dynamic_pointer_cast(c)->immutable_data();
             values.insert(values.end(), v.begin(), v.end());
         }
         ASSERT_TRUE(st.is_end_of_file());
@@ -647,7 +647,7 @@ TEST_F(AggregateIteratorTest, agg_varchar_key) {
             }
             auto& c = chunk->get_column_by_index(1);
             // std::vector<int16_t>
-            auto& v = FixedLengthColumn<int16_t>::dynamic_pointer_cast(c)->get_data();
+            auto& v = FixedLengthColumn<int16_t>::dynamic_pointer_cast(c)->immutable_data();
             values.insert(values.end(), v.begin(), v.end());
         }
         ASSERT_TRUE(st.is_end_of_file());
@@ -690,7 +690,7 @@ TEST_F(AggregateIteratorTest, agg_date_key) {
             }
             auto& c = chunk->get_column_by_index(1);
             // std::vector<int16_t>
-            auto& v = FixedLengthColumn<int16_t>::dynamic_pointer_cast(c)->get_data();
+            auto& v = FixedLengthColumn<int16_t>::dynamic_pointer_cast(c)->immutable_data();
             values.insert(values.end(), v.begin(), v.end());
         }
         ASSERT_TRUE(st.is_end_of_file());
@@ -718,7 +718,7 @@ TEST_F(AggregateIteratorTest, agg_date_key) {
             }
             auto& c = chunk->get_column_by_index(1);
             // std::vector<int16_t>
-            auto& v = FixedLengthColumn<int16_t>::dynamic_pointer_cast(c)->get_data();
+            auto& v = FixedLengthColumn<int16_t>::dynamic_pointer_cast(c)->immutable_data();
             values.insert(values.end(), v.begin(), v.end());
         }
         ASSERT_TRUE(st.is_end_of_file());

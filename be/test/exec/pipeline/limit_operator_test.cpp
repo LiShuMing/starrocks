@@ -59,7 +59,7 @@ TEST_F(LimitOperatorTest, test_limit_chunk_in_place) {
     EXPECT_TRUE(limit_op->push_chunk(&dummy_runtime_state, first_pushed_chunk).ok());
     auto first_pulled_chunk_or_status = limit_op->pull_chunk(&dummy_runtime_state);
     ASSERT_OK(first_pulled_chunk_or_status.status());
-    auto first_pulled_chunk = first_pulled_chunk_or_status.value();
+    const auto& first_pulled_chunk = first_pulled_chunk_or_status.value();
     EXPECT_TRUE(first_pushed_chunk == first_pulled_chunk);
     EXPECT_TRUE(first_pulled_chunk->num_rows() == chunk_size);
 
@@ -67,7 +67,7 @@ TEST_F(LimitOperatorTest, test_limit_chunk_in_place) {
     EXPECT_TRUE(limit_op->push_chunk(&dummy_runtime_state, second_pushed_chunk).ok());
     auto second_pulled_chunk_or_status = limit_op->pull_chunk(&dummy_runtime_state);
     ASSERT_OK(second_pulled_chunk_or_status.status());
-    auto second_pulled_chunk = second_pulled_chunk_or_status.value();
+    const auto& second_pulled_chunk = second_pulled_chunk_or_status.value();
     EXPECT_TRUE(second_pushed_chunk == second_pulled_chunk);
     EXPECT_TRUE(second_pulled_chunk->num_rows() == limit - chunk_size);
 }
@@ -80,7 +80,7 @@ TEST_F(LimitOperatorTest, test_limit_chunk_clone_on_update) {
     EXPECT_TRUE(limit_op->push_chunk(&dummy_runtime_state, first_pushed_chunk).ok());
     auto first_pulled_chunk_or_status = limit_op->pull_chunk(&dummy_runtime_state);
     ASSERT_OK(first_pulled_chunk_or_status.status());
-    auto first_pulled_chunk = first_pulled_chunk_or_status.value();
+    const auto& first_pulled_chunk = first_pulled_chunk_or_status.value();
     EXPECT_TRUE(first_pushed_chunk == first_pulled_chunk);
     EXPECT_TRUE(first_pulled_chunk->num_rows() == chunk_size);
 
@@ -88,7 +88,7 @@ TEST_F(LimitOperatorTest, test_limit_chunk_clone_on_update) {
     EXPECT_TRUE(limit_op->push_chunk(&dummy_runtime_state, second_pushed_chunk).ok());
     auto second_pulled_chunk_or_status = limit_op->pull_chunk(&dummy_runtime_state);
     ASSERT_OK(second_pulled_chunk_or_status.status());
-    auto second_pulled_chunk = second_pulled_chunk_or_status.value();
+    const auto& second_pulled_chunk = second_pulled_chunk_or_status.value();
     EXPECT_TRUE(second_pushed_chunk != second_pulled_chunk);
     EXPECT_TRUE(second_pushed_chunk->num_rows() == chunk_size);
     EXPECT_TRUE(second_pulled_chunk->num_rows() == limit - chunk_size);

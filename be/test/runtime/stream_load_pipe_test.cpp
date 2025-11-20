@@ -202,7 +202,7 @@ PARALLEL_TEST(StreamLoadPipeTest, append_and_read_buffer) {
     // 1st read.
     auto st = pipe.read();
     ASSERT_TRUE(st.ok());
-    auto buf = st.value();
+    const auto& buf = st.value();
     ASSERT_EQ(64, buf->limit);
     for (int i = 0; i < buf->pos; ++i) {
         ASSERT_EQ('0' + (i % 10), *(buf->ptr + i));
@@ -286,7 +286,7 @@ PARALLEL_TEST(StreamLoadPipeTest, compressed_reader) {
 
     auto res = reader.read();
     EXPECT_OK(res.status());
-    auto buf = res.value();
+    const auto& buf = res.value();
     EXPECT_EQ(buf->remaining(), 42000021);
     EXPECT_EQ(std::string_view(R"({"foo": 1, "bar": 2})"), std::string_view(buf->ptr, 20));
     KafkaByteBufferMeta* meta = dynamic_cast<KafkaByteBufferMeta*>(buf->meta());
@@ -340,7 +340,7 @@ PARALLEL_TEST(StreamLoadPipeTest, non_blocking_read) {
 
     auto ret = pipe.read();
     ASSERT_TRUE(ret.ok());
-    auto read_buf = ret.value();
+    const auto& read_buf = ret.value();
     ASSERT_EQ(64, read_buf->limit);
     for (int i = 0; i < read_buf->limit; ++i) {
         ASSERT_EQ('0' + i, *(read_buf->ptr + i));

@@ -572,7 +572,7 @@ Status OlapTablePartitionParam::remove_partitions(const std::vector<int64_t>& pa
 }
 
 Status OlapTablePartitionParam::_find_tablets_with_list_partition(
-        Chunk* chunk, const Columns& partition_columns, const std::vector<uint32_t>& hashes,
+        Chunk* chunk, const MutableColumns& partition_columns, const std::vector<uint32_t>& hashes,
         std::vector<OlapTablePartition*>* partitions, std::vector<uint8_t>* selection,
         std::vector<int>* invalid_row_indexs, std::vector<std::vector<std::string>>* partition_not_exist_row_values) {
     size_t num_rows = chunk->num_rows();
@@ -627,7 +627,7 @@ Status OlapTablePartitionParam::_find_tablets_with_list_partition(
 }
 
 Status OlapTablePartitionParam::_find_tablets_with_range_partition(
-        Chunk* chunk, const Columns& partition_columns, const std::vector<uint32_t>& hashes,
+        Chunk* chunk, const MutableColumns& partition_columns, const std::vector<uint32_t>& hashes,
         std::vector<OlapTablePartition*>* partitions, std::vector<uint8_t>* selection,
         std::vector<int>* invalid_row_indexs, std::vector<std::vector<std::string>>* partition_not_exist_row_values) {
     size_t num_rows = chunk->num_rows();
@@ -685,16 +685,16 @@ Status OlapTablePartitionParam::find_tablets(Chunk* chunk, std::vector<OlapTable
     _compute_hashes(chunk, hashes);
 
     if (!_partition_columns.empty()) {
-        Columns partition_columns(_partition_slot_descs.size());
+        MutableColumns partition_columns(_partition_slot_descs.size());
         if (!_partitions_expr_ctxs.empty()) {
             for (size_t i = 0; i < partition_columns.size(); ++i) {
-                ASSIGN_OR_RETURN(partition_columns[i], _partitions_expr_ctxs[i]->evaluate(chunk));
+                ASSIGN_OR_RETURN(auto partition_column, _partitions_expr_ctxs[i]->evaluate(chunk));
                 partition_columns[i] = ColumnHelper::unfold_const_column(_partition_slot_descs[i]->type(), num_rows,
-                                                                         partition_columns[i]);
+                                                                         partition_column->as_mutable_ptr());
             }
         } else {
             for (size_t i = 0; i < partition_columns.size(); ++i) {
-                partition_columns[i] = chunk->get_column_by_slot_id(_partition_slot_descs[i]->id());
+                partition_columns[i] = chunk->get_column_by_slot_id(_partition_slot_descs[i]->id())->as_mutable_ptr();
                 DCHECK(partition_columns[i] != nullptr);
             }
         }

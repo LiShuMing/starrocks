@@ -169,7 +169,7 @@ void AvroScanner::_materialize_src_chunk_adaptive_nullable_column(ChunkPtr& chun
     chunk->materialized_nullable();
     for (int i = 0; i < chunk->num_columns(); i++) {
         AdaptiveNullableColumn* adaptive_column =
-                down_cast<AdaptiveNullableColumn*>(chunk->get_column_by_index(i).get());
+                down_cast<AdaptiveNullableColumn*>(chunk->get_mutable_column_by_index(i).get());
         chunk->update_column_by_index(NullableColumn::create(adaptive_column->materialized_raw_data_column(),
                                                              adaptive_column->materialized_raw_null_column()),
                                       i);
@@ -203,7 +203,8 @@ Status AvroScanner::_construct_row(const avro_value_t& avro_value, Chunk* chunk)
         if (_src_slot_descriptors[i] == nullptr) {
             continue;
         }
-        auto column = down_cast<NullableColumn*>(chunk->get_column_by_slot_id(_src_slot_descriptors[i]->id()).get());
+        auto column =
+                down_cast<NullableColumn*>(chunk->get_mutable_column_by_slot_id(_src_slot_descriptors[i]->id()).get());
         if (UNLIKELY(i >= jsonpath_size)) {
             column->append_nulls(1);
             continue;
@@ -355,7 +356,7 @@ Status AvroScanner::_construct_row_without_jsonpath(const avro_value_t& avro_val
             _found_columns[column_index] = true;
         }
 
-        auto& column = chunk->get_column_by_slot_id(slot_info.id);
+        auto column = chunk->get_mutable_column_by_slot_id(slot_info.id);
         // We should expand the union type.
         avro_value_t* cur_value = &element_value;
         if (UNLIKELY(avro_value_get_type(cur_value) == AVRO_UNION)) {
@@ -369,7 +370,7 @@ Status AvroScanner::_construct_row_without_jsonpath(const avro_value_t& avro_val
 
     for (int i = 0; i < _found_columns.size(); i++) {
         if (UNLIKELY(!_found_columns[i])) {
-            auto& column = chunk->get_column_by_index(i);
+            auto column = chunk->get_mutable_column_by_index(i);
             column->append_nulls(1);
         }
     }

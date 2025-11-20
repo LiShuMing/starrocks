@@ -98,7 +98,7 @@ TEST_F(BatchWriteMgrTest, register_and_unregister_pipe) {
         ASSERT_OK(status_or_ctx.status());
         StreamLoadContext* ctx = status_or_ctx.value();
         ASSERT_NE(ctx, nullptr);
-        contexts.push_back(ctx);
+        contexts.emplace_back(ctx);
 
         ASSERT_EQ(1, ctx->num_refs());
         ASSERT_EQ(ctx->db, db);
@@ -114,7 +114,7 @@ TEST_F(BatchWriteMgrTest, register_and_unregister_pipe) {
         BatchWriteId batch_write_id{.db = ctx->db, .table = ctx->table, .load_params = ctx->load_parameters};
         auto status_or_batch_write = _batch_write_mgr->get_batch_write(batch_write_id);
         ASSERT_OK(status_or_batch_write.status());
-        auto batch_write = status_or_batch_write.value();
+        const auto& batch_write = status_or_batch_write.value();
         ASSERT_NE(batch_write, nullptr);
         ASSERT_TRUE(batch_write->contain_pipe(ctx));
     }
@@ -383,37 +383,55 @@ TEST_F(BatchWriteMgrTest, update_transaction_state) {
     prepare_state->set_txn_id(1);
     prepare_state->set_status(TransactionStatusPB::TRANS_PREPARE);
     prepare_state->set_reason("");
-    expected_cache_state.push_back({TTransactionStatus::PREPARE, ""});
+    TxnState prepare_expected;
+    prepare_expected.txn_status = TTransactionStatus::PREPARE;
+    prepare_expected.reason = "";
+    expected_cache_state.emplace_back(std::move(prepare_expected));
 
     auto prepared_state = request.add_states();
     prepared_state->set_txn_id(2);
     prepared_state->set_status(TransactionStatusPB::TRANS_PREPARED);
     prepared_state->set_reason("");
-    expected_cache_state.push_back({TTransactionStatus::PREPARED, ""});
+    TxnState prepared_expected;
+    prepared_expected.txn_status = TTransactionStatus::PREPARED;
+    prepared_expected.reason = "";
+    expected_cache_state.emplace_back(std::move(prepared_expected));
 
     auto commited_state = request.add_states();
     commited_state->set_txn_id(3);
     commited_state->set_status(TransactionStatusPB::TRANS_COMMITTED);
     commited_state->set_reason("");
-    expected_cache_state.push_back({TTransactionStatus::COMMITTED, ""});
+    TxnState committed_expected;
+    committed_expected.txn_status = TTransactionStatus::COMMITTED;
+    committed_expected.reason = "";
+    expected_cache_state.emplace_back(std::move(committed_expected));
 
     auto visible_state = request.add_states();
     visible_state->set_txn_id(4);
     visible_state->set_status(TransactionStatusPB::TRANS_VISIBLE);
     visible_state->set_reason("");
-    expected_cache_state.push_back({TTransactionStatus::VISIBLE, ""});
+    TxnState visible_expected;
+    visible_expected.txn_status = TTransactionStatus::VISIBLE;
+    visible_expected.reason = "";
+    expected_cache_state.emplace_back(std::move(visible_expected));
 
     auto aborted_state = request.add_states();
     aborted_state->set_txn_id(5);
     aborted_state->set_status(TransactionStatusPB::TRANS_ABORTED);
     aborted_state->set_reason("artificial failure");
-    expected_cache_state.push_back({TTransactionStatus::ABORTED, "artificial failure"});
+    TxnState aborted_expected;
+    aborted_expected.txn_status = TTransactionStatus::ABORTED;
+    aborted_expected.reason = "artificial failure";
+    expected_cache_state.emplace_back(std::move(aborted_expected));
 
     auto unknown_state = request.add_states();
     unknown_state->set_txn_id(6);
     unknown_state->set_status(TransactionStatusPB::TRANS_UNKNOWN);
     unknown_state->set_reason("");
-    expected_cache_state.push_back({TTransactionStatus::UNKNOWN, ""});
+    TxnState unknown_expected;
+    unknown_expected.txn_status = TTransactionStatus::UNKNOWN;
+    unknown_expected.reason = "";
+    expected_cache_state.emplace_back(std::move(unknown_expected));
 
     PUpdateTransactionStateResponse response;
     _batch_write_mgr->update_transaction_state(&request, &response);

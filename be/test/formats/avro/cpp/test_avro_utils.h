@@ -15,6 +15,7 @@
 #include <chrono>
 #include <sstream>
 
+#include "column/vectorized_fwd.h"
 #include "formats/avro/cpp/column_reader.h"
 
 namespace starrocks::avrocpp {

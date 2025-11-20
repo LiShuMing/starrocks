@@ -111,7 +111,7 @@ Status TableFunctionOperator::prepare(RuntimeState* state) {
 StatusOr<ChunkPtr> TableFunctionOperator::pull_chunk(RuntimeState* state) {
     DCHECK(_input_chunk != nullptr);
     size_t max_chunk_size = state->chunk_size();
-    Columns output_columns;
+    MutableColumns output_columns;
 
     if (_table_function_result.second == nullptr) {
         RETURN_IF_ERROR(_process_table_function(state));
@@ -127,7 +127,7 @@ StatusOr<ChunkPtr> TableFunctionOperator::pull_chunk(RuntimeState* state) {
 
     while (output_columns[0]->size() < max_chunk_size) {
         if (!_table_function_result.first.empty() && _table_function_result.second->size() > 1 &&
-            _next_output_row < _table_function_result.second->get_data().back()) {
+            _next_output_row < _table_function_result.second->immutable_data().back()) {
             _copy_result(output_columns, max_chunk_size);
         } else if (_table_function_state->processed_rows() < _input_chunk->num_rows()) {
             RETURN_IF_ERROR(_process_table_function(state));
@@ -162,16 +162,22 @@ Status TableFunctionOperator::push_chunk(RuntimeState* state, const ChunkPtr& ch
     return Status::OK();
 }
 
-ChunkPtr TableFunctionOperator::_build_chunk(const Columns& columns) {
+ChunkPtr TableFunctionOperator::_build_chunk(MutableColumns& columns) {
     ChunkPtr chunk = std::make_shared<Chunk>();
 
+    Columns immutable_cols;
+    immutable_cols.reserve(columns.size());
+    for (auto& col : columns) {
+        immutable_cols.emplace_back(std::move(col));
+    }
+
     for (size_t i = 0; i < _outer_slots.size(); ++i) {
-        chunk->append_column(columns[i], _outer_slots[i]);
+        chunk->append_column(std::move(immutable_cols[i]), _outer_slots[i]);
     }
 
     if (_fn_result_required) {
         for (size_t i = 0; i < _fn_result_slots.size(); ++i) {
-            chunk->append_column(columns[_outer_slots.size() + i], _fn_result_slots[i]);
+            chunk->append_column(std::move(immutable_cols[_outer_slots.size() + i]), _fn_result_slots[i]);
         }
     }
 
@@ -203,9 +209,9 @@ Status TableFunctionOperator::reset_state(RuntimeState* state, const std::vector
     return Status::OK();
 }
 
-void TableFunctionOperator::_copy_result(Columns& columns, uint32_t max_output_size) {
+void TableFunctionOperator::_copy_result(MutableColumns& columns, uint32_t max_output_size) {
     DCHECK(_table_function_result.second->size() > 1 &&
-           _next_output_row < _table_function_result.second->get_data().back());
+           _next_output_row < _table_function_result.second->immutable_data().back());
     DCHECK_LT(_next_output_row_offset, _table_function_result.second->size());
     uint32_t curr_output_size = columns[0]->size();
     const auto& fn_result_cols = _table_function_result.first;

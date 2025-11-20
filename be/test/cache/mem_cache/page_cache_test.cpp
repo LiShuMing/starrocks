@@ -62,7 +62,7 @@ void StoragePageCacheTest::SetUp() {
 
 TEST_F(StoragePageCacheTest, insert_with_deleter) {
     struct Value {
-        Value(std::string v) : value(std::move(v)) {}
+        Value(const std::string& v) : value(std::move(v)) {}
         std::string value;
     };
     auto deleter = [](const starrocks::CacheKey& key, void* value) { delete (Value*)value; };

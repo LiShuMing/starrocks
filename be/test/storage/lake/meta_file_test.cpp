@@ -215,7 +215,7 @@ TEST_F(MetaFileTest, test_delvec_read_loop) {
         std::shared_ptr<DelVector> ndv;
         std::vector<uint32_t> dels;
         for (int i = 0; i < 10; i++) {
-            dels.push_back(rand() % 1000);
+            dels.emplace_back(rand() % 1000);
         }
         dv.add_dels_as_new_version(dels, version, &ndv);
         EXPECT_FALSE(ndv->empty());
@@ -280,8 +280,8 @@ TEST_F(MetaFileTest, test_dcg) {
         filenames.emplace_back("aaa.cols", "");
         filenames.emplace_back("bbb.cols", "");
         std::vector<std::vector<ColumnUID>> unique_column_id_list;
-        unique_column_id_list.push_back({3, 4, 5});
-        unique_column_id_list.push_back({6, 7, 8});
+        unique_column_id_list.emplace_back(std::initializer_list<ColumnUID>{3, 4, 5});
+        unique_column_id_list.emplace_back(std::initializer_list<ColumnUID>{6, 7, 8});
         builder.append_dcg(110, filenames, unique_column_id_list);
         builder.apply_column_mode_partial_update(op_write);
         Status st = builder.finalize(next_id());
@@ -299,7 +299,7 @@ TEST_F(MetaFileTest, test_dcg) {
         std::vector<std::pair<std::string, std::string>> filenames;
         filenames.emplace_back("ccc.cols", "");
         std::vector<std::vector<ColumnUID>> unique_column_id_list;
-        unique_column_id_list.push_back({4, 7});
+        unique_column_id_list.emplace_back(std::initializer_list<ColumnUID>{4, 7});
         builder.append_dcg(110, filenames, unique_column_id_list);
         builder.apply_column_mode_partial_update(op_write);
         Status st = builder.finalize(next_id());
@@ -318,7 +318,7 @@ TEST_F(MetaFileTest, test_dcg) {
         std::vector<std::pair<std::string, std::string>> filenames;
         filenames.emplace_back("ddd.cols", "");
         std::vector<std::vector<ColumnUID>> unique_column_id_list;
-        unique_column_id_list.push_back({3, 5});
+        unique_column_id_list.emplace_back(std::initializer_list<ColumnUID>{3, 5});
         builder.append_dcg(110, filenames, unique_column_id_list);
         builder.apply_column_mode_partial_update(op_write);
         Status st = builder.finalize(next_id());

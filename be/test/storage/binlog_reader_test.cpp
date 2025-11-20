@@ -69,20 +69,20 @@ protected:
         k1.column_name = "k1";
         k1.__set_is_key(true);
         k1.column_type.type = TPrimitiveType::INT;
-        request.tablet_schema.columns.push_back(k1);
+        request.tablet_schema.columns.emplace_back(k1);
 
         TColumn k2;
         k2.column_name = "k2";
         k2.__set_is_key(true);
         k2.column_type.type = TPrimitiveType::INT;
-        request.tablet_schema.columns.push_back(k2);
+        request.tablet_schema.columns.emplace_back(k2);
 
         TColumn v1;
         v1.column_name = "v1";
         v1.__set_is_key(false);
         v1.column_type.type = TPrimitiveType::VARCHAR;
         v1.column_type.len = INT32_MAX;
-        request.tablet_schema.columns.push_back(v1);
+        request.tablet_schema.columns.emplace_back(v1);
 
         auto st = StorageEngine::instance()->create_tablet(request);
         CHECK(st.ok()) << st.to_string();
@@ -142,7 +142,7 @@ void BinlogReaderTest::create_rowset(int32_t* start_key, RowsetInfo& rowset_info
         std::vector<uint32_t> column_indexes{0, 1, 2};
         auto chunk = ChunkHelper::new_chunk(_schema, num_rows);
         for (int i = *start_key; i < num_rows + *start_key; i++) {
-            auto& cols = chunk->columns();
+            auto cols = chunk->mutable_columns();
             cols[0]->append_datum(Datum(static_cast<int32_t>(i)));
             cols[1]->append_datum(Datum(static_cast<int32_t>(i)));
             cols[2]->append_datum(Datum(Slice(std::to_string(i))));
@@ -255,9 +255,9 @@ void BinlogReaderTest::test_reader(Schema& output_schema, OutputVerifier& verifi
         rowset_info.num_segments = std::min(rowset_info.total_rows, (int64_t)std::rand() % 10 + 1);
         bool share_one_file = (std::rand() % 10) < 7;
         if (i == 2 || !share_one_file) {
-            rowsets_per_binlog_file.push_back(std::vector<RowsetInfo>());
+            rowsets_per_binlog_file.emplace_back();
         }
-        rowsets_per_binlog_file.back().push_back(rowset_info);
+        rowsets_per_binlog_file.back().emplace_back(rowset_info);
     }
     ingestion_rowsets(rowsets_per_binlog_file);
 

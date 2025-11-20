@@ -40,7 +40,7 @@ namespace starrocks {
 
 class AvroAddBinaryColumnTest : public ::testing::Test {};
 
-static void init_avro_value(std::string schema_path, AvroHelper& avro_helper) {
+static void init_avro_value(const std::string& schema_path, AvroHelper& avro_helper) {
     std::ifstream infile_schema;
     infile_schema.open(schema_path);
     std::stringstream ss;
@@ -153,17 +153,17 @@ TEST_F(AvroAddBinaryColumnTest, test_add_object) {
     });
 
     avro_value_t boolean_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "boolean_type", &boolean_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "boolean_type", &boolean_value, nullptr) == 0) {
         avro_value_set_boolean(&boolean_value, true);
     }
 
     avro_value_t long_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "long_type", &long_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "long_type", &long_value, nullptr) == 0) {
         avro_value_set_long(&long_value, 4294967296);
     }
 
     avro_value_t double_value;
-    if (avro_value_get_by_name(&avro_helper.avro_val, "double_type", &double_value, NULL) == 0) {
+    if (avro_value_get_by_name(&avro_helper.avro_val, "double_type", &double_value, nullptr) == 0) {
         avro_value_set_double(&double_value, 1.234567);
     }
 
@@ -191,11 +191,11 @@ TEST_F(AvroAddBinaryColumnTest, test_add_array) {
     });
 
     avro_value_t ele1;
-    avro_value_append(&avro_helper.avro_val, &ele1, NULL);
+    avro_value_append(&avro_helper.avro_val, &ele1, nullptr);
     avro_value_set_long(&ele1, 4294967297);
 
     avro_value_t ele2;
-    avro_value_append(&avro_helper.avro_val, &ele2, NULL);
+    avro_value_append(&avro_helper.avro_val, &ele2, nullptr);
     avro_value_set_long(&ele2, 4294967298);
 
     auto st = add_binary_column(column.get(), t, "f_array", avro_helper.avro_val);
@@ -221,11 +221,11 @@ TEST_F(AvroAddBinaryColumnTest, test_add_map) {
     });
 
     avro_value_t ele1;
-    avro_value_add(&avro_helper.avro_val, "ele1", &ele1, NULL, NULL);
+    avro_value_add(&avro_helper.avro_val, "ele1", &ele1, nullptr, nullptr);
     avro_value_set_long(&ele1, 4294967297);
 
     avro_value_t ele2;
-    avro_value_add(&avro_helper.avro_val, "ele2", &ele2, NULL, NULL);
+    avro_value_add(&avro_helper.avro_val, "ele2", &ele2, nullptr, nullptr);
     avro_value_set_long(&ele2, 4294967298);
 
     auto st = add_binary_column(column.get(), t, "f_map", avro_helper.avro_val);

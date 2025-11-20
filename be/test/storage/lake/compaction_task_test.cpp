@@ -42,7 +42,7 @@ using namespace starrocks;
 
 class LakeCompactionTest : public TestBase, testing::WithParamInterface<CompactionParam> {
 public:
-    LakeCompactionTest(std::string test_dir) : TestBase(test_dir) {}
+    LakeCompactionTest(const std::string& test_dir) : TestBase(test_dir) {}
 
     void check_task(CompactionTaskPtr& task) {
         if (GetParam().algorithm == HORIZONTAL_COMPACTION) {

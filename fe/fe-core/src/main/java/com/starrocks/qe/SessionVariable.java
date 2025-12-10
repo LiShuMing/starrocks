@@ -690,6 +690,7 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
     public static final String ENABLE_PIPELINE_EVENT_SCHEDULER = "enable_pipeline_event_scheduler";
 
     public static final String ENABLE_SPLIT_TOPN_AGG = "enable_split_topn_agg";
+    public static final String TOPN_AGG_PREFILTERING_MODE = "topn_agg_prefiltering_mode";
 
     public static final String SPLIT_TOPN_AGG_LIMIT = "enable_split_topn_agg_limit";
 
@@ -1374,6 +1375,10 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
 
     @VarAttr(name = ENABLE_SPLIT_TOPN_AGG)
     private boolean enableSplitTopNAgg = true;
+
+    // -1: disable, 0: auto, 1: force(use it as possible)
+    @VarAttr(name = TOPN_AGG_PREFILTERING_MODE)
+    private int topNAggPreFilteringMode = 0;
 
     @VarAttr(name = SPLIT_TOPN_AGG_LIMIT)
     private long splitTopNAggLimit = 10000;
@@ -2090,6 +2095,18 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
 
     public boolean isEnableSplitTopNAgg() {
         return enableSplitTopNAgg;
+    }
+
+    public void setEnableSplitTopNAgg(boolean enableSplitTopNAgg) {
+        this.enableSplitTopNAgg = enableSplitTopNAgg;
+    }
+
+    public int getTopNAggPreFilteringMode() {
+        return topNAggPreFilteringMode;
+    }
+
+    public void setTopnAggPrefilteringMode(int value) {
+        this.topNAggPreFilteringMode = value;
     }
 
     public long getSplitTopNAggLimit() {

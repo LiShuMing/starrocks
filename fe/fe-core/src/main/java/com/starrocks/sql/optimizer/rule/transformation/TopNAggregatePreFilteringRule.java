@@ -68,8 +68,8 @@ import java.util.Map;
  *    group by t.a, t.b
  *    order by t.a, t.b limit 10;
  */
-public class SplitTopNAggregateToJoinRule extends TransformationRule {
-    public SplitTopNAggregateToJoinRule() {
+public class TopNAggregatePreFilteringRule extends TransformationRule {
+    public TopNAggregatePreFilteringRule() {
         super(RuleType.TF_SPLIT_TOPN_AGGREGATE_TO_JOIN_RULE,
                 Pattern.create(OperatorType.LOGICAL_TOPN)
                         .addChildren(Pattern.create(OperatorType.LOGICAL_AGGR, OperatorType.PATTERN_LEAF)));
@@ -77,7 +77,9 @@ public class SplitTopNAggregateToJoinRule extends TransformationRule {
 
     @Override
     public boolean check(OptExpression input, OptimizerContext context) {
-        if (!context.getSessionVariable().isEnableSplitTopNAgg()) {
+        int topNAggPreFilteringMode = context.getSessionVariable().getTopNAggPreFilteringMode();
+        // -1: disable, 0: auto, 1: enable
+        if (topNAggPreFilteringMode < 0) {
             return false;
         }
 
@@ -85,58 +87,77 @@ public class SplitTopNAggregateToJoinRule extends TransformationRule {
         LogicalAggregationOperator agg = input.inputAt(0).getOp().cast();
         OptExpression child = input.inputAt(0).inputAt(0);
 
-        if (topN.getLimit() == Operator.DEFAULT_LIMIT
-                || topN.getLimit() > context.getSessionVariable().getSplitTopNAggLimit()) {
+        // NOTE: those conditions must be met, so we can do pre-filtering
+        if (topN.getLimit() == Operator.DEFAULT_LIMIT) {
             return false;
         }
-
         if (!isIdentityProjection(agg.getProjection())) {
             return false;
         }
-
         if (!orderByMatchesGroupingKeys(topN, agg)) {
             return false;
         }
-
         if (agg.getGroupingKeys().isEmpty()) {
             return false;
         }
-
         if (agg.getAggregations().isEmpty()) {
             return false;
         }
-
         // Having clause may change the candidate key set so skip for now.
         if (agg.getPredicate() != null) {
             return false;
         }
-
-        Statistics ss = input.inputAt(0).getStatistics();
-        if (!FeConstants.runningUnitTest && ss != null && ss.getOutputRowCount() < (topN.getLimit() * 10)
-                && ss.getColumnStatistics().values().stream().noneMatch(ColumnStatistic::isUnknown)) {
-            return false;
-        }
-
         if (child.getOp() instanceof LogicalOlapScanOperator scan) {
             if (!isIdentityProjection(scan.getProjection())) {
                 return false;
             }
+        }
+        // if user force enable this rule
+        if (topNAggPreFilteringMode > 0) {
+            return true;
+        }
 
+        // Only apply this rule when:
+        // - Not running unit test (to avoid affecting test coverage)
+        // - Statistics is available
+        Statistics ss = input.inputAt(0).getStatistics();
+        if (!isEnableTopNAggregatePreFiltering(ss, topN, agg, child)) {
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isEnableTopNAggregatePreFiltering(Statistics ss,
+                                                      LogicalTopNOperator topN,
+                                                      LogicalAggregationOperator agg,
+                                                      OptExpression childOpt) {
+        if (ss == null) {
+            return false;
+        }
+        // if any column statistics is unknown, we don't use pre-filtering since it may generate more overhead
+        if (!FeConstants.runningUnitTest && ss.getColumnStatistics().values().stream().anyMatch(ColumnStatistic::isUnknown)) {
+            return false;
+        }
+        // if output rows less than 10 million or its output rows are less limit * 100, we don't use pre-filtering since it may
+        // generate more overhead
+        if (!FeConstants.runningUnitTest &&
+                (ss.getOutputRowCount() < 10_000_000 || ss.getOutputRowCount() < (topN.getLimit() * 100))) {
+            return false;
+        }
+
+        if (childOpt.getOp() instanceof LogicalOlapScanOperator scan) {
             // Get scan statistics for checking column average row size
-            Statistics scanStatistics = child.getStatistics();
-
+            Statistics scanStatistics = childOpt.getStatistics();
             // Columns read twice (grouping keys + predicate columns)
             ColumnRefSet duplicatedColumns = new ColumnRefSet();
             duplicatedColumns.union(agg.getGroupingKeys());
             if (scan.getPredicate() != null) {
                 duplicatedColumns.union(scan.getPredicate().getUsedColumns());
             }
-
             if (!checkPredicateAndColumnConstraints(scan, scanStatistics, duplicatedColumns)) {
                 return false;
             }
         }
-
         return true;
     }
 
@@ -146,20 +167,16 @@ public class SplitTopNAggregateToJoinRule extends TransformationRule {
         if (duplicatedColumns.size() > 3) {
             return false;
         }
-
         if (hasLongStringOrComplexType(scan, duplicatedColumns, scanStatistics)) {
             return false;
         }
-
         ScalarOperator predicate = scan.getPredicate();
         List<ScalarOperator> conjuncts = Utils.extractConjuncts(predicate);
         List<ScalarOperator> disconjuncts = Utils.extractDisjunctive(predicate);
-
         // if evaluate too much predicates, scan's extra costs may bigger then agg's
         if (conjuncts.size() > 2 || disconjuncts.size() > 2) {
             return false;
         }
-
         return true;
     }
 
@@ -173,15 +190,12 @@ public class SplitTopNAggregateToJoinRule extends TransformationRule {
             if (!duplicatedColumns.contains(colRef)) {
                 continue;
             }
-
             Type colType = colRef.getType();
-
             if (colType.isStringType()) {
                 if (isLongString(colRef, scanStatistics)) {
                     return true;
                 }
             }
-
             if (isComplexType(colType)) {
                 return true;
             }
@@ -200,13 +214,11 @@ public class SplitTopNAggregateToJoinRule extends TransformationRule {
             // No statistics: treat as long string to be safe
             return true;
         }
-
         ColumnStatistic columnStatistic = scanStatistics.getColumnStatistics().get(colRef);
         if (columnStatistic == null || columnStatistic.isUnknown()) {
             // No statistics for this column: treat as long string to be safe
             return true;
         }
-
         double averageRowSize = columnStatistic.getAverageRowSize();
         return averageRowSize >= 5;
     }
@@ -224,11 +236,10 @@ public class SplitTopNAggregateToJoinRule extends TransformationRule {
         LogicalAggregationOperator agg = input.inputAt(0).getOp().cast();
         OptExpression child = input.inputAt(0).inputAt(0);
         ColumnRefFactory factory = context.getColumnRefFactory();
-
+        // for input is a table scan, we can do more precise column pruning
         if (child.getOp() instanceof LogicalOlapScanOperator scan) {
             return rewriteWithScan(topN, agg, scan, factory);
         }
-
         return rewriteWithCTE(input, topN, agg, context);
     }
 
@@ -237,7 +248,6 @@ public class SplitTopNAggregateToJoinRule extends TransformationRule {
         if (orderByElements.size() != agg.getGroupingKeys().size()) {
             return false;
         }
-
         for (int i = 0; i < orderByElements.size(); i++) {
             if (!orderByElements.get(i).getColumnRef().equals(agg.getGroupingKeys().get(i))) {
                 return false;

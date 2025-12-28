@@ -42,6 +42,38 @@
 
 namespace starrocks {
 
+// Implementation for GroupKeyComparator operator()
+bool Aggregator::GroupKeyComparator::operator()(const Columns& lhs, const Columns& rhs) const {
+    DCHECK_EQ(lhs.size(), rhs.size());
+    DCHECK_EQ(lhs.size(), sort_exprs->size());
+
+    for (int i = 0; i < lhs.size(); i++) {
+        auto* expr = (*sort_exprs)[i]->root();
+        int asc = is_asc_order[i] ? 1 : -1;
+        int null_first = is_null_first[i] ? -1 : 1;
+
+        bool left_is_null = lhs[i]->is_null(0);
+        bool right_is_null = rhs[i]->is_null(0);
+
+        if (left_is_null && right_is_null) {
+            continue; // Both are null, continue to next column
+        }
+        if (left_is_null) {
+            return null_first < 0; // nulls come first if null_first is true
+        }
+        if (right_is_null) {
+            return null_first > 0; // non-null comes first if null_first is false
+        }
+
+        // Both are non-null, compare the values
+        int cmp = lhs[i]->compare_at(0, 0, *(rhs[i]), 0);
+        if (cmp != 0) {
+            return cmp * asc < 0;
+        }
+    }
+    return false; // Equal case
+}
+
 static const std::unordered_set<std::string> ALWAYS_NULLABLE_RESULT_AGG_FUNCS = {
         "variance_samp", "var_samp", "stddev_samp", "covar_samp", "corr", "max_by_v2", "min_by_v2"};
 
@@ -194,6 +226,11 @@ AggregatorParamsPtr convert_to_aggregator_params(const TPlanNode& tnode) {
                 tnode.agg_node.__isset.enable_pipeline_share_limit ? tnode.agg_node.enable_pipeline_share_limit : false;
         params->grouping_min_max =
                 tnode.agg_node.__isset.group_by_min_max ? tnode.agg_node.group_by_min_max : std::vector<TExpr>{};
+
+        // Extract TopN information for filtering group by data during aggregation
+        if (tnode.agg_node.__isset.agg_topn_sort_info) {
+            params->agg_topn_sort_info = tnode.agg_node.agg_topn_sort_info;
+        }
 
         break;
     }
@@ -553,12 +590,160 @@ Status Aggregator::prepare(RuntimeState* state, RuntimeProfile* runtime_profile)
         _fns.emplace_back(aggregate_functions[i].nodes[0].fn);
     }
 
+    // Set up TopN information if available from params
+    if (_params->agg_topn_sort_info.has_value()) {
+        const auto& sort_info = _params->agg_topn_sort_info.value();
+        std::vector<ExprContext*>* sort_exprs = _pool->add(new std::vector<ExprContext*>());
+        RETURN_IF_ERROR(Expr::create_expr_trees(_pool.get(), sort_info.ordering_exprs, sort_exprs, state, true));
+        RETURN_IF_ERROR(Expr::prepare(*sort_exprs, state));
+
+        set_agg_topn_info(sort_exprs, sort_info.is_asc_order, sort_info.nulls_first,
+                         static_cast<size_t>(_limit > 0 ? _limit : 100)); // Use limit from params or default
+    }
+
     // prepare for spiller
     if (spiller()) {
         RETURN_IF_ERROR(spiller()->prepare(state));
     }
 
     return Status::OK();
+}
+
+void Aggregator::set_agg_topn_info(std::vector<ExprContext*>* sort_exprs,
+                                   const std::vector<bool>& is_asc_order,
+                                   const std::vector<bool>& is_null_first,
+                                   size_t limit) {
+    _agg_topn_sort_exprs = sort_exprs;
+    _agg_topn_is_asc_order = is_asc_order;
+    _agg_topn_is_null_first = is_null_first;
+    _agg_topn_limit = limit;
+    _use_agg_topn_filtering = true;
+
+    // Initialize the priority queue with the comparator
+    _topn_group_keys_queue = std::priority_queue<Columns, std::vector<Columns>, GroupKeyComparator>(
+        GroupKeyComparator(_agg_topn_sort_exprs, _agg_topn_is_asc_order, _agg_topn_is_null_first));
+}
+
+bool Aggregator::should_include_group_key(const Columns& group_keys) const {
+    if (!_use_agg_topn_filtering) {
+        return true;
+    }
+
+    // If we haven't reached the limit yet, include the group
+    if (_topn_group_keys_queue.size() < _agg_topn_limit) {
+        return true;
+    }
+
+    // If this group key is better (smaller) than the largest one in the queue,
+    // it should be included
+    GroupKeyComparator comparator(_agg_topn_sort_exprs, _agg_topn_is_asc_order, _agg_topn_is_null_first);
+    if (comparator(group_keys, _topn_group_keys_queue.top())) {
+        return true;
+    }
+
+    // Otherwise, it's not among the top N, so exclude it
+    return false;
+}
+
+void Aggregator::process_group_key_for_topn(const Columns& group_keys) {
+    if (!_use_agg_topn_filtering) {
+        return;
+    }
+
+    // Track the total number of groups processed
+    _topn_total_group_count++;
+
+    // Add this group key to the priority queue
+    _topn_group_keys_queue.push(group_keys);
+
+    // Keep only the top N group keys by removing the largest if we exceed the limit
+    if (_topn_group_keys_queue.size() > _agg_topn_limit) {
+        _topn_group_keys_queue.pop();
+        _topn_update_count++; // Track how many times we update the queue
+    }
+}
+
+void Aggregator::evaluate_topn_sparsity_strategy() {
+    if (!_use_agg_topn_filtering) {
+        return;
+    }
+
+    // If group by keys are sparse and it rarely updates the TopN priority queue,
+    // don't apply group by filters again (i.e., the queue doesn't change much)
+    if (_topn_total_group_count > 0) {
+        // Calculate update rate: how often the priority queue is updated
+        double update_rate = static_cast<double>(_topn_update_count) / static_cast<double>(_topn_total_group_count);
+
+        // If update rate is low (e.g., less than 10%), the data is sparse
+        // and we might want to avoid the overhead of continuous filtering
+        _topn_is_sparse = (update_rate < 0.1);
+    } else {
+        _topn_is_sparse = false; // No data processed yet
+    }
+}
+
+bool Aggregator::create_and_update_topn_filter(const Columns& group_by_columns, size_t chunk_size) {
+    if (!_use_agg_topn_filtering || _topn_is_sparse) {
+        // If sparsity analysis indicates data is sparse, don't apply filter
+        return false;
+    }
+
+    // Create or resize the filter column if needed
+    if (!_topn_filter_column_created || _topn_filter_column->size() < chunk_size) {
+        _topn_filter_column = UInt8Column::create();
+        _topn_filter_column->resize(chunk_size);
+        _topn_filter_column_created = true;
+    }
+
+    // Get the current top-N groups as a reference for filtering
+    auto temp_queue = _topn_group_keys_queue; // copy the current queue
+    std::vector<Columns> top_n_groups;
+    while (!temp_queue.empty()) {
+        top_n_groups.push_back(temp_queue.top());
+        temp_queue.pop();
+    }
+
+    // For each row in the chunk, determine if it should be included
+    uint8_t* filter_data = _topn_filter_column->mutable_raw_data();
+
+    // Create a temporary chunk to evaluate each row
+    for (size_t i = 0; i < chunk_size; i++) {
+        // Create temporary columns for this single row
+        Columns row_columns;
+        for (const auto& col : group_by_columns) {
+            auto single_row_col = col->clone_empty();
+            single_row_col->append_datum(col->get(i));
+            row_columns.push_back(std::move(single_row_col));
+        }
+
+        // Check if this row's group keys are in the top-N
+        bool should_include = false;
+        GroupKeyComparator comparator(_agg_topn_sort_exprs, _agg_topn_is_asc_order, _agg_topn_is_null_first);
+
+        // Compare against all current top-N groups
+        for (const auto& top_group : top_n_groups) {
+            if (!comparator(row_columns, top_group) && !comparator(top_group, row_columns)) {
+                // Exact match found
+                should_include = true;
+                break;
+            }
+        }
+
+        // If not an exact match, check if it would be in the top-N
+        if (!should_include && _topn_group_keys_queue.size() < _agg_topn_limit) {
+            // If we haven't reached the limit yet, include it
+            should_include = true;
+        } else if (!should_include) {
+            // Check if this key would be in the top-N compared to the largest in queue
+            if (!_topn_group_keys_queue.empty()) {
+                should_include = !comparator(_topn_group_keys_queue.top(), row_columns);
+            }
+        }
+
+        filter_data[i] = should_include ? 1 : 0;
+    }
+
+    return true; // Filter created successfully
 }
 
 bool Aggregator::_is_agg_result_nullable(const TExpr& desc, const AggFunctionTypes& agg_func_type) {

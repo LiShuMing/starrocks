@@ -34,6 +34,8 @@
 #include "exec/pipeline/context_with_dependency.h"
 #include "exec/pipeline/schedule/observer.h"
 #include "exec/pipeline/spill_process_channel.h"
+#include "exec/sorting/sort_helper.h"
+#include "exec/sorting/sorting.h"
 #include "exprs/agg/aggregate.h"
 #include "exprs/expr.h"
 #include "runtime/descriptors.h"
@@ -227,6 +229,9 @@ struct AggregatorParams {
     // group by types
     // only invalid after inited
     std::vector<ColumnType> group_by_types;
+
+    // TopN information for filtering group by data during aggregation
+    std::optional<TSortInfo> agg_topn_sort_info;
 
     bool has_nullable_key;
 
@@ -517,6 +522,39 @@ protected:
     // aggregate combinator functions since they are not persisted in agg hash map
     std::vector<AggregateFunctionPtr> _combinator_function;
 
+    // TopN information for filtering group by data during aggregation
+    std::vector<ExprContext*>* _agg_topn_sort_exprs = nullptr;
+    std::vector<bool> _agg_topn_is_asc_order;
+    std::vector<bool> _agg_topn_is_null_first;
+    size_t _agg_topn_limit = 0;
+    bool _use_agg_topn_filtering = false;
+
+    // Sparsity tracking for TopN filtering optimization
+    size_t _topn_update_count = 0;
+    size_t _topn_total_group_count = 0;
+    bool _topn_is_sparse = false; // Set based on sparsity analysis
+
+    // Priority queue to maintain top-N groups during aggregation
+    struct GroupKeyComparator {
+        explicit GroupKeyComparator(const std::vector<ExprContext*>* sort_exprs,
+                                   const std::vector<bool>& is_asc_order,
+                                   const std::vector<bool>& is_null_first)
+                : sort_exprs(sort_exprs), is_asc_order(is_asc_order), is_null_first(is_null_first) {}
+
+        bool operator()(const Columns& lhs, const Columns& rhs) const;
+
+        const std::vector<ExprContext*>* sort_exprs;
+        const std::vector<bool>& is_asc_order;
+        const std::vector<bool>& is_null_first;
+    };
+
+    // Priority queue to maintain top-N group keys
+    std::priority_queue<Columns, std::vector<Columns>, GroupKeyComparator> _topn_group_keys_queue;
+
+    // Filter column for input data when TopN filtering is applied
+    UInt8ColumnPtr _topn_filter_column = nullptr;
+    bool _topn_filter_column_created = false;
+
     pipeline::PipeObservable _pip_observable;
 
 public:
@@ -533,6 +571,26 @@ public:
 
     bool is_pre_cache() { return _aggr_mode == AM_BLOCKING_PRE_CACHE || _aggr_mode == AM_STREAMING_PRE_CACHE; }
     MutableColumns create_group_by_columns(size_t num_rows) const { return _create_group_by_columns(num_rows); }
+
+    // Methods for TopN filtering during aggregation
+    void set_agg_topn_info(std::vector<ExprContext*>* sort_exprs,
+                           const std::vector<bool>& is_asc_order,
+                           const std::vector<bool>& is_null_first,
+                           size_t limit);
+
+    bool use_agg_topn_filtering() const { return _use_agg_topn_filtering; }
+
+    // Check if a group key should be included based on TopN criteria
+    bool should_include_group_key(const Columns& group_keys) const;
+
+    // Process a group key for TopN filtering
+    void process_group_key_for_topn(const Columns& group_keys);
+
+    // Evaluate sparsity and decide filtering strategy
+    void evaluate_topn_sparsity_strategy();
+
+    // Create and update TopN filter based on current topN state
+    bool create_and_update_topn_filter(const Columns& group_by_columns, size_t chunk_size);
 
 protected:
     bool _reached_limit() { return _limit != -1 && _num_rows_returned >= _limit; }

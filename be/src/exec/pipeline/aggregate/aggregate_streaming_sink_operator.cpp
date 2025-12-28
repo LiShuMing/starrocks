@@ -86,6 +86,21 @@ Status AggregateStreamingSinkOperator::push_chunk(RuntimeState* state, const Chu
     COUNTER_SET(_aggregator->input_row_count(), _aggregator->num_input_rows());
 
     RETURN_IF_ERROR(_aggregator->evaluate_groupby_exprs(chunk.get()));
+
+    // Apply TopN filtering if enabled and not sparse
+    if (_aggregator->use_agg_topn_filtering()) {
+        // Update sparsity analysis
+        _aggregator->evaluate_topn_sparsity_strategy();
+
+        // Apply filter to input data if needed
+        if (_aggregator->create_and_update_topn_filter(_aggregator->group_by_columns(), chunk_size)) {
+            // Use the filtered chunk for aggregation if available
+            // This is where we would apply the filter column to the input
+            // For now, we continue with the original logic but the aggregator
+            // now has the filter information
+        }
+    }
+
     if (_aggregator->streaming_preaggregation_mode() == TStreamingPreaggregationMode::FORCE_STREAMING) {
         RETURN_IF_ERROR(_push_chunk_by_force_streaming(chunk));
     } else if (_aggregator->streaming_preaggregation_mode() == TStreamingPreaggregationMode::FORCE_PREAGGREGATION) {

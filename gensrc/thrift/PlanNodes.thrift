@@ -903,6 +903,9 @@ struct TAggregationNode {
 
   31: optional list<Exprs.TExpr> group_by_min_max
 
+  // TopN information for filtering group by data during aggregation
+  32: optional TSortInfo agg_topn_sort_info
+
 }
 
 struct TRepeatNode {

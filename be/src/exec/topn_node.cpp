@@ -25,6 +25,9 @@
 #include "exec/pipeline/pipeline_builder.h"
 #include "exec/pipeline/sort/local_merge_sort_source_operator.h"
 #include "exec/pipeline/sort/local_parallel_merge_sort_source_operator.h"
+#include "exec/pipeline/sort/local_partition_hash_topn_context.h"
+#include "exec/pipeline/sort/local_partition_hash_topn_sink.h"
+#include "exec/pipeline/sort/local_partition_hash_topn_source.h"
 #include "exec/pipeline/sort/local_partition_topn_context.h"
 #include "exec/pipeline/sort/local_partition_topn_sink.h"
 #include "exec/pipeline/sort/local_partition_topn_source.h"
@@ -382,6 +385,8 @@ std::vector<std::shared_ptr<pipeline::OperatorFactory>> TopNNode::_decompose_to_
 pipeline::OpFactories TopNNode::decompose_to_pipeline(pipeline::PipelineBuilderContext* context) {
     using namespace pipeline;
 
+    bool is_hash_topn =
+            _tnode.sort_node.__isset.topn_type && _tnode.sort_node.topn_type == TTopNType::PARTITION_HASH_TOPN;
     // is_partition_topn is needed for a special optimization on the case of ranking window function with limit or predicate(rk < 100)
     bool is_partition_topn = _tnode.sort_node.__isset.partition_exprs && !_tnode.sort_node.partition_exprs.empty();
     bool is_rank_topn_type = _tnode.sort_node.__isset.topn_type && _tnode.sort_node.topn_type != TTopNType::ROW_NUMBER;
@@ -390,14 +395,21 @@ pipeline::OpFactories TopNNode::decompose_to_pipeline(pipeline::PipelineBuilderC
     // need_merge = false means gather is no longer needed
     bool is_partition_skewed =
             _tnode.sort_node.__isset.analytic_partition_skewed && _tnode.sort_node.analytic_partition_skewed;
-    bool need_merge = !is_per_pipeline && (_analytic_partition_exprs.empty() || is_partition_skewed);
+    bool need_merge = (!is_per_pipeline && (_analytic_partition_exprs.empty() || is_partition_skewed)) ||
+                      (is_hash_topn && !is_per_pipeline);
     bool enable_parallel_merge = _tnode.sort_node.__isset.enable_parallel_merge &&
                                  _tnode.sort_node.enable_parallel_merge &&
                                  !_sort_exec_exprs.lhs_ordering_expr_ctxs().empty();
 
     OpFactories operators_source_with_sort;
 
-    if (is_partition_topn) {
+    if (is_hash_topn) {
+        operators_source_with_sort =
+                _decompose_to_pipeline<LocalPartitionHashTopnContextFactory, LocalPartitionHashTopnSinkOperatorFactory,
+                                       LocalPartitionHashTopnSourceOperatorFactory>(
+                        context, is_partition_topn, is_partition_skewed, need_merge, enable_parallel_merge,
+                        is_per_pipeline);
+    } else if (is_partition_topn) {
         operators_source_with_sort =
                 _decompose_to_pipeline<LocalPartitionTopnContextFactory, LocalPartitionTopnSinkOperatorFactory,
                                        LocalPartitionTopnSourceOperatorFactory>(context, is_partition_topn,
@@ -436,7 +448,7 @@ pipeline::OpFactories TopNNode::decompose_to_pipeline(pipeline::PipelineBuilderC
     }
 
     // Do not add LimitOperator if topn has partition columns or its type is not ROW_NUMBER
-    if (!is_per_pipeline && !is_partition_topn && !is_rank_topn_type && limit() != -1) {
+    if (!is_hash_topn && !is_per_pipeline && !is_partition_topn && !is_rank_topn_type && limit() != -1) {
         operators_source_with_sort.emplace_back(
                 std::make_shared<LimitOperatorFactory>(context->next_operator_id(), id(), limit()));
     }

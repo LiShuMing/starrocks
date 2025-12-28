@@ -324,7 +324,7 @@ protected:
                     });
                     // filter out the partition which are not needed in the hash map
                     if constexpr (!std::is_same_v<std::nullptr_t, std::decay_t<decltype(partition_validator)>>) {
-                        if (!partition_validator(iter->second->partition_idx, partition_columns, i)) {
+                        if (!partition_validator(iter->second->partition_idx), partition_columns, i) {
                             continue;
                         }
                     }

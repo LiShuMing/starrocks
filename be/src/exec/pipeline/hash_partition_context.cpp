@@ -45,7 +45,17 @@ Status HashPartitionContext::prepare(RuntimeState* state, RuntimeProfile* profil
 }
 
 Status HashPartitionContext::push_one_chunk_to_partitioner(RuntimeState* state, const ChunkPtr& chunk) {
-    return _chunks_partitioner->offer<false>(chunk, nullptr, nullptr);
+    ASSIGN_OR_RETURN(auto partition_columns, _compute_partition_columns(chunk));
+    return _chunks_partitioner->offer<false>(chunk, partition_columns, nullptr, nullptr, nullptr);
+}
+
+StatusOr<Columns> HashPartitionContext::_compute_partition_columns(const ChunkPtr& chunk) {
+    Columns partition_columns;
+    partition_columns.resize(_partition_exprs.size());
+    for (size_t i = 0; i < _partition_exprs.size(); i++) {
+        ASSIGN_OR_RETURN(partition_columns[i], _partition_exprs[i]->evaluate(chunk.get()));
+    }
+    return partition_columns;
 }
 
 void HashPartitionContext::sink_complete() {

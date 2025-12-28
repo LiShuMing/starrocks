@@ -19,6 +19,7 @@
 #include "exec/analytor.h"
 #include "exec/chunks_sorter.h"
 #include "exec/partition/chunks_partitioner.h"
+#include "local_partition_pre_aggregate.h"
 #include "runtime/runtime_state.h"
 
 namespace starrocks {
@@ -33,34 +34,6 @@ class LocalPartitionTopnContextFactory;
 
 using LocalPartitionTopnContextPtr = std::shared_ptr<LocalPartitionTopnContext>;
 using LocalPartitionTopnContextFactoryPtr = std::shared_ptr<LocalPartitionTopnContextFactory>;
-
-using AggDataPtr = uint8_t*;
-
-struct PreAggState {
-    PreAggState(const std::vector<TExpr>& t_pre_agg_exprs, const std::vector<TSlotId>& t_pre_agg_output_slot_id)
-            : _t_pre_agg_exprs(t_pre_agg_exprs), _t_pre_agg_output_slot_id(t_pre_agg_output_slot_id) {}
-
-    bool _is_first_chunk_of_current_sorter = true;
-    const std::vector<TExpr>& _t_pre_agg_exprs;
-    const std::vector<TSlotId>& _t_pre_agg_output_slot_id;
-
-    // The offset of the n-th aggregate function in a row of aggregate functions.
-    std::vector<size_t> _agg_states_offsets;
-    // The total size of the row for the aggregate function state.
-    size_t _agg_states_total_size = 0;
-    // The max align size for all aggregate state
-    size_t _max_agg_state_align_size = 1;
-    // The followings are aggregate function information:
-    std::vector<FunctionContext*> _agg_fn_ctxs;
-    std::vector<const AggregateFunction*> _agg_functions;
-    std::vector<std::vector<ExprContext*>> _agg_expr_ctxs;
-    std::vector<Columns> _agg_input_columns;
-    //raw pointers in order to get multi-column values
-    std::vector<std::vector<const Column*>> _agg_input_raw_columns;
-    std::vector<FunctionTypes> _agg_fn_types;
-    // every partition has one Agg State
-    std::vector<ManagedFunctionStatesPtr<PreAggState>> _managed_fn_states;
-};
 
 // LocalPartitionTopnContext is the bridge of each pair of LocalPartitionTopn{Sink/Source}Operators
 // The purpose of LocalPartitionTopn{Sink/Source}Operator is to reduce the amount of data,
@@ -131,7 +104,22 @@ private:
 
     Status _evaluate_agg_input_columns(Chunk* chunk);
 
+    template <bool EnablePreAgg>
+    Status _push_one_chunk_to_partitioner_impl(RuntimeState* state, const ChunkPtr& chunk);
+
+    template <bool EnablePreAgg>
+    Status _transfer_all_chunks_from_partitioner_to_sorters_impl(RuntimeState* state);
+
+    template <bool EnablePreAgg>
+    StatusOr<ChunkPtr> _pull_one_chunk_impl();
+
+    template <bool EnablePreAgg>
+    StatusOr<ChunkPtr> _pull_one_chunk_from_sorters_impl();
+
     MutableColumns _create_agg_result_columns(size_t num_rows);
+
+    StatusOr<Columns> _compute_partition_columns(const ChunkPtr& chunk);
+
     const std::vector<TExpr>& _t_partition_exprs;
     std::vector<ExprContext*> _partition_exprs;
     std::vector<PartitionColumnType> _partition_types;
@@ -139,30 +127,42 @@ private:
 
     // used in preagg
     std::unique_ptr<MemPool> _mem_pool = nullptr;
-    bool _enable_pre_agg;
     // only set when _enable_pre_agg=true
-    std::unique_ptr<PreAggState> _pre_agg;
-
-    // No more input chunks if after _is_sink_complete is set to true
-    bool _is_sink_complete = false;
+    std::unique_ptr<LocalPartitionPreAggregate> _pre_agg;
 
     ChunksPartitionerPtr _chunks_partitioner;
-    bool _is_transfered = false;
-    size_t _partition_num = 0;
+
+    using PushChunkFn = Status (LocalPartitionTopnContext::*)(RuntimeState*, const ChunkPtr&);
+    using TransferFn = Status (LocalPartitionTopnContext::*)(RuntimeState*);
+    using PullFn = StatusOr<ChunkPtr> (LocalPartitionTopnContext::*)();
+    using PullFromSorterFn = StatusOr<ChunkPtr> (LocalPartitionTopnContext::*)();
+
+    PushChunkFn _push_chunk_fn = nullptr;
+    TransferFn _transfer_fn = nullptr;
+    PullFn _pull_fn = nullptr;
+    PullFromSorterFn _pull_from_sorter_fn = nullptr;
 
     // Every partition holds a chunks_sorter
     ChunksSorters _chunks_sorters;
     const std::vector<ExprContext*>& _sort_exprs;
     std::vector<bool> _is_asc_order;
     std::vector<bool> _is_null_first;
+    PipeObservable _observable;
     const std::string _sort_keys;
     int64_t _offset;
     int64_t _partition_limit;
-    const TTopNType::type _topn_type;
-
+    size_t _partition_num = 0;
     int32_t _sorter_index = 0;
-
-    PipeObservable _observable;
+    // topn type
+    const TTopNType::type _topn_type;
+    // whether enable pre-aggregate
+    bool _enable_pre_agg;
+    const std::vector<TExpr>& _t_pre_agg_exprs;
+    const std::vector<TSlotId>& _t_pre_agg_output_slot_id;
+    // No more input chunks if after _is_sink_complete is set to true
+    bool _is_sink_complete = false;
+    // whether transfer all chunks from partitioner to sorters
+    bool _is_transfered = false;
 };
 
 using LocalPartitionTopnContextPtr = std::shared_ptr<LocalPartitionTopnContext>;
@@ -183,15 +183,13 @@ public:
 
 private:
     std::unordered_map<int32_t, LocalPartitionTopnContextPtr> _ctxs;
-
-    const TTopNType::type _topn_type;
-
     ChunksSorters _chunks_sorters;
+    const TTopNType::type _topn_type;
     const std::vector<ExprContext*>& _sort_exprs;
     std::vector<bool> _is_asc_order;
     std::vector<bool> _is_null_first;
     const std::vector<TExpr>& _t_partition_exprs;
-    bool enable_pre_agg;
+    bool _enable_pre_agg;
     const std::vector<TExpr>& _t_pre_agg_exprs;
     const std::vector<TSlotId>& _t_pre_agg_output_slot_id;
     int64_t _offset;

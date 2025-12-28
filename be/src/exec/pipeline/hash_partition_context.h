@@ -51,6 +51,8 @@ public:
     int32_t num_partitions() const { return _chunks_partitioner->num_partitions(); }
 
 private:
+    StatusOr<Columns> _compute_partition_columns(const ChunkPtr& chunk);
+
     bool _has_nullable_key = false;
     const std::vector<TExpr>& _t_partition_exprs;
     std::vector<ExprContext*> _partition_exprs;

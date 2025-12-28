@@ -27,6 +27,7 @@
 #include "exec/agg_runtime_filter_builder.h"
 #include "exec/aggregate/agg_hash_variant.h"
 #include "exec/aggregate/agg_profile.h"
+#include "exec/chunks_sorter.h"
 #include "exec/exec_node.h"
 #include "exec/pipeline/operator.h"
 #include "exprs/agg/aggregate_factory.h"
@@ -695,18 +696,42 @@ bool Aggregator::create_and_update_topn_filter(const Columns& group_by_columns, 
         _topn_filter_column_created = true;
     }
 
-    // Get the current top-N groups as a reference for filtering
-    auto temp_queue = _topn_group_keys_queue; // copy the current queue
-    std::vector<Columns> top_n_groups;
-    while (!temp_queue.empty()) {
-        top_n_groups.push_back(temp_queue.top());
-        temp_queue.pop();
-    }
-
-    // For each row in the chunk, determine if it should be included
     uint8_t* filter_data = _topn_filter_column->mutable_raw_data();
 
-    // Create a temporary chunk to evaluate each row
+    // If the priority queue is empty, include all rows
+    if (_topn_group_keys_queue.empty()) {
+        memset(filter_data, 1, chunk_size);
+        return true;
+    }
+
+    // If we haven't reached the limit yet, include all rows
+    if (_topn_group_keys_queue.size() < _agg_topn_limit) {
+        memset(filter_data, 1, chunk_size);
+        return true;
+    }
+
+    // Get the boundary value (the worst/largest value in the top-N queue for ascending order)
+    const Columns& boundary_keys = _topn_group_keys_queue.top();
+    bool asc = _agg_topn_is_asc_order.empty() ? true : _agg_topn_is_asc_order[0];
+
+    // For single column comparison, use efficient runtime filter evaluation
+    if (group_by_columns.size() == 1 && boundary_keys.size() == 1 && _agg_topn_sort_exprs->size() == 1) {
+        // For ascending order: use min-max filter with open interval on max (values < boundary)
+        // For descending order: use min-max filter with open interval on min (values > boundary)
+        bool is_close_interval = false; // Open interval to exclude boundary
+        auto* rf = build_topn_runtime_filter(_pool.get(), asc, is_close_interval);
+        if (rf != nullptr && !rf->empty() && (*rf) != nullptr) {
+            RuntimeFilter::RunningContext ctx;
+            ctx.use_merged_selection = false;
+            (*rf)->evaluate(group_by_columns[0].get(), &ctx);
+            memcpy(filter_data, ctx.selection.data(), chunk_size);
+            return true;
+        }
+    }
+
+    // Fall back to comparator-based evaluation for multi-column or complex cases
+    GroupKeyComparator comparator(_agg_topn_sort_exprs, _agg_topn_is_asc_order, _agg_topn_is_null_first);
+
     for (size_t i = 0; i < chunk_size; i++) {
         // Create temporary columns for this single row
         Columns row_columns;
@@ -716,34 +741,52 @@ bool Aggregator::create_and_update_topn_filter(const Columns& group_by_columns, 
             row_columns.push_back(std::move(single_row_col));
         }
 
-        // Check if this row's group keys are in the top-N
-        bool should_include = false;
-        GroupKeyComparator comparator(_agg_topn_sort_exprs, _agg_topn_is_asc_order, _agg_topn_is_null_first);
-
-        // Compare against all current top-N groups
-        for (const auto& top_group : top_n_groups) {
-            if (!comparator(row_columns, top_group) && !comparator(top_group, row_columns)) {
-                // Exact match found
-                should_include = true;
-                break;
-            }
-        }
-
-        // If not an exact match, check if it would be in the top-N
-        if (!should_include && _topn_group_keys_queue.size() < _agg_topn_limit) {
-            // If we haven't reached the limit yet, include it
-            should_include = true;
-        } else if (!should_include) {
-            // Check if this key would be in the top-N compared to the largest in queue
-            if (!_topn_group_keys_queue.empty()) {
-                should_include = !comparator(_topn_group_keys_queue.top(), row_columns);
-            }
-        }
-
+        // Check if this key would be in the top-N compared to the boundary
+        // For ascending order: include if row < boundary (comparator(row, boundary) is true)
+        // For descending order: include if row > boundary (comparator(boundary, row) is true)
+        bool should_include = asc ? comparator(row_columns, boundary_keys) : comparator(boundary_keys, row_columns);
         filter_data[i] = should_include ? 1 : 0;
     }
 
     return true; // Filter created successfully
+}
+
+std::vector<RuntimeFilter*>* Aggregator::build_topn_runtime_filter(ObjectPool* pool, bool asc, bool is_close_interval) {
+    if (!_use_agg_topn_filtering) {
+        return nullptr;
+    }
+
+    if (_topn_group_keys_queue.empty()) {
+        return nullptr;
+    }
+
+    // Get the boundary value (the worst/largest value in the top-N queue)
+    const Columns& boundary_keys = _topn_group_keys_queue.top();
+    if (boundary_keys.empty() || _agg_topn_sort_exprs == nullptr || _agg_topn_sort_exprs->empty()) {
+        return nullptr;
+    }
+
+    bool null_first = _agg_topn_is_null_first.empty() ? true : _agg_topn_is_null_first[0];
+
+    // Build the runtime filter using the boundary column
+    // The boundary_keys[0] contains the first sort expression's column
+    if (_topn_runtime_filters.empty()) {
+        auto* rf = type_dispatch_predicate<RuntimeFilter*>(
+                (*_agg_topn_sort_exprs)[0]->root()->type().type, false, detail::SortRuntimeFilterBuilder(), pool,
+                boundary_keys[0], 0, asc, null_first, is_close_interval);
+        if (rf == nullptr) {
+            return nullptr;
+        } else {
+            _topn_runtime_filters.emplace_back(rf);
+        }
+    } else {
+        // Update existing filter with potentially better boundary
+        type_dispatch_predicate<std::nullptr_t>(
+                (*_agg_topn_sort_exprs)[0]->root()->type().type, false, detail::SortRuntimeFilterUpdater(),
+                _topn_runtime_filters.back(), boundary_keys[0], 0, asc, null_first, is_close_interval);
+    }
+
+    return &_topn_runtime_filters;
 }
 
 bool Aggregator::_is_agg_result_nullable(const TExpr& desc, const AggFunctionTypes& agg_func_type) {

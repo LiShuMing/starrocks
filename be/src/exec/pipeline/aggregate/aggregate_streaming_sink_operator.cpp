@@ -88,27 +88,48 @@ Status AggregateStreamingSinkOperator::push_chunk(RuntimeState* state, const Chu
     RETURN_IF_ERROR(_aggregator->evaluate_groupby_exprs(chunk.get()));
 
     // Apply TopN filtering if enabled and not sparse
+    ChunkPtr filtered_chunk = chunk;
     if (_aggregator->use_agg_topn_filtering()) {
         // Update sparsity analysis
         _aggregator->evaluate_topn_sparsity_strategy();
 
-        // Apply filter to input data if needed
+        // Create and update the TopN filter
         if (_aggregator->create_and_update_topn_filter(_aggregator->group_by_columns(), chunk_size)) {
-            // Use the filtered chunk for aggregation if available
-            // This is where we would apply the filter column to the input
-            // For now, we continue with the original logic but the aggregator
-            // now has the filter information
+            // Apply the filter to all columns in the chunk
+            if (_aggregator->has_topn_filter()) {
+                const auto& filter_column = _aggregator->topn_filter_column();
+                const uint8_t* filter_data = filter_column->raw_data();
+
+                // Check if all rows should be included (filter is all 1s)
+                bool all_pass = true;
+                for (size_t i = 0; i < chunk_size; i++) {
+                    if (filter_data[i] == 0) {
+                        all_pass = false;
+                        break;
+                    }
+                }
+
+                // If not all rows pass, create a filtered chunk
+                if (!all_pass) {
+                    filtered_chunk = chunk->clone_empty();
+                    for (const auto& column : chunk->columns()) {
+                        auto filtered_column = column->clone_empty();
+                        filtered_column->append_selective(*column, *filter_column);
+                        filtered_chunk->append_column(filtered_column);
+                    }
+                }
+            }
         }
     }
 
     if (_aggregator->streaming_preaggregation_mode() == TStreamingPreaggregationMode::FORCE_STREAMING) {
-        RETURN_IF_ERROR(_push_chunk_by_force_streaming(chunk));
+        RETURN_IF_ERROR(_push_chunk_by_force_streaming(filtered_chunk));
     } else if (_aggregator->streaming_preaggregation_mode() == TStreamingPreaggregationMode::FORCE_PREAGGREGATION) {
-        RETURN_IF_ERROR(_push_chunk_by_force_preaggregation(chunk, chunk->num_rows()));
+        RETURN_IF_ERROR(_push_chunk_by_force_preaggregation(filtered_chunk, filtered_chunk->num_rows()));
     } else if (_aggregator->streaming_preaggregation_mode() == TStreamingPreaggregationMode::LIMITED_MEM) {
-        RETURN_IF_ERROR(_push_chunk_by_limited_memory(chunk, chunk_size));
+        RETURN_IF_ERROR(_push_chunk_by_limited_memory(filtered_chunk, chunk_size));
     } else {
-        RETURN_IF_ERROR(_push_chunk_by_auto(chunk, chunk->num_rows()));
+        RETURN_IF_ERROR(_push_chunk_by_auto(filtered_chunk, filtered_chunk->num_rows()));
     }
     RETURN_IF_ERROR(_aggregator->check_has_error());
     return Status::OK();

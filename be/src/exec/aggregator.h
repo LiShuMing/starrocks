@@ -555,6 +555,9 @@ protected:
     UInt8ColumnPtr _topn_filter_column = nullptr;
     bool _topn_filter_column_created = false;
 
+    // Runtime filters built from TopN priority queue
+    std::vector<RuntimeFilter*> _topn_runtime_filters;
+
     pipeline::PipeObservable _pip_observable;
 
 public:
@@ -591,6 +594,16 @@ public:
 
     // Create and update TopN filter based on current topN state
     bool create_and_update_topn_filter(const Columns& group_by_columns, size_t chunk_size);
+
+    // Build TopN runtime filter from the priority queue (for sharing with downstream operators)
+    // @param pool: ObjectPool to allocate the runtime filter
+    // @param asc: sort order (true for ascending, false for descending)
+    // @param is_close_interval: whether to use closed interval for the filter
+    std::vector<RuntimeFilter*>* build_topn_runtime_filter(ObjectPool* pool, bool asc = true, bool is_close_interval = true);
+
+    // Get the filter column for TopN filtering
+    const UInt8ColumnPtr& topn_filter_column() const { return _topn_filter_column; }
+    bool has_topn_filter() const { return _topn_filter_column_created && _topn_filter_column != nullptr; }
 
 protected:
     bool _reached_limit() { return _limit != -1 && _num_rows_returned >= _limit; }

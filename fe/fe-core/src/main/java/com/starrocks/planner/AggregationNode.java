@@ -116,6 +116,7 @@ public class AggregationNode extends PlanNode implements RuntimeFilterBuildNode 
 
     // used for Top-N optimization for aggregation
     private SortInfo topNSortInfo;
+    private long topNLimit = -1;
 
     /**
      * Create an agg node that is not an intermediate node.
@@ -230,6 +231,14 @@ public class AggregationNode extends PlanNode implements RuntimeFilterBuildNode 
 
     public SortInfo getTopNSortInfo() {
         return topNSortInfo;
+    }
+
+    public void setTopNLimit(long topNLimit) {
+        this.topNLimit = topNLimit;
+    }
+
+    public long getTopNLimit() {
+        return topNLimit;
     }
 
     @Override
@@ -580,6 +589,12 @@ public class AggregationNode extends PlanNode implements RuntimeFilterBuildNode 
             Expr groupingExpr = aggInfo.getGroupingExprs().get(0);
             pushDownUnaryInRuntimeFilter(generator, groupingExpr, descTbl, execGroupSets, 0);
         }
+        // generate topn runtime filter
+        if (sv.getEnableTopNRuntimeFilter() && topNSortInfo != null
+                && !topNSortInfo.getOrderingExprs().isEmpty()) {
+            Expr topnExpr = topNSortInfo.getOrderingExprs().get(0);
+            pushDownUnaryTopNRuntimeFilter(generator, topnExpr, descTbl, execGroupSets, 0);
+        }
         withRuntimeFilters = !buildRuntimeFilters.isEmpty();
     }
 
@@ -623,6 +638,39 @@ public class AggregationNode extends PlanNode implements RuntimeFilterBuildNode 
                 JoinNode.DistributionMode.PARTITIONED);
     }
 
+    private void pushDownUnaryAggTopNRuntimeFilter(IdGenerator<RuntimeFilterId> generator, Expr expr,
+                                                 DescriptorTable descTbl,
+                                                 ExecGroupSets execGroupSets,
+                                                 RuntimeFilterDescription.RuntimeFilterType type,
+                                                 int exprOrder,
+                                                 JoinNode.DistributionMode mode) {
+        SessionVariable sessionVariable = ConnectContext.get().getSessionVariable();
+        RuntimeFilterDescription rf = new RuntimeFilterDescription(sessionVariable);
+        rf.setFilterId(generator.getNextId().asInt());
+        rf.setBuildPlanNodeId(getId().asInt());
+        rf.setExprOrder(exprOrder);
+        rf.setJoinMode(mode);
+        rf.setBuildExpr(expr);
+        rf.setRuntimeFilterType(type);
+        rf.setOnlyLocal(true);
+        rf.setSortInfo(topNSortInfo);
+        rf.setTopN(topNLimit);
+        rf.setEqualCount(1);
+        RuntimeFilterPushDownContext rfPushDownCtx = new RuntimeFilterPushDownContext(rf, descTbl, execGroupSets);
+        for (PlanNode child : children) {
+            if (child.pushDownRuntimeFilters(rfPushDownCtx, expr, Lists.newArrayList())) {
+                this.buildRuntimeFilters.add(rf);
+            }
+        }
+    }
+
+    private void pushDownUnaryTopNRuntimeFilter(IdGenerator<RuntimeFilterId> generator, Expr expr,
+                                                DescriptorTable descTbl, ExecGroupSets execGroupSets,
+                                                int exprOrder) {
+        pushDownUnaryAggTopNRuntimeFilter(generator, expr, descTbl, execGroupSets,
+                RuntimeFilterDescription.RuntimeFilterType.TOPN_FILTER, exprOrder,
+                JoinNode.DistributionMode.BROADCAST);
+    }
     @Override
     public void clearBuildRuntimeFilters() {
         buildRuntimeFilters.clear();

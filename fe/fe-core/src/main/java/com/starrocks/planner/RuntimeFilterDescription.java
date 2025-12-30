@@ -54,14 +54,15 @@ public class RuntimeFilterDescription {
     public enum RuntimeFilterType {
         TOPN_FILTER,
         JOIN_FILTER,
-        AGG_IN_FILTER;
+        AGG_IN_FILTER,
+        AGG_TOPN_FILTER;
 
         public boolean isTopNFilter() {
             return TOPN_FILTER.equals(this);
         }
 
-        public boolean isAggInFilter() {
-            return AGG_IN_FILTER.equals(this);
+        public boolean isAggFilter() {
+            return AGG_IN_FILTER.equals(this) || AGG_TOPN_FILTER.equals(this);
         }
     }
 
@@ -260,7 +261,7 @@ public class RuntimeFilterDescription {
 
     // return true if Node could accept the Filter
     public boolean canAcceptFilter(PlanNode node, RuntimeFilterPushDownContext rfPushCtx) {
-        if (runtimeFilterType().isTopNFilter() || runtimeFilterType().isAggInFilter()) {
+        if (runtimeFilterType().isTopNFilter() || runtimeFilterType().isAggFilter()) {
             if (node instanceof ScanNode) {
                 ScanNode scanNode = (ScanNode) node;
                 return scanNode.supportTopNRuntimeFilter();
@@ -640,7 +641,7 @@ public class RuntimeFilterDescription {
 
         if (runtimeFilterType().isTopNFilter()) {
             t.setFilter_type(TRuntimeFilterBuildType.TOPN_FILTER);
-        } else if (runtimeFilterType().isAggInFilter()) {
+        } else if (runtimeFilterType().isAggFilter()) {
             t.setFilter_type(TRuntimeFilterBuildType.AGG_FILTER);
         } else {
             t.setFilter_type(TRuntimeFilterBuildType.JOIN_FILTER);

@@ -2449,6 +2449,7 @@ public class PlanFragmentBuilder {
                         orderSpec.getOrderDescs().stream().map(Ordering::isAscending).collect(Collectors.toList()),
                         orderSpec.getOrderDescs().stream().map(Ordering::isNullsFirst).collect(Collectors.toList()));
                 aggregationNode.setTopNSortInfo(sortInfo);
+                aggregationNode.setTopNLimit(topNSortInfo.limit());
             }
 
             aggregationNode.getAggInfo().setIntermediateAggrExprs(intermediateAggrExprs);

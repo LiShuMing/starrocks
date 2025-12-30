@@ -40,6 +40,7 @@ import com.starrocks.planner.expression.ExprToThrift;
 import com.starrocks.sql.ast.OrderByElement;
 import com.starrocks.sql.ast.expression.Expr;
 import com.starrocks.sql.ast.expression.ExprUtils;
+import com.starrocks.thrift.TSortInfo;
 
 import java.util.List;
 

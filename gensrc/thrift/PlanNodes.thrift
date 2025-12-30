@@ -857,6 +857,17 @@ enum TAggregationOp {
   PERCENT_RANK
 }
 
+struct TSortInfo {
+  1: required list<Exprs.TExpr> ordering_exprs
+  2: required list<bool> is_asc_order
+  // Indicates, for each expr, if nulls should be listed first or last. This is
+  // independent of is_asc_order.
+  3: required list<bool> nulls_first
+  // Expressions evaluated over the input row that materialize the tuple to be sorted.
+  // Contains one expr per slot in the materialized tuple.
+  4: optional list<Exprs.TExpr> sort_tuple_slot_exprs
+}
+
 struct TAggregationNode {
   1: optional list<Exprs.TExpr> grouping_exprs
   // aggregate exprs. The root of each expr is the aggregate function. The
@@ -903,6 +914,11 @@ struct TAggregationNode {
 
   31: optional list<Exprs.TExpr> group_by_min_max
 
+  // TopN information for filtering group by data during aggregation
+  32: optional TSortInfo agg_topn_sort_info
+  // When topn info is set, this limit is used to distinguish the default node limit
+  33: optional i64 topn_limit
+
 }
 
 struct TRepeatNode {
@@ -916,17 +932,6 @@ struct TRepeatNode {
   4: required list<list<i64>> grouping_list
   // A list of all slot
   5: required set<Types.TSlotId> all_slot_ids
-}
-
-struct TSortInfo {
-  1: required list<Exprs.TExpr> ordering_exprs
-  2: required list<bool> is_asc_order
-  // Indicates, for each expr, if nulls should be listed first or last. This is
-  // independent of is_asc_order.
-  3: required list<bool> nulls_first
-  // Expressions evaluated over the input row that materialize the tuple to be sorted.
-  // Contains one expr per slot in the materialized tuple.
-  4: optional list<Exprs.TExpr> sort_tuple_slot_exprs
 }
 
 enum TTopNType {

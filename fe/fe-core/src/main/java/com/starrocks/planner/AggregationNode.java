@@ -114,6 +114,9 @@ public class AggregationNode extends PlanNode implements RuntimeFilterBuildNode 
 
     private List<Pair<ConstantOperator, ConstantOperator>> groupByMinMaxStats = Lists.newArrayList();
 
+    // used for Top-N optimization for aggregation
+    private SortInfo topNSortInfo;
+
     /**
      * Create an agg node that is not an intermediate node.
      * isIntermediate is true if it is a slave node in a 2-part agg plan.
@@ -219,6 +222,14 @@ public class AggregationNode extends PlanNode implements RuntimeFilterBuildNode 
 
     public boolean isIdenticallyDistributed() {
         return identicallyDistributed;
+    }
+
+    public void setTopNSortInfo(SortInfo topNSortInfo) {
+        this.topNSortInfo = topNSortInfo;
+    }
+
+    public SortInfo getTopNSortInfo() {
+        return topNSortInfo;
     }
 
     @Override
@@ -329,6 +340,10 @@ public class AggregationNode extends PlanNode implements RuntimeFilterBuildNode 
                 useStreamingPreagg && ConnectContext.get().getSessionVariable().isInterpolatePassthrough());
         msg.agg_node.setEnable_pipeline_share_limit(
                 ConnectContext.get().getSessionVariable().getEnableAggregationPipelineShareLimit());
+
+        if (topNSortInfo != null) {
+            msg.agg_node.setAgg_topn_sort_info(topNSortInfo.toThrift());
+        }
     }
 
     protected String getDisplayLabelDetail() {

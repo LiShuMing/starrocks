@@ -939,6 +939,22 @@ RuntimeFilter* Aggregator::build_in_filters(RuntimeState* state, RuntimeFilterBu
     return in_builder.build(this, state->obj_pool());
 }
 
+StatusOr<RuntimeFilter*> Aggregator::build_topn_filters(RuntimeState* state, RuntimeFilterBuildDescriptor* desc,
+                                                        std::shared_ptr<AggTopNRuntimeFilterBuilder>* builder) {
+    int expr_order = desc->build_expr_order();
+    const auto& group_type_type = _group_by_types[expr_order].result_type.type;
+    auto& topn_builder = *builder;
+    if (size() < desc->limit()) {
+        return nullptr;
+    }
+    if (topn_builder == nullptr) {
+        topn_builder = std::make_shared<AggTopNRuntimeFilterBuilder>(desc, group_type_type);
+        return topn_builder->init_build(this, state->obj_pool());
+    }
+    LOG(WARNING) << "TRACE: hash table size:" << size() << " limit:" << desc->limit();
+    return topn_builder->update(_group_by_columns[expr_order].get(), state->obj_pool());
+}
+
 Status Aggregator::_evaluate_const_columns(int i) {
     // used for const columns.
     Columns const_columns;
@@ -1739,6 +1755,12 @@ void Aggregator::build_hash_set(size_t chunk_size) {
 void Aggregator::build_hash_set_with_selection(size_t chunk_size) {
     _hash_set_variant.visit([&](auto& hash_set) {
         hash_set->build_hash_set_with_selection(chunk_size, _group_by_columns, _mem_pool.get(), &_streaming_selection);
+    });
+}
+
+void Aggregator::insert_keys_to_columns(MutableColumns& key_columns, size_t chunk_size) {
+    _hash_map_variant.visit([&](auto& hash_map_with_key) {
+        hash_map_with_key->insert_keys_to_columns(hash_map_with_key->results, key_columns, chunk_size);
     });
 }
 

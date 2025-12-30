@@ -31,11 +31,9 @@ import java.util.List;
 
 /*
  * When a top-n operator follows after a 2 phase aggregation, and the top-n order by columns do not depend
- * on the aggregation results, the topN could be pushed down below the global aggregation.
- * In order to correctly compute the topN each local node has to fully aggregate the data, this means
- * streaming aggregations have to be set to force pre-aggregation mode.
- * In order to avoid introducing a local shuffle before pre-aggregations, the topN is computed separately for
- * each pipeline without a merge step.
+ * on the aggregation results (i.e., they are the same as the group by columns), the topN could be
+ * pushed down below the global aggregation to filter group by inputs during aggregation.
+ * This avoids computing aggregates for groups that will be discarded by the topN.
  *
  * before:
  *           | cardinality: n
@@ -54,10 +52,8 @@ import java.util.List;
  *      Agg(Global)
  *           |
  *        Exchange
- *           | cardinality: dop * n
- *     TopN(Partial) [without merge]
- *           |
- *      Agg(Local) [streaming_preaggregation_mode: "force_preaggregation"]
+ *           | cardinality: <= limit
+ *      Agg(Local) [with topN information to filter group by data during aggregation]
  **/
 public class PushDownTopNToPreAggRule extends TransformationRule {
 
@@ -75,11 +71,15 @@ public class PushDownTopNToPreAggRule extends TransformationRule {
 
     @Override
     public boolean check(final OptExpression input, OptimizerContext context) {
-        if (!context.getSessionVariable().isEnablePreAggTopNPushDown()) {
+        int topNPushDownAggMode = context.getSessionVariable().getTopNPushDownAggMode();
+        if (topNPushDownAggMode < 0) {
             return false;
         }
 
         LogicalTopNOperator topn = (LogicalTopNOperator) input.getOp();
+        if (topn.isTopNPushDownAgg()) {
+            return false;
+        }
 
         if (!topn.hasLimit() || topn.getLimit() > context.getSessionVariable().getCboPushDownTopNLimit()) {
             return false;
@@ -89,8 +89,7 @@ public class PushDownTopNToPreAggRule extends TransformationRule {
             return false;
         }
 
-        if (topn.getPartitionByColumns() != null && !topn.getPartitionByColumns().isEmpty() ||
-                topn.getPartitionPreAggCall() != null && !topn.getPartitionPreAggCall().isEmpty()) {
+        if (topn.getPartitionByColumns() != null && !topn.getPartitionByColumns().isEmpty()) {
             return false;
         }
 
@@ -108,10 +107,31 @@ public class PushDownTopNToPreAggRule extends TransformationRule {
             return false;
         }
 
-        // verify aggregation result columns are not used in the order by columns of topN.
-        List<Ordering> orderByElements = topn.getOrderByElements();
-        List<ColumnRefOperator> groupingKeys = aggGlobal.getGroupingKeys();
-        return orderByElements.stream().allMatch(orderByElement -> groupingKeys.contains(orderByElement.getColumnRef()));
+        // Verify order by columns are exactly the same as group by columns for the optimization
+        if (topNPushDownAggMode >= 1) {
+            List<Ordering> orderByElements = topn.getOrderByElements();
+            List<ColumnRefOperator> groupingKeys = aggGlobal.getGroupingKeys();
+            if (!orderByElements.stream()
+                    .allMatch(orderByElement -> groupingKeys.contains(orderByElement.getColumnRef()))) {
+                return false;
+            }
+
+            if (orderByElements.size() != groupingKeys.size()) {
+                return false;
+            }
+
+            for (int i = 0; i < orderByElements.size(); i++) {
+                if (!orderByElements.get(i).getColumnRef().equals(groupingKeys.get(i))) {
+                    return false;
+                }
+            }
+        } else {
+            List<Ordering> orderByElements = topn.getOrderByElements();
+            List<ColumnRefOperator> groupingKeys = aggGlobal.getGroupingKeys();
+            return orderByElements.stream().allMatch(
+                    orderByElement -> groupingKeys.contains(orderByElement.getColumnRef()));
+        }
+        return true;
     }
 
     @Override
@@ -124,21 +144,33 @@ public class PushDownTopNToPreAggRule extends TransformationRule {
         OptExpression localAgg = agg.inputAt(0);
         LogicalAggregationOperator localAggOp = (LogicalAggregationOperator) localAgg.getOp();
 
-        OptExpression newLocalAgg = OptExpression.create(new LogicalAggregationOperator.Builder()
-                        .withOperator(localAggOp)
-                        .setTopNLocalAgg(true)
-                        .build(), localAgg.getInputs());
-
-        OptExpression newLocalTopN = OptExpression.create(new LogicalTopNOperator.Builder()
-                .setOrderByElements(topn.getOrderByElements())
-                .setLimit(topn.getLimit())
-                .setTopNType(topn.getTopNType())
-                .setSortPhase(topn.getSortPhase())
+        // Create a new TopN operator that will be placed above the local aggregate
+        // This TopN operator will be used to filter group by data during local aggregation
+        LogicalTopNOperator localTopNOp = new LogicalTopNOperator.Builder()
+                .withOperator(topn)
+                .setSortPhase(SortPhase.PARTIAL)
                 .setIsSplit(false)
-                .setPerPipeline(true)
-                .build(), newLocalAgg);
+                .setPerPipeline(true) // No merge needed
+                .build();
 
+        LogicalTopNOperator.TopNSortInfo localTopNSortInfo = new LogicalTopNOperator.TopNSortInfo(
+                topn.getOrderByElements(), topn.getSortPhase(), topn.getTopNType(),
+                topn.getLimit(), topn.getOffset()
+        );
+        // Create new local aggregation with TopN information for filtering during aggregation
+        OptExpression newLocalAgg = OptExpression.create(new LogicalAggregationOperator.Builder()
+                .withOperator(localAggOp)
+                .setTopNLocalAgg(true)
+                .setAggTopnSortInfo(localTopNSortInfo)
+                .build(), localAgg.getInputs());
+
+        // Create the local TopN that filters during aggregation
+        OptExpression newLocalTopN = OptExpression.create(localTopNOp, newLocalAgg);
+
+        // Update the global aggregation to take input from the local TopN
         OptExpression newAgg = OptExpression.create(aggOp, newLocalTopN);
+
+        // Return the original topN with the new agg structure
         return Lists.newArrayList(OptExpression.create(topn, newAgg));
     }
 }

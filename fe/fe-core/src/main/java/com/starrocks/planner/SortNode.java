@@ -228,10 +228,7 @@ public class SortNode extends PlanNode implements RuntimeFilterBuildNode {
     @Override
     protected void toThrift(TPlanNode msg) {
         msg.node_type = TPlanNodeType.SORT_NODE;
-        TSortInfo sortInfo = new TSortInfo(
-                ExprToThrift.treesToThrift(info.getOrderingExprs()),
-                info.getIsAscOrder(),
-                info.getNullsFirst());
+        TSortInfo sortInfo = info.toTSortInfo();
         sortInfo.setSort_tuple_slot_exprs(ExprToThrift.treesToThrift(resolvedTupleExprs));
 
         msg.sort_node = new TSortNode(sortInfo, useTopN);

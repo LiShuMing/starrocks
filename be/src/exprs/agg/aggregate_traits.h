@@ -116,7 +116,7 @@ struct AggDataTypeTraits<lt, ArrayGuard<lt>> {
 };
 
 template <LogicalType lt>
-struct AggDataTypeTraits<lt, StringOrBinaryLTGuard<lt>> {
+struct AggDataTypeTraits<lt, StringOrBinaryGaurd<lt>> {
     using ColumnType = RunTimeColumnType<lt>;
     using ValueType = Buffer<uint8_t>;
     using RefType = Slice;

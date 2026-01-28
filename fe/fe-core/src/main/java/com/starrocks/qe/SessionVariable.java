@@ -2442,6 +2442,14 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
         return windowPartitionMode;
     }
 
+    public String getExecMode() {
+        return this.execMode;
+    }
+
+    public boolean isETLExecMode() {
+        return SessionVariableConstants.ETL.equalsIgnoreCase(execMode);
+    }
+
     public void setExecMode(String execMode) {
         final SessionVariable sv = DEFAULT_SESSION_VARIABLE;
         if (execMode.equalsIgnoreCase(SessionVariableConstants.ETL)) {
@@ -2449,6 +2457,8 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
             setEnablePhasedScheduler(true);
             setEnableSpill(true);
             setEnableQueryQueue(Config.enable_query_queue_v2);
+            // enable partition wise agg spill by default in ETL mode
+            setSpillPartitionWiseAgg(true);
         } else {
             setEnableWaitDependentEvent(sv.enableWaitDependentEvent);
             setEnablePhasedScheduler(sv.enablePhasedScheduler);

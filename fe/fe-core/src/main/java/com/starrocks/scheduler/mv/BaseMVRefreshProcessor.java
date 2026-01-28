@@ -49,6 +49,7 @@ import com.starrocks.connector.PartitionUtil;
 import com.starrocks.metric.IMaterializedViewMetricsEntity;
 import com.starrocks.qe.ConnectContext;
 import com.starrocks.qe.SessionVariable;
+import com.starrocks.qe.SessionVariableConstants;
 import com.starrocks.scheduler.Constants;
 import com.starrocks.scheduler.MvTaskRunContext;
 import com.starrocks.scheduler.TaskRun;
@@ -281,7 +282,7 @@ public abstract class BaseMVRefreshProcessor {
         if (Config.enable_materialized_view_spill &&
                 !mvSessionVariable.isEnableSpill() &&
                 !mvProperty.getProperties().containsKey(MV_SESSION_ENABLE_SPILL)) {
-            mvSessionVariable.setEnableSpill(true);
+            mvSessionVariable.setExecMode(SessionVariableConstants.ETL);
         }
 
         if (!mvProperty.getProperties().containsKey(MV_SESSION_INSERT_TIMEOUT)

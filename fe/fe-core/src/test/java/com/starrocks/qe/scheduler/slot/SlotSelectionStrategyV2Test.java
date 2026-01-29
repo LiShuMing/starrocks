@@ -20,6 +20,7 @@ import com.starrocks.common.Config;
 import com.starrocks.common.util.UUIDUtil;
 import com.starrocks.metric.MetricRepo;
 import com.starrocks.qe.GlobalVariable;
+import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.server.WarehouseManager;
 import com.starrocks.system.BackendResourceStat;
 import org.assertj.core.api.Assertions;
@@ -30,8 +31,10 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.lang.reflect.Field;
 
 import static com.starrocks.server.WarehouseManager.DEFAULT_WAREHOUSE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -68,6 +71,37 @@ public class SlotSelectionStrategyV2Test {
 
     private SlotSelectionStrategyV2 createSlotSelectionStrategy() {
         return new SlotSelectionStrategyV2(slotManager, WarehouseManager.DEFAULT_WAREHOUSE_ID);
+    }
+
+    private static void setGlobalResourceOverloaded(ResourceUsageMonitor monitor, boolean overloaded) {
+        try {
+            Field field = ResourceUsageMonitor.class.getDeclaredField("isGlobalResourceOverloaded");
+            field.setAccessible(true);
+            AtomicBoolean value = (AtomicBoolean) field.get(monitor);
+            value.set(overloaded);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static Object getEtlGuard(SlotSelectionStrategyV2 strategy) {
+        try {
+            Field field = SlotSelectionStrategyV2.class.getDeclaredField("etlResourceGuard");
+            field.setAccessible(true);
+            return field.get(strategy);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static void setEtlGuardField(Object guard, String name, Object value) {
+        try {
+            Field field = guard.getClass().getDeclaredField(name);
+            field.setAccessible(true);
+            field.set(guard, value);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Test
@@ -535,5 +569,50 @@ public class SlotSelectionStrategyV2Test {
         assertThat(peakSlots).containsExactly(smallSlot2);
         slotTracker.releaseSlot(smallSlot2.getSlotId());
         GlobalVariable.setQueryQueueConcurrencyLimit(-1);
+    }
+
+    @Test
+    public void testEtlGuardBlocksWhenOverloaded() {
+        SlotSelectionStrategyV2 strategy = new SlotSelectionStrategyV2(slotManager, WarehouseManager.DEFAULT_WAREHOUSE_ID);
+        SlotTracker slotTracker = new SlotTracker(slotManager, ImmutableList.of(strategy));
+        ResourceUsageMonitor monitor = GlobalStateMgr.getCurrentState().getResourceUsageMonitor();
+
+        LogicalSlot slot = generateSlot(1);
+        slotTracker.requireSlot(slot);
+
+        setGlobalResourceOverloaded(monitor, true);
+        assertThat(strategy.peakSlotsToAllocate(slotTracker)).isEmpty();
+
+        setGlobalResourceOverloaded(monitor, false);
+        Object guard = getEtlGuard(strategy);
+        setEtlGuardField(guard, "lastUpdateTimeMs", System.currentTimeMillis());
+        setEtlGuardField(guard, "lastOverloadedTimeMs", System.currentTimeMillis() - 10_000L);
+        setEtlGuardField(guard, "dynamicLimit", 4);
+
+        assertThat(strategy.peakSlotsToAllocate(slotTracker)).containsExactly(slot);
+    }
+
+    @Test
+    public void testEtlGuardCooldownLimitsAllocationPerRound() {
+        SlotSelectionStrategyV2 strategy = new SlotSelectionStrategyV2(slotManager, WarehouseManager.DEFAULT_WAREHOUSE_ID);
+        SlotTracker slotTracker = new SlotTracker(slotManager, ImmutableList.of(strategy));
+        ResourceUsageMonitor monitor = GlobalStateMgr.getCurrentState().getResourceUsageMonitor();
+        setGlobalResourceOverloaded(monitor, false);
+
+        LogicalSlot slot1 = generateSlot(1);
+        LogicalSlot slot2 = generateSlot(1);
+        LogicalSlot slot3 = generateSlot(1);
+        slotTracker.requireSlot(slot1);
+        slotTracker.requireSlot(slot2);
+        slotTracker.requireSlot(slot3);
+
+        Object guard = getEtlGuard(strategy);
+        long now = System.currentTimeMillis();
+        setEtlGuardField(guard, "lastUpdateTimeMs", now);
+        setEtlGuardField(guard, "lastOverloadedTimeMs", now);
+        setEtlGuardField(guard, "dynamicLimit", 3);
+
+        List<LogicalSlot> peakSlots = strategy.peakSlotsToAllocate(slotTracker);
+        assertThat(peakSlots).hasSize(1);
     }
 }

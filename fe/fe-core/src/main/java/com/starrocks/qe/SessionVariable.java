@@ -2442,8 +2442,8 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
         return windowPartitionMode;
     }
 
-    public String getExecMode() {
-        return this.execMode;
+    public SessionVariableConstants.ExecMode getExecMode() {
+        return SessionVariableConstants.ExecMode.parse(execMode);
     }
 
     public boolean isETLExecMode() {
@@ -2451,21 +2451,28 @@ public class SessionVariable implements Serializable, Writable, Cloneable {
     }
 
     public void setExecMode(String execMode) {
-        final SessionVariable sv = DEFAULT_SESSION_VARIABLE;
-        if (execMode.equalsIgnoreCase(SessionVariableConstants.ETL)) {
-            setEnableWaitDependentEvent(true);
-            setEnablePhasedScheduler(true);
-            setEnableSpill(true);
-            setEnableQueryQueue(Config.enable_query_queue_v2);
-            // enable partition wise agg spill by default in ETL mode
-            setSpillPartitionWiseAgg(true);
-        } else {
-            setEnableWaitDependentEvent(sv.enableWaitDependentEvent);
-            setEnablePhasedScheduler(sv.enablePhasedScheduler);
-            setEnableSpill(sv.enableSpill);
-            setEnableQueryQueue(sv.enableQueryQueue);
+        SessionVariableConstants.ExecMode result =
+                Enums.getIfPresent(SessionVariableConstants.ExecMode.class, StringUtils.upperCase(execMode))
+                        .orNull();
+        if (result == null) {
+            String legalValues = Joiner.on(" | ").join(SessionVariableConstants.ExecMode.values());
+            throw new IllegalArgumentException("Legal values of exec_mode are " + legalValues);
         }
-        this.execMode = execMode;
+        switch (result) {
+            case ETL:  {
+                setEnableWaitDependentEvent(true);
+                setEnablePhasedScheduler(true);
+                setEnableSpill(true);
+                setEnableQueryQueue(Config.enable_query_queue_v2);
+                // enable partition wise agg spill by default in ETL mode
+                setSpillPartitionWiseAgg(true);
+            }
+            default: {
+                // do nothing
+                break;
+            }
+        }
+        this.execMode = execMode.toUpperCase();
     }
 
     public void setEnableSortAggregate(boolean enableSortAggregate) {

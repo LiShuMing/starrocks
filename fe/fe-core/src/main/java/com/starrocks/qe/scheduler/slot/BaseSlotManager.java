@@ -168,7 +168,7 @@ public abstract class BaseSlotManager {
         }
 
         // for etl mode, always enable query queue
-        if (connectContext.getSessionVariable().isETLExecMode()) {
+        if (GlobalVariable.isEnableEtlExecQueueAllWorkloads() && connectContext.getSessionVariable().isETLExecMode()) {
             return true;
         }
 

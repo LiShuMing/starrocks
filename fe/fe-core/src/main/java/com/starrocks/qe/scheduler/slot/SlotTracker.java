@@ -50,7 +50,7 @@ public class SlotTracker extends BaseSlotTracker {
     private SlotSelectionStrategy createSlotSelectionStrategy(BaseSlotManager slotManager,
                                                               ResourceUsageMonitor resourceUsageMonitor) {
         if (Config.enable_query_queue_v2) {
-            return new SlotSelectionStrategyV2(slotManager, this.warehouseId);
+            return new EtlSlotSelectionStrategy(slotManager, this.warehouseId);
         } else {
             return new DefaultSlotSelectionStrategy(
                     resourceUsageMonitor::isGlobalResourceOverloaded, resourceUsageMonitor::isGroupResourceOverloaded);

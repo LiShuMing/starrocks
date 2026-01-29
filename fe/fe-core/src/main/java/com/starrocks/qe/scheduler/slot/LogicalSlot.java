@@ -81,7 +81,7 @@ public class LogicalSlot {
                        long warehouseId, long groupId, int numPhysicalSlots,
                        long expiredPendingTimeMs, long expiredAllocatedTimeMs, long feStartTimeMs,
                        int numFragments, int pipelineDop) {
-        this(slotId, requestFeName, warehouseId, groupId, numPhysicalSlots,)
+        this(slotId, requestFeName, warehouseId, groupId, numPhysicalSlots,
                 expiredPendingTimeMs, expiredAllocatedTimeMs, feStartTimeMs,
                 numFragments, pipelineDop, SessionVariableConstants.ExecMode.getDefault());
     }

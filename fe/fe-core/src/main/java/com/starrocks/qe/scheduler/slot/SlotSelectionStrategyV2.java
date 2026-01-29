@@ -21,7 +21,6 @@ import com.starrocks.metric.LongCounterMetric;
 import com.starrocks.metric.MetricRepo;
 import com.starrocks.sql.optimizer.Utils;
 import com.starrocks.thrift.TUniqueId;
-import com.starrocks.server.GlobalStateMgr;
 import org.apache.commons.compress.utils.Lists;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -30,6 +29,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * The slot resource is divided into small extra slots and normal slots.
@@ -46,11 +46,6 @@ public class SlotSelectionStrategyV2 implements SlotSelectionStrategy {
     private static final Logger LOG = LogManager.getLogger(SlotSelectionStrategyV2.class);
 
     private static final long UPDATE_OPTIONS_INTERVAL_MS = 1000;
-    private static final long ETL_GUARD_UPDATE_INTERVAL_MS = 500;
-    private static final long ETL_OVERLOAD_COOLDOWN_MS = 2000;
-    private static final int ETL_MIN_DYNAMIC_LIMIT = 1;
-    private static final int ETL_MAX_ALLOC_PER_ROUND = 16;
-    private static final double ETL_DECREASE_FACTOR = 0.7;
 
     /**
      * These three members are initialized in the first call of {@link #updateOptionsPeriodically};
@@ -66,13 +61,10 @@ public class SlotSelectionStrategyV2 implements SlotSelectionStrategy {
 
     private final long warehouseId;
     private final BaseSlotManager slotManager;
-    private final ResourceUsageMonitor resourceUsageMonitor;
-    private final EtlResourceGuard etlResourceGuard = new EtlResourceGuard();
 
     public SlotSelectionStrategyV2(BaseSlotManager slotManager, long warehouseId) {
         this.warehouseId = warehouseId;
         this.slotManager = slotManager;
-        this.resourceUsageMonitor = GlobalStateMgr.getCurrentState().getResourceUsageMonitor();
     }
 
     public QueryQueueOptions getOpts() {
@@ -88,6 +80,9 @@ public class SlotSelectionStrategyV2 implements SlotSelectionStrategy {
         slotContexts.put(slot.getSlotId(), slotContext);
         if (isSmallSlot(slot)) {
             requiringSmallSlots.put(slot.getSlotId(), slotContext);
+            slotContext.setSmallSlotCandidate(true);
+        } else {
+            slotContext.setSmallSlotCandidate(false);
         }
         requiringQueue.add(slotContext);
 
@@ -100,7 +95,7 @@ public class SlotSelectionStrategyV2 implements SlotSelectionStrategy {
         updateOptionsPeriodically();
 
         SlotContext slotContext = slotContexts.get(slot.getSlotId());
-        if (isSmallSlot(slot)) {
+        if (slotContext != null && slotContext.isSmallSlotCandidate()) {
             requiringSmallSlots.remove(slot.getSlotId());
             if (slotContext.isAllocatedAsSmallSlot()) {
                 numAllocatedSmallSlots += slot.getNumPhysicalSlots();
@@ -120,7 +115,7 @@ public class SlotSelectionStrategyV2 implements SlotSelectionStrategy {
         updateOptionsPeriodically();
 
         SlotContext slotContext = slotContexts.remove(slot.getSlotId());
-        if (isSmallSlot(slot)) {
+        if (slotContext != null && slotContext.isSmallSlotCandidate()) {
             requiringSmallSlots.remove(slot.getSlotId());
             if (slotContext.isAllocatedAsSmallSlot()) {
                 numAllocatedSmallSlots -= slot.getNumPhysicalSlots();
@@ -139,21 +134,15 @@ public class SlotSelectionStrategyV2 implements SlotSelectionStrategy {
     public List<LogicalSlot> peakSlotsToAllocate(BaseSlotTracker slotTracker) {
         updateOptionsPeriodically();
 
+        refreshRequiringSmallSlots();
+
         List<LogicalSlot> slotsToAllocate = Lists.newArrayList();
-        etlResourceGuard.update(slotTracker, opts);
-        int roundAllocationLimit = etlResourceGuard.getRoundAllocationLimit(slotTracker, opts);
-        if (roundAllocationLimit <= 0) {
-            return slotsToAllocate;
-        }
-        int allocatedThisRound = 0;
-        int totalAllocatedSlots = slotTracker.getNumAllocatedSlots();
+        int smallSlotsLimit = opts.v2().getTotalSmallSlots();
         // allocate small slots
         int curNumAllocatedSmallSlots = numAllocatedSmallSlots;
         for (SlotContext slotContext : requiringSmallSlots.values()) {
             LogicalSlot slot = slotContext.getSlot();
-            if (allocatedThisRound >= roundAllocationLimit ||
-                    !isSmallSlotAvailable(slotTracker, slot, curNumAllocatedSmallSlots,
-                            totalAllocatedSlots + allocatedThisRound)) {
+            if (!isSmallSlotAvailable(slotTracker, slot, curNumAllocatedSmallSlots, smallSlotsLimit)) {
                 break;
             }
 
@@ -162,16 +151,14 @@ public class SlotSelectionStrategyV2 implements SlotSelectionStrategy {
             slotsToAllocate.add(slot);
             slotContext.setAllocateAsSmallSlot();
             curNumAllocatedSmallSlots += slot.getNumPhysicalSlots();
-            allocatedThisRound += slot.getNumPhysicalSlots();
         }
 
         // allocate normal slots
         int numAllocatedSlots = slotTracker.getNumAllocatedSlots() - numAllocatedSmallSlots;
+        final int globalSlotsLimit = opts.v2().getTotalSlots();
         while (!requiringQueue.isEmpty()) {
             SlotContext slotContext = requiringQueue.peak();
-            if (allocatedThisRound >= roundAllocationLimit ||
-                    !isGlobalSlotAvailable(slotTracker, numAllocatedSlots, slotContext.getSlot(),
-                            totalAllocatedSlots + allocatedThisRound)) {
+            if (!isGlobalSlotAvailable(slotTracker, numAllocatedSlots, slotContext.getSlot(), globalSlotsLimit)) {
                 break;
             }
 
@@ -179,7 +166,6 @@ public class SlotSelectionStrategyV2 implements SlotSelectionStrategy {
 
             slotsToAllocate.add(slotContext.getSlot());
             numAllocatedSlots += slotContext.getSlot().getNumPhysicalSlots();
-            allocatedThisRound += slotContext.getSlot().getNumPhysicalSlots();
         }
 
         return slotsToAllocate;
@@ -225,15 +211,12 @@ public class SlotSelectionStrategyV2 implements SlotSelectionStrategy {
         }
     }
 
-    private boolean isSmallSlotAvailable(BaseSlotTracker slotTracker,
-                                         LogicalSlot slot,
-                                         int curNumAllocatedSmallSlots,
-                                         int totalAllocatedSlots) {
+    protected boolean isSmallSlotAvailable(BaseSlotTracker slotTracker,
+                                           LogicalSlot slot,
+                                           int curNumAllocatedSmallSlots,
+                                           int smallSlotsLimit) {
         // if the small slot limit is reached, return false
-        if (curNumAllocatedSmallSlots + slot.getNumPhysicalSlots() > opts.v2().getTotalSmallSlots()) {
-            return false;
-        }
-        if (slot.isETLExec() && !etlResourceGuard.canAllocate(slotTracker, slot, totalAllocatedSlots, opts)) {
+        if (curNumAllocatedSmallSlots + slot.getNumPhysicalSlots() > smallSlotsLimit) {
             return false;
         }
         // if the concurrency limit is set and the limit is reached, return false
@@ -243,14 +226,10 @@ public class SlotSelectionStrategyV2 implements SlotSelectionStrategy {
         return true;
     }
 
-    private boolean isGlobalSlotAvailable(BaseSlotTracker slotTracker, int numAllocatedSlots,
-                                          LogicalSlot slot, int totalAllocatedSlots) {
+    protected boolean isGlobalSlotAvailable(BaseSlotTracker slotTracker, int numAllocatedSlots,
+                                            LogicalSlot slot, int globalSlotsLimit) {
         // check the total slots limit is reached
-        final int numTotalSlots = opts.v2().getTotalSlots();
-        if (numAllocatedSlots != 0 && numAllocatedSlots + slot.getNumPhysicalSlots() > numTotalSlots) {
-            return false;
-        }
-        if (slot.isETLExec() && !etlResourceGuard.canAllocate(slotTracker, slot, totalAllocatedSlots, opts)) {
+        if (numAllocatedSlots != 0 && numAllocatedSlots + slot.getNumPhysicalSlots() > globalSlotsLimit) {
             return false;
         }
         // if the concurrency limit is set and the limit is reached, return false
@@ -260,7 +239,7 @@ public class SlotSelectionStrategyV2 implements SlotSelectionStrategy {
         return true;
     }
 
-    private boolean isQueryConcurrencyLimitAvailable(BaseSlotTracker slotTracker) {
+    protected boolean isQueryConcurrencyLimitAvailable(BaseSlotTracker slotTracker) {
         // if the query queue limit is not set(by default), return true
         int queryQueueConcurrencyLimit = slotManager.getQueryQueueConcurrencyLimit(warehouseId);
         if (queryQueueConcurrencyLimit <= 0) {
@@ -269,103 +248,50 @@ public class SlotSelectionStrategyV2 implements SlotSelectionStrategy {
         return slotTracker.getCurrentCurrency() < queryQueueConcurrencyLimit;
     }
 
-    private static boolean isSmallSlot(LogicalSlot slot) {
+    protected boolean isSmallSlot(LogicalSlot slot) {
         return slot.getNumPhysicalSlots() <= 1;
     }
 
-    private class EtlResourceGuard {
-        private long lastUpdateTimeMs = 0;
-        private long lastOverloadedTimeMs = 0;
-        private int dynamicLimit = -1;
-        private int lastMaxLimit = -1;
+    protected void refreshRequiringSmallSlots() {
+        LinkedHashMap<TUniqueId, SlotContext> newSmallSlots = new LinkedHashMap<>();
+        slotContexts.values().stream()
+                .filter(slotContext -> slotContext.getSlot().getState() == LogicalSlot.State.REQUIRING)
+                .sorted((lhs, rhs) -> Long.compare(lhs.getCreateTime(), rhs.getCreateTime()))
+                .forEach(slotContext -> {
+                    boolean smallCandidate = isSmallSlot(slotContext.getSlot());
+                    slotContext.setSmallSlotCandidate(smallCandidate);
+                    if (smallCandidate) {
+                        newSmallSlots.put(slotContext.getSlotId(), slotContext);
+                    }
+                });
+        requiringSmallSlots.clear();
+        requiringSmallSlots.putAll(newSmallSlots);
+    }
 
-        private void update(BaseSlotTracker slotTracker, QueryQueueOptions opts) {
-            if (opts == null) {
-                return;
-            }
-            long now = System.currentTimeMillis();
-            if (now - lastUpdateTimeMs < ETL_GUARD_UPDATE_INTERVAL_MS) {
-                return;
-            }
-            lastUpdateTimeMs = now;
+    protected LinkedHashMap<TUniqueId, SlotContext> getRequiringSmallSlots() {
+        return requiringSmallSlots;
+    }
 
-            int maxLimit = getMaxLimit(opts);
-            if (lastMaxLimit != maxLimit) {
-                if (dynamicLimit > 0) {
-                    dynamicLimit = Math.min(dynamicLimit, maxLimit);
-                }
-                lastMaxLimit = maxLimit;
-            }
+    protected List<SlotContext> getRequiringSlotContexts() {
+        return slotContexts.values().stream()
+                .filter(slotContext -> slotContext.getSlot().getState() == LogicalSlot.State.REQUIRING)
+                .collect(Collectors.toList());
+    }
 
-            if (dynamicLimit <= 0) {
-                dynamicLimit = Math.max(ETL_MIN_DYNAMIC_LIMIT, Math.min(maxLimit, slotTracker.getNumAllocatedSlots()));
-            }
+    protected SlotScheduleAlgorithm getRequiringQueue() {
+        return requiringQueue;
+    }
 
-            boolean globalOverloaded = resourceUsageMonitor.isGlobalResourceOverloaded();
-            if (globalOverloaded) {
-                lastOverloadedTimeMs = now;
-                dynamicLimit = Math.max(ETL_MIN_DYNAMIC_LIMIT, (int) Math.floor(dynamicLimit * ETL_DECREASE_FACTOR));
-                return;
-            }
+    protected int getNumAllocatedSmallSlots() {
+        return numAllocatedSmallSlots;
+    }
 
-            if (now - lastOverloadedTimeMs < ETL_OVERLOAD_COOLDOWN_MS) {
-                return;
-            }
+    protected BaseSlotManager getSlotManager() {
+        return slotManager;
+    }
 
-            long pending = slotTracker.getQueuePendingLength();
-            int allocatedSlots = slotTracker.getNumAllocatedSlots();
-            if (pending > 0 && allocatedSlots >= dynamicLimit && dynamicLimit < maxLimit) {
-                dynamicLimit += 1;
-            } else if (pending == 0 && allocatedSlots + 1 < dynamicLimit) {
-                dynamicLimit = Math.max(ETL_MIN_DYNAMIC_LIMIT, dynamicLimit - 1);
-            }
-        }
-
-        private int getRoundAllocationLimit(BaseSlotTracker slotTracker, QueryQueueOptions opts) {
-            if (opts == null) {
-                return 0;
-            }
-            if (resourceUsageMonitor.isGlobalResourceOverloaded()) {
-                return 0;
-            }
-            int maxLimit = getMaxLimit(opts);
-            int effectiveDynamicLimit = dynamicLimit > 0 ? Math.min(dynamicLimit, maxLimit) : maxLimit;
-            int remaining = Math.max(0, effectiveDynamicLimit - slotTracker.getNumAllocatedSlots());
-            if (remaining <= 0) {
-                return 0;
-            }
-            long now = System.currentTimeMillis();
-            if (now - lastOverloadedTimeMs < ETL_OVERLOAD_COOLDOWN_MS) {
-                return Math.min(1, remaining);
-            }
-            return Math.min(ETL_MAX_ALLOC_PER_ROUND, remaining);
-        }
-
-        private boolean canAllocate(BaseSlotTracker slotTracker, LogicalSlot slot,
-                                    int totalAllocatedSlots, QueryQueueOptions opts) {
-            if (opts == null) {
-                return false;
-            }
-            if (resourceUsageMonitor.isGlobalResourceOverloaded()) {
-                return false;
-            }
-            if (slot.getGroupId() != LogicalSlot.ABSENT_GROUP_ID &&
-                    resourceUsageMonitor.isGroupResourceOverloaded(slot.getGroupId())) {
-                return false;
-            }
-            int maxLimit = getMaxLimit(opts);
-            int effectiveDynamicLimit = dynamicLimit > 0 ? Math.min(dynamicLimit, maxLimit) : maxLimit;
-            return totalAllocatedSlots + slot.getNumPhysicalSlots() <= effectiveDynamicLimit;
-        }
-
-        private int getMaxLimit(QueryQueueOptions opts) {
-            int maxLimit = opts.v2().getTotalSlots();
-            int concurrencyLimit = slotManager.getQueryQueueConcurrencyLimit(warehouseId);
-            if (concurrencyLimit > 0) {
-                maxLimit = Math.min(maxLimit, concurrencyLimit);
-            }
-            return Math.max(ETL_MIN_DYNAMIC_LIMIT, maxLimit);
-        }
+    protected long getWarehouseId() {
+        return warehouseId;
     }
 
     /**
@@ -666,6 +592,7 @@ public class SlotSelectionStrategyV2 implements SlotSelectionStrategy {
         private boolean allocatedAsSmallSlot = false;
         private int subQueueIndex = 0;
         private long createTime;
+        private boolean smallSlotCandidate = false;
 
         public SlotContext(LogicalSlot slot) {
             this.slot = slot;
@@ -678,6 +605,14 @@ public class SlotSelectionStrategyV2 implements SlotSelectionStrategy {
 
         public void setAllocateAsSmallSlot() {
             this.allocatedAsSmallSlot = true;
+        }
+
+        public boolean isSmallSlotCandidate() {
+            return smallSlotCandidate;
+        }
+
+        public void setSmallSlotCandidate(boolean smallSlotCandidate) {
+            this.smallSlotCandidate = smallSlotCandidate;
         }
 
         public LogicalSlot getSlot() {

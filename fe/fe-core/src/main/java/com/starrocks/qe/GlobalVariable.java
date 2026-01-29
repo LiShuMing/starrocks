@@ -79,6 +79,11 @@ public final class GlobalVariable {
     public static final String ENABLE_TDE = "enable_tde";
     public static final String MAX_UNKNOWN_STRING_META_LENGTH = "max_unknown_string_meta_length";
 
+    // ETL mode variables
+    public static final String ETL_EXEC_ENABLE_DYNAMIC_SMALL_SLOT_STATS = "etl_exec_enable_dynamic_small_slot_stats";
+    public static final String ETL_EXEC_ENABLE_QUEUE_ALL_WORKLOADS = "etl_exec_enable_queue_all_workloads";
+    public static final String ETL_EXEC_ENABLE_DYNAMIC_CONCURRENCY_LIMIT = "etl_exec_enable_dynamic_concurrency_limit";
+
     // cngroup
     public static final String CNGROUP_RESOURCE_USAGE_FRESH_RATIO = "cngroup_resource_usage_fresh_ratio";
     public static final String CNGROUP_LOW_WATERMARK_RUNNING_QUERY_COUNT  = "cngroup_low_watermark_running_query_count";
@@ -225,6 +230,15 @@ public final class GlobalVariable {
 
     @VariableMgr.VarAttr(name = MAX_UNKNOWN_STRING_META_LENGTH, flag = VariableMgr.GLOBAL)
     private static int maxUnknownStringMetaLength = 64;
+
+    @VariableMgr.VarAttr(name = ETL_EXEC_ENABLE_DYNAMIC_SMALL_SLOT_STATS, flag = VariableMgr.GLOBAL)
+    public static boolean enableEtlExecDynamicSmallSlotStats = true;
+
+    @VariableMgr.VarAttr(name = ETL_EXEC_ENABLE_QUEUE_ALL_WORKLOADS, flag = VariableMgr.GLOBAL)
+    public static boolean enableEtlExecQueueAllWorkloads = true;
+
+    @VariableMgr.VarAttr(name = ETL_EXEC_ENABLE_DYNAMIC_CONCURRENCY_LIMIT, flag = VariableMgr.GLOBAL)
+    public static boolean enableEtlExecDynamicConcurrencyLimit = true;
 
     @VariableMgr.VarAttr(name = CNGROUP_RESOURCE_USAGE_FRESH_RATIO)
     private static double cngroupResourceUsageFreshRatio = 0.5;
@@ -399,6 +413,18 @@ public final class GlobalVariable {
             return 64;
         }
         return maxUnknownStringMetaLength;
+    }
+
+    public static boolean isEnableEtlExecDynamicSmallSlotStats() {
+        return enableEtlExecDynamicSmallSlotStats;
+    }
+
+    public static boolean isEnableEtlExecQueueAllWorkloads() {
+        return enableEtlExecQueueAllWorkloads;
+    }
+
+    public static boolean isEnableEtlExecDynamicConcurrencyLimit() {
+        return enableEtlExecDynamicConcurrencyLimit;
     }
 
     public static void setCngroupResourceUsageFreshRatio(double value) {

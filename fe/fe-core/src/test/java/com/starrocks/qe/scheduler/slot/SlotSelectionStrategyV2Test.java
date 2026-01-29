@@ -20,6 +20,7 @@ import com.starrocks.common.Config;
 import com.starrocks.common.util.UUIDUtil;
 import com.starrocks.metric.MetricRepo;
 import com.starrocks.qe.GlobalVariable;
+import com.starrocks.qe.SessionVariableConstants;
 import com.starrocks.server.GlobalStateMgr;
 import com.starrocks.server.WarehouseManager;
 import com.starrocks.system.BackendResourceStat;
@@ -29,12 +30,12 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.lang.reflect.Field;
 
 import static com.starrocks.server.WarehouseManager.DEFAULT_WAREHOUSE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -73,6 +74,20 @@ public class SlotSelectionStrategyV2Test {
         return new SlotSelectionStrategyV2(slotManager, WarehouseManager.DEFAULT_WAREHOUSE_ID);
     }
 
+    private static class TestSlotSelectionStrategyV2 extends EtlSlotSelectionStrategy {
+        private final boolean underUtilized;
+
+        TestSlotSelectionStrategyV2(BaseSlotManager slotManager, long warehouseId, boolean underUtilized) {
+            super(slotManager, warehouseId);
+            this.underUtilized = underUtilized;
+        }
+
+        @Override
+        protected boolean isEtlResourceUnderUtilized() {
+            return underUtilized;
+        }
+    }
+
     private static void setGlobalResourceOverloaded(ResourceUsageMonitor monitor, boolean overloaded) {
         try {
             Field field = ResourceUsageMonitor.class.getDeclaredField("isGlobalResourceOverloaded");
@@ -84,9 +99,9 @@ public class SlotSelectionStrategyV2Test {
         }
     }
 
-    private static Object getEtlGuard(SlotSelectionStrategyV2 strategy) {
+    private static Object getEtlGuard(EtlSlotSelectionStrategy strategy) {
         try {
-            Field field = SlotSelectionStrategyV2.class.getDeclaredField("etlResourceGuard");
+            Field field = EtlSlotSelectionStrategy.class.getDeclaredField("etlResourceGuard");
             field.setAccessible(true);
             return field.get(strategy);
         } catch (Exception e) {
@@ -381,6 +396,12 @@ public class SlotSelectionStrategyV2Test {
                 LogicalSlot.ABSENT_GROUP_ID, numSlots, 0, 0, 0, 0, 0);
     }
 
+    private static LogicalSlot generateEtlSlot(int numSlots) {
+        return new LogicalSlot(UUIDUtil.genTUniqueId(), "fe", WarehouseManager.DEFAULT_WAREHOUSE_ID,
+                LogicalSlot.ABSENT_GROUP_ID, numSlots, 0, 0, 0, 0, 0,
+                SessionVariableConstants.ExecMode.ETL);
+    }
+
     @Test
     public void testHistorySlotsQueue() {
         Config.max_query_queue_history_slots_number = 10;
@@ -573,7 +594,7 @@ public class SlotSelectionStrategyV2Test {
 
     @Test
     public void testEtlGuardBlocksWhenOverloaded() {
-        SlotSelectionStrategyV2 strategy = new SlotSelectionStrategyV2(slotManager, WarehouseManager.DEFAULT_WAREHOUSE_ID);
+        EtlSlotSelectionStrategy strategy = new EtlSlotSelectionStrategy(slotManager, WarehouseManager.DEFAULT_WAREHOUSE_ID);
         SlotTracker slotTracker = new SlotTracker(slotManager, ImmutableList.of(strategy));
         ResourceUsageMonitor monitor = GlobalStateMgr.getCurrentState().getResourceUsageMonitor();
 
@@ -594,7 +615,7 @@ public class SlotSelectionStrategyV2Test {
 
     @Test
     public void testEtlGuardCooldownLimitsAllocationPerRound() {
-        SlotSelectionStrategyV2 strategy = new SlotSelectionStrategyV2(slotManager, WarehouseManager.DEFAULT_WAREHOUSE_ID);
+        EtlSlotSelectionStrategy strategy = new EtlSlotSelectionStrategy(slotManager, WarehouseManager.DEFAULT_WAREHOUSE_ID);
         SlotTracker slotTracker = new SlotTracker(slotManager, ImmutableList.of(strategy));
         ResourceUsageMonitor monitor = GlobalStateMgr.getCurrentState().getResourceUsageMonitor();
         setGlobalResourceOverloaded(monitor, false);
@@ -614,5 +635,28 @@ public class SlotSelectionStrategyV2Test {
 
         List<LogicalSlot> peakSlots = strategy.peakSlotsToAllocate(slotTracker);
         assertThat(peakSlots).hasSize(1);
+    }
+
+    @Test
+    public void testEtlUnderUtilizedAllowsExtraSmallSlots() {
+        BackendResourceStat.getInstance().setNumCoresOfBe(DEFAULT_WAREHOUSE_ID, 1, 4);
+        QueryQueueOptions opts = QueryQueueOptions.createFromEnv(WarehouseManager.DEFAULT_WAREHOUSE_ID);
+
+        EtlSlotSelectionStrategy strategy =
+                new TestSlotSelectionStrategyV2(slotManager, WarehouseManager.DEFAULT_WAREHOUSE_ID, true);
+        SlotTracker slotTracker = new SlotTracker(slotManager, ImmutableList.of(strategy));
+
+        List<LogicalSlot> smallSlots = IntStream.range(0, opts.v2().getTotalSmallSlots() + 2)
+                .mapToObj(i -> generateEtlSlot(1))
+                .collect(Collectors.toList());
+        smallSlots.forEach(slotTracker::requireSlot);
+
+        Object guard = getEtlGuard(strategy);
+        setEtlGuardField(guard, "lastUpdateTimeMs", System.currentTimeMillis());
+        setEtlGuardField(guard, "lastOverloadedTimeMs", System.currentTimeMillis() - 10_000L);
+        setEtlGuardField(guard, "dynamicLimit", opts.v2().getTotalSlots());
+
+        List<LogicalSlot> peakSlots = strategy.peakSlotsToAllocate(slotTracker);
+        assertThat(peakSlots).hasSize(opts.v2().getTotalSmallSlots() + 2);
     }
 }

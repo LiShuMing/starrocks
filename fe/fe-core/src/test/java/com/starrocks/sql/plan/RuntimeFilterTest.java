@@ -14,9 +14,17 @@
 
 package com.starrocks.sql.plan;
 
+import com.starrocks.catalog.TableName;
 import com.starrocks.common.FeConstants;
+import com.starrocks.planner.MinMaxFilterExprBuilder;
+import com.starrocks.sql.ast.expression.Expr;
+import com.starrocks.sql.ast.expression.SlotRef;
+import com.starrocks.type.DateType;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+
+import static com.starrocks.sql.plan.PlanTestNoneDBBase.assertContains;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class RuntimeFilterTest extends PlanTestBase {
     @BeforeAll
@@ -163,7 +171,7 @@ public class RuntimeFilterTest extends PlanTestBase {
     public void testMinMaxFilterExpression() throws Exception {
         // Test the MinMaxFilterExprBuilder
         SlotRef slotRef = new SlotRef(new TableName("db", "t"), "created_at");
-        slotRef.setType(Type.DATE);
+        slotRef.setType(DateType.DATE);
         
         // Build range filter: created_at >= '2024-01-01' AND created_at <= '2024-01-31'
         Expr rangeFilter = MinMaxFilterExprBuilder.buildRangeFilter(

@@ -601,51 +601,39 @@ public class AggregationNode extends PlanNode implements RuntimeFilterBuildNode 
 
     private void buildMinMaxRuntimeFilters(IdGenerator<RuntimeFilterId> generator, DescriptorTable descTbl,
                                            ExecGroupSets execGroupSets) {
-        // Only generate min/max runtime filters for global/final aggregations.
+        // Only generate min/max runtime filters for global/final aggregations without GROUP BY.
         // 
+        // MIN/MAX runtime filters require a single global MIN/MAX value to generate a range filter.
+        // This is only possible for queries without GROUP BY:
+        //   - SELECT MIN(v1) FROM t0 -> One global MIN value
+        //   - SELECT MAX(v1) FROM t0 -> One global MAX value
+        //
+        // For queries with GROUP BY:
+        //   - SELECT v2, MIN(v1) FROM t0 GROUP BY v2 -> Different MIN for each group
+        //   Each group has its own MIN value, so we cannot generate a single runtime filter
+        //   that applies to all groups. The filter would need to express:
+        //   "for group A, v1 >= minA, for group B, v1 >= minB" which is not possible
+        //   with a single runtime filter.
+        //
         // In multi-stage aggregation:
         // - Partial stage (needsFinalize=false): Computes local MIN/MAX on each node.
         //   The results are partial and not suitable for global filtering.
         // - Final stage (needsFinalize=true): Merges partial results to get global MIN/MAX.
         //   This is where we generate the runtime filter with the complete range.
-        //
-        // Generating runtime filters at the Partial stage would be incorrect because:
-        // 1. Local MIN might not be the global MIN
-        // 2. Local MAX might not be the global MAX
-        // 3. The filter would incorrectly filter out valid data at other nodes
         if (!needsFinalize) {
             return;
         }
-        // Check if this is a no-group-by aggregation (global aggregation)
-        boolean noGroupBy = aggInfo.getGroupingExprs().isEmpty();
         
-        // For no-group-by case with both MIN and MAX on same column, 
-        // we can merge them into a single range filter
-        if (noGroupBy) {
-            buildMinMaxRuntimeFiltersNoGroupBy(generator, descTbl, execGroupSets);
-        } else {
-            buildMinMaxRuntimeFiltersWithGroupBy(generator, descTbl, execGroupSets);
+        // MIN/MAX runtime filters only work for aggregations without GROUP BY
+        if (!aggInfo.getGroupingExprs().isEmpty()) {
+            return;
         }
+        
+        buildMinMaxRuntimeFiltersNoGroupBy(generator, descTbl, execGroupSets);
     }
 
     private void buildMinMaxRuntimeFiltersNoGroupBy(IdGenerator<RuntimeFilterId> generator, DescriptorTable descTbl,
                                                     ExecGroupSets execGroupSets) {
-        // Process each aggregate expression
-        List<FunctionCallExpr> aggExprs = aggInfo.getMaterializedAggregateExprs();
-        for (int i = 0; i < aggExprs.size(); i++) {
-            FunctionCallExpr aggExpr = aggExprs.get(i);
-            if (!isValidMinMaxFunction(aggExpr)) {
-                continue;
-            }
-            Expr minMaxInputExpr = aggExpr.getChild(0);
-            // Push down the min/max runtime filter
-            pushDownMinMaxRuntimeFilter(generator, minMaxInputExpr, descTbl, execGroupSets, i,
-                    aggExpr.getFunctionName());
-        }
-    }
-
-    private void buildMinMaxRuntimeFiltersWithGroupBy(IdGenerator<RuntimeFilterId> generator, DescriptorTable descTbl,
-                                                      ExecGroupSets execGroupSets) {
         // Process each aggregate expression
         List<FunctionCallExpr> aggExprs = aggInfo.getMaterializedAggregateExprs();
         for (int i = 0; i < aggExprs.size(); i++) {

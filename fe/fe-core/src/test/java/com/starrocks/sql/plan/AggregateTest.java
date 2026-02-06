@@ -700,7 +700,7 @@ public class AggregateTest extends PlanTestBase {
                 + "result nullable: true]); args: SMALLINT; result: BIGINT; args nullable: true; result nullable: false]");
         assertContains(plan, "4:AGGREGATE (merge finalize)\n"
                 + "  |  aggregate: count[([11: count, BIGINT, false]); args: SMALLINT; "
-                + "result: BIGINT; args nullable: true; result nullable: false]");
+                + "result: BIGINT; args nullable: false; result nullable: false]");
         FeConstants.runningUnitTest = false;
     }
 
@@ -2471,7 +2471,7 @@ public class AggregateTest extends PlanTestBase {
                 "from test_all_type group by t1a";
 
         plan = getFragmentPlan(sql);
-        assertNotContains(plan, "multi_distinct_count");
+        assertContains(plan, "multi_distinct_count");
         FeConstants.runningUnitTest = false;
     }
 
@@ -2483,7 +2483,7 @@ public class AggregateTest extends PlanTestBase {
         String plan = getFragmentPlan(sql);
         assertContains(plan, "RESULT SINK\n" +
                 "\n" +
-                "  1:AGGREGATE (update finalize)");
+                "  2:AGGREGATE (update finalize)");
 
         sql = "select sum(v1 + v2) from t0 group by v3";
         plan = getFragmentPlan(sql);
@@ -3322,8 +3322,8 @@ public class AggregateTest extends PlanTestBase {
             sql = "SELECT count(distinct v2), bitmap_union_count(to_bitmap(v2)) from t0 group by v3;";
             plan = getCostExplain(sql);
             assertContains(plan, "  5:AGGREGATE (update finalize)\n" +
-                    "  |  aggregate: count[([2: v2, BIGINT, true]); args: BIGINT; result: BIGINT; " +
-                    "args nullable: true; result nullable: false], " +
+                    "  |  aggregate: multi_distinct_count[([2: v2, BIGINT, true]); args: BIGINT; result: BIGINT; " +
+                    "args nullable: false; result nullable: false], " +
                     "bitmap_union_count[([6: bitmap_union_count, BIGINT, false]); " +
                     "args: BITMAP; result: BIGINT; args nullable: true; " +
                     "result nullable: false]\n" +

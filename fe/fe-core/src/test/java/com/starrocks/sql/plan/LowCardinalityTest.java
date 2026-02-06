@@ -422,7 +422,7 @@ public class LowCardinalityTest extends PlanTestBase {
         plan = getVerboseExplain(sql);
         Assertions.assertTrue(plan.contains("  3:AGGREGATE (merge finalize)\n" +
                 "  |  aggregate: multi_distinct_count[([9: count, VARBINARY, false]); " +
-                "args: INT; result: BIGINT; args nullable: true; result nullable: false]"));
+                "args: INT; result: BIGINT; args nullable: false; result nullable: false]"));
         connectContext.getSessionVariable().setNewPlanerAggStage(3);
         plan = getVerboseExplain(sql);
         Assertions.assertTrue(plan.contains("  4:AGGREGATE (update serialize)\n" +
@@ -432,7 +432,7 @@ public class LowCardinalityTest extends PlanTestBase {
         plan = getVerboseExplain(sql);
         Assertions.assertTrue(plan.contains("  6:AGGREGATE (merge finalize)\n" +
                 "  |  aggregate: count[([9: count, BIGINT, false]); args: VARCHAR; result: BIGINT; " +
-                "args nullable: true; result nullable: false]"));
+                "args nullable: false; result nullable: false]"));
         connectContext.getSessionVariable().setNewPlanerAggStage(0);
 
         // TODO Fix unused Decode Node

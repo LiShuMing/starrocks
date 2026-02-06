@@ -528,7 +528,7 @@ public class LowCardinalityTest2 extends PlanTestBase {
         plan = getVerboseExplain(sql);
         Assertions.assertTrue(plan.contains("  3:AGGREGATE (merge finalize)\n" +
                 "  |  aggregate: multi_distinct_count[([9: count, VARBINARY, false]); " +
-                "args: INT; result: BIGINT; args nullable: true; result nullable: false]"), plan);
+                "args: INT; result: BIGINT; args nullable: false; result nullable: false]"), plan);
         connectContext.getSessionVariable().setNewPlanerAggStage(3);
         plan = getVerboseExplain(sql);
         Assertions.assertTrue(plan.contains("  4:AGGREGATE (update serialize)\n" +
@@ -538,7 +538,7 @@ public class LowCardinalityTest2 extends PlanTestBase {
         plan = getVerboseExplain(sql);
         Assertions.assertTrue(plan.contains("  6:AGGREGATE (merge finalize)\n" +
                 "  |  aggregate: count[([9: count, BIGINT, false]); args: INT; result: BIGINT; " +
-                "args nullable: true; result nullable: false]"), plan);
+                "args nullable: false; result nullable: false]"), plan);
         connectContext.getSessionVariable().setNewPlanerAggStage(0);
 
         sql = "select count(distinct S_ADDRESS, S_COMMENT) from supplier";
@@ -2312,7 +2312,7 @@ public class LowCardinalityTest2 extends PlanTestBase {
         assertContains(plan, "  4:AGGREGATE (update serialize)\n" +
                 "  |  aggregate: multi_distinct_count[([9: multi_distinct_count, BIGINT, false]); " +
                 "args: INT; result: VARBINARY; " +
-                "args nullable: true; result nullable: false], count[([4: S_NATIONKEY, INT, false]); " +
+                "args nullable: false; result nullable: false], count[([4: S_NATIONKEY, INT, false]); " +
                 "args: INT; result: BIGINT; " +
                 "args nullable: false; result nullable: false]\n" +
                 "  |  cardinality: 1\n" +
@@ -2320,15 +2320,15 @@ public class LowCardinalityTest2 extends PlanTestBase {
                 "  3:AGGREGATE (merge serialize)\n" +
                 "  |  aggregate: multi_distinct_count[([9: multi_distinct_count, VARBINARY, false]); " +
                 "args: INT; result: BIGINT; " +
-                "args nullable: true; result nullable: false]\n" +
+                "args nullable: false; result nullable: false]\n" +
                 "  |  group by: [4: S_NATIONKEY, INT, false]\n" +
                 "  |  cardinality: 1");
         assertContains(plan, "  6:AGGREGATE (merge finalize)\n" +
                 "  |  aggregate: multi_distinct_count[([9: multi_distinct_count, VARBINARY, false]); " +
                 "args: INT; result: BIGINT; " +
-                "args nullable: true; result nullable: false], count[([10: count, BIGINT, false]); " +
+                "args nullable: false; result nullable: false], count[([10: count, BIGINT, false]); " +
                 "args: INT; result: BIGINT; " +
-                "args nullable: true; result nullable: false]\n" +
+                "args nullable: false; result nullable: false]\n" +
                 "  |  cardinality: 1");
     }
 

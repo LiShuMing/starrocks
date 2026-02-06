@@ -32,10 +32,12 @@ public class ExplainTest extends PlanTestBase {
         assertContains(plan1, "- Output => [1:v1]\n"
                 + "    - AGGREGATE(GLOBAL) [1:v1]\n"
                 + "            Estimates: {row: 1, cpu: ?, memory: ?, network: ?, cost: 27.6}\n"
+                + "            streaming_preaggregation_mode: auto\n"
                 + "        - EXCHANGE(SHUFFLE) [1]\n"
                 + "                Estimates: {row: 1, cpu: ?, memory: ?, network: ?, cost: 7.6}\n"
                 + "            - AGGREGATE(LOCAL) [1:v1]\n"
                 + "                    Estimates: {row: 1, cpu: ?, memory: ?, network: ?, cost: 6.0}\n"
+                + "                    streaming_preaggregation_mode: auto\n"
                 + "                - SCAN [t0] => [1:v1]\n"
                 + "                        Estimates: {row: 1, cpu: ?, memory: ?, network: ?, cost: 4.0}\n"
                 + "                        partitionRatio: 0/1, tabletRatio: 0/0");

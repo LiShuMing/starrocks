@@ -60,6 +60,7 @@ import com.starrocks.sql.optimizer.operator.scalar.ConstantOperator;
 import com.starrocks.sql.optimizer.operator.scalar.ScalarOperator;
 import com.starrocks.sql.optimizer.rule.transformation.SplitTwoPhaseAggRule;
 import com.starrocks.type.ArrayType;
+import com.starrocks.type.BooleanType;
 import com.starrocks.type.DateType;
 import com.starrocks.type.IntegerType;
 import com.starrocks.type.Type;
@@ -77,6 +78,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -2422,5 +2424,79 @@ public class OptimizerTaskTest {
         assertEquals(1, result.getAggregations().values().size());
         assertEquals(OperatorType.CALL, result.getAggregations().get(column2).getOpType());
         assertEquals(4, result.getAggregations().get(column2).getChildren().size());
+    }
+
+    @Test
+    public void testSplitAggregateRuleGlobalCountInputNotNullable(@Mocked OlapTable olapTable1) {
+        ctx.getSessionVariable().setNewPlanerAggStage(2);
+
+        ColumnRefOperator input = columnRefFactory.create("t1", IntegerType.INT, true);
+        ColumnRefOperator output = columnRefFactory.create("cnt", IntegerType.BIGINT, true);
+
+        Map<ColumnRefOperator, Column> scanColumnMap = Maps.newHashMap();
+        scanColumnMap.put(input, new Column("t1", IntegerType.INT, true));
+
+        AggregateFunction fn = AggregateFunction.createBuiltin(FunctionSet.COUNT,
+                Lists.<Type>newArrayList(IntegerType.INT), IntegerType.BIGINT, IntegerType.BIGINT, false, true, false);
+        CallOperator aggFunction = new CallOperator(FunctionSet.COUNT, IntegerType.BIGINT,
+                Lists.newArrayList(input), fn);
+
+        Map<ColumnRefOperator, CallOperator> map = Maps.newHashMap();
+        map.put(output, aggFunction);
+        LogicalAggregationOperator aggregationOperator =
+                new LogicalAggregationOperator(AggType.GLOBAL, Lists.newArrayList(), map);
+
+        OptExpression expression = OptExpression.create(aggregationOperator,
+                OptExpression.create(
+                        new LogicalOlapScanOperator(olapTable1, scanColumnMap, Maps.newHashMap(), null, -1,
+                                null)));
+
+        SplitTwoPhaseAggRule splitTwoPhaseAggRule = SplitTwoPhaseAggRule.getInstance();
+        List<OptExpression> list = splitTwoPhaseAggRule.transform(
+                expression, OptimizerFactory.mockContext(new ColumnRefFactory()));
+
+        LogicalAggregationOperator result = (LogicalAggregationOperator) list.get(0).getOp();
+        CallOperator globalAgg = result.getAggregations().get(output);
+        assertNotNull(globalAgg);
+        ScalarOperator arg0 = globalAgg.getChild(0);
+        assertTrue(arg0 instanceof ColumnRefOperator);
+        assertFalse(((ColumnRefOperator) arg0).isNullable());
+    }
+
+    @Test
+    public void testSplitAggregateRuleGlobalCountIfInputNotNullable(@Mocked OlapTable olapTable1) {
+        ctx.getSessionVariable().setNewPlanerAggStage(2);
+
+        ColumnRefOperator input = columnRefFactory.create("b1", BooleanType.BOOLEAN, true);
+        ColumnRefOperator output = columnRefFactory.create("cnt_if", IntegerType.BIGINT, true);
+
+        Map<ColumnRefOperator, Column> scanColumnMap = Maps.newHashMap();
+        scanColumnMap.put(input, new Column("b1", BooleanType.BOOLEAN, true));
+
+        List<ScalarOperator> arguments = Lists.newArrayList(ConstantOperator.createTinyInt((byte) 1), input);
+        Function fn = ExprUtils.getBuiltinFunction(FunctionSet.COUNT_IF,
+                new Type[] {IntegerType.TINYINT, BooleanType.BOOLEAN}, Function.CompareMode.IS_IDENTICAL);
+        CallOperator aggFunction = new CallOperator(FunctionSet.COUNT_IF, IntegerType.BIGINT, arguments, fn);
+
+        Map<ColumnRefOperator, CallOperator> map = Maps.newHashMap();
+        map.put(output, aggFunction);
+        LogicalAggregationOperator aggregationOperator =
+                new LogicalAggregationOperator(AggType.GLOBAL, Lists.newArrayList(), map);
+
+        OptExpression expression = OptExpression.create(aggregationOperator,
+                OptExpression.create(
+                        new LogicalOlapScanOperator(olapTable1, scanColumnMap, Maps.newHashMap(), null, -1,
+                                null)));
+
+        SplitTwoPhaseAggRule splitTwoPhaseAggRule = SplitTwoPhaseAggRule.getInstance();
+        List<OptExpression> list = splitTwoPhaseAggRule.transform(
+                expression, OptimizerFactory.mockContext(new ColumnRefFactory()));
+
+        LogicalAggregationOperator result = (LogicalAggregationOperator) list.get(0).getOp();
+        CallOperator globalAgg = result.getAggregations().get(output);
+        assertNotNull(globalAgg);
+        ScalarOperator arg0 = globalAgg.getChild(0);
+        assertTrue(arg0 instanceof ColumnRefOperator);
+        assertFalse(((ColumnRefOperator) arg0).isNullable());
     }
 }

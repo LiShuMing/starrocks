@@ -372,6 +372,10 @@ public class FunctionSet {
     public static final String COLUMN_COMPRESSED_SIZE = "column_compressed_size";
     public static final String MANN_WHITNEY_U_TEST = "mann_whitney_u_test";
 
+    public static boolean isCountLikeFunction(String functionName) {
+        return COUNT.equalsIgnoreCase(functionName) || COUNT_IF.equalsIgnoreCase(functionName);
+    }
+
     // Bitmap functions:
     public static final String BITMAP_AND = "bitmap_and";
     public static final String BITMAP_ANDNOT = "bitmap_andnot";

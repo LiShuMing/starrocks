@@ -62,9 +62,13 @@ public abstract class SplitAggregateRule extends TransformationRule {
             Type intermediateType = getIntermediateType(aggregation);
             // For merge agg function, we need to replace the agg input args to the update agg function result
             if (aggType.isGlobal()) {
+                boolean inputNullable = column.isNullable();
+                if (FunctionSet.isCountLikeFunction(aggregation.getFnName())) {
+                    inputNullable = false;
+                }
                 List<ScalarOperator> arguments =
                         Lists.newArrayList(new ColumnRefOperator(column.getId(), intermediateType, column.getName(),
-                                column.isNullable()));
+                                inputNullable));
                 appendConstantColumns(arguments, aggregation);
                 callOperator = new CallOperator(
                         aggregation.getFnName(),

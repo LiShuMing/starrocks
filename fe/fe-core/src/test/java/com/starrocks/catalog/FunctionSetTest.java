@@ -380,4 +380,25 @@ public class FunctionSetTest {
         Assertions.assertEquals(IntegerType.BIGINT, tableFunction.getTableFnReturnTypes().get(0));
         Assertions.assertEquals(VarcharType.VARCHAR, tableFunction.getTableFnReturnTypes().get(1));
     }
+
+    @Test
+    public void testIsCountLikeFunction() {
+        // Test COUNT function
+        Assertions.assertTrue(FunctionSet.isCountLikeFunction("count"));
+        Assertions.assertTrue(FunctionSet.isCountLikeFunction("COUNT"));
+        Assertions.assertTrue(FunctionSet.isCountLikeFunction("Count"));
+
+        // Test COUNT_IF function
+        Assertions.assertTrue(FunctionSet.isCountLikeFunction("count_if"));
+        Assertions.assertTrue(FunctionSet.isCountLikeFunction("COUNT_IF"));
+        Assertions.assertTrue(FunctionSet.isCountLikeFunction("Count_If"));
+
+        // Test non-count functions
+        Assertions.assertFalse(FunctionSet.isCountLikeFunction("sum"));
+        Assertions.assertFalse(FunctionSet.isCountLikeFunction("avg"));
+        Assertions.assertFalse(FunctionSet.isCountLikeFunction("max"));
+        Assertions.assertFalse(FunctionSet.isCountLikeFunction("min"));
+        Assertions.assertFalse(FunctionSet.isCountLikeFunction(""));
+        Assertions.assertFalse(FunctionSet.isCountLikeFunction(null));
+    }
 }

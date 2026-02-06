@@ -265,6 +265,11 @@ public class FunctionCallExpr extends Expr {
 
     public boolean hasNullableChild() {
         if (this.isMergeAggFn) {
+            // For merge count/count_if, use children nullability to avoid marking args nullable
+            // when the intermediate slot is non-nullable.
+            if (FunctionSet.isCountLikeFunction(fnRef.getFunctionName())) {
+                return false;
+            }
             return true;
         }
 

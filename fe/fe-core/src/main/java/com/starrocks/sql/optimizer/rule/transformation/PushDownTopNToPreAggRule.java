@@ -140,7 +140,7 @@ public class PushDownTopNToPreAggRule extends TransformationRule {
 
         LogicalTopNOperator.TopNSortInfo localTopNSortInfo = null;
         int topNPushDownAggMode = context.getSessionVariable().getTopNPushDownAggMode();
-        // disable topn push down when the first topN's cardinality is low enough
+        // only enable cost/statistics bias when mode allows it
         if (topNPushDownAggMode >= 1) {
             localTopNSortInfo = new LogicalTopNOperator.TopNSortInfo(
                     topn.getOrderByElements(), topn.getSortPhase(), topn.getTopNType(),

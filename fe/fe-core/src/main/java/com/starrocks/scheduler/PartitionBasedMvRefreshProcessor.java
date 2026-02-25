@@ -247,14 +247,16 @@ public class PartitionBasedMvRefreshProcessor extends BaseTaskRunProcessor {
                 refreshExternalTable(context, baseTableCandidatePartitions);
             }
 
-            if (!Config.enable_materialized_view_external_table_precise_refresh || retryNum > 1) {
-                try (Timer ignored = Tracers.watchScope("MVRefreshSyncPartitions")) {
-                    // sync partitions between mv and base tables out of lock
-                    // do it outside lock because it is a time-cost operation
-                    if (!syncPartitions(context, false)) {
-                        logger.warn("Sync partitions failed.");
-                        return false;
-                    }
+            // Always sync partitions after refreshExternalTable to ensure snapshotBaseTables
+            // is updated with the latest metadata. This is necessary because refreshExternalTable
+            // may have refreshed the external table's metadata cache, and subsequent operations
+            // like checkMvToRefreshedPartitions depend on consistent snapshotBaseTables.
+            try (Timer ignored = Tracers.watchScope("MVRefreshSyncPartitions")) {
+                // sync partitions between mv and base tables out of lock
+                // do it outside lock because it is a time-cost operation
+                if (!syncPartitions(context, false)) {
+                    logger.warn("Sync partitions failed.");
+                    return false;
                 }
             }
 

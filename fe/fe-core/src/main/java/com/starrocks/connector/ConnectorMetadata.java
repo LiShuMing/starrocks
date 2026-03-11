@@ -218,6 +218,11 @@ public interface ConnectorMetadata {
     }
 
     default void refreshTable(String srDbName, Table table, List<String> partitionNames, boolean onlyCachedPartitions) {
+        refreshTable(srDbName, table, partitionNames, onlyCachedPartitions, false);
+    }
+
+    default void refreshTable(String srDbName, Table table, List<String> partitionNames,
+                              boolean onlyCachedPartitions, boolean force) {
     }
 
     default void createDb(String dbName) throws DdlException, AlreadyExistsException {

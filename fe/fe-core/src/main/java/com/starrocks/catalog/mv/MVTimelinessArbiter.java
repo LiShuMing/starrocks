@@ -279,6 +279,12 @@ public abstract class MVTimelinessArbiter {
         if (partitionInfo.isUnPartitioned()) {
             return null;
         }
+        
+        // Refresh external table metadata before syncing partitions to ensure we have the latest partition info.
+        // This is important for Iceberg tables where partitions can be deleted, and we need to detect this
+        // during MV timeliness check for transparent rewrite.
+        refreshExternalTableMetadata(mv);
+        
         Map<Table, Map<String, PCell>> basePartitionNameToRangeMap = differ.syncBaseTablePartitionInfos();
         if (CollectionUtils.sizeIsEmpty(basePartitionNameToRangeMap)) {
             return null;
@@ -286,6 +292,37 @@ public abstract class MVTimelinessArbiter {
         return basePartitionNameToRangeMap.keySet().stream()
                 .map(baseTable -> Maps.immutableEntry(baseTable, basePartitionNameToRangeMap.get(baseTable)))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+    
+    /**
+     * Refresh external table metadata for all base tables that are not native tables.
+     * This ensures that when checking MV timeliness, we have the latest partition information
+     * from external tables like Iceberg.
+     */
+    private void refreshExternalTableMetadata(MaterializedView mv) {
+        try {
+            for (BaseTableInfo baseTableInfo : mv.getBaseTableInfos()) {
+                Optional<Table> optTable = MvUtils.getTable(baseTableInfo);
+                if (optTable.isEmpty()) {
+                    continue;
+                }
+                Table table = optTable.get();
+                // Skip native tables, views, and connector views - they don't need refresh
+                if (table.isNativeTableOrMaterializedView() || table.isView()
+                        || com.starrocks.sql.analyzer.MaterializedViewAnalyzer.isExternalTableFromResource(table)) {
+                    continue;
+                }
+                // Refresh external table metadata to get the latest partition info
+                com.starrocks.server.GlobalStateMgr.getCurrentState().getMetadataMgr()
+                        .refreshTable(baseTableInfo.getCatalogName(), baseTableInfo.getDbName(), 
+                                table, java.util.Collections.emptyList(), true);
+                logMVPrepare(mv, "Refreshed external table metadata: {}.{}.{}", 
+                        baseTableInfo.getCatalogName(), baseTableInfo.getDbName(), table.getName());
+            }
+        } catch (Exception e) {
+            // Log the error but don't fail - we can still try to get partition info from cache
+            logMVPrepare(mv, "Failed to refresh external table metadata: {}", e.getMessage());
+        }
     }
 
     public PartitionDiff getChangedPartitionDiff(MaterializedView mv,
@@ -327,9 +364,15 @@ public abstract class MVTimelinessArbiter {
             }
         }
         Map<String, PCell> adds = diff.getAdds();
+        Map<String, PCell> deletes = diff.getDeletes();
         MvUpdateInfo mvUpdateInfo = MvUpdateInfo.partialRefresh(mv, TableProperty.QueryRewriteConsistencyMode.LOOSE);
         if (!CollectionUtils.sizeIsEmpty(adds)) {
             adds.keySet().stream().forEach(mvPartitionName ->
+                    mvUpdateInfo.getMvToRefreshPartitionNames().add(mvPartitionName));
+        }
+        // Add deleted partitions to refresh list to ensure they are excluded from transparent rewrite
+        if (!CollectionUtils.sizeIsEmpty(deletes)) {
+            deletes.keySet().stream().forEach(mvPartitionName ->
                     mvUpdateInfo.getMvToRefreshPartitionNames().add(mvPartitionName));
         }
         addEmptyPartitionsToRefresh(mvUpdateInfo);
@@ -393,10 +436,16 @@ public abstract class MVTimelinessArbiter {
             }
         }
         Map<String, PCell> adds = diff.getAdds();
+        Map<String, PCell> deletes = diff.getDeletes();
         MvUpdateInfo mvUpdateInfo = MvUpdateInfo.partialRefresh(mv, TableProperty.QueryRewriteConsistencyMode.FORCE_MV);
         addEmptyPartitionsToRefresh(mvUpdateInfo);
         if (!CollectionUtils.sizeIsEmpty(adds)) {
             adds.keySet().stream().forEach(mvPartitionName ->
+                    mvUpdateInfo.getMvToRefreshPartitionNames().add(mvPartitionName));
+        }
+        // Add deleted partitions to refresh list to ensure they are excluded from transparent rewrite
+        if (!CollectionUtils.sizeIsEmpty(deletes)) {
+            deletes.keySet().stream().forEach(mvPartitionName ->
                     mvUpdateInfo.getMvToRefreshPartitionNames().add(mvPartitionName));
         }
         return mvUpdateInfo;

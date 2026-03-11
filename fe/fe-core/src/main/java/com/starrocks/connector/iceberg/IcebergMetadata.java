@@ -1151,19 +1151,29 @@ public class IcebergMetadata implements ConnectorMetadata {
 
     @Override
     public void refreshTable(String srDbName, Table table, List<String> partitionNames, boolean onlyCachedPartitions) {
+        refreshTable(srDbName, table, partitionNames, onlyCachedPartitions, false);
+    }
+
+    @Override
+    public void refreshTable(String srDbName, Table table, List<String> partitionNames,
+                             boolean onlyCachedPartitions, boolean force) {
         if (isResourceMappingCatalog(catalogName)) {
             refreshTableWithResource(table);
         } else {
             IcebergTable icebergTable = (IcebergTable) table;
             String dbName = icebergTable.getCatalogDBName();
             String tableName = icebergTable.getCatalogTableName();
-            tables.remove(TableIdentifier.of(dbName, tableName));
+            // Use StarRocks db/name for the cache key to match getTable() method
+            tables.remove(TableIdentifier.of(srDbName, table.getName()));
             try {
-                icebergCatalog.refreshTable(dbName, tableName, jobPlanningExecutor);
+                icebergCatalog.refreshTable(dbName, tableName, jobPlanningExecutor, force);
             } catch (Exception e) {
                 LOG.error("Failed to refresh table {}.{}.{}. invalidate cache", catalogName, dbName, tableName, e);
                 icebergCatalog.invalidateCache(dbName, tableName);
             }
+            // Propagate metadata refresh to other FE nodes to prevent FE metadata desync
+            // which can cause inconsistent MV refresh results across the cluster.
+            asyncRefreshOthersFeMetadataCache(dbName, tableName);
         }
     }
 
@@ -1191,6 +1201,9 @@ public class IcebergMetadata implements ConnectorMetadata {
                     nativeTable.name(), ei.getMessage());
         }
 
+        // Propagate metadata refresh to other FE nodes to prevent FE metadata desync
+        // which can cause inconsistent MV refresh results across the cluster.
+        asyncRefreshOthersFeMetadataCache(icebergTable.getCatalogDBName(), icebergTable.getCatalogTableName());
     }
 
     @Override

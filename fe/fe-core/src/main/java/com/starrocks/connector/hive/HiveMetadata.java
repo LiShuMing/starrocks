@@ -18,6 +18,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.starrocks.analysis.TableName;
 import com.starrocks.catalog.Column;
 import com.starrocks.catalog.Database;
 import com.starrocks.catalog.HiveTable;
@@ -67,6 +68,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -351,11 +353,29 @@ public class HiveMetadata implements ConnectorMetadata {
 
     @Override
     public void refreshTable(String srDbName, Table table, List<String> partitionNames, boolean onlyCachedPartitions) {
+        refreshTable(srDbName, table, partitionNames, onlyCachedPartitions, false);
+    }
+
+    @Override
+    public void refreshTable(String srDbName, Table table, List<String> partitionNames,
+                             boolean onlyCachedPartitions, boolean force) {
         if (partitionNames != null && partitionNames.size() > 0) {
             cacheUpdateProcessor.ifPresent(processor -> processor.refreshPartition(table, partitionNames));
         } else {
             cacheUpdateProcessor.ifPresent(processor -> processor.refreshTable(srDbName, table, onlyCachedPartitions));
         }
+        // Propagate metadata refresh to other FE nodes to prevent FE metadata desync
+        // which can cause inconsistent MV refresh results across the cluster.
+        refreshOthersFeExecutor.execute(() -> {
+            LOG.info("Start to refresh others fe hive metadata cache on {}.{}.{}", catalogName, srDbName, table.getName());
+            try {
+                GlobalStateMgr.getCurrentState().refreshOthersFeTable(
+                        new TableName(catalogName, srDbName, table.getName()), new ArrayList<>(), false);
+            } catch (DdlException e) {
+                LOG.error("Failed to refresh others fe hive metadata cache {}.{}.{}", catalogName, srDbName, table.getName(), e);
+            }
+            LOG.info("Finish to refresh others fe hive metadata cache on {}.{}.{}", catalogName, srDbName, table.getName());
+        });
     }
 
     @Override

@@ -840,8 +840,14 @@ public class MetadataMgr {
 
     public void refreshTable(String catalogName, String srDbName, Table table,
                              List<String> partitionNames, boolean onlyCachedPartitions) {
+        refreshTable(catalogName, srDbName, table, partitionNames, onlyCachedPartitions, false);
+    }
+
+    public void refreshTable(String catalogName, String srDbName, Table table,
+                             List<String> partitionNames, boolean onlyCachedPartitions, boolean force) {
         Optional<ConnectorMetadata> connectorMetadata = getOptionalMetadata(catalogName);
-        connectorMetadata.ifPresent(metadata -> metadata.refreshTable(srDbName, table, partitionNames, onlyCachedPartitions));
+        connectorMetadata.ifPresent(metadata -> metadata.refreshTable(srDbName, table, partitionNames,
+                                                                      onlyCachedPartitions, force));
     }
 
     public void finishSink(String catalogName, String dbName, String tableName,

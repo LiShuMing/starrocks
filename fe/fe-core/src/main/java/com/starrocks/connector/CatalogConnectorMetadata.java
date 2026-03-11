@@ -220,6 +220,12 @@ public class CatalogConnectorMetadata implements ConnectorMetadata {
     }
 
     @Override
+    public void refreshTable(String srDbName, Table table, List<String> partitionNames,
+                            boolean onlyCachedPartitions, boolean force) {
+        normal.refreshTable(srDbName, table, partitionNames, onlyCachedPartitions, force);
+    }
+
+    @Override
     public void createDb(String dbName) throws DdlException, AlreadyExistsException {
         normal.createDb(dbName);
     }

@@ -417,7 +417,8 @@ public interface IcebergCatalog extends MemoryTrackable {
             // Fallback to current snapshot's timestamp if last_updated_at is null due to snapshot expiration.
             lastUpdated = getTableLatestSnapshotTime(icebergTable, logger);
             logger.warn("The table [{}] last_updated_at is null (snapshot [{}] may have been expired), " +
-                    "using current snapshot timestamp: {}", nativeTable.name(), snapshotId, lastUpdated);
+                    "using current snapshot timestamp: {}, partition: {}", nativeTable.name(), snapshotId, 
+                        lastUpdated, partitionName);
         }
         return lastUpdated;
     }
@@ -441,6 +442,9 @@ public interface IcebergCatalog extends MemoryTrackable {
             if (updateSnapshot != null) {
                 return updateSnapshot.sequenceNumber();
             }
+            logger.warn("The snapshot [{}] may already be expired from table {}, using snapshot id as version, partition: {}", 
+                    lastUpdatedSnapshotId, nativeTable.name(), partitionName);
+
             // The snapshot may already be expired from table metadata. Keep using the snapshot id as an opaque
             // version token so refresh detection still observes snapshot changes even if the wall-clock timestamp
             // is null or non-monotonic.
